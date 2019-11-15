@@ -67,10 +67,10 @@ for(i in 1:n_post_draws){
   y_cholla_sim[i,] <- rnorm(n=cholla_dat$cholla_N, mean = cholla_pred$cholla_pred[i,],sd = cholla_pred$cholla_sd[i,])
 }
 ppc_dens_overlay(cholla_dat$cholla_delta_size, y_cholla_sim)
-ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="mean")
-ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="sd")
-ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="skewness")
-ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="kurtosis")
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="mean")+theme(legend.position = "none")
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="sd")+theme(legend.position = "none")
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="skewness")+theme(legend.position = "none")
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="kurtosis")+theme(legend.position = "none")
 
 
 # Orchis ------------------------------------------------------------------
@@ -109,10 +109,10 @@ for(i in 1:n_post_draws){
   y_orchid_sim[i,] <- rnorm(n=orchid_dat$N, mean = orchid_pred$pred[i,],sd = orchid_pred$std[i,])
 }
 ppc_dens_overlay(orchid_dat$y, y_orchid_sim)
-ppc_stat(orchid_dat$y, y_orchid_sim,stat="mean")
-ppc_stat(orchid_dat$y, y_orchid_sim,stat="sd")
-ppc_stat(orchid_dat$y, y_orchid_sim,stat="skewness")
-ppc_stat(orchid_dat$y, y_orchid_sim,stat="kurtosis")
+ppc_stat(orchid_dat$y, y_orchid_sim,stat="mean")+theme(legend.position = "none")
+ppc_stat(orchid_dat$y, y_orchid_sim,stat="sd")+theme(legend.position = "none")
+ppc_stat(orchid_dat$y, y_orchid_sim,stat="skewness")+theme(legend.position = "none")
+ppc_stat(orchid_dat$y, y_orchid_sim,stat="kurtosis")+theme(legend.position = "none")
 
 
 # Creosote ----------------------------------------------------------------
@@ -153,7 +153,7 @@ for(i in 1:n_post_draws){
   y_creosote_sim[i,] <- rnorm(n=creosote_dat$N, mean = creosote_pred$pred[i,],sd = creosote_pred$std[i,])
 }
 ppc_dens_overlay(creosote_dat$y, y_creosote_sim)
-ppc_stat(creosote_dat$y, y_creosote_sim,stat="mean")
-ppc_stat(creosote_dat$y, y_creosote_sim,stat="sd")
-ppc_stat(creosote_dat$y, y_creosote_sim,stat="skewness")
-ppc_stat(creosote_dat$y, y_creosote_sim,stat="kurtosis")
+ppc_stat(creosote_dat$y, y_creosote_sim,stat="mean")+theme(legend.position = "none")
+ppc_stat(creosote_dat$y, y_creosote_sim,stat="sd")+theme(legend.position = "none")
+ppc_stat(creosote_dat$y, y_creosote_sim,stat="skewness")+theme(legend.position = "none")
+ppc_stat(creosote_dat$y, y_creosote_sim,stat="kurtosis")+theme(legend.position = "none")
