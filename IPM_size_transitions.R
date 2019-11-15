@@ -19,10 +19,11 @@ dir <- "C:/Users/tm9/"
 cholla <- read.csv(paste0(dir,"Dropbox/IPM size transitions/cholla_demography_20042018.csv")) %>% 
 ## drop seed addition plots (don't want them in plot RFX)
 ## change plots and years to 1,...,N integers
-  select(Plot,Year_t,Height_t,Width_t,Perp_t,Height_t1,Width_t1,Perp_t1) %>% 
+  select(TagID,Plot,Year_t,Height_t,Width_t,Perp_t,Height_t1,Width_t1,Perp_t1) %>% 
   filter(str_sub(Plot,1,1)!="H") %>% 
   mutate(year_int = Year_t - (min(Year_t,na.rm = T)-1),
          plot_int = ifelse(Plot=="T1",9,ifelse(Plot=="T2",10,ifelse(Plot=="T3",11,as.integer(Plot)))),
+         ind_int = as.integer(as.numeric(interaction(plot_int,TagID))),
          vol_t = log(volume(h = Height_t, w = Width_t, p = Perp_t)),
          vol_t1 = log(volume(h = Height_t1, w = Width_t1, p = Perp_t1))) %>% 
   filter(!is.na(vol_t),
@@ -71,6 +72,36 @@ ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="mean")+theme(legend.po
 ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="sd")+theme(legend.position = "none")
 ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="skewness")+theme(legend.position = "none")
 ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="kurtosis")+theme(legend.position = "none")
+
+## what if I added an individual random effect?
+## prep model for Stan
+cholla_ind_dat <- list(cholla_N = nrow(cholla),
+                   cholla_sizet = cholla$vol_t,
+                   cholla_delta_size = (cholla$vol_t1 - cholla$vol_t),
+                   cholla_Nplots = max(cholla$plot_int),
+                   cholla_Nyears = max(cholla$year_int),
+                   cholla_Nind = max(cholla$ind_int),
+                   cholla_plot = cholla$plot_int,
+                   cholla_year = cholla$year_int,
+                   cholla_ind = cholla$ind_int)
+cholla_ind_fit <- stan(
+  file = 'cholla_growth_individual.stan',
+  data = cholla_ind_dat,
+  warmup = sim_pars$warmup,
+  iter = sim_pars$iter,
+  thin = sim_pars$thin,
+  chains = sim_pars$chains )
+
+cholla_ind_pred <- rstan::extract(cholla_ind_fit, pars = c("cholla_pred","cholla_sd"))
+y_cholla_ind_sim <- matrix(NA,n_post_draws,cholla_ind_dat$cholla_N)
+for(i in 1:n_post_draws){
+  y_cholla_ind_sim[i,] <- rnorm(n=cholla_ind_dat$cholla_N, mean = cholla_ind_pred$cholla_pred[i,],sd = cholla_ind_pred$cholla_sd[i,])
+}
+ppc_dens_overlay(cholla_ind_dat$cholla_delta_size, y_cholla_ind_sim)
+ppc_stat(cholla_ind_dat$cholla_delta_size, y_cholla_ind_sim,stat="mean")+theme(legend.position = "none")
+ppc_stat(cholla_ind_dat$cholla_delta_size, y_cholla_ind_sim,stat="sd")+theme(legend.position = "none")
+ppc_stat(cholla_ind_dat$cholla_delta_size, y_cholla_ind_sim,stat="skewness")+theme(legend.position = "none")
+ppc_stat(cholla_ind_dat$cholla_delta_size, y_cholla_ind_sim,stat="kurtosis")+theme(legend.position = "none")
 
 
 # Orchis ------------------------------------------------------------------
