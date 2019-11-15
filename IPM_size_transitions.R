@@ -1,5 +1,7 @@
 library(tidyverse)
 library(rstan)
+rstan_options( auto_write = TRUE )
+options( mc.cores = parallel::detectCores() )
 library(bayesplot)
 library(moments)
 
@@ -49,6 +51,8 @@ cholla_fit <- stan(
   iter = sim_pars$iter,
   thin = sim_pars$thin,
   chains = sim_pars$chains )
+#write_rds(cholla_fit,paste0(dir,"Dropbox/IPM size transitions/cholla_fit.rds"))
+cholla_fit <- read_rds(paste0(dir,"Dropbox/IPM size transitions/cholla_fit.rds"))
 
 # Posterior predictive checks ---------------------------------------------
 ## need to generate simulated data, doing this in Stan gave me errors (problems with log_neg_binom_2_rng)
@@ -95,6 +99,8 @@ orchid_fit <- stan(
   iter = sim_pars$iter,
   thin = sim_pars$thin,
   chains = sim_pars$chains )
+#write_rds(orchid_fit,paste0(dir,"Dropbox/IPM size transitions/orchid_fit.rds"))
+orchid_fit <- read_rds(paste0(dir,"Dropbox/IPM size transitions/orchid_fit.rds"))
 
 orchid_pred <- rstan::extract(orchid_fit, pars = c("pred","std"))
 
@@ -110,5 +116,44 @@ ppc_stat(orchid_dat$y, y_orchid_sim,stat="kurtosis")
 
 
 # Creosote ----------------------------------------------------------------
-creosote <- read.csv(paste0(dir,"Dropbox/IPM size transitions/creosote_dat.csv"))
+creosote <- read.csv(paste0(dir,"Dropbox/IPM size transitions/creosote_dat.csv")) %>% 
+  mutate(year_int = year_t - (min(year_t,na.rm = T)-1),
+         site_int = as.integer(as.numeric(site)),
+         unique_transect = as.integer(as.numeric(interaction(site,transect)))) %>% 
+  filter(!is.na(volume_t),
+         !is.na(volume_t1),
+         !is.na(weighted.dens))   
 
+creosote_dat <- list(N = nrow(creosote),
+                   y = (creosote$volume_t1 - creosote$volume_t),
+                   sizet = creosote$volume_t,
+                   density = (creosote$weighted.dens - mean(creosote$weighted.dens)),
+                   Nsites = max(creosote$site_int),
+                   site = creosote$site_int,
+                   Ntransects = max(creosote$unique_transect),
+                   transect = creosote$unique_transect,
+                   Nyears = max(creosote$year_int),
+                   year = creosote$year_int)
+
+creosote_fit <- stan(
+  file = 'creosote_growth_rfx.stan',
+  data = creosote_dat,
+  warmup = sim_pars$warmup,
+  iter = sim_pars$iter,
+  thin = sim_pars$thin,
+  chains = sim_pars$chains )
+
+#write_rds(creosote_fit,paste0(dir,"Dropbox/IPM size transitions/creosote_fit.rds"))
+creosote_fit <- read_rds(paste0(dir,"Dropbox/IPM size transitions/creosote_fit.rds"))
+
+creosote_pred <- rstan::extract(creosote_fit, pars = c("pred","std"))
+
+y_creosote_sim <- matrix(NA,n_post_draws,creosote_dat$N)
+for(i in 1:n_post_draws){
+  y_creosote_sim[i,] <- rnorm(n=creosote_dat$N, mean = creosote_pred$pred[i,],sd = creosote_pred$std[i,])
+}
+ppc_dens_overlay(creosote_dat$y, y_creosote_sim)
+ppc_stat(creosote_dat$y, y_creosote_sim,stat="mean")
+ppc_stat(creosote_dat$y, y_creosote_sim,stat="sd")
+ppc_stat(creosote_dat$y, y_creosote_sim,stat="skewness")
+ppc_stat(creosote_dat$y, y_creosote_sim,stat="kurtosis")
