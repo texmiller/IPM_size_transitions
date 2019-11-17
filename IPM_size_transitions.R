@@ -29,6 +29,8 @@ cholla <- read.csv(paste0(dir,"Dropbox/IPM size transitions/cholla_demography_20
   filter(!is.na(vol_t),
          !is.na(vol_t1))
 
+plot((cholla$vol_t),(cholla$vol_t1))
+
 ## prep model for Stan
 cholla_dat <- list(cholla_N = nrow(cholla),
                    cholla_sizet = cholla$vol_t,
@@ -59,6 +61,14 @@ cholla_fit <- read_rds(paste0(dir,"Dropbox/IPM size transitions/cholla_fit.rds")
 ## need to generate simulated data, doing this in Stan gave me errors (problems with log_neg_binom_2_rng)
 cholla_pred <- rstan::extract(cholla_fit, pars = c("cholla_pred","cholla_sd","b_0","b_size","d_0","d_size"))
 
+plot(cholla_dat$cholla_sizet,1 + cholla_dat$cholla_sizet*0,ylim=c(0,5),type="n")
+for(i in 1:n_post_draws){
+lines(cholla_dat$cholla_sizet , cholla_pred$d_0[i] + cholla_pred$d_size[i] * cholla_dat$cholla_sizet)
+  }
+
+plot(cholla_dat$cholla_sizet, cholla_pred$cholla_sd[100,])
+
+plot(exp(cholla_dat$cholla_sizet),exp(cholla_dat$cholla_sizet1))
 mcmc_dens_overlay(cholla_fit,par=c("b_0","b_size","d_0","d_size"))
 
 n_post_draws <- 500
@@ -72,6 +82,17 @@ ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="mean")+theme(legend.po
 ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="sd")+theme(legend.position = "none")
 ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="skewness")+theme(legend.position = "none")
 ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="kurtosis")+theme(legend.position = "none")
+
+
+
+for(i in 1:n_post_draws){
+  steve <- ((cholla_dat$cholla_delta_size - cholla_pred$cholla_pred[i,]) / cholla_pred$cholla_sd[i,])
+  #steve <- steve / sd(steve)
+  y_cholla_sim[i,] <- cholla_pred$cholla_pred[i,] + cholla_pred$cholla_sd[i,] * sample(steve,replace = T)#rnorm(n=cholla_dat$cholla_N, mean = cholla_pred$cholla_pred[i,],sd = cholla_pred$cholla_sd[i,])
+}
+ppc_dens_overlay(cholla_dat$cholla_delta_size, y_cholla_sim)
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="skewness")+theme(legend.position = "none")
+
 
 ## what if I added an individual random effect?
 ## prep model for Stan
@@ -115,6 +136,9 @@ orchid <- read.csv(paste0(dir,"Dropbox/IPM size transitions/Orchis_IPM_data.csv"
   filter(!is.na(size_t),
          !is.na(size_t1))  
   
+
+plot(log(orchid$total.leaf.area),log(orchid$end.total.leaf.area))
+
 orchid_dat <- list(N = nrow(orchid),
                    y = (orchid$size_t1 - orchid$size_t),
                    sizet = orchid$size_t,
@@ -144,6 +168,15 @@ ppc_stat(orchid_dat$y, y_orchid_sim,stat="mean")+theme(legend.position = "none")
 ppc_stat(orchid_dat$y, y_orchid_sim,stat="sd")+theme(legend.position = "none")
 ppc_stat(orchid_dat$y, y_orchid_sim,stat="skewness")+theme(legend.position = "none")
 ppc_stat(orchid_dat$y, y_orchid_sim,stat="kurtosis")+theme(legend.position = "none")
+
+
+for(i in 1:n_post_draws){
+  steve <- ((orchid_dat$delta_size - orchid_pred$pred[i,]) / orchid_pred$std[i,])
+  #steve <- steve / sd(steve)
+  y_orchid_sim[i,] <- orchid_pred$pred[i,] + orchid_pred$std[i,] * sample(steve,replace = T)#rnorm(n=cholla_dat$cholla_N, mean = cholla_pred$cholla_pred[i,],sd = cholla_pred$cholla_sd[i,])
+}
+ppc_dens_overlay(cholla_dat$cholla_delta_size, y_cholla_sim)
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="skewness")+theme(legend.position = "none")
 
 
 # Creosote ----------------------------------------------------------------
