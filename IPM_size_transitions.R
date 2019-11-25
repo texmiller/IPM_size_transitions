@@ -24,17 +24,29 @@ cholla <- read.csv(paste0(dir,"Dropbox/IPM size transitions/cholla_demography_20
   mutate(year_int = Year_t - (min(Year_t,na.rm = T)-1),
          plot_int = ifelse(Plot=="T1",9,ifelse(Plot=="T2",10,ifelse(Plot=="T3",11,as.integer(Plot)))),
          ind_int = as.integer(as.numeric(interaction(plot_int,TagID))),
-         vol_t = log(volume(h = Height_t, w = Width_t, p = Perp_t)),
-         vol_t1 = log(volume(h = Height_t1, w = Width_t1, p = Perp_t1))) %>% 
+         vol_t = volume(h = Height_t, w = Width_t, p = Perp_t),
+         vol_t1 = volume(h = Height_t1, w = Width_t1, p = Perp_t1)) %>% 
   filter(!is.na(vol_t),
-         !is.na(vol_t1))
+         !is.na(vol_t1)) %>% 
+  mutate(size_change = vol_t1 - vol_t)
 
 plot((cholla$vol_t),(cholla$vol_t1))
 
+## find outliers
+(high_grow <- cholla %>% filter(size_change > quantile(size_change,probs=c(0.99))))
+drop_high <- high_grow[c(22,25),]## these two stand out by an order of magnitude and are clearly wrong
+(low_grow <- cholla %>% filter(size_change < quantile(size_change,probs=c(0.01))))
+drop_low <- low_grow[c(8,9,22,27,31,36),]## these three are errors
+drop <- bind_rows(drop_high,drop_low)
+
+cholla <- anti_join(cholla, drop)
+plot((cholla$vol_t),(cholla$vol_t1))
+plot(log(cholla$vol_t),log(cholla$vol_t1))
+
 ## prep model for Stan
 cholla_dat <- list(cholla_N = nrow(cholla),
-                   cholla_sizet = cholla$vol_t,
-                   cholla_delta_size = (cholla$vol_t1 - cholla$vol_t),
+                   cholla_sizet = log(cholla$vol_t),
+                   cholla_delta_size = log(cholla$vol_t1) - log(cholla$vol_t),
                    cholla_Nplots = max(cholla$plot_int),
                    cholla_Nyears = max(cholla$year_int),
                    cholla_plot = cholla$plot_int,
@@ -221,3 +233,115 @@ ppc_stat(creosote_dat$y, y_creosote_sim,stat="mean")+theme(legend.position = "no
 ppc_stat(creosote_dat$y, y_creosote_sim,stat="sd")+theme(legend.position = "none")
 ppc_stat(creosote_dat$y, y_creosote_sim,stat="skewness")+theme(legend.position = "none")
 ppc_stat(creosote_dat$y, y_creosote_sim,stat="kurtosis")+theme(legend.position = "none")
+
+
+# ML model selection ------------------------------------------------------
+library(sn)
+library(sgt)
+
+## normal
+cholla_normal <- function(params,log_ratio){
+ -sum(dnorm(x=log_ratio,mean=params[1],sd=params[2],log=T))
+}
+MLE_cholla_normal <- optim(par=c(0,1),fn=cholla_normal,log_ratio=log(cholla$vol_t1/cholla$vol_t))
+AIC_cholla_normal <- 2*MLE_cholla_normal $value+2*length(MLE_cholla_normal$par)
+
+## skewed normal
+cholla_sn <- function(params,log_ratio){
+  -sum(dsn(x=log_ratio,xi=params[1],omega=params[2],alpha=params[3],log=T))
+}
+MLE_cholla_sn <- optim(par=c(0,1,0),fn=cholla_sn,log_ratio=log(cholla$vol_t1/cholla$vol_t))
+AIC_cholla_sn <- 2*MLE_cholla_sn $value+2*length(MLE_cholla_sn$par)
+
+## skewed t
+cholla_st <- function(params,log_ratio){
+  -sum(dst(x=log_ratio,xi=params[1],omega=params[2],alpha=params[3],nu=params[4],log=T))
+}
+MLE_cholla_st <- optim(par=c(0,1,0,100),fn=cholla_st,log_ratio=log(cholla$vol_t1/cholla$vol_t))
+AIC_cholla_st <- 2*MLE_cholla_st $value+2*length(MLE_cholla_st$par)
+
+## skewed generalized t
+cholla_sgt <- function(params,log_ratio){
+  -sum(dsgt(x=log_ratio, mu=params[1], sigma=params[2],
+            lambda=params[3], p = params[4], q = params[5], 
+            mean.cent = TRUE, var.adj = TRUE, log=T))
+}
+MLE_cholla_sgt <- optim(par=c(0,1,0,2,100),fn=cholla_sgt,log_ratio=log(cholla$vol_t1/cholla$vol_t))
+AIC_cholla_sgt <- 2*MLE_cholla_sgt $value+2*length(MLE_cholla_sgt$par)
+
+AIC_cholla_normal
+AIC_cholla_sn
+AIC_cholla_st
+AIC_cholla_sgt
+
+
+# Stan SGT ----------------------------------------------------------------
+cholla_dat <- list(cholla_N = nrow(cholla),
+                   #cholla_sizet = log(cholla$vol_t),
+                   cholla_delta_size = log(cholla$vol_t1) - log(cholla$vol_t)
+                   #cholla_Nplots = max(cholla$plot_int),
+                   #cholla_Nyears = max(cholla$year_int),
+                   #cholla_plot = cholla$plot_int,
+                   #cholla_year = cholla$year_int
+                   )
+
+sim_pars <- list(
+  warmup = 1000, 
+  iter = 5000, 
+  thin = 3, 
+  chains = 2
+)
+
+cholla_fit <- stan(
+  file = 'skewgent_cholla.stan',
+  data = cholla_dat,
+  warmup = sim_pars$warmup,
+  iter = sim_pars$iter,
+  thin = sim_pars$thin,
+  chains = sim_pars$chains )
+
+mcmc_dens_overlay(cholla_fit,par=c("mu", "sigma", "l", "p", "q"))
+
+cholla_pred <- rstan::extract(cholla_fit, pars = c("mu", "sigma", "l", "p", "q"))
+n_post_draws <- 500
+post_draws <- sample.int(dim(cholla_pred$mu)[1], n_post_draws)
+y_cholla_sim <- matrix(NA,n_post_draws,cholla_dat$cholla_N)
+for(i in 1:n_post_draws){
+  #y_cholla_sim[i,] <- rnorm(n=cholla_dat$cholla_N, mean = cholla_pred$cholla_pred[i,],sd = cholla_pred$cholla_sd[i,])
+  y_cholla_sim[i,] <- rsgt(n=cholla_dat$cholla_N, 
+                           mu = cholla_pred$mu[post_draws[i]],
+                           sigma = cholla_pred$sigma[post_draws[i]],
+                           lambda = cholla_pred$l[post_draws[i]],
+                           p = cholla_pred$p[post_draws[i]],
+                           q = cholla_pred$q[post_draws[i]])
+}
+ppc_dens_overlay(cholla_dat$cholla_delta_size, y_cholla_sim)+xlim(-10, 10)
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="mean")+theme(legend.position = "none")
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="sd")+theme(legend.position = "none")
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="skewness")+theme(legend.position = "none")
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="kurtosis")+theme(legend.position = "none")
+
+## add linear predictor with random effects
+cholla_dat <- list(cholla_N = nrow(cholla),
+                   cholla_sizet = log(cholla$vol_t),
+                   cholla_delta_size = log(cholla$vol_t1) - log(cholla$vol_t),
+                   cholla_Nplots = max(cholla$plot_int),
+                   cholla_Nyears = max(cholla$year_int),
+                   cholla_plot = cholla$plot_int,
+                   cholla_year = cholla$year_int
+)
+
+sim_pars <- list(
+  warmup = 2000, 
+  iter = 10000, 
+  thin = 3, 
+  chains = 3
+)
+
+cholla_sgt_fit <- stan(
+  file = 'skewgent_linpred_cholla.stan',
+  data = cholla_dat,
+  warmup = sim_pars$warmup,
+  iter = sim_pars$iter,
+  thin = sim_pars$thin,
+  chains = sim_pars$chains )
