@@ -345,3 +345,22 @@ cholla_sgt_fit <- stan(
   iter = sim_pars$iter,
   thin = sim_pars$thin,
   chains = sim_pars$chains )
+
+cholla_pred <- rstan::extract(cholla_fit, pars = c("mu", "sigma", "l", "p", "q"))
+n_post_draws <- 500
+post_draws <- sample.int(dim(cholla_pred$mu)[1], n_post_draws)
+y_cholla_sim <- matrix(NA,n_post_draws,cholla_dat$cholla_N)
+for(i in 1:n_post_draws){
+  #y_cholla_sim[i,] <- rnorm(n=cholla_dat$cholla_N, mean = cholla_pred$cholla_pred[i,],sd = cholla_pred$cholla_sd[i,])
+  y_cholla_sim[i,] <- rsgt(n=cholla_dat$cholla_N, 
+                           mu = cholla_pred$mu[post_draws[i]],
+                           sigma = cholla_pred$sigma[post_draws[i]],
+                           lambda = cholla_pred$l[post_draws[i]],
+                           p = cholla_pred$p[post_draws[i]],
+                           q = cholla_pred$q[post_draws[i]])
+}
+ppc_dens_overlay(cholla_dat$cholla_delta_size, y_cholla_sim)+xlim(-10, 10)
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="mean")+theme(legend.position = "none")
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="sd")+theme(legend.position = "none")
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="skewness")+theme(legend.position = "none")
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="kurtosis")+theme(legend.position = "none")
