@@ -37,30 +37,31 @@ data {
 }
 parameters {
   //real mu; 
-  //real<lower=0> sigma; 
+  real<lower=0> sigma; 
   real b_0;
   real b_size;
   real<lower=0> sigma_plot;
   real<lower=0> sigma_year;
   real plot_rfx[cholla_Nplots];
   real year_rfx[cholla_Nyears];
-  real d_0;
-  real d_size;
+  //real d_0;
+  //real d_size;
   real<lower=-0.99,upper=0.99> l; 
   real<lower=0.1> p; 
   real<lower=2/p> q; 
 }
 transformed parameters{
   real cholla_pred[cholla_N];
-  real<lower=0> cholla_sd[cholla_N];
+  //real<lower=0> cholla_sd[cholla_N];
   for(i in 1:cholla_N){
     cholla_pred[i] = b_0 + b_size * cholla_sizet[i] + plot_rfx[cholla_plot[i]] + year_rfx[cholla_year[i]];
-    cholla_sd[i] = exp(d_0 + d_size * cholla_sizet[i]);
+    //cholla_sd[i] = exp(d_0 + d_size * cholla_sizet[i]);
   }
 }
 model {
   b_0 ~ normal(0, 100);    
-  b_size ~ normal(0, 100);    
+  b_size ~ normal(0, 100);  
+  sigma ~ inv_gamma(0.001, 0.001);
   sigma_plot ~ inv_gamma(0.001, 0.001);
   for(i in 1:cholla_Nplots){
     plot_rfx[i]~normal(0,sigma_plot);
@@ -75,6 +76,6 @@ model {
   q ~ inv_gamma(0.001, 0.001);
   
   for(i in 1:cholla_N){
-  cholla_delta_size[i] ~ sgt(cholla_pred[i], cholla_sd[i], l, p, q);
+  cholla_delta_size[i] ~ sgt(cholla_pred[i], sigma, l, p, q);
   }
 }
