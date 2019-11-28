@@ -141,8 +141,8 @@ ppc_stat(cholla_ind_dat$cholla_delta_size, y_cholla_ind_sim,stat="kurtosis")+the
 ## read in cholla data
 orchid <- read.csv(paste0(dir,"Dropbox/IPM size transitions/Orchis_IPM_data.csv")) %>% 
   select(light,begin.year,total.leaf.area,flowering,end.total.leaf.area) %>% 
-  mutate(size_t = log(total.leaf.area),
-         size_t1 = log(end.total.leaf.area),
+  mutate(size_t = (total.leaf.area),
+         size_t1 = (end.total.leaf.area),
          year_int = begin.year - (min(begin.year,na.rm = T)-1),
          light = as.integer(ifelse(light=="L"|light=="#L",1,0))) %>% 
   filter(!is.na(size_t),
@@ -276,31 +276,106 @@ AIC_cholla_sgt
 
 
 # Stan SGT ----------------------------------------------------------------
-cholla_dat <- list(cholla_N = nrow(cholla),
-                   #cholla_sizet = log(cholla$vol_t),
-                   cholla_delta_size = log(cholla$vol_t1) - log(cholla$vol_t)
-                   #cholla_Nplots = max(cholla$plot_int),
-                   #cholla_Nyears = max(cholla$year_int),
-                   #cholla_plot = cholla$plot_int,
-                   #cholla_year = cholla$year_int
-                   )
-
+## run and write all of the following over a few days
 sim_pars <- list(
   warmup = 1000, 
-  iter = 5000, 
+  iter = 10000, 
   thin = 3, 
-  chains = 2
-)
+  chains = 3)
 
-cholla_fit_MoM <- stan(
-  file = 'skewgent_cholla.stan',
+## cholla MoM and linear predictor fits
+cholla_dat_MoM <- list(N = nrow(cholla),
+                   delta_size = log(cholla$vol_t1) - log(cholla$vol_t))
+cholla_sgt_MoM <- stan(
+  file = 'skewgent_MoM.stan',
+  data = cholla_dat_MoM,
+  warmup = sim_pars$warmup,
+  iter = sim_pars$iter,
+  thin = sim_pars$thin,
+  chains = sim_pars$chains )
+write_rds(cholla_sgt_MoM,paste0(dir,"Dropbox/IPM size transitions/cholla_sgt_MoM.rds"))
+
+## add linear predictor with random effects
+cholla_dat <- list(cholla_N = nrow(cholla),
+                   cholla_sizet = log(cholla$vol_t),
+                   cholla_delta_size = log(cholla$vol_t1) - log(cholla$vol_t),
+                   cholla_Nplots = max(cholla$plot_int),
+                   cholla_Nyears = max(cholla$year_int),
+                   cholla_plot = cholla$plot_int,
+                   cholla_year = cholla$year_int)
+
+cholla_sgt_linpred <- stan(
+  file = 'skewgent_linpred_cholla.stan',
   data = cholla_dat,
   warmup = sim_pars$warmup,
   iter = sim_pars$iter,
   thin = sim_pars$thin,
   chains = sim_pars$chains )
-write_rds(cholla_fit_MoM,paste0(dir,"Dropbox/IPM size transitions/cholla_sgt_MoM.rds"))
-#cholla_sgt_fit <- read_rds(paste0(dir,"Dropbox/IPM size transitions/cholla_sgt_fit.rds"))
+write_rds(cholla_sgt_linpred,paste0(dir,"Dropbox/IPM size transitions/cholla_sgt_linpred.rds"))
+
+## orchids MoM and linear predictor fits
+orchid_dat_MoM <- list(N = nrow(orchid),
+                       delta_size = log(orchid$size_t1) - log(orchid$size_t))
+orchid_sgt_MoM <- stan(
+  file = 'skewgent_MoM.stan',
+  data = orchid_dat_MoM,
+  warmup = sim_pars$warmup,
+  iter = sim_pars$iter,
+  thin = sim_pars$thin,
+  chains = sim_pars$chains )
+write_rds(orchid_sgt_MoM,paste0(dir,"Dropbox/IPM size transitions/orchid_sgt_MoM.rds"))
+
+orchid_dat <- list(N = nrow(orchid),
+                   delta_size = log(orchid$size_t1) - log(orchid$size_t),
+                   sizet = log(orchid$size_t),
+                   flower = orchid$flowering,
+                   light = orchid$light,
+                   Nyears = max(orchid$year_int),
+                   year = orchid$year_int)
+orchid_sgt_linpred <- stan(
+  file = 'skewgent_linpred_orchid.stan',
+  data = orchid_dat,
+  warmup = sim_pars$warmup,
+  iter = sim_pars$iter,
+  thin = sim_pars$thin,
+  chains = sim_pars$chains )
+write_rds(orchid_sgt_linpred,paste0(dir,"Dropbox/IPM size transitions/orchid_sgt_linpred.rds"))
+
+## creosote
+creosote_dat_MoM <- list(N = nrow(creosote),
+                         delta_size = creosote$volume_t1 - creosote$volume_t)
+creosote_sgt_MoM <- stan(
+  file = 'skewgent_MoM.stan',
+  data = creosote_dat_MoM,
+  warmup = sim_pars$warmup,
+  iter = sim_pars$iter,
+  thin = sim_pars$thin,
+  chains = sim_pars$chains )
+write_rds(creosote_sgt_MoM,paste0(dir,"Dropbox/IPM size transitions/creosote_sgt_MoM.rds"))
+
+creosote_dat <- list(N = nrow(creosote),
+                     y = (creosote$volume_t1 - creosote$volume_t),
+                     sizet = creosote$volume_t,
+                     density = (creosote$weighted.dens - mean(creosote$weighted.dens)),
+                     Nsites = max(creosote$site_int),
+                     site = creosote$site_int,
+                     Ntransects = max(creosote$unique_transect),
+                     transect = creosote$unique_transect,
+                     Nyears = max(creosote$year_int),
+                     year = creosote$year_int)
+creosote_sgt_linpred <- stan(
+  file = 'skewgent_linpred_creosote.stan',
+  data = creosote_dat,
+  warmup = sim_pars$warmup,
+  iter = sim_pars$iter,
+  thin = sim_pars$thin,
+  chains = sim_pars$chains )
+write_rds(creosote_sgt_linpred,paste0(dir,"Dropbox/IPM size transitions/creosote_sgt_linpred.rds"))
+
+
+
+# SGT rstan fits ----------------------------------------------------------
+
 
 cholla_pred <- rstan::extract(cholla_fit_MoM, pars = c("mu", "sigma", "l", "p", "q"))
 n_post_draws <- 500
@@ -321,25 +396,6 @@ ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="sd")+theme(legend.posi
 ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="skewness")+theme(legend.position = "none")
 ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="kurtosis")+theme(legend.position = "none")
 
-## add linear predictor with random effects
-cholla_dat <- list(cholla_N = nrow(cholla),
-                   cholla_sizet = log(cholla$vol_t),
-                   cholla_delta_size = log(cholla$vol_t1) - log(cholla$vol_t),
-                   cholla_Nplots = max(cholla$plot_int),
-                   cholla_Nyears = max(cholla$year_int),
-                   cholla_plot = cholla$plot_int,
-                   cholla_year = cholla$year_int
-)
-
-cholla_sgt_fit <- stan(
-  file = 'skewgent_linpred_cholla.stan',
-  data = cholla_dat,
-  warmup = sim_pars$warmup,
-  iter = sim_pars$iter,
-  thin = sim_pars$thin,
-  chains = sim_pars$chains )
-#write_rds(cholla_sgt_fit,paste0(dir,"Dropbox/IPM size transitions/cholla_sgt_fit.rds"))
-cholla_sgt_fit <- read_rds(paste0(dir,"Dropbox/IPM size transitions/cholla_sgt_fit.rds"))
 
 cholla_sgt_pred <- rstan::extract(cholla_sgt_fit, pars = c("cholla_pred","sigma","l","p","q"))
 n_post_draws <- 500

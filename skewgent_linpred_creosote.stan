@@ -26,58 +26,73 @@ functions {
     return out;
   }
 }
+
 data {
-  int<lower=1> cholla_N;
-  real cholla_sizet[cholla_N];
-  real cholla_delta_size[cholla_N];
-  int<lower=1> cholla_Nplots;
-  int<lower=1> cholla_Nyears;
-  int<lower=1, upper=cholla_Nplots> cholla_plot[cholla_N];
-  int<lower=1, upper=cholla_Nyears> cholla_year[cholla_N];
+  int<lower=1> N;
+  real y[N];
+  real sizet[N];
+  real density[N];
+  int<lower=1> Ntransects;
+  int<lower=1, upper=Ntransects> transect[N];
+  int<lower=1> Nsites;
+  int<lower=1, upper=Nsites> site[N];  
+  int<lower=1> Nyears;
+  int<lower=1, upper=Nyears> year[N];  
 }
+
 parameters {
-  //real mu; 
-  //real<lower=0> sigma; 
   real b_0;
   real b_size;
-  real<lower=0> sigma_plot;
+  real b_density;
+  real b_size_density;
+  real<lower=0> sigma_site;
+  real site_rfx[Nsites];
+  real<lower=0> sigma_transect;
+  real transect_rfx[Ntransects];
   real<lower=0> sigma_year;
-  real plot_rfx[cholla_Nplots];
-  real year_rfx[cholla_Nyears];
+  real year_rfx[Nyears];
   real d_0;
   real d_size;
   real<lower=-0.99,upper=0.99> l; 
   real<lower=0.01> p; 
   real<lower=2/p> q; 
 }
+
 transformed parameters{
-  real cholla_pred[cholla_N];
-  real<lower=0> cholla_sd[cholla_N];
-  for(i in 1:cholla_N){
-    cholla_pred[i] = b_0 + b_size * cholla_sizet[i] + plot_rfx[cholla_plot[i]] + year_rfx[cholla_year[i]];
-    cholla_sd[i] = exp(d_0 + d_size * cholla_sizet[i]);
+  real pred[N];
+  real<lower=0> std[N];
+  for(i in 1:N){
+    pred[i] = b_0 + b_size*sizet[i] + b_density*density[i] + b_size_density*sizet[i]*density[i] + 
+    site_rfx[site[i]] + transect_rfx[transect[i]] + year_rfx[year[i]];
+    
+    std[i] = exp(d_0 + d_size * sizet[i]);
   }
 }
+
 model {
-  b_0 ~ normal(0, 100);    
-  b_size ~ normal(0, 100); 
-  d_0 ~ normal(0, 100);    
-  d_size ~ normal(0, 100); 
-  sigma ~ inv_gamma(0.001, 0.001);
-  sigma_plot ~ inv_gamma(0.001, 0.001);
-  for(i in 1:cholla_Nplots){
-    plot_rfx[i]~normal(0,sigma_plot);
+
+  b_0~normal(0,100);
+  b_size~normal(0,100);
+  b_density~normal(0,100);
+  b_size_density~normal(0,100);
+  sigma_site ~ inv_gamma(0.001, 0.001);
+  for(i in 1:Nsites){
+    site_rfx[i]~normal(0,sigma_site);
+  }  
+  sigma_transect ~ inv_gamma(0.001, 0.001);
+  for(i in 1:Ntransects){
+    transect_rfx[i]~normal(0,sigma_transect);
   }
   sigma_year ~ inv_gamma(0.001, 0.001);
-  for(i in 1:cholla_Nyears){
+  for(i in 1:Nyears){
     year_rfx[i]~normal(0,sigma_year);
   }
-  
   l ~ uniform(-0.99,0.99);
   p ~ inv_gamma(0.001, 0.001);
   q ~ inv_gamma(0.001, 0.001);
-  
-  for(i in 1:cholla_N){
-  cholla_delta_size[i] ~ sgt(cholla_pred[i], cholla_sd[i], l, p, q);
+
+  for(i in 1:N){  
+  y ~ sgt(pred[i], std[i], l, p, q);
   }
 }
+
