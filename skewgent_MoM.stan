@@ -41,5 +41,5 @@ model {
   l ~ uniform(-0.99,0.99);
   p ~ inv_gamma(0.001, 0.001);
   q ~ inv_gamma(0.001, 0.001);
-  cholla_delta_size ~ sgt(mu, sigma, l, p, q);
+  delta_size ~ sgt(mu, sigma, l, p, q);
 }
