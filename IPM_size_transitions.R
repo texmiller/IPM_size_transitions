@@ -278,8 +278,8 @@ AIC_cholla_sgt
 # Stan SGT ----------------------------------------------------------------
 ## run and write all of the following over a few days
 sim_pars <- list(
-  warmup = 1000, 
-  iter = 10000, 
+  warmup = 2000, 
+  iter = 15000, 
   thin = 3, 
   chains = 3)
 
@@ -326,7 +326,7 @@ orchid_sgt_MoM <- stan(
 write_rds(orchid_sgt_MoM,paste0(dir,"Dropbox/IPM size transitions/orchid_sgt_MoM.rds"))
 
 orchid_dat <- list(N = nrow(orchid),
-                   delta_size = log(orchid$size_t1) - log(orchid$size_t),
+                   y = log(orchid$size_t1) - log(orchid$size_t),
                    sizet = log(orchid$size_t),
                    flower = orchid$flowering,
                    light = orchid$light,
@@ -375,45 +375,129 @@ write_rds(creosote_sgt_linpred,paste0(dir,"Dropbox/IPM size transitions/creosote
 
 
 # SGT rstan fits ----------------------------------------------------------
-
-
-cholla_pred <- rstan::extract(cholla_fit_MoM, pars = c("mu", "sigma", "l", "p", "q"))
 n_post_draws <- 500
-post_draws <- sample.int(dim(cholla_pred$mu)[1], n_post_draws)
-y_cholla_sim <- matrix(NA,n_post_draws,cholla_dat$cholla_N)
+
+## cholla MOM
+mcmc_dens_overlay(cholla_sgt_MoM,par=c("mu", "sigma","l","p","q"))
+mcmc_trace(cholla_sgt_MoM,par=c("mu", "sigma","l","p","q"))
+cholla_pred_MoM <- rstan::extract(cholla_sgt_MoM, pars = c("mu", "sigma", "l", "p", "q"))
+post_draws <- sample.int(dim(cholla_pred_MoM$mu)[1], n_post_draws)
+y_cholla_MoM <- matrix(NA,n_post_draws,cholla_dat_MoM$N)
 for(i in 1:n_post_draws){
-  #y_cholla_sim[i,] <- rnorm(n=cholla_dat$cholla_N, mean = cholla_pred$cholla_pred[i,],sd = cholla_pred$cholla_sd[i,])
-  y_cholla_sim[i,] <- rsgt(n=cholla_dat$cholla_N, 
-                           mu = cholla_pred$mu[post_draws[i]],
-                           sigma = cholla_pred$sigma[post_draws[i]],
-                           lambda = cholla_pred$l[post_draws[i]],
-                           p = cholla_pred$p[post_draws[i]],
-                           q = cholla_pred$q[post_draws[i]])
-}
-ppc_dens_overlay(cholla_dat$cholla_delta_size, y_cholla_sim)+xlim(-10, 10)
-ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="mean")+theme(legend.position = "none")
-ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="sd")+theme(legend.position = "none")
-ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="skewness")+theme(legend.position = "none")
-ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="kurtosis")+theme(legend.position = "none")
+  y_cholla_MoM[i,] <- rsgt(n=cholla_dat_MoM$N, 
+                           mu = cholla_pred_MoM$mu[post_draws[i]],
+                           sigma = cholla_pred_MoM$sigma[post_draws[i]],
+                           lambda = cholla_pred_MoM$l[post_draws[i]],
+                           p = cholla_pred_MoM$p[post_draws[i]],
+                           q = cholla_pred_MoM$q[post_draws[i]])}
 
+ppc_dens_overlay(cholla_dat_MoM$delta_size, y_cholla_MoM) +xlim(-10, 10)
+ppc_stat(cholla_dat_MoM$delta_size, y_cholla_MoM,stat="mean")+theme(legend.position = "none")
+ppc_stat(cholla_dat_MoM$delta_size, y_cholla_MoM,stat="sd")+theme(legend.position = "none")
+ppc_stat(cholla_dat_MoM$delta_size, y_cholla_MoM,stat="skewness")+theme(legend.position = "none")
+ppc_stat(cholla_dat_MoM$delta_size, y_cholla_MoM,stat="kurtosis")+theme(legend.position = "none")
 
-cholla_sgt_pred <- rstan::extract(cholla_sgt_fit, pars = c("cholla_pred","sigma","l","p","q"))
-n_post_draws <- 500
-post_draws <- sample.int(dim(cholla_sgt_pred$cholla_pred)[1], n_post_draws)
-y_cholla_sim <- matrix(NA,n_post_draws,cholla_dat$cholla_N)
+## cholla lin pred
+mcmc_dens_overlay(cholla_sgt_linpred,par=c("b_0","b_size","d_0","d_size","l","p","q"))
+mcmc_trace(cholla_sgt_linpred,par=c("b_0","b_size","d_0","d_size","l","p","q"))
+## not sure why but chain 1 is F'd up in this run -- drop it? -- this is annoying but it works
+cholla_linpred <- rstan::extract(cholla_sgt_linpred, pars = c("cholla_pred","cholla_sd","l","p","q"),permuted=F)
+
+cholla_linpred_cholla_pred <- rstan::extract(cholla_sgt_linpred, pars = c("cholla_pred"),permuted=F)
+cholla_linpred_cholla_sd <- rstan::extract(cholla_sgt_linpred, pars = c("cholla_sd"),permuted=F)
+cholla_linpred_l <- rstan::extract(cholla_sgt_linpred, pars = c("l"),permuted=F)
+cholla_linpred_p <- rstan::extract(cholla_sgt_linpred, pars = c("p"),permuted=F)
+cholla_linpred_q <- rstan::extract(cholla_sgt_linpred, pars = c("q"),permuted=F)
+
+post_draws <- sample.int(dim(cholla_sgt_linpred)[1], n_post_draws)
+y_cholla_linpred <- matrix(NA,n_post_draws,cholla_dat$cholla_N)
 for(i in 1:n_post_draws){
-  #y_cholla_sim[i,] <- rnorm(n=cholla_dat$cholla_N, mean = cholla_pred$cholla_pred[i,],sd = cholla_pred$cholla_sd[i,])
-  y_cholla_sim[i,] <- rsgt(n=cholla_dat$cholla_N, 
-                           mu = cholla_sgt_pred$cholla_pred[post_draws[i],],
-                           sigma = cholla_sgt_pred$sigma[post_draws[i]],
-                           lambda = cholla_sgt_pred$l[post_draws[i]],
-                           p = cholla_sgt_pred$p[post_draws[i]],
-                           q = cholla_sgt_pred$q[post_draws[i]])
+  y_cholla_linpred[i,] <- rsgt(n=cholla_dat$cholla_N, 
+                           mu = cholla_linpred_cholla_pred[post_draws[i],2:3,],
+                           sigma = cholla_linpred_cholla_sd[post_draws[i],2:3,],
+                           lambda = cholla_linpred_l[post_draws[i],2:3,1],
+                           p = cholla_linpred_p[post_draws[i],2:3,1],
+                           q = cholla_linpred_q[post_draws[i],2:3,1])
 }
-ppc_dens_overlay(cholla_dat$cholla_delta_size, y_cholla_sim) +xlim(-10, 10)
-ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="mean")+theme(legend.position = "none")
-ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="sd")+theme(legend.position = "none")
-ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="skewness")+theme(legend.position = "none")
-ppc_stat(cholla_dat$cholla_delta_size, y_cholla_sim,stat="kurtosis")+theme(legend.position = "none")
+ppc_dens_overlay(cholla_dat$cholla_delta_size, y_cholla_linpred) +xlim(-10, 10)
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_linpred,stat="mean")+theme(legend.position = "none")
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_linpred,stat="sd")+theme(legend.position = "none")
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_linpred,stat="skewness")+theme(legend.position = "none")
+ppc_stat(cholla_dat$cholla_delta_size, y_cholla_linpred,stat="kurtosis")+theme(legend.position = "none")
 
-mcmc_dens_overlay(cholla_sgt_fit,par=c("b_0","b_size","d_0","d_size","l","p","q"))
+
+
+## orchid MoM
+mcmc_dens_overlay(orchid_sgt_MoM,par=c("mu", "sigma","l","p","q"))
+mcmc_trace(orchid_sgt_MoM,par=c("mu", "sigma","l","p","q"))
+orchid_pred_MoM <- rstan::extract(orchid_sgt_MoM, pars = c("mu", "sigma", "l", "p", "q"))
+post_draws <- sample.int(dim(orchid_pred_MoM$mu)[1], n_post_draws)
+y_orchid_MoM <- matrix(NA,n_post_draws,orchid_dat_MoM$N)
+for(i in 1:n_post_draws){
+  y_orchid_MoM[i,] <- rsgt(n=orchid_dat_MoM$N, 
+                           mu = orchid_pred_MoM$mu[post_draws[i]],
+                           sigma = orchid_pred_MoM$sigma[post_draws[i]],
+                           lambda = orchid_pred_MoM$l[post_draws[i]],
+                           p = orchid_pred_MoM$p[post_draws[i]],
+                           q = orchid_pred_MoM$q[post_draws[i]])}
+
+ppc_dens_overlay(orchid_dat_MoM$delta_size, y_orchid_MoM) +xlim(-10, 10)
+ppc_stat(orchid_dat_MoM$delta_size, y_orchid_MoM,stat="mean")+theme(legend.position = "none")
+ppc_stat(orchid_dat_MoM$delta_size, y_orchid_MoM,stat="sd")+theme(legend.position = "none")
+ppc_stat(orchid_dat_MoM$delta_size, y_orchid_MoM,stat="skewness")+theme(legend.position = "none")
+ppc_stat(orchid_dat_MoM$delta_size, y_orchid_MoM,stat="kurtosis")+theme(legend.position = "none")
+
+## orchid lin pred -- THIS DID NOT RUN (???)
+mcmc_dens_overlay(orchid_sgt_linpred,par=c("b_0","b_size","d_0","d_size","l","p","q"))
+mcmc_trace(orchid_sgt_linpred,par=c("b_0","b_size","d_0","d_size","l","p","q"))
+
+
+
+## creosote MoM
+mcmc_dens_overlay(creosote_sgt_MoM,par=c("mu", "sigma","l","p","q"))
+mcmc_trace(creosote_sgt_MoM,par=c("mu", "sigma","l","p","q"))
+creosote_pred_MoM <- rstan::extract(creosote_sgt_MoM, pars = c("mu", "sigma", "l", "p", "q"))
+post_draws <- sample.int(dim(creosote_pred_MoM$mu)[1], n_post_draws)
+y_creosote_MoM <- matrix(NA,n_post_draws,creosote_dat_MoM$N)
+for(i in 1:n_post_draws){
+  y_creosote_MoM[i,] <- rsgt(n=creosote_dat_MoM$N, 
+                           mu = creosote_pred_MoM$mu[post_draws[i]],
+                           sigma = creosote_pred_MoM$sigma[post_draws[i]],
+                           lambda = creosote_pred_MoM$l[post_draws[i]],
+                           p = creosote_pred_MoM$p[post_draws[i]],
+                           q = creosote_pred_MoM$q[post_draws[i]])}
+
+ppc_dens_overlay(creosote_dat_MoM$delta_size, y_creosote_MoM) +xlim(-10, 10)
+ppc_stat(creosote_dat_MoM$delta_size, y_creosote_MoM,stat="mean")+theme(legend.position = "none")
+ppc_stat(creosote_dat_MoM$delta_size, y_creosote_MoM,stat="sd")+theme(legend.position = "none")
+ppc_stat(creosote_dat_MoM$delta_size, y_creosote_MoM,stat="skewness")+theme(legend.position = "none")
+ppc_stat(creosote_dat_MoM$delta_size, y_creosote_MoM,stat="kurtosis")+theme(legend.position = "none")
+
+## creosote lin pred
+mcmc_dens_overlay(creosote_sgt_linpred,par=c("b_0","b_size","d_0","d_size","l","p","q"))
+mcmc_trace(creosote_sgt_linpred,par=c("b_0","b_size","d_0","d_size","l","p","q"))
+## maybe chain 3 was the 'right chain'?? Have a look
+creosote_linpred <- rstan::extract(creosote_sgt_linpred, pars = c("creosote_pred","creosote_sd","l","p","q"),permuted=F)
+
+creosote_linpred_creosote_pred <- rstan::extract(creosote_sgt_linpred, pars = c("pred"),permuted=F)
+creosote_linpred_creosote_sd <- rstan::extract(creosote_sgt_linpred, pars = c("std"),permuted=F)
+creosote_linpred_l <- rstan::extract(creosote_sgt_linpred, pars = c("l"),permuted=F)
+creosote_linpred_p <- rstan::extract(creosote_sgt_linpred, pars = c("p"),permuted=F)
+creosote_linpred_q <- rstan::extract(creosote_sgt_linpred, pars = c("q"),permuted=F)
+
+post_draws <- sample.int(dim(creosote_sgt_linpred)[1], n_post_draws)
+y_creosote_linpred <- matrix(NA,n_post_draws,creosote_dat$N)
+for(i in 1:n_post_draws){
+  y_creosote_linpred[i,] <- rsgt(n=creosote_dat$N, 
+                               mu = creosote_linpred_creosote_pred[post_draws[i],3,],
+                               sigma = creosote_linpred_creosote_sd[post_draws[i],3,],
+                               lambda = creosote_linpred_l[post_draws[i],3,1],
+                               p = creosote_linpred_p[post_draws[i],3,1],
+                               q = creosote_linpred_q[post_draws[i],3,1])
+}
+ppc_dens_overlay(creosote_dat$y, y_creosote_linpred) +xlim(-10, 10)
+ppc_stat(creosote_dat$y, y_creosote_linpred,stat="mean")+theme(legend.position = "none")
+ppc_stat(creosote_dat$y, y_creosote_linpred,stat="sd")+theme(legend.position = "none")
+ppc_stat(creosote_dat$y, y_creosote_linpred,stat="skewness")+theme(legend.position = "none")
+ppc_stat(creosote_dat$y, y_creosote_linpred,stat="kurtosis")+theme(legend.position = "none")
+
