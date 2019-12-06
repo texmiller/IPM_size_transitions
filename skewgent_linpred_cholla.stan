@@ -63,7 +63,7 @@ model {
   b_size ~ normal(0, 100); 
   d_0 ~ normal(0, 100);    
   d_size ~ normal(0, 100); 
-  sigma ~ inv_gamma(0.001, 0.001);
+  //sigma ~ inv_gamma(0.001, 0.001);
   sigma_plot ~ inv_gamma(0.001, 0.001);
   for(i in 1:cholla_Nplots){
     plot_rfx[i]~normal(0,sigma_plot);

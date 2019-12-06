@@ -90,7 +90,7 @@ model {
   
   //y ~ normal(pred,std);
   for(i in 1:N){
-  y ~ sgt(pred[i], std[i], l, p, q);
+  y[i] ~ sgt(pred[i], std[i], l, p, q);
   }
 }
 

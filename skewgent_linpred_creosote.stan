@@ -92,7 +92,7 @@ model {
   q ~ inv_gamma(0.001, 0.001);
 
   for(i in 1:N){  
-  y ~ sgt(pred[i], std[i], l, p, q);
+  y[i] ~ sgt(pred[i], std[i], l, p, q);
   }
 }
 
