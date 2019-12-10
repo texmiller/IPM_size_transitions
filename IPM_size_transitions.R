@@ -198,7 +198,7 @@ creosote <- read.csv(paste0(dir,"Dropbox/IPM size transitions/creosote_dat.csv")
          unique_transect = as.integer(as.numeric(interaction(site,transect)))) %>% 
   filter(!is.na(volume_t),
          !is.na(volume_t1),
-         !is.na(weighted.dens))   
+         !is.na(weighted.dens))  
 
 creosote_dat <- list(N = nrow(creosote),
                    y = (creosote$volume_t1 - creosote$volume_t),
@@ -293,7 +293,18 @@ cholla_sgt_MoM <- stan(
   iter = sim_pars$iter,
   thin = sim_pars$thin,
   chains = sim_pars$chains )
-write_rds(cholla_sgt_MoM,paste0(dir,"Dropbox/IPM size transitions/cholla_sgt_MoM.rds"))
+#write_rds(cholla_sgt_MoM,paste0(dir,"Dropbox/IPM size transitions/cholla_sgt_MoM.rds"))
+cholla_sgt_MoM <- read_rds(paste0(dir,"Dropbox/IPM size transitions/cholla_sgt_MoM.rds"))
+
+cholla_gaussian_MoM <- stan(
+  file = 'gaussian_MoM.stan',
+  data = cholla_dat_MoM,
+  warmup = sim_pars$warmup,
+  iter = sim_pars$iter,
+  thin = sim_pars$thin,
+  chains = sim_pars$chains )
+write_rds(cholla_gaussian_MoM,paste0(dir,"Dropbox/IPM size transitions/cholla_gaussian_MoM.rds"))
+cholla_gaussian_MoM <- read_rds(paste0(dir,"Dropbox/IPM size transitions/cholla_gaussian_MoM.rds"))
 
 ## add linear predictor with random effects
 cholla_dat <- list(cholla_N = nrow(cholla),
@@ -311,7 +322,8 @@ cholla_sgt_linpred <- stan(
   iter = sim_pars$iter,
   thin = sim_pars$thin,
   chains = sim_pars$chains )
-write_rds(cholla_sgt_linpred,paste0(dir,"Dropbox/IPM size transitions/cholla_sgt_linpred.rds"))
+#write_rds(cholla_sgt_linpred,paste0(dir,"Dropbox/IPM size transitions/cholla_sgt_linpred.rds"))
+cholla_sgt_linpred <- read_rds(paste0(dir,"Dropbox/IPM size transitions/cholla_sgt_linpred.rds"))
 
 ## orchids MoM and linear predictor fits
 orchid_dat_MoM <- list(N = nrow(orchid),
@@ -324,6 +336,18 @@ orchid_sgt_MoM <- stan(
   thin = sim_pars$thin,
   chains = sim_pars$chains )
 write_rds(orchid_sgt_MoM,paste0(dir,"Dropbox/IPM size transitions/orchid_sgt_MoM.rds"))
+orchid_sgt_MoM <- read_rds(paste0(dir,"Dropbox/IPM size transitions/orchid_sgt_MoM.rds"))
+
+orchid_gaussian_MoM <- stan(
+  file = 'gaussian_MoM.stan',
+  data = orchid_dat_MoM,
+  warmup = sim_pars$warmup,
+  iter = sim_pars$iter,
+  thin = sim_pars$thin,
+  chains = sim_pars$chains )
+write_rds(orchid_gaussian_MoM,paste0(dir,"Dropbox/IPM size transitions/orchid_gaussian_MoM.rds"))
+orchid_gaussian_MoM <- read_rds(paste0(dir,"Dropbox/IPM size transitions/orchid_gaussian_MoM.rds"))
+
 
 orchid_dat <- list(N = nrow(orchid),
                    y = log(orchid$size_t1) - log(orchid$size_t),
@@ -339,7 +363,8 @@ orchid_sgt_linpred <- stan(
   iter = sim_pars$iter,
   thin = sim_pars$thin,
   chains = sim_pars$chains )
-write_rds(orchid_sgt_linpred,paste0(dir,"Dropbox/IPM size transitions/orchid_sgt_linpred.rds"))
+#write_rds(orchid_sgt_linpred,paste0(dir,"Dropbox/IPM size transitions/orchid_sgt_linpred.rds"))
+orchid_sgt_linpred <- read_rds(paste0(dir,"Dropbox/IPM size transitions/orchid_sgt_linpred.rds"))
 
 ## creosote
 creosote_dat_MoM <- list(N = nrow(creosote),
@@ -352,6 +377,18 @@ creosote_sgt_MoM <- stan(
   thin = sim_pars$thin,
   chains = sim_pars$chains )
 write_rds(creosote_sgt_MoM,paste0(dir,"Dropbox/IPM size transitions/creosote_sgt_MoM.rds"))
+creosote_sgt_MoM <- read_rds(paste0(dir,"Dropbox/IPM size transitions/creosote_sgt_MoM.rds"))
+
+creosote_gaussian_MoM <- stan(
+  file = 'gaussian_MoM.stan',
+  data = creosote_dat_MoM,
+  warmup = sim_pars$warmup,
+  iter = sim_pars$iter,
+  thin = sim_pars$thin,
+  chains = sim_pars$chains )
+write_rds(creosote_gaussian_MoM,paste0(dir,"Dropbox/IPM size transitions/creosote_gaussian_MoM.rds"))
+creosote_gaussian_MoM <- read_rds(paste0(dir,"Dropbox/IPM size transitions/creosote_gaussian_MoM.rds"))
+
 
 creosote_dat <- list(N = nrow(creosote),
                      y = (creosote$volume_t1 - creosote$volume_t),
@@ -370,7 +407,8 @@ creosote_sgt_linpred <- stan(
   iter = sim_pars$iter,
   thin = sim_pars$thin,
   chains = sim_pars$chains )
-write_rds(creosote_sgt_linpred,paste0(dir,"Dropbox/IPM size transitions/creosote_sgt_linpred.rds"))
+#write_rds(creosote_sgt_linpred,paste0(dir,"Dropbox/IPM size transitions/creosote_sgt_linpred.rds"))
+creosote_sgt_linpred <- read_rds(paste0(dir,"Dropbox/IPM size transitions/creosote_sgt_linpred.rds"))
 
 
 
@@ -380,18 +418,31 @@ n_post_draws <- 500
 ## cholla MOM
 mcmc_dens_overlay(cholla_sgt_MoM,par=c("mu", "sigma","l","p","q"))
 mcmc_trace(cholla_sgt_MoM,par=c("mu", "sigma","l","p","q"))
+mcmc_trace(cholla_gaussian_MoM,par=c("mu", "sigma"))
+
 cholla_pred_MoM <- rstan::extract(cholla_sgt_MoM, pars = c("mu", "sigma", "l", "p", "q"))
+cholla_pred_MoM_gaussian <- rstan::extract(cholla_gaussian_MoM, pars = c("mu", "sigma"))
 post_draws <- sample.int(dim(cholla_pred_MoM$mu)[1], n_post_draws)
 y_cholla_MoM <- matrix(NA,n_post_draws,cholla_dat_MoM$N)
+y_cholla_MoM_gaussian <- matrix(NA,n_post_draws,cholla_dat_MoM$N)
+fix <- sample(post_draws,size=1)
 for(i in 1:n_post_draws){
   y_cholla_MoM[i,] <- rsgt(n=cholla_dat_MoM$N, 
-                           mu = cholla_pred_MoM$mu[post_draws[i]],
+                           mu = cholla_pred_MoM$mu[post_draws[i]], #
                            sigma = cholla_pred_MoM$sigma[post_draws[i]],
                            lambda = cholla_pred_MoM$l[post_draws[i]],
                            p = cholla_pred_MoM$p[post_draws[i]],
-                           q = cholla_pred_MoM$q[post_draws[i]])}
+                           q = cholla_pred_MoM$q[post_draws[i]])
+  y_cholla_MoM_gaussian[i,] <- rnorm(n=cholla_dat_MoM$N, 
+                           mean = cholla_pred_MoM_gaussian$mu[post_draws[i]],
+                           sd = cholla_pred_MoM_gaussian$sigma[post_draws[i]])
+  }
 
-ppc_dens_overlay(cholla_dat_MoM$delta_size, y_cholla_MoM) +xlim(-10, 10)
+
+ppc_dens_overlay(cholla_dat_MoM$delta_size, y_cholla_MoM) #+xlim(-8, 8)
+ppc_dens_overlay(cholla_dat_MoM$delta_size, y_cholla_MoM_gaussian)
+
+
 ppc_stat(cholla_dat_MoM$delta_size, y_cholla_MoM,stat="mean")+theme(legend.position = "none")
 ppc_stat(cholla_dat_MoM$delta_size, y_cholla_MoM,stat="sd")+theme(legend.position = "none")
 ppc_stat(cholla_dat_MoM$delta_size, y_cholla_MoM,stat="skewness")+theme(legend.position = "none")
@@ -419,7 +470,7 @@ for(i in 1:n_post_draws){
                            p = cholla_linpred_p[post_draws[i],2:3,1],
                            q = cholla_linpred_q[post_draws[i],2:3,1])
 }
-ppc_dens_overlay(cholla_dat$cholla_delta_size, y_cholla_linpred) +xlim(-10, 10)
+ppc_dens_overlay(cholla_dat$cholla_delta_size, y_cholla_linpred) +xlim(-8, 8)
 ppc_stat(cholla_dat$cholla_delta_size, y_cholla_linpred,stat="mean")+theme(legend.position = "none")
 ppc_stat(cholla_dat$cholla_delta_size, y_cholla_linpred,stat="sd")+theme(legend.position = "none")
 ppc_stat(cholla_dat$cholla_delta_size, y_cholla_linpred,stat="skewness")+theme(legend.position = "none")
@@ -431,17 +482,25 @@ ppc_stat(cholla_dat$cholla_delta_size, y_cholla_linpred,stat="kurtosis")+theme(l
 mcmc_dens_overlay(orchid_sgt_MoM,par=c("mu", "sigma","l","p","q"))
 mcmc_trace(orchid_sgt_MoM,par=c("mu", "sigma","l","p","q"))
 orchid_pred_MoM <- rstan::extract(orchid_sgt_MoM, pars = c("mu", "sigma", "l", "p", "q"))
+orchid_pred_MoM_gaussian <- rstan::extract(orchid_gaussian_MoM, pars = c("mu", "sigma"))
 post_draws <- sample.int(dim(orchid_pred_MoM$mu)[1], n_post_draws)
 y_orchid_MoM <- matrix(NA,n_post_draws,orchid_dat_MoM$N)
+y_orchid_MoM_gaussian <- matrix(NA,n_post_draws,orchid_dat_MoM$N)
 for(i in 1:n_post_draws){
   y_orchid_MoM[i,] <- rsgt(n=orchid_dat_MoM$N, 
                            mu = orchid_pred_MoM$mu[post_draws[i]],
                            sigma = orchid_pred_MoM$sigma[post_draws[i]],
                            lambda = orchid_pred_MoM$l[post_draws[i]],
                            p = orchid_pred_MoM$p[post_draws[i]],
-                           q = orchid_pred_MoM$q[post_draws[i]])}
+                           q = orchid_pred_MoM$q[post_draws[i]])
+  y_orchid_MoM_gaussian[i,] <- rnorm(n=orchid_dat_MoM$N, 
+                           mean = orchid_pred_MoM_gaussian$mu[post_draws[i]],
+                           sd = orchid_pred_MoM_gaussian$sigma[post_draws[i]])
+  }
 
-ppc_dens_overlay(orchid_dat_MoM$delta_size, y_orchid_MoM) +xlim(-10, 10)
+ppc_dens_overlay(orchid_dat_MoM$delta_size, y_orchid_MoM) #+xlim(-5, 5)
+ppc_dens_overlay(orchid_dat_MoM$delta_size, y_orchid_MoM_gaussian)
+
 ppc_stat(orchid_dat_MoM$delta_size, y_orchid_MoM,stat="mean")+theme(legend.position = "none")
 ppc_stat(orchid_dat_MoM$delta_size, y_orchid_MoM,stat="sd")+theme(legend.position = "none")
 ppc_stat(orchid_dat_MoM$delta_size, y_orchid_MoM,stat="skewness")+theme(legend.position = "none")
@@ -452,22 +511,66 @@ mcmc_dens_overlay(orchid_sgt_linpred,par=c("b_0","b_size","d_0","d_size","l","p"
 mcmc_trace(orchid_sgt_linpred,par=c("b_0","b_size","d_0","d_size","l","p","q"))
 
 
+orchid_linpred_orchid_pred <- rstan::extract(orchid_sgt_linpred, pars = c("pred"),permuted=F)
+orchid_linpred_orchid_sd <- rstan::extract(orchid_sgt_linpred, pars = c("std"),permuted=F)
+orchid_linpred_l <- rstan::extract(orchid_sgt_linpred, pars = c("l"),permuted=F)
+orchid_linpred_p <- rstan::extract(orchid_sgt_linpred, pars = c("p"),permuted=F)
+orchid_linpred_q <- rstan::extract(orchid_sgt_linpred, pars = c("q"),permuted=F)
+
+post_draws <- sample.int(dim(orchid_sgt_linpred)[1], n_post_draws)
+y_orchid_linpred <- matrix(NA,n_post_draws,orchid_dat$N)
+for(i in 1:n_post_draws){
+  y_orchid_linpred[i,] <- rsgt(n=orchid_dat$N, 
+                                 mu = orchid_linpred_orchid_pred[post_draws[i],3,],
+                                 sigma = orchid_linpred_orchid_sd[post_draws[i],3,],
+                                 lambda = orchid_linpred_l[post_draws[i],3,1],
+                                 p = orchid_linpred_p[post_draws[i],3,1],
+                                 q = orchid_linpred_q[post_draws[i],3,1])
+}
+ppc_dens_overlay(orchid_dat$y, y_orchid_linpred) +xlim(-5, 5)
+ppc_stat(orchid_dat$y, y_orchid_linpred,stat="mean")+theme(legend.position = "none")
+ppc_stat(orchid_dat$y, y_orchid_linpred,stat="sd")+theme(legend.position = "none")
+ppc_stat(orchid_dat$y, y_orchid_linpred,stat="skewness")+theme(legend.position = "none")
+ppc_stat(orchid_dat$y, y_orchid_linpred,stat="kurtosis")+theme(legend.position = "none")
+
 
 ## creosote MoM
 mcmc_dens_overlay(creosote_sgt_MoM,par=c("mu", "sigma","l","p","q"))
 mcmc_trace(creosote_sgt_MoM,par=c("mu", "sigma","l","p","q"))
 creosote_pred_MoM <- rstan::extract(creosote_sgt_MoM, pars = c("mu", "sigma", "l", "p", "q"))
+creosote_pred_MoM_gaussian <- rstan::extract(creosote_gaussian_MoM, pars = c("mu", "sigma"))
+
 post_draws <- sample.int(dim(creosote_pred_MoM$mu)[1], n_post_draws)
 y_creosote_MoM <- matrix(NA,n_post_draws,creosote_dat_MoM$N)
+y_creosote_MoM_gaussian <- matrix(NA,n_post_draws,creosote_dat_MoM$N)
 for(i in 1:n_post_draws){
   y_creosote_MoM[i,] <- rsgt(n=creosote_dat_MoM$N, 
                            mu = creosote_pred_MoM$mu[post_draws[i]],
                            sigma = creosote_pred_MoM$sigma[post_draws[i]],
                            lambda = creosote_pred_MoM$l[post_draws[i]],
                            p = creosote_pred_MoM$p[post_draws[i]],
-                           q = creosote_pred_MoM$q[post_draws[i]])}
+                           q = creosote_pred_MoM$q[post_draws[i]])
+  y_creosote_MoM_gaussian[i,] <- rnorm(n=creosote_dat_MoM$N, 
+                             mean = creosote_pred_MoM_gaussian$mu[post_draws[i]],
+                             sd = creosote_pred_MoM_gaussian$sigma[post_draws[i]])
+}
 
-ppc_dens_overlay(creosote_dat_MoM$delta_size, y_creosote_MoM) +xlim(-10, 10)
+fix <- sample(post_draws,size=1)
+for(i in 1:n_post_draws){
+  y_creosote_MoM[i,] <- rsgt(n=creosote_dat_MoM$N, 
+                             mu = creosote_pred_MoM$mu[fix],
+                             sigma = creosote_pred_MoM$sigma[fix],
+                             lambda = creosote_pred_MoM$l[fix],
+                             p = creosote_pred_MoM$p[fix],
+                             q = creosote_pred_MoM$q[fix])
+  y_creosote_MoM_gaussian[i,] <- rnorm(n=creosote_dat_MoM$N, 
+                                       mean = creosote_pred_MoM_gaussian$mu[fix],
+                                       sd = creosote_pred_MoM_gaussian$sigma[fix])
+}
+
+ppc_dens_overlay(creosote_dat_MoM$delta_size, y_creosote_MoM) #+xlim(-6, 6)
+ppc_dens_overlay(creosote_dat_MoM$delta_size, y_creosote_MoM_gaussian)
+
 ppc_stat(creosote_dat_MoM$delta_size, y_creosote_MoM,stat="mean")+theme(legend.position = "none")
 ppc_stat(creosote_dat_MoM$delta_size, y_creosote_MoM,stat="sd")+theme(legend.position = "none")
 ppc_stat(creosote_dat_MoM$delta_size, y_creosote_MoM,stat="skewness")+theme(legend.position = "none")
@@ -489,13 +592,13 @@ post_draws <- sample.int(dim(creosote_sgt_linpred)[1], n_post_draws)
 y_creosote_linpred <- matrix(NA,n_post_draws,creosote_dat$N)
 for(i in 1:n_post_draws){
   y_creosote_linpred[i,] <- rsgt(n=creosote_dat$N, 
-                               mu = creosote_linpred_creosote_pred[post_draws[i],3,],
-                               sigma = creosote_linpred_creosote_sd[post_draws[i],3,],
-                               lambda = creosote_linpred_l[post_draws[i],3,1],
-                               p = creosote_linpred_p[post_draws[i],3,1],
-                               q = creosote_linpred_q[post_draws[i],3,1])
+                               mu = creosote_linpred_creosote_pred[post_draws[i],1:2,],
+                               sigma = creosote_linpred_creosote_sd[post_draws[i],1:2,],
+                               lambda = creosote_linpred_l[post_draws[i],1:2,1],
+                               p = creosote_linpred_p[post_draws[i],1:2,1],
+                               q = creosote_linpred_q[post_draws[i],1:2,1])
 }
-ppc_dens_overlay(creosote_dat$y, y_creosote_linpred) +xlim(-10, 10)
+ppc_dens_overlay(creosote_dat$y, y_creosote_linpred) +xlim(-6, 6)
 ppc_stat(creosote_dat$y, y_creosote_linpred,stat="mean")+theme(legend.position = "none")
 ppc_stat(creosote_dat$y, y_creosote_linpred,stat="sd")+theme(legend.position = "none")
 ppc_stat(creosote_dat$y, y_creosote_linpred,stat="skewness")+theme(legend.position = "none")
