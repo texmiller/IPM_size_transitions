@@ -9,7 +9,9 @@ volume <- function(h, w, p){
   (1/3)*pi*h*(((w + p)/2)/2)^2
 }
 
+## Tom Cornell desktop
 dir <- "C:/Users/tm634/"
+## Tom laptop
 dir <- "C:/Users/tm9/"
 
 
@@ -32,11 +34,15 @@ cholla <- read.csv(paste0(dir,"Dropbox/IPM size transitions/cholla_demography_20
 
 plot((cholla$vol_t),(cholla$vol_t1))
 
-## find outliers
-(high_grow <- cholla %>% filter(size_change > quantile(size_change,probs=c(0.99))))
-drop_high <- high_grow[c(22,25),]## these two stand out by an order of magnitude and are clearly wrong
-(low_grow <- cholla %>% filter(size_change < quantile(size_change,probs=c(0.01))))
-drop_low <- low_grow[c(8,9,22,27,31,36),]## these three are errors
+## find size change outliers
+(high_grow <- cholla_qaqc %>% filter(size_change > quantile(size_change,probs=c(0.99))) %>% 
+    select(Plot, TagID, Year_t, Height_t, Width_t, Perp_t, Height_t1, Width_t1, Perp_t1, size_change))
+drop_high <- high_grow[c(1,2,3,10,11,14,16,21,22,24,25,38,44,45,50),]## these stand out as clearly wrong
+
+(low_grow <- cholla_qaqc %>% filter(size_change < quantile(size_change,probs=c(0.01))) %>% 
+    select(Plot, TagID, Year_t, Height_t, Width_t, Perp_t, Height_t1, Width_t1, Perp_t1, size_change))
+
+drop_low <- low_grow[c(8,9,17,19,22,27,31,36,38),]## these are errors
 drop <- bind_rows(drop_high,drop_low)
 
 cholla <- anti_join(cholla, drop)
@@ -498,7 +504,9 @@ for(i in 1:n_post_draws){
                            sd = orchid_pred_MoM_gaussian$sigma[post_draws[i]])
   }
 
-ppc_dens_overlay(orchid_dat_MoM$delta_size, y_orchid_MoM) #+xlim(-5, 5)
+hist(y_orchid_MoM[1,])
+
+ppc_dens_overlay(orchid_dat_MoM$delta_size, ly_orchid_MoM) #+xlim(-5, 5)
 ppc_dens_overlay(orchid_dat_MoM$delta_size, y_orchid_MoM_gaussian)
 
 ppc_stat(orchid_dat_MoM$delta_size, y_orchid_MoM,stat="mean")+theme(legend.position = "none")
