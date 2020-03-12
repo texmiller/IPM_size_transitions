@@ -1,4 +1,4 @@
-#### Appendix 1: Use red gorgonian data to compare SN and SHASH fits
+#### Use red gorgonian data to compare SN and SHASH fits
 #### for modeling growth data
 
 rm(list=ls(all=TRUE))
@@ -21,7 +21,6 @@ size<-size[size$Site=='Portcros',] # For this example, use Portcros site
 plot(size$t0,size$t1); 
 
 #### Diagnostics 
-
 
 ### Scatterplot smoothing functions
 spline.scatter.smooth=function(x,y,...) {
@@ -125,8 +124,6 @@ out = dSHASH(zvals,mu.hat[32],sig.hat[32],nu.hat[32],tau.hat[32]);
 par(yaxs="i")
 plot(zvals,out,ylim=c(0,max(out)),type="l"); 
 
-
-
 ############################################################
 ### ALL SITES: load, manipulate, and sort data
 ############################################################
@@ -168,16 +165,15 @@ my.scatter.smooth(rollmean,rollsd,col="grey50",xlab="z0",ylab="SD",degree=2);
 my.scatter.smooth(rollmean,rollskew,col="grey50",xlab="z0",ylab="Skew",degree=2); 
 my.scatter.smooth(rollmean,rollkurt,col="grey50",xlab="z0",ylab="Excess Kurtosis",degree=2); 
 
-
 size$z0 = size$t0; size$z1=size$t1; 
-gamSHASH2<-gamlss(z1~z0 + I(z0^2) + z0:Site, sigma.formula=~z0+I(z0^2), nu.formula=~z0+I(z0^2), 
-        tau.formula=~z0+I(z0^2),data=size,family=SHASH,method=RS(250)) 
+gamSHASH2<-gamlss(z1~z0 + I(z0^2) + z0:Site, sigma.formula=~z0 + I(z0^2), nu.formula=~z0+I(z0^2), 
+        tau.formula=~z0+I(z0^2),data=size,family=SHASHo2,method=RS(250)) 
 
 ################# Fit to the residuals from a linear fit 
-fit_lm <- lm( z1 ~ z0 + I(z0^2) + z0:Site,data=size);
-size$r1 <- fit_lm$residuals; 
-gamSHASH3<-gamlss(r1~1, sigma.formula=~z0+I(z0^2), nu.formula=~z0+I(z0^2), 
-        tau.formula=~z0+I(z0^2),data=size,family=SHASH,method=RS(250)) 
+fit <- gam(list(z1 ~ z0 + I(z0^2) + Site:z0, ~s(z0)),data=size,family=gaulss())
+size$r1 <- residuals(fit); 
+gamSHASH3 = gamlss(r1~z0, sigma.formula=~z0 + I(z0^2), nu.formula=~z0+I(z0^2), 
+        tau.formula=~z0+I(z0^2),data=size,family=SHASHo2,method=RS(250)) 
 
 ############## Compare distribution estimates, direct with two-stage 
 coef(gamSHASH2,what="sigma"); coef(gamSHASH3,what="sigma");
