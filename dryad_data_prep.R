@@ -107,5 +107,5 @@ plot(voles_final$t0,voles_final$t1)
 abline(0,1)
 
 ## save list of four data sets as rds file
-growth_dat <- list(coral=coral,cactus=cactus,pike=pike_final,voles=voles_final)
+growth_dat <- list(coral=coral_final,cactus=cactus_final,pike=pike_final,voles=voles_final)
 write_rds(growth_dat,"growth_dat.rds")
