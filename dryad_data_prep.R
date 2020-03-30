@@ -8,6 +8,8 @@ library(tidyverse)
 ## size is max height, units not given in Peterson et al. (check Linares papers)
 coral <- read.csv("coral/Gorgonian_raw_data.csv")
 colnames(coral)[6:8] <- c("Size"="t0", "Sizenext"="t1", "Survnext"= "survival") # rename column header
+## drop rows without t0 and t1 size data
+coral %>% filter(!is.na(t0) & !is.na(t1))-> coral_final
 ## plot all sites and years
 plot(coral$t0,coral$t1) 
 plot(log(coral$t0),log(coral$t1)) 
@@ -22,7 +24,8 @@ volume <- function(h, w, p){
 cactus <- read.csv("cactus/cholla_demography_20042018_EDI.csv")
 cactus$t0 <- volume(cactus$Height_t,cactus$Width_t,cactus$Perp_t)
 cactus$t1 <- volume(cactus$Height_t1,cactus$Width_t1,cactus$Perp_t1)
-
+## drop rows without t0 and t1 size data
+cactus %>% filter(!is.na(t0) & !is.na(t1))-> cactus_final
 plot(cactus$t0,cactus$t1) 
 plot(log(cactus$t0),log(cactus$t1)) 
 
