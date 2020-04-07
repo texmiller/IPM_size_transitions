@@ -22,12 +22,11 @@ volume <- function(h, w, p){
   (1/3)*pi*h*(((w + p)/2)/2)^2
 }
 cactus <- read.csv("cactus/cholla_demography_20042018_EDI.csv")
-cactus$t0 <- volume(cactus$Height_t,cactus$Width_t,cactus$Perp_t)
-cactus$t1 <- volume(cactus$Height_t1,cactus$Width_t1,cactus$Perp_t1)
+cactus$t0 <- log(volume(cactus$Height_t,cactus$Width_t,cactus$Perp_t))
+cactus$t1 <- log(volume(cactus$Height_t1,cactus$Width_t1,cactus$Perp_t1))
 ## drop rows without t0 and t1 size data
 cactus %>% filter(!is.na(t0) & !is.na(t1))-> cactus_final
 plot(cactus$t0,cactus$t1) 
-plot(log(cactus$t0),log(cactus$t1)) 
 
 ## data set 3: pike (fish) data from Stubberud et al. 2019
 ## source paper has two sexes but this data set is female-only
