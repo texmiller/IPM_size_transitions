@@ -23,58 +23,104 @@ dists <- read.csv("IdahoModDistanceWeights_noExptl.csv");
 dists$allcov <- rowMeans(dists[,1:4])  # for "other" polygons use average of big 4
 dists$allpts <- dists$POSE  # set forb dist wts = smallest grass (POSE)
 
+#############################################################################
+# import old data--------------------------------------------------------
+#############################################################################
+D1 <- fetchGdat(doSpp=doSpp,speciesList=sppList,datadir=dataDir1,distWts=dists)
+D1$Treatment <- "Control"
+
+#############################################################################
 # import modern data--------------------------------------------------------
+#############################################################################
 source("fetchGrowthData.R"); 
 D2 <- fetchGdat(doSpp=doSpp,speciesList=sppList,datadir=dataDir2,distWts=dists)
+
+ii <- which(D2$year>=2011 & D2$Treatment=="No_grass")
+D2$W.HECO[ii] <- 0 ; D2$W.POSE[ii] <- 0 ; D2$W.PSSP[ii] <- 0
 
 # merge in treatment identity for each quadrat 
 tmp <- read.csv(paste(dataDir2,"/quad_info.csv",sep=""))
 tmp <- tmp[,c("quad","Treatment")]
-allD <- merge(D2,tmp, all.x=T)
+D2 <- merge(D2,tmp, all.x=T)
 
-# remove outliers (large plants that obviously do not turn into tiny plants)
-tmp <- which((allD$logarea.t0>2)&(allD$logarea.t1< -1.25)); 
+# limit to control and removals plots 
+keep <- which(is.element(D2$Treatment,c("Control","No_grass")))
+D2 <- D2[keep,]; 
+
+#############################################################################
+# merge and clean up 
+#############################################################################
+allD = rbind(D1,D2); 
+allD$year[allD$year<2000] <- allD$year[allD$year<2000] + 1900
+
+tmp <- which((allD$area.t0>100)&(allD$area.t1 < 0.26)); 
 allD <- allD[-tmp,]; 
 
 # get rid of seedlings 
 allD <- trimQuadrats(allD)$data;
 allD <- subset(allD,age>1); 
 
-# limit to control and removals plots 
-keep <- which(is.element(allD$Treatment,c("Control","No_grass")))
-allD <- allD[keep,]; 
+plot(logarea.t1~logarea.t0,data=allD); 
+
+allD$Treatment[allD$Treatment=="Control" & allD$year>2000] <- "ControlModern"
+allD$year <- as.factor(allD$year)
 
 cols <- c("area.t0","area.t1","logarea.t0","logarea.t1","year","Group","W.ARTR","W.HECO","W.POSE","W.PSSP","W.allcov","W.allpts","Treatment")     
 allD <- allD[,cols]; 
 e = order(allD$area.t0); allD <- allD[e,]; 
 
-write.csv(allD,file="ARTR_modern.csv"); 
+write.csv(allD,file="ARTR_growth_data.csv"); 
 
-plot(logarea.t1~logarea.t0,data=allD); 
 
 #########################################
 #  2. Fit models
 #########################################
+require(lme4); 
+m0 <- lmer(sqrt(area.t1)~sqrt(area.t0)+W.ARTR + W.HECO + W.POSE + W.PSSP+  W.allcov + W.allpts + Treatment + 
+              (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=allD) 
+			  
+m1 <- lmer(sqrt(area.t1)~sqrt(area.t0) + W.ARTR + W.POSE + W.PSSP + Treatment + 
+              (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=allD) 
 
-m1 <- lm(sqrt(area.t1) ~ sqrt(area.t0) + Treatment,data=allD)
+m2 <- lmer(sqrt(area.t1)~sqrt(area.t0) + Treatment + 
+              (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=allD) 
+			  
+m3 <- lmer(sqrt(area.t1)~sqrt(area.t0) + Treatment + 
+              (1|Group)+(1|year),control=lmerControl(optimizer="bobyqa"),data=allD) 			  
+			  
+m4 <- lmer(sqrt(area.t1)~sqrt(area.t0) + Treatment + 
+              (1|Group)+(0+logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=allD)
 
-plot(sqrt(allD$area.t0),abs(m1$residuals)); 
-fit = lm(abs(m1$residuals)~sqrt(area.t0),data=allD); 
-abline(fit); 
+m5 <- lmer(sqrt(area.t1)~sqrt(area.t0) + Treatment + 
+              (0+logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=allD)
 
-scaledResids = m1$residuals/fit$fitted; 
+m6 <- lm(sqrt(area.t1) ~ sqrt(area.t0) + Treatment + logarea.t0:year,data=allD)
+ 			  
+yrVals=c(0,coef(m5)[-(1:4)]); sd(yrVals); 
+
+			  
+scatter.smooth(sqrt(allD$area.t0),abs(residuals(m5))); 
+fit = lm(abs(residuals(m5))~sqrt(area.t0),data=allD); 
+abline(fit,col="blue"); 
+
+scaledResids = residuals(m5)/fit$fitted; 
 qqPlot(scaledResids); # bad in both tails
 
 require(moments); 
 jarque.test(scaledResids); # normality test: FAILS, P < 0.001 
 anscombe.test(scaledResids); # kurtosis: FAILS, P < 0.001 
-agostino.test(scaledResids); # skewness: OK, P>0.3 
+agostino.test(scaledResids); # skewness: FAILS, P<0.001 
 
 require(zoo);
-e = order(m1$fitted); 
-rollmean=rollapply(m1$fitted[e],30,mean,by=10);
-rollkurt=rollapply(scaledResids[e],30,kurtosis,by=10);
+e = order(allD$area.t0); 
+rollmean=rollapply(sqrt(allD$area.t0[e]),50,mean,by=10);
+rollkurt=rollapply(scaledResids[e],50,kurtosis,by=10);
+rollskew=rollapply(scaledResids[e],50,skewness,by=10);
+par(mfrow=c(2,1)); 
+scatter.smooth(rollmean,rollskew); 
 scatter.smooth(rollmean,rollkurt); 
+
+
  
  ## truncated distribution; 
  trun.dT2 = trun.d(0,family="TF",par=0,type="left"); 
