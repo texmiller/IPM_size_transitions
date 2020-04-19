@@ -5,6 +5,8 @@
 rm(list=ls(all=TRUE));
 setwd("c:/repos/IPM_size_transitions/idaho"); 
 
+require(car); require(lme4); require(zoo); require(moments); 
+
 source("fetchGrowthData.R");
 source("trimQuadrats.R"); 
 
@@ -96,7 +98,7 @@ m5 <- lmer(sqrt(area.t1)~sqrt(area.t0) + Treatment +
 
 m6 <- lm(sqrt(area.t1) ~ sqrt(area.t0) + Treatment + logarea.t0:year,data=allD)
  			  
-yrVals=c(0,coef(m5)[-(1:4)]); sd(yrVals); 
+yrVals=c(0,as.numeric(coef(m6)[-(1:4)])); sd(yrVals); 
 
 			  
 scatter.smooth(sqrt(allD$area.t0),abs(residuals(m5))); 
@@ -111,32 +113,38 @@ jarque.test(scaledResids); # normality test: FAILS, P < 0.001
 anscombe.test(scaledResids); # kurtosis: FAILS, P < 0.001 
 agostino.test(scaledResids); # skewness: FAILS, P<0.001 
 
-require(zoo);
 e = order(allD$area.t0); 
-rollmean=rollapply(sqrt(allD$area.t0[e]),50,mean,by=10);
-rollkurt=rollapply(scaledResids[e],50,kurtosis,by=10);
-rollskew=rollapply(scaledResids[e],50,skewness,by=10);
+rollmean=rollapply(sqrt(allD$area.t0[e]),50,mean,by=25);
+rollkurt=rollapply(scaledResids[e],50,kurtosis,by=25);
+rollskew=rollapply(scaledResids[e],50,skewness,by=25);
 par(mfrow=c(2,1)); 
 scatter.smooth(rollmean,rollskew); 
 scatter.smooth(rollmean,rollkurt); 
 
+require(gamlss); require(gamlss.tr); 
 
+## truncated distribution; 
+trun.SHASH = trun(0,family="SHASHo2",par=0,type="left",local=FALSE); 
  
- ## truncated distribution; 
- trun.dT2 = trun.d(0,family="TF",par=0,type="left"); 
- 
+# pilot fit on scaled residuals to get starting values for the shape parameters 
 NegLogLik1 = function(par) {
-	sigma=par[1]; nu=par[2];
-	out=dTF(scaledResids,mu=0,sigma,nu,log=TRUE);
+	sigma=par[1]; nu=par[2]; tau=par[3]; 
+	out=dSHASHo2(scaledResids,mu=0,sigma,nu,tau,log=TRUE);
 	return(-sum(out))
 }	
 
-out=optim(par=c(1,1),fn=NegLogLik1,control=list(trace=4,maxit=5000));
-sigma.h=out$par[1]; nu.h=out$par[2];  
+out=optim(par=c(1,1,1),fn=NegLogLik1,control=list(trace=4,maxit=5000));
+sigma.h=out$par[1]; nu.h=out$par[2]; tau.h=out$par[3]
  
- allD$removal = 0*allD$area.t0;
- allD$removal[allD$Treatment=="No_grass"]<-1; 
- 
+fit=gamlss(sqrt(area.t1) ~ sqrt(area.t0) + Treatment + logarea.t0:year,data=allD,family=trun.SHASH,
+sigma.formula = ~sqrt(area.t0), nu.formula = ~1, tau.formula = ~1,nu.start=nu.h,tau.start=tau.h,method=RS(250));
+
+##### Re-fit: the optimizer takes one step, finds a better fit, and then crashes. 
+fit2=gamlss(sqrt(area.t1) ~ sqrt(area.t0) + Treatment + logarea.t0:year,data=allD,family=trun.SHASH,
+sigma.formula = ~sqrt(area.t0), nu.formula = ~1, tau.formula = ~1, start.from=fit,method=CG(250)); 
+
+
+########################### BASEMENT: left over from a fit to only the modern Idaho data 
  #LL = function(b0,b1.area,b1.ARTR,b1.POSE,b1.Treatment,b0.sigma,b1.sigma,b0.nu,b1.nu) {
  LL=function(par) {
 		b0=par[1]; b1.area=par[2]; b1.ARTR=par[3];b1.POSE=par[4];
