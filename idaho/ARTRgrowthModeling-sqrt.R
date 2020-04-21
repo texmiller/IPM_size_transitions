@@ -12,7 +12,6 @@ rm(list=ls(all=TRUE));
 setwd("c:/repos/IPM_size_transitions/idaho"); 
 
 require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
-
 source("Utilities.R");
 
 ### Spline scatterplot smoothing function
@@ -140,17 +139,8 @@ sigma.h=out$par[1]; nu.h=out$par[2]; tau.h=out$par[3]
 fit=gamlss(sqrt(area.t1) ~ sqrt(area.t0) + Treatment + logarea.t0:year,data=allD,family=trun.SHASH,
 sigma.formula = ~sqrt(area.t0), nu.formula = ~1, tau.formula = ~1,nu.start=nu.h,tau.start=tau.h,method=RS(250));
 
-
-# Re-fit: the optimizer takes one step, finds a better fit, and then crashes. 
-fit2=gamlss(sqrt(area.t1) ~ sqrt(area.t0) + Treatment + logarea.t0:year,data=allD,family=trun.SHASH,
-sigma.formula = ~sqrt(area.t0), nu.formula = ~1, tau.formula = ~1, start.from=fit,method=CG(250)); 
-
-
-
-
-
-
-
+   fit=gamlss(sqrt(area.t1) ~ sqrt(area.t0) + Treatment + logarea.t0:year,data=allD,family=trun.SHASH,
+   sigma.formula = ~sqrt(area.t0), nu.formula = ~1, tau.formula = ~1, start.from=fit,method=CG(1)); 
 
 
 ######################################################################

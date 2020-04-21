@@ -22,12 +22,12 @@ source("Utilities.R");
 sppList <- c("ARTR","HECO","POSE","PSSP","allcov","allpts")
 doSpp <- "ARTR"   # !!!!!!!!!!!!!  Don't change this
 
-dataDir1 <- "c:/repos/ExperimentTests/data/idaho/"
-dataDir2 <- "c:/repos/ExperimentTests/data/idaho_modern"
+dataDir1 <- "c:/repos/IPM_size_transitions/idaho/legacy_data/"
+dataDir2 <- "c:/repos/IPM_size_transitions/idaho/modern_data/"
 nonCompLength.s=5 #Number of columns in SppData that are not measures of competitors 
 
 # set up distance weights------------------------------------------------
-dists <- read.csv("IdahoModDistanceWeights_noExptl.csv");
+dists <- read.csv("modern_data/IdahoModDistanceWeights_noExptl.csv");
 dists$allcov <- rowMeans(dists[,1:4])  # for "other" polygons use average of big 4
 dists$allpts <- dists$POSE  # set forb dist wts = smallest grass (POSE)
 
@@ -46,7 +46,7 @@ ii <- which(D2$year>=2011 & D2$Treatment=="No_grass")
 D2$W.HECO[ii] <- 0 ; D2$W.POSE[ii] <- 0 ; D2$W.PSSP[ii] <- 0
 
 # merge in treatment identity for each quadrat 
-tmp <- read.csv(paste(dataDir2,"/quad_info.csv",sep=""))
+tmp <- read.csv(paste(dataDir2,"quad_info.csv",sep=""))
 tmp <- tmp[,c("quad","Treatment")]
 D2 <- merge(D2,tmp, all.x=T)
 
@@ -77,4 +77,4 @@ cols <- c("area.t0","area.t1","logarea.t0","logarea.t1","year","Group","W.ARTR",
 allD <- allD[,cols]; 
 e = order(allD$area.t0); allD <- allD[e,]; 
 
-#write.csv(allD,file="ARTR_growth_data.csv"); 
+write.csv(allD,file="ARTR_growth_data.csv"); 

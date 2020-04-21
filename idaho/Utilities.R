@@ -4,7 +4,7 @@
 
 fetchGdat <- function(doSpp,speciesList,datadir,distWts){
 
-  growDfile=paste(datadir,"/speciesdata/",doSpp,"/growDnoNA.csv",sep="")
+  growDfile=paste(datadir,"growDnoNA.csv",sep="")
   growD=read.csv(file=growDfile)
   D1=growD[growD$allEdge==0,];
   D1$year <- D1$year
@@ -13,8 +13,8 @@ fetchGdat <- function(doSpp,speciesList,datadir,distWts){
   D1$quad=as.character(D1$quad)
   
   # import neighbor data
-  ringD <- read.csv(paste(datadir,"/speciesdata/",doSpp,"/",doSpp,"_nbhood_rings.csv",sep=""))
-  tmpD <- read.csv(paste(datadir,"/speciesdata/",doSpp,"/",doSpp,"_nbhood_rings_allothers.csv",sep=""))
+  ringD <- read.csv(paste(datadir,doSpp,"_nbhood_rings.csv",sep=""))
+  tmpD <- read.csv(paste(datadir,doSpp,"_nbhood_rings_allothers.csv",sep=""))
   ringD<-merge(ringD,tmpD)
   ringD$year<-ringD$year
   
