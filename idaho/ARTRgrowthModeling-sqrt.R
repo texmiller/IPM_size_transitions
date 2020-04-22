@@ -31,12 +31,13 @@ spline.scatter.smooth=function(x,y,gamma=10,show.quadratic=FALSE,...) {
 # 1. Read in the data
 ##############################################################
 allD<-read.csv(file="ARTR_growth_data.csv"); 
+allD$year <- factor(allD$year); 
 
 ##############################################################
 # 2. Diagnostic plots: first log-transform scale fit 
 ##############################################################
 e = order(allD$area.t0); 
-rollmean=rollapply(allD$area.t0[e]^0.5,50,mean,by=25);
+rollmean=rollapply(allD$logarea.t0[e],50,mean,by=25);
 rollvar=rollapply(allD$logarea.t1[e],50,sd,by=25); max(rollvar)/min(rollvar); 
 rollkurt=rollapply(allD$logarea.t1[e],50,kurtosis,by=25);
 rollskew=rollapply(allD$logarea.t1[e],50,skewness,by=25);
@@ -72,22 +73,22 @@ abline(h=0,col="blue",lty=2)
 ###############################################################################
 require(lme4); 
 m0 <- lmer(sqrt(area.t1)~sqrt(area.t0)+W.ARTR + W.HECO + W.POSE + W.PSSP+  W.allcov + W.allpts + Treatment + 
-              (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=allD) 
+              (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),REML=FALSE,data=allD) 
 			  
 m1 <- lmer(sqrt(area.t1)~sqrt(area.t0) + W.ARTR + W.POSE + W.PSSP + Treatment + 
-              (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=allD) 
+              (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),REML=FALSE,data=allD) 
 
 m2 <- lmer(sqrt(area.t1)~sqrt(area.t0) + Treatment + 
-              (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=allD) 
+              (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),REML=FALSE,data=allD) 
 			  
 m3 <- lmer(sqrt(area.t1)~sqrt(area.t0) + Treatment + 
-              (1|Group)+(1|year),control=lmerControl(optimizer="bobyqa"),data=allD) 			  
+              (1|Group)+(1|year),control=lmerControl(optimizer="bobyqa"),REML=FALSE,data=allD) 			  
 			  
 m4 <- lmer(sqrt(area.t1)~sqrt(area.t0) + Treatment + 
-              (1|Group)+(0+logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=allD)
+              (1|Group)+(0+logarea.t0|year),control=lmerControl(optimizer="bobyqa"),REML=FALSE,data=allD)
 
 m5 <- lmer(sqrt(area.t1)~sqrt(area.t0) + Treatment + 
-              (0+logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=allD)
+              (0+logarea.t0|year),control=lmerControl(optimizer="bobyqa"),REML=FALSE,data=allD)
 
 m6 <- lm(sqrt(area.t1) ~ sqrt(area.t0) + Treatment + logarea.t0:year,data=allD)
  			  

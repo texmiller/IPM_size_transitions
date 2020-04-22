@@ -33,6 +33,7 @@ spline.scatter.smooth=function(x,y,gamma=10,show.quadratic=FALSE,...) {
 # 1. Read in the data
 ##############################################################
 allD<-read.csv(file="ARTR_growth_data.csv"); 
+allD$year <- factor(allD$year); 
 
 ######################################################################
 # Tom's work starting here: exploring the idaho data
@@ -46,6 +47,7 @@ plot(allD$logarea.t0, allD$logarea.t1)
 ## looks like there are arbitrarily small values
 table(allD$area.t0);
 table(allD$area.t1) ##32 and 28 0.25's in t0 and t1 data, all other values unique
+
 ## drop out these arbitrarily small individuals
 arb_small <- unique(c(which(allD$area.t0==0.25),which(allD$area.t1==0.25)))
 drop_allD <- allD[-arb_small,]
@@ -71,6 +73,8 @@ spline.scatter.smooth(rollmean,rollskew,gamma=2,xlab="",ylab="Skewness");
 abline(h=0,col="blue",lty=2) 
 spline.scatter.smooth(rollmean,rollkurt/3-1,gamma=2,xlab="Sqrt area t0",ylab="Excess kurtosis"); 
 abline(h=0,col="blue",lty=2)
+
+
 ## second column, sqrt transform
 rollmean=rollapply(drop_allD$area.t0[e]^0.5,50,mean,by=25);
 rollvar=rollapply(drop_allD$area.t1[e]^0.5,50,sd,by=25); max(rollvar)/min(rollvar);
@@ -89,7 +93,7 @@ log_models <- list()
 log_models[[1]] <- lmer(logarea.t1~logarea.t0+W.ARTR + W.HECO + W.POSE + W.PSSP+  W.allcov + W.allpts + Treatment + 
              (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML = F) 
 
-log_models[[2]] <- lmer(logarea.t1~logarea.t0 + W.ARTR + W.POSE + W.PSSP + Treatment + 
+log_models[[2]] <- lmer(logarea.t1~logarea.t0 + W.ARTR  + Treatment + 
              (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML = F) 
 
 log_models[[3]] <- lmer(logarea.t1~logarea.t0 + Treatment + 
@@ -103,18 +107,21 @@ log_models[[5]] <- lmer(logarea.t1~logarea.t0 + Treatment +
 
 log_models[[6]] <- lmer(logarea.t1~logarea.t0 + Treatment + 
              (0+logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML = F)
+require(AICcmodavg); 
 AICtab(log_models) 
+
+
 # diagnostics of best model
 spline.scatter.smooth(drop_allD$logarea.t0,abs(residuals(log_models[[3]]))); 
 fit = lm(abs(residuals(log_models[[3]]))~logarea.t0,data=drop_allD); 
 abline(fit,col="blue");
 
-scaledResids = residuals(log_models[[3]])/fit$fitted; 
-qqPlot(scaledResids); # now bad in just the lower tail
+log_scaledResids = residuals(log_models[[3]])/fit$fitted; 
+qqPlot(log_scaledResids); # now bad in just the lower tail
 
-jarque.test(scaledResids) # normality test: FAILS, P < 0.001 
-anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.001 
-agostino.test(scaledResids) # skewness: FAILS, P<0.001 
+jarque.test(log_scaledResids) # normality test: FAILS, P < 0.001 
+anscombe.test(log_scaledResids) # kurtosis: FAILS, P < 0.001 
+agostino.test(log_scaledResids) # skewness: FAILS, P<0.001 
 
 ## model selection with sqrt transformation -- I am using log area for the random effects like Steve did above
 sqrt_models <- list()
@@ -135,18 +142,18 @@ sqrt_models[[5]] <- lmer(sqrt(area.t1)~sqrt(area.t0) + Treatment +
 
 sqrt_models[[6]] <- lmer(sqrt(area.t1)~sqrt(area.t0) + Treatment + 
                           (0+logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML = F)
-AICtab(sqrt_models)
+aictab(sqrt_models)
 # diagnostics of best model
 spline.scatter.smooth(drop_allD$area.t0^0.5,abs(residuals(sqrt_models[[3]]))); 
 fit = lm(abs(residuals(sqrt_models[[3]]))~sqrt(area.t0),data=drop_allD); 
 abline(fit,col="blue");
 
-scaledResids = residuals(sqrt_models[[3]])/fit$fitted; 
-qqPlot(scaledResids); # bad in both tails
+sqrt_scaledResids = residuals(sqrt_models[[3]])/fit$fitted; 
+qqPlot(sqrt_scaledResids); # bad in both tails
 
-jarque.test(scaledResids) # normality test: FAILS, P < 0.001 
-anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.001 
-agostino.test(scaledResids) # skewness: FAILS, P<0.001 
+jarque.test(sqrt_scaledResids) # normality test: FAILS, P < 0.001 
+anscombe.test(sqrt_scaledResids) # kurtosis: FAILS, P < 0.001 
+agostino.test(sqrt_scaledResids) # skewness: FAILS, P<0.001 
 ## both log and sqrt transforms support model 3 (Steve's m2), which is different from Steve's result (support for his m5 = my model6)
 ## I made several changes including REML=F, dropping arbitrarily small plants, and using same size variable in fixed and random effects.
 ## The latter change made the biggest difference as far as I can tell. 
@@ -163,9 +170,21 @@ log_gamlss_fit <- fitDist(drop_allD$logarea.t1,type="realAll")
 log_gamlss_fit$fits
 log_gamlss_fit$failed
 
-## try fitting gamlss ST4 to log size data. use the fixed effect structure corresponding to log_models[[3]]
+## SPE: see what family gamlss thinks the scaled residuals conform to. 
+sqrt_gamlss_fit <- fitDist(sqrt_scaledResids,type="realline")
+sqrt_gamlss_fit$fits
+sqrt_gamlss_fit$failed
+
+log_gamlss_fit <- fitDist(log_scaledResids,type="realline")
+log_gamlss_fit$fits
+log_gamlss_fit$failed
+
+################################################################################################################
+## try fitting gamlss ST2 to log size data. use the fixed effect structure corresponding to log_models[[3]]
+## SPE: ST2 is suggested by using fitDist on the scaled residuals, and it gives a better (lower deviance) fit
+#################################################################################################################
 fit_ST4 <- gamlss(logarea.t1 ~ as.factor(year) + logarea.t0:as.factor(year) + Treatment + Group,
-                  data=drop_allD, family="ST4",
+                  data=drop_allD, family="ST2", method=RS(250),
                   sigma.formula = ~logarea.t0, nu.formula = ~1, tau.formula = ~1)
 
 ## well, it fit. does it describe the data well?
@@ -173,7 +192,7 @@ fit_ST4 <- gamlss(logarea.t1 ~ as.factor(year) + logarea.t0:as.factor(year) + Tr
 n_sim <- 500
 idaho_sim<-matrix(NA,nrow=nrow(drop_allD),ncol=n_sim)
 for(i in 1:n_sim){
-  idaho_sim[,i] <- rST4(n = nrow(drop_allD), 
+  idaho_sim[,i] <- rST2(n = nrow(drop_allD), 
                         mu = predict(fit_ST4), 
                         sigma = exp(fit_ST4$sigma.coefficients[1] + fit_ST4$sigma.coefficients[2] * drop_allD$logarea.t0),
                         nu = exp(fit_ST4$nu.coefficients),
