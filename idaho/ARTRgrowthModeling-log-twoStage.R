@@ -97,7 +97,7 @@ best_weights=weights(log_models[[best_model]]);
 for(mod in 1:6) {log_models[[mod]] <- update(log_models[[mod]],weights=best_weights)}
 aictab(log_models); 
 
-######### Here's the best Gaussian model 
+######### Here's the best Gaussian model ########################################
 aics = unlist(lapply(log_models,AIC)); best_model=which(aics==min(aics)); 
 log_model = log_models[[best_model]]; 
 
@@ -121,14 +121,14 @@ anscombe.test(log_scaledResids) # kurtosis: FAILS, P < 0.001
 agostino.test(log_scaledResids) # skewness: FAILS, P<0.001 
 
 ########################################################################
-## See what family gamlss thinks the scaled residuals conform to. 
+## See what family gamlss thinks the scaled residuals conform to: JSU. 
 ########################################################################
 log_gamlss_fit <- fitDist(log_scaledResids,type="realline")
 log_gamlss_fit$fits
 log_gamlss_fit$failed
 
 ########################################################################
-## Rolapply diagnostics on the scaled residuals 
+## Rollapply diagnostics on the scaled residuals 
 ########################################################################
 px = fitted(log_model); py=log_scaledResids; 
 e = order(px); px=px[e]; py=py[e];  
@@ -148,8 +148,8 @@ spline.scatter.smooth(rollx,rollkurt/3-1,gamma=2,xlab="Fitted values",ylab="Exce
 abline(h=0,col="blue",lty=2)
 
 ################################################################################################################
-## try fitting gamlss JSU to log size data. Use the fixed effect structure corresponding to the best lmer fit. 
-## JSU is suggested by fitDist on the scaled residuals. 
+## Try fitting gamlss JSU to log size data. Use the fixed effect structure corresponding to the best lmer fit,
+## and believe the rollaply diagnostics saying that skew and kurtosis are pretty much constant.
 #################################################################################################################
 
 #### Extract random effects from the pilot Gaussian fit, and use them as an offset 
@@ -160,30 +160,32 @@ fixed.effect[drop_allD$Treatment=="No_grass"]  =  fixed.effect[drop_allD$Treatme
 random.effect = fitted(log_model)-fixed.effect; 
 drop_allD$random.effect = random.effect; 
 
-### Pilot fit: variance depends on initial logarea 
+### Pilot fit: variance depends on initial logarea. 
 theFamily = "JSU"
 fit_LSS <- gamlss(logarea.t1 ~ logarea.t0 +  Treatment + offset(random.effect), 
                   data=drop_allD, family=theFamily, method=RS(250), 
-                  sigma.formula = ~logarea.t0, nu.formula = ~1, tau.formula = ~1)
+                  sigma.formula = ~logarea.t0, 
+				  nu.formula = ~1, tau.formula = ~1)
 
 ### Iterative re-fit, with variance depending on fitted values 
 drop_allD$fitted=fitted(fit_LSS);
 for(k in 1:5) {
 	fit_vals= fitted(fit_LSS);
-	drop_allD$fitted <- 0.5*(drop_allD$fitted + fit_vals); 
+	drop_allD$fitted <- 0.5*(drop_allD$fitted + fit_vals); # cautious update 
 	fit_LSS <- gamlss(logarea.t1 ~ logarea.t0 + Treatment + offset(random.effect),
                   data=drop_allD, family= theFamily, method=RS(250),start.from=fit_LSS,
-                  sigma.formula = ~fitted, nu.formula = ~1, tau.formula = ~1)
+                  sigma.formula = ~fitted, 
+				  nu.formula = ~1, tau.formula = ~1)
 	new_fit = fitted(fit_LSS); 
 	err = (new_fit - fit_vals)^2; 
 	cat(k, mean(err)^0.5,"\n"); 
 }				  
 
 ###############################################################################
-## well, it fit. does it describe the data well?
+## Well, it fit. does it describe the data well?
 ## Simulate data from best model
 ###############################################################################
-n_sim <- 100
+n_sim <- 250
 idaho_sim<-matrix(NA,nrow=nrow(drop_allD),ncol=n_sim)
 for(i in 1:n_sim){
   idaho_sim[,i] <- rJSU(n = nrow(drop_allD), 
@@ -195,7 +197,7 @@ for(i in 1:n_sim){
 #  Rollapply diagnostics applied to the fitted model 
 #  Compare mean, sd, skewness, excess kurtosis vs. fitted value
 ################################################################
-px = fitted(fit_ST2); e = order(px); px=px[e]; 
+px = fitted(fit_LSS); e = order(px); px=px[e]; 
 
 ## Real data 
 py = drop_allD$logarea.t1; py=py[e]; 
@@ -205,7 +207,7 @@ rollsd=rollapply(py,100,sd,by=50);
 rollskew=rollapply(py,100,skewness,by=50);
 rollkurt=rollapply(py,100,kurtosis,by=50)/3-1;
 
-thePlot=function(x,Y,xlab,ylab,gamma=2){
+thePlot=function(x,Y,xlab,ylab,gamma=1.4){
     pY= matrix(0,nrow(Y),ncol(Y))
 	for(j in 1:ncol(Y)) {
 	  fit=gam(Y[,j]~s(x),gamma=gamma,method="REML")
@@ -217,6 +219,7 @@ thePlot=function(x,Y,xlab,ylab,gamma=2){
 
 par(mfrow=c(2,2),mar=c(5,5,2,1),cex.axis=1.3,cex.lab=1.3); 
 
+Y = matrix(NA,length(rollx),n_sim); 
 for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,mean,by=50); 
 thePlot(rollx,cbind(rollmean,Y),xlab="Fitted value",ylab="Mean");
 
