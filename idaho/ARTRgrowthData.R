@@ -22,12 +22,12 @@ source("Utilities.R");
 sppList <- c("ARTR","HECO","POSE","PSSP","allcov","allpts")
 doSpp <- "ARTR"   # !!!!!!!!!!!!!  Don't change this
 
-dataDir1 <- "c:/repos/IPM_size_transitions/idaho/legacy_data/"
-dataDir2 <- "c:/repos/IPM_size_transitions/idaho/modern_data/"
+dataDir1 <- "c:/repos/IPM_size_transitions/idaho/ARTR/legacy_data/"
+dataDir2 <- "c:/repos/IPM_size_transitions/idaho/ARTR/modern_data/"
 nonCompLength.s=5 #Number of columns in SppData that are not measures of competitors 
 
 # set up distance weights------------------------------------------------
-dists <- read.csv("modern_data/IdahoModDistanceWeights_noExptl.csv");
+dists <- read.csv("ARTR/modern_data/IdahoModDistanceWeights_noExptl.csv");
 dists$allcov <- rowMeans(dists[,1:4])  # for "other" polygons use average of big 4
 dists$allpts <- dists$POSE  # set forb dist wts = smallest grass (POSE)
 
