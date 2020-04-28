@@ -12,7 +12,7 @@ rm(list=ls(all=TRUE));
 setwd("c:/repos/IPM_size_transitions/idaho"); 
 
 require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
-require(gamlss); require(gamlss.tr); require(AICcmodavg); 
+require(gamlss); require(gamlss.tr); require(AICcmodavg); require(lmerTest); 
 
 source("Utilities.R");
 
@@ -44,28 +44,35 @@ arb_small <- unique(c(which(allD$area.t0==0.25),which(allD$area.t1==0.25)))
 drop_allD <- allD[-arb_small,]
 plot(drop_allD$logarea.t0, drop_allD$logarea.t1) 
 
+# condense treatments based on prior analysis
+e = which(drop_allD$Treatment=="ControlModern");
+drop_allD$Treatment[e] = "Control"; 
+drop_allD = droplevels(drop_allD);  
+
 ########################################################################## 
 ## Pilot fits with log transformation, constant variance 
 ########################################################################## 
 log_models <- list()
 vf <- varExp(form =~ logarea.t0)
 log_models[[1]] <- lmer(logarea.t1~ logarea.t0 + W.ARTR + W.HECO + W.POSE + W.PSSP+  W.allcov + W.allpts + Treatment + 
-             (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML=F); 
+             Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML=F); 
 
 log_models[[2]] <- lmer(logarea.t1~logarea.t0 + W.ARTR  + Treatment + 
-             (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML = F)
+             Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML = F)
 
 log_models[[3]] <- lmer(logarea.t1~logarea.t0 + Treatment + 
-             (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML = F)
+             Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML = F)
 
 log_models[[4]] <- lmer(logarea.t1~logarea.t0 + Treatment + 
-             (1|Group)+(1|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML = F)
+             Group+(1|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML = F)
  			  
 log_models[[5]] <- lmer(logarea.t1~logarea.t0 + Treatment + 
-             (1|Group)+(0+logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML = F)
+             Group+(0+logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML = F)
 
 log_models[[6]] <- lmer(logarea.t1~logarea.t0 + Treatment + 
              (0+logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=drop_allD,REML = F)
+
+aictab(log_models); 
 
 ########################################################################## 
 ## Use iterative re-weighting to fit with nonconstant variance,  
@@ -77,7 +84,7 @@ for(rep in 1:25) {
 	fitted_vals = fitted(log_model);
 	resids = residuals(log_model); 
 	resid_model = lm(log(abs(resids))~fitted_vals); 
-	new_weights = 0.5*(weights(log_model) + exp(-fitted(resid_model))); # cautious update 
+	new_weights = 0.5*(weights(log_model) + exp(-2*fitted(resid_model))); # cautious update 
 	new_model <- update(log_model,weights=new_weights); 
 	err = weights(log_model)-weights(new_model); err=sqrt(mean(err^2)); 
 	cat(mod,rep,err,"\n") # check on convergence of estimated weights 
@@ -110,8 +117,8 @@ summary(log_model);
 ######################################################################
 # Interrogate the scaled residuals - Gaussian? NO. 
 ###################################################################### 
-plot(fitted(log_model), 1/weights(log_model)); 
-log_scaledResids = residuals(log_model)*weights(log_model)
+plot(fitted(log_model), sqrt(1/weights(log_model))); 
+log_scaledResids = residuals(log_model)*sqrt(weights(log_model))
 plot(fitted(log_model), log_scaledResids); 
 
 qqPlot(log_scaledResids); # bad in just the lower tail
@@ -155,13 +162,12 @@ abline(h=0,col="blue",lty=2)
 #### Extract random effects from the pilot Gaussian fit, and use them as an offset 
 coefs=fixef(log_model)
 fixed.effect = coefs[1] + coefs[2]*drop_allD$logarea.t0;
-fixed.effect[drop_allD$Treatment=="ControlModern"]  =  fixed.effect[drop_allD$Treatment=="ControlModern"] + coefs[3]; 
-fixed.effect[drop_allD$Treatment=="No_grass"]  =  fixed.effect[drop_allD$Treatment=="No_grass"] + coefs[4]; 
+fixed.effect[drop_allD$Treatment=="No_grass"]  =  fixed.effect[drop_allD$Treatment=="No_grass"] + coefs[3]; 
 random.effect = fitted(log_model)-fixed.effect; 
 drop_allD$random.effect = random.effect; 
 
 ### Pilot fit: variance depends on initial logarea. 
-theFamily = "JSU"
+theFamily = "ST5"
 fit_LSS <- gamlss(logarea.t1 ~ logarea.t0 +  Treatment + offset(random.effect), 
                   data=drop_allD, family=theFamily, method=RS(250), 
                   sigma.formula = ~logarea.t0, 
@@ -188,7 +194,7 @@ for(k in 1:5) {
 n_sim <- 250
 idaho_sim<-matrix(NA,nrow=nrow(drop_allD),ncol=n_sim)
 for(i in 1:n_sim){
-  idaho_sim[,i] <- rJSU(n = nrow(drop_allD), 
+  idaho_sim[,i] <- rST5(n = nrow(drop_allD), 
                         mu = predict(fit_LSS), sigma = fit_LSS$sigma.fv,
                         nu = fit_LSS$nu.fv, tau = fit_LSS$tau.fv)
 }
