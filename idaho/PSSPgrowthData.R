@@ -42,16 +42,13 @@ D1$Treatment <- "Control"
 #########################################
 D2 <- fetchGdat(doSpp=doSpp,speciesList=sppList,datadir=dataDir2,distWts=dists)
 
-ii <- which(D2$year>=2011 & D2$Treatment=="No_grass")
-D2$W.HECO[ii] <- 0 ; D2$W.POSE[ii] <- 0 ; D2$W.ARTR[ii] <- 0
-
 # merge in treatment identity for each quadrat 
 tmp <- read.csv(paste(dataDir2,"quad_info.csv",sep=""))
 tmp <- tmp[,c("quad","Treatment")]
 D2 <- merge(D2,tmp, all.x=T)
 
 # limit to control and removals plots 
-keep <- which(is.element(D2$Treatment,c("Control","No_grass")))
+keep <- which(is.element(D2$Treatment,c("Control","No_shrub")))
 D2 <- D2[keep,]; 
 
 #######################################################################
@@ -61,8 +58,8 @@ allD = rbind(D1,D2);
 allD$year[allD$year<2000] <- allD$year[allD$year<2000] + 1900
 
 ## eliminate likely recording errors: large plants that became tiny in one year. 
-tmp <- which((allD$area.t0>100)&(allD$area.t1 < 0.26)); 
-allD <- allD[-tmp,]; 
+#tmp <- which((allD$area.t0>100)&(allD$area.t1 < 0.26)); 
+#allD <- allD[-tmp,]; 
 
 ## get rid of seedlings 
 allD <- trimQuadrats(allD)$data;
@@ -73,8 +70,8 @@ plot(logarea.t1~logarea.t0,data=allD);
 allD$Treatment[allD$Treatment=="Control" & allD$year>2000] <- "ControlModern"
 allD$year <- as.factor(allD$year)
 
-cols <- c("area.t0","area.t1","logarea.t0","logarea.t1","year","Group","W.ARTR","W.HECO","W.POSE","W.PSSP","W.allcov","W.allpts","Treatment")     
+cols <- c("area.t0","area.t1","logarea.t0","logarea.t1","year","Group","age","W.ARTR","W.HECO","W.POSE","W.PSSP","W.allcov","W.allpts","Treatment")     
 allD <- allD[,cols]; 
 e = order(allD$area.t0); allD <- allD[e,]; 
 
-write.csv(allD,file="ARTR_growth_data.csv"); 
+write.csv(allD,file="PSSP_growth_data.csv"); 

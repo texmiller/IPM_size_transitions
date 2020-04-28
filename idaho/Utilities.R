@@ -44,10 +44,8 @@ fetchGdat <- function(doSpp,speciesList,datadir,distWts){
     W[,iSpp] <- C%*%dist_wts 
   }
   
-  if(!"Treatment"%in%names(D1)) {D1$Treatment = rep("NA",nrow(D1))}
-  
   #format
-  D1 <- D1[,c("quad","year","trackID","age","distEdgeMin","allEdge","QuadName","Treatment","Grazing","Group","area.t0","area.t1","logarea.t0","logarea.t1","species")]
+  D1 <- D1[,c("quad","year","trackID","age","distEdgeMin","allEdge","QuadName","Grazing","Group","area.t0","area.t1","logarea.t0","logarea.t1","species")]
   D1 <- cbind(D1,W)
   
   return(D1)

@@ -42,9 +42,6 @@ D1$Treatment <- "Control"
 #########################################
 D2 <- fetchGdat(doSpp=doSpp,speciesList=sppList,datadir=dataDir2,distWts=dists)
 
-ii <- which(D2$year>=2011 & D2$Treatment=="No_grass")
-D2$W.HECO[ii] <- 0 ; D2$W.POSE[ii] <- 0 ; D2$W.PSSP[ii] <- 0
-
 # merge in treatment identity for each quadrat 
 tmp <- read.csv(paste(dataDir2,"quad_info.csv",sep=""))
 tmp <- tmp[,c("quad","Treatment")]
@@ -53,6 +50,9 @@ D2 <- merge(D2,tmp, all.x=T)
 # limit to control and removals plots 
 keep <- which(is.element(D2$Treatment,c("Control","No_grass")))
 D2 <- D2[keep,]; 
+
+ii <- which(D2$year>=2011 & D2$Treatment=="No_grass")
+D2$W.HECO[ii] <- 0 ; D2$W.POSE[ii] <- 0 ; D2$W.PSSP[ii] <- 0
 
 #######################################################################
 # 2. Merge, clean up, and save 
