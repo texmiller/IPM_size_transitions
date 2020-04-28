@@ -45,72 +45,70 @@ arb_small <- unique(c(which(allD$area.t0==0.25),which(allD$area.t1==0.25)))
 dropD <- allD[-arb_small,]
 plot(dropD$logarea.t0, dropD$logarea.t1) 
 
+# condense treatments based on prior analysis
+e = which(dropD$Treatment=="ControlModern");
+dropD$Treatment[e] = "Control"; 
+dropD = droplevels(dropD);  
+
 ########################################################################## 
 ## Pilot fits with log transformation, constant variance 
 ########################################################################## 
 log_models <- list()
 log_models[[1]] <- lmer(logarea.t1~ logarea.t0 + W.ARTR + W.HECO + W.POSE + W.PSSP+  W.allcov + W.allpts + Treatment + 
-             (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F); 
+             Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F); 
 
-log_models[[2]] <- lmer(logarea.t1~logarea.t0 + W.ARTR  + Treatment + 
-             (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML = F)
+## coefficients on HECO and POSE are nearly identical, so group them: deltaAIC = 2, i.e. no change at all in logLik.   
+log_models[[2]] <- lmer(logarea.t1~ logarea.t0 + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allcov + W.allpts + Treatment + 
+             Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F); 
 
-log_models[[3]] <- lmer(logarea.t1~logarea.t0 + Treatment + 
-             (1|Group)+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML = F)
+## W.allpts is non-significant. Consider two options: drop, group
+log_models[[3]] <- lmer(logarea.t1~ logarea.t0 + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allcov + Treatment + 
+             Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F);  			 
 
-log_models[[4]] <- lmer(logarea.t1~logarea.t0 + Treatment + 
-             (1|Group)+(1|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML = F)
- 			  
-log_models[[5]] <- lmer(logarea.t1~logarea.t0 + Treatment + 
-             (1|Group)+(0+logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML = F)
-
-log_models[[6]] <- lmer(logarea.t1~logarea.t0 + Treatment + 
-             (0+logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML = F)
-
+## Based on AIC, the winner by a hair 
+log_models[[4]] <- lmer(logarea.t1~ logarea.t0 + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
+             Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F); 			 
+			 
 ########################################################################## 
 ## Use iterative re-weighting to fit with nonconstant variance,  
 ## then AIC for model selection.  
 ##########################################################################
-for(mod in 1:6) {
+
+## NegLogLik function to fit variance model for residuals 
+varPars = function(pars) {
+    return(-sum(dnorm(resids, mean=0, sd=pars[1]*exp(pars[2]*fitted_vals),log=TRUE)))
+}	
+
+for(mod in 1:4) {
 for(rep in 1:25) {
 	log_model = log_models[[mod]];
-	fitted_vals = fitted(log_model);
-	resids = residuals(log_model); 
-	resid_model = lm(log(abs(resids))~fitted_vals); 
-	new_weights = 0.5*(weights(log_model) + exp(-fitted(resid_model))); # cautious update 
+	fitted_vals = fitted(log_model);resids = residuals(log_model); 
+	out=optim(c(sd(resids),0),varPars,control=list(maxit=5000)); 
+	pars=out$par; 
+	new_weights = pars[1]*exp(pars[2]*fitted_vals); new_weights = 1/((new_weights)^2)
+	new_weights = 0.5*(weights(log_model) + new_weights); # cautious update 
 	new_model <- update(log_model,weights=new_weights); 
 	err = weights(log_model)-weights(new_model); err=sqrt(mean(err^2)); 
 	cat(mod,rep,err,"\n") # check on convergence of estimated weights 
 	log_models[[mod]]<-new_model; 
 }}
-aictab(log_models); 
+aictab(log_models); # model 4 is the winner, by a hair 
 
 ######### For a fair AIC comparison, fit all models with the same weights 
 aics = unlist(lapply(log_models,AIC)); best_model=which(aics==min(aics)); 
 best_weights=weights(log_models[[best_model]]); 
-for(mod in 1:6) {log_models[[mod]] <- update(log_models[[mod]],weights=best_weights)}
-aictab(log_models); 
-
-########## Make sure that the model choice hasn't changed
-aics = unlist(lapply(log_models,AIC)); best_model=which(aics==min(aics)); 
-best_weights=weights(log_models[[best_model]]); 
-for(mod in 1:6) {log_models[[mod]] <- update(log_models[[mod]],weights=best_weights)}
-aictab(log_models); 
+for(mod in 1:4) {log_models[[mod]] <- update(log_models[[mod]],weights=best_weights)}
+aictab(log_models); # still model 4, by a hair 
 
 ######### Here's the best Gaussian model ########################################
 aics = unlist(lapply(log_models,AIC)); best_model=which(aics==min(aics)); 
 log_model = log_models[[best_model]]; 
-
 summary(log_model); ## no Group effect, so re-fit 
-log_model <- lmer(logarea.t1~logarea.t0 + Treatment + 
-             (logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,
-			 weights=weights(log_model),REML = F)
-summary(log_model); 
 
 ######################################################################
 # Interrogate the scaled residuals - Gaussian? NO. 
 ###################################################################### 
-plot(fitted(log_model), 1/weights(log_model)); 
+plot(fitted(log_model), 1/sqrt(weights(log_model))); 
 log_scaledResids = residuals(log_model)*weights(log_model)
 plot(fitted(log_model), log_scaledResids); 
 
