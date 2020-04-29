@@ -4,9 +4,7 @@
 .RData
 .Ruserdata
 .rds
-.csv
 data/.csv
-
 *.aux
 *.glo
 *.idx
@@ -30,5 +28,4 @@ data/.csv
 *.mtc1
 *.out
 *.synctex.gz
-*.tex
 *.rds
