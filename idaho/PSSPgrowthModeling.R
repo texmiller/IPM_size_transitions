@@ -41,11 +41,14 @@ allD$year <- factor(allD$year);
 ######################################################################
 library(tidyverse)
 ## drop out these arbitrarily small individuals
-arb_small <- unique(c(which(allD$area.t0==0.25),which(allD$area.t1==0.25)))
-dropD <- allD[-arb_small,]
+e = which(abs(allD$area.t0-0.25)<0.001); 
+dropD = allD[-e,]; 
+e = which(abs(dropD$area.t1-0.25)<0.001); 
+dropD = dropD[-e,]; 
 plot(dropD$logarea.t0, dropD$logarea.t1) 
 
-# condense treatments based on prior analysis
+# condense treatments based on prior analysis: no difference between
+# historical and modern control quadrats 
 e = which(dropD$Treatment=="ControlModern");
 dropD$Treatment[e] = "Control"; 
 dropD = droplevels(dropD);  
@@ -61,11 +64,11 @@ log_models[[1]] <- lmer(logarea.t1~ logarea.t0 + W.ARTR + W.HECO + W.POSE + W.PS
 log_models[[2]] <- lmer(logarea.t1~ logarea.t0 + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allcov + W.allpts + Treatment + 
              Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F); 
 
-## W.allpts is non-significant. Consider two options: drop, group
+## W.allpts is non-significant. Consider two options: drop, group with all other cover 
 log_models[[3]] <- lmer(logarea.t1~ logarea.t0 + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allcov + Treatment + 
              Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F);  			 
 
-## Based on AIC, the winner by a hair 
+## Based on AIC, the winner by a hair is to group all heterospecific grasses, and group all cover besides the 'big 4'
 log_models[[4]] <- lmer(logarea.t1~ logarea.t0 + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
              Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F); 			 
 			 
@@ -80,12 +83,14 @@ varPars = function(pars) {
 }	
 
 for(mod in 1:4) {
-for(rep in 1:25) {
+err = 1; rep=0; 
+while(err > 0.000001) {
+	rep=rep+1; 
 	log_model = log_models[[mod]];
 	fitted_vals = fitted(log_model);resids = residuals(log_model); 
 	out=optim(c(sd(resids),0),varPars,control=list(maxit=5000)); 
 	pars=out$par; 
-	new_weights = pars[1]*exp(pars[2]*fitted_vals); new_weights = 1/((new_weights)^2)
+	new_sigma = pars[1]*exp(pars[2]*fitted_vals); new_weights = 1/((new_sigma)^2)
 	new_weights = 0.5*(weights(log_model) + new_weights); # cautious update 
 	new_model <- update(log_model,weights=new_weights); 
 	err = weights(log_model)-weights(new_model); err=sqrt(mean(err^2)); 
@@ -103,16 +108,16 @@ aictab(log_models); # still model 4, by a hair
 ######### Here's the best Gaussian model ########################################
 aics = unlist(lapply(log_models,AIC)); best_model=which(aics==min(aics)); 
 log_model = log_models[[best_model]]; 
-summary(log_model); ## no Group effect, so re-fit 
+summary(log_model); 
 
 ######################################################################
 # Interrogate the scaled residuals - Gaussian? NO. 
 ###################################################################### 
-plot(fitted(log_model), 1/sqrt(weights(log_model))); 
-log_scaledResids = residuals(log_model)*weights(log_model)
+plot(fitted(log_model), 1/sqrt(weights(log_model)),xlab="Fitted",ylab="Estimated residual Std Dev"); 
+log_scaledResids = residuals(log_model)*sqrt(weights(log_model))
 plot(fitted(log_model), log_scaledResids); 
 
-qqPlot(log_scaledResids); # bad in just the lower tail
+qqPlot(log_scaledResids); # really bad in lower tail, not too bad in upper 
 
 jarque.test(log_scaledResids) # normality test: FAILS, P < 0.001 
 anscombe.test(log_scaledResids) # kurtosis: FAILS, P < 0.001 
@@ -153,8 +158,7 @@ abline(h=0,col="blue",lty=2)
 #### Extract random effects from the pilot Gaussian fit, and use them as an offset 
 coefs=fixef(log_model)
 fixed.effect = coefs[1] + coefs[2]*dropD$logarea.t0;
-fixed.effect[dropD$Treatment=="ControlModern"]  =  fixed.effect[dropD$Treatment=="ControlModern"] + coefs[3]; 
-fixed.effect[dropD$Treatment=="No_grass"]  =  fixed.effect[dropD$Treatment=="No_grass"] + coefs[4]; 
+fixed.effect[dropD$Treatment=="No_shrub"]  =  fixed.effect[dropD$Treatment=="No_shrub"] + coefs[3]; 
 random.effect = fitted(log_model)-fixed.effect; 
 dropD$random.effect = random.effect; 
 
@@ -163,17 +167,17 @@ theFamily = "JSU"
 fit_LSS <- gamlss(logarea.t1 ~ logarea.t0 +  Treatment + offset(random.effect), 
                   data=dropD, family=theFamily, method=RS(250), 
                   sigma.formula = ~logarea.t0, 
-				  nu.formula = ~1, tau.formula = ~1)
+				  nu.formula = ~logarea.t0, tau.formula = ~logarea.t0)
 
 ### Iterative re-fit, with variance depending on fitted values 
 dropD$fitted=fitted(fit_LSS);
-for(k in 1:5) {
+for(k in 1:15) {
 	fit_vals= fitted(fit_LSS);
 	dropD$fitted <- 0.5*(dropD$fitted + fit_vals); # cautious update 
-	fit_LSS <- gamlss(logarea.t1 ~ logarea.t0 + Treatment + offset(random.effect),
+	fit_LSS <- gamlss(logarea.t1 ~ logarea.t0 + I(logarea.t0)^2 + Treatment + offset(random.effect),
                   data=dropD, family= theFamily, method=RS(250),start.from=fit_LSS,
-                  sigma.formula = ~fitted, 
-				  nu.formula = ~1, tau.formula = ~1)
+                  sigma.formula = ~ fitted, 
+				  nu.formula = ~fitted, tau.formula = ~fitted)
 	new_fit = fitted(fit_LSS); 
 	err = (new_fit - fit_vals)^2; 
 	cat(k, mean(err)^0.5,"\n"); 
@@ -190,6 +194,8 @@ for(i in 1:n_sim){
                         mu = predict(fit_LSS), sigma = fit_LSS$sigma.fv,
                         nu = fit_LSS$nu.fv, tau = fit_LSS$tau.fv)
 }
+e = idaho_sim < log(0.5); 
+idaho_sim[e]  = log(0.5); 
 
 ################################################################
 #  Rollapply diagnostics applied to the fitted model 
@@ -205,13 +211,13 @@ rollsd=rollapply(py,100,sd,by=50);
 rollskew=rollapply(py,100,skewness,by=50);
 rollkurt=rollapply(py,100,kurtosis,by=50)/3-1;
 
-thePlot=function(x,Y,xlab,ylab,gamma=1.4){
+thePlot=function(x,Y,xlab,ylab,gamma=1.4,...){
     pY= matrix(0,nrow(Y),ncol(Y))
 	for(j in 1:ncol(Y)) {
 	  fit=gam(Y[,j]~s(x),gamma=gamma,method="REML")
       pY[,j]=predict(fit,type="response"); 
     } 
-	matplot(x,pY,col="grey50",type="o",pch=1,xlab=xlab,ylab=ylab);	
+	matplot(x,pY,col="grey50",type="o",pch=1,xlab=xlab,ylab=ylab,...);	
 	points(x,pY[,1],col="red",cex=1.5,pch=16); 
 }
 
@@ -222,7 +228,7 @@ for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,mean,by=50);
 thePlot(rollx,cbind(rollmean,Y),xlab="Fitted value",ylab="Mean");
 
 for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,sd,by=50); 
-thePlot(rollx,cbind(rollsd,Y),xlab="Fitted value",ylab="Std Dev");
+thePlot(rollx,cbind(rollsd,Y),xlab="Fitted value",ylab="Std Dev",ylim=c(0,max(cbind(rollsd,Y))));
 
 for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,skewness,by=50); 
 thePlot(rollx,cbind(rollskew,Y),xlab="Fitted value",ylab="Skewness");

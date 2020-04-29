@@ -155,7 +155,7 @@ spline.scatter.smooth(rollx,rollkurt/3-1,gamma=2,xlab="Fitted values",ylab="Exce
 abline(h=0,col="blue",lty=2)
 
 ################################################################################################################
-## Try fitting gamlss JSU to log size data. Use the fixed effect structure corresponding to the best lmer fit,
+## Try fitting gamlss ST5 to log size data. Use the fixed effect structure corresponding to the best lmer fit,
 ## and believe the rollaply diagnostics saying that skew and kurtosis are pretty much constant.
 #################################################################################################################
 
