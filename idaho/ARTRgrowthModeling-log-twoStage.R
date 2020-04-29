@@ -9,7 +9,10 @@
 ##############################################################################
 
 rm(list=ls(all=TRUE));
+## Steve wd
 setwd("c:/repos/IPM_size_transitions/idaho"); 
+## Tom wd
+setwd("./idaho"); 
 
 require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(gamlss.tr); require(AICcmodavg); require(lmerTest); 
