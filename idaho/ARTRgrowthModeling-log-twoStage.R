@@ -51,7 +51,7 @@ plot(drop_allD$logarea.t0, drop_allD$logarea.t1)
 e = which(drop_allD$Treatment=="ControlModern");
 drop_allD$Treatment[e] = "Control"; 
 drop_allD = droplevels(drop_allD);  
-
+table(drop_allD$Treatment) ## n=1040 vs 41 -- is it worth even fitting this effect?
 ########################################################################## 
 ## Pilot fits with log transformation, constant variance 
 ########################################################################## 
@@ -87,7 +87,7 @@ for(rep in 1:25) {
 	fitted_vals = fitted(log_model);
 	resids = residuals(log_model); 
 	resid_model = lm(log(abs(resids))~fitted_vals); 
-	new_weights = 0.5*(weights(log_model) + exp(-2*fitted(resid_model))); # cautious update 
+	new_weights = 0.5*(weights(log_model) + exp(-2*fitted(resid_model))); # cautious update ## <- what's going on here?
 	new_model <- update(log_model,weights=new_weights); 
 	err = weights(log_model)-weights(new_model); err=sqrt(mean(err^2)); 
 	cat(mod,rep,err,"\n") # check on convergence of estimated weights 
@@ -239,4 +239,4 @@ for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,skewness,by=50);
 thePlot(rollx,cbind(rollskew,Y),xlab="Fitted value",ylab="Skewness");
 
 for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,kurtosis,by=50)/3-1; 
-thePlot(rollx,cbind(rollkurt,Y),xlab="Fitted value",ylab="Excess Kurtosis");
+thePlot(rollx,cbind(rollkurt,Y),xlab="Fitted value",ylab="Excess Kurtosis"); ## why is this plot so different from the one produced at line 157?
