@@ -122,25 +122,6 @@ The regression sub-models for survival and reproduction give the expected values
 Modeling growth for an IPM is about more than the expected value: the full  probability distribution of future size, conditioned on previous size, must be defined. 
 The original template for doing so was provided by Easterling et al. \citeyear{easterling2000size}, who used simple linear regression. 
 
-Steve's stray bits to be incorporated: 
-
-Modeling growth in IPMs is \emph{modeling}, not statistics. Statistical tools and tests inform the process, but do
-not dictate it. We are not claiming that we know how to find the ``right'' model for any particular data set or
-application through some model selection procedure. Our goal is to demonstrate how a simple workflow, using tools 
-that were nonexistent or not readily available when IPMs came into use, makes it straightforward and relatively 
-easy to identify when the default choice (Gaussian with possibly nonconstant variance) is a poor fit to the data, 
-and to then choose and fit a substantially better growth model that is no harder to use in practice. 
-
-The default growth model traces back to Easterling et al. (2000). The analyses described
-there pre-date version 1.0 of R by several years, and they were quickly replaced by better methods such 
-as the linear and generalized linear mixed models regression functions in R, notably the option to fit 
-linear mixed models with nonconstant growth variance. But as Peterson et al. recently
-noted, despite the growing list of other options and repeated calls in the literature 
-for greater attention to growth modeling, the general state-of-the-art in the literature remains stuck
-where it was 15 or so years ago, using the default model without pausing to examine critically whether or
-not it actually provides a good description of the data. Our goal here is to break that logjam, by building on Peterson et al.
-to provide a practical ``new default'' that researchers can follow to choose, fit, and implement better descriptions
-of individual growth for IPMs and any other size-structured population model. 
 
 The modeling workflow that we suggest runs as follows:
 \begin{enumerate}
@@ -165,6 +146,34 @@ may be helpful in modeling survival or fecundity). However, it does entail some 
 future size. In contrast, we recommend that statistical model selection should be the basis for choosing the form of the final
 regression model. Rather, its form should be chosen to match the observed properties of the scaled residuals, and at most slightly modified
 based on final diagnostic tests.  
+
+
+Steve's stray bits to be incorporated: 
+
+Modeling growth in IPMs is \emph{modeling}, not statistics. Statistical tools and tests inform the process, but do
+not dictate it. We are not claiming that we know how to find the ``right'' model for any particular data set or
+application through some model selection procedure. Our goal is to demonstrate how a simple workflow, using tools 
+that were nonexistent or not readily available when IPMs came into use, makes it straightforward and relatively 
+easy to identify when the default choice (Gaussian with possibly nonconstant variance) is a poor fit to the data, 
+and to then choose and fit a substantially better growth model that is no harder to use in practice. 
+
+The default growth model traces back to Easterling et al. (2000). The analyses described
+there pre-date version 1.0 of R by several years, and they were quickly replaced by better methods such 
+as the linear and generalized linear mixed models regression functions in R, notably the option to fit 
+linear mixed models with nonconstant growth variance. But as Peterson et al. recently
+noted, despite the growing list of other options and repeated calls in the literature 
+for greater attention to growth modeling, the general state-of-the-art in the literature remains stuck
+where it was 15 or so years ago, using the default model without pausing to examine critically whether or
+not it actually provides a good description of the data. Our goal here is to break that logjam, by building on Peterson et al.
+to provide a practical ``new default'' that researchers can follow to choose, fit, and implement better descriptions
+of individual growth for IPMs and any other size-structured population model. 
+
+
+
+
+
+
+
 
 
 \section*{Acknowledgements} 
