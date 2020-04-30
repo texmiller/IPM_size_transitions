@@ -270,6 +270,7 @@ for(k in 1:15) {
 	err = (new_fit - fit_vals)^2; 
 	cat(k, mean(err)^0.5,"\n"); 
 }				  
+dropD$fitted = fitted(fit_LSS); 
 
 S = summary(fit_LSS); 
 
@@ -343,3 +344,86 @@ thePlot(rollx,cbind(rollskew,Y),xlab="Fitted value",ylab="Skewness");
 
 for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,kurtosis,by=50)/3-1; 
 thePlot(rollx,cbind(rollkurt,Y),xlab="Fitted value",ylab="Excess Kurtosis");
+
+
+#############################################################################
+#  Binned data diagnostics applied to the model fitted via Shrinkage
+#  Compare mean, sd, skewness, excess kurtosis as a function of fitted value
+#############################################################################
+
+## moments of the real data by size bin
+n_bins = 10
+alpha_scale = 0.7
+idaho_moments <- dropD %>% 
+  arrange(fitted) %>% 
+  mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+  group_by(size_bin) %>% 
+  summarise(mean_t1 = mean(logarea.t1),
+            sd_t1 = sd(logarea.t1),
+            skew_t1 = skewness(logarea.t1),
+            kurt_t1 = kurtosis(logarea.t1),
+            bin_mean = mean(fitted),
+            bin_n = n()) 
+
+
+par(mfrow=c(2,2),mar=c(4,4,1,1),mgp=c(2,1,0)); 
+sim_bin_means=sim_moment_means = matrix(NA,10,n_sim); 
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
+    arrange(fitted) %>% 
+    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_t1 = mean(sim),
+              bin_mean = mean(fitted))
+	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
+}
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="mean(Size t1)",cex=1.4); 
+points(idaho_moments$bin_mean, idaho_moments$mean_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,mean),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+
+
+sim_bin_means=sim_moment_means = matrix(NA,10,n_sim); 
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
+    arrange(fitted) %>% 
+    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_t1 = sd(sim),
+              bin_mean = mean(fitted))
+	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
+}
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="SD(Size t1)",cex=1.4); 
+points(idaho_moments$bin_mean, idaho_moments$sd_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,mean),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+
+
+sim_bin_means=sim_moment_means = matrix(NA,10,n_sim); 
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
+    arrange(fitted) %>% 
+    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_t1 = skewness(sim),
+              bin_mean = mean(fitted))
+	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
+}
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Skew(Size t1)",cex=1.4); 
+points(idaho_moments$bin_mean, idaho_moments$skew_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,mean),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+
+
+sim_bin_means=sim_moment_means = matrix(NA,10,n_sim); 
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
+    arrange(fitted) %>% 
+    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_t1 = kurtosis(sim),
+              bin_mean = mean(fitted))
+	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
+}
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Kurtosis(Size t1)",cex=1.4); 
+points(idaho_moments$bin_mean, idaho_moments$kurt_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,mean),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+
+
