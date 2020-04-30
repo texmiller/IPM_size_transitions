@@ -109,14 +109,16 @@ at the end of the article.
 \section{Introduction}
 
 Structured demographic models -- matrix and integral projection models (MPMs and IPMs) -- are powerful tools for data-driven modeling of population dynamics and viability that are widely used in basic and applied settings. 
-In contrast to MPMs for populations with discrete structure (life stage, age class, etc.), IPMs are a relatively recent development \citep{easterling2000size} best known for their ability to represent populations structured by continuous variables, most commonly size. 
+In contrast to long-standing MPMs for populations with discrete structure (life stage, age class, etc.), IPMs are a relatively recent development \citep{easterling2000size} best known for their ability to accommodate populations structured by continuous variables, most commonly size. 
 A second, related \tom{innovation}{This `innovation' is not unique to IPMs but it was rare in MPMs before IPMs.} of the IPM framework is its emphasis on modeling size-dependent vital rates as sub-models of the projection `kernel'. 
-This means that ecologists could assemble an IPM using familiar regression tools and leverage their capacity for covariates and hierarchical variance structures (i.e., random effects) to statistically describe growth, survival, reprduction, and other demographic transitions as functions of size. 
-The relative ease and flexibility of the regression-based approach has facilitated a growing body of IPM literature that examines how covariates of individual demographic fate scale up to affect population dynamics (cite examples) and that partitions demographic heterogeneity associated with space, time, or individual identity (cite examples). 
+This means that ecologists could assemble an IPM using familiar regression tools, including covariates and hierarchical variance structures (i.e., random effects), to statistically describe growth, survival, reprduction, and other demographic transitions as functions of size. 
+The relative ease and flexibility of the regression-based approach has facilitated a growing body of IPM literature that examines how biotic or abiotic drivers of demographic variation affect population dynamics (cite examples) and that explores the consequences of demographic heterogeneity associated with space, time, or individual identity \citep{crone2016contrasting,compagnoni2016effect}. 
+The vital rate regressions are the bridge between data and population model; it is important to get them right.
 
 Compared to other vital rates, growth is special. 
 The regression sub-models for survival and reproduction give the expected values of these vital rates as functions of size. 
 Modeling growth for an IPM is about more than the expected value: the full  probability distribution of future size, conditioned on previous size, must be defined. 
+The original template for doing so was provided by Easterling et al. \citeyear{easterling2000size}, who used simple linear regression 
 
 
 
