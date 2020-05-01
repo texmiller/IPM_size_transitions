@@ -57,6 +57,9 @@ for(i in 3:(ncol(pike_wide)-1)){
 pike_trans_year %>% filter(!is.na(t0) & !is.na(t1))-> pike_final
 plot(pike_final$t0,pike_final$t1)
 abline(0,1)
+## add temperature data 
+temps <- read.csv("pike/data/LakeTemp1944_2002.csv")
+pike_final$temperature <- rep(NA,nrow(pike_final)); 
 
 ## data set 4: voles from van Benthem et al.
 ## these data are from males only
