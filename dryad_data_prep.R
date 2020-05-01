@@ -60,7 +60,15 @@ abline(0,1)
 ## add temperature data 
 temps <- read.csv("pike/data/LakeTemp1944_2002.csv")
 pike_final$temperature <- rep(NA,nrow(pike_final)); 
-
+years = unique(pike_final$year); nyears=length(years); 
+for(j in 1:nyears) {
+	theYear = years[j];
+	tj = which(temps$Year==theYear);
+	tempj = temps$Temperature[tj]
+	pj = which(pike_final$year==theYear);
+	pike_final$temperature[pj]=tempj;
+}	
+	
 ## data set 4: voles from van Benthem et al.
 ## these data are from males only
 ## original study included fixed effects of population phase and reproductive stage
