@@ -188,6 +188,10 @@ while(err>0.0001) {
 }				  
 dropD$fitted = fitted(fit_LSS); 
 
+######################################################################
+#  Compare lmer and Shrinkage random effects
+######################################################################
+
 S = summary(fit_LSS); 
 
 par(mfrow=c(2,2),mar=c(4,4,1,1),mgp=c(2,1,0),bty="l"); 
@@ -221,9 +225,12 @@ matplot(cbind(ran.fx,shrunk.fx),cbind(ran.fx2,shrunk.fx2),col=c("blue","red"),pc
 ylab="Slope year-effect"); 
 legend("topright", legend=c("lmer","Shrinkage"),col=c("blue","red"),cex=1.4,pch=c(1,2),bty="n"); 
 
+save.image(file="PSSPgrowthModels.Rdata"); 
+
 #############################################################################
-#  Binned data diagnostics applied to the model fitted via Shrinkage
-#  Compare mean, sd, skewness, excess kurtosis as a function of fitted value
+#  Binned data diagnostics applied to the model fitted via Shrinkage. 
+#  Compare mean, sd, skewness, excess kurtosis as a function of fitted value.
+#  TO DO: functional programming instead of copy/paste/edit for each panel. 
 #############################################################################
 
 # Simulate data from best model
@@ -312,5 +319,68 @@ for(i in 1:n_sim){
 matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Kurtosis(Size t1)",cex=1.4); 
 points(idaho_moments$bin_mean, idaho_moments$kurt_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
 points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+
+
+#################################################################################
+#   Simulation: how well do we recover known random effects? 
+#################################################################################
+
+U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) + Treatment - 1, data=dropD); 
+LogLik=function(pars,response,U){
+	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
+	mu = U%*%pars1;  
+	val = dJSU(response, mu=mu,
+	sigma=exp(pars2[1]+pars2[2]*mu),
+	nu = pars2[3]+pars2[4]*mu,
+	tau = exp(pars2[5]+pars2[6]*mu), log=TRUE)
+	return(val); 
+}
+
+# try to fit the real data
+
+out=maxLik(logLik=LogLik,start=runif(ncol(U)+6),response=dropD$logarea.t1,U=U,
+		method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+out=maxLik(logLik=LogLik,start=out$estimate,response=dropD$logarea.t1,U=U,
+		method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+out=maxLik(logLik=LogLik,start=out$estimate,response=dropD$logarea.t1,U=U,
+		method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+
+simRanIntercept = simRanSlope = matrix(NA,30,50); 
+for(j in 1:1) {
+		U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) + Treatment - 1, data=dropD); 
+
+		# fit to the simulated responses 
+		out=maxLik(logLik=LogLik,start=runif(ncol(U)+6),response=idaho_sim[,j],U=U,
+			method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+		
+		out=maxLik(logLik=LogLik,start=out$estimate,response=idaho_sim[,j],,U=U,
+			method="NM",control=list(iterlim=2500,printLevel=1),finalHessian=FALSE); 
+			
+		out=maxLik(logLik=LogLik,start=out$estimate,response=idaho_sim[,j],U=U,
+			method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+		
+		
+		S = summary(fit_j); ### this won't work any more, need to use out$estimate. 
+
+		# shrinkage random effects for (1|year) 
+		fixed.fx = S[1:30,1]; fixed.fx = fixed.fx-mean(fixed.fx); 
+		fixed.se = S[1:30,2]; 
+		sigma2.hat = mean(fixed.fx^2)-mean(fixed.se^2)
+		shrunk.fxj = fixed.fx*(sigma2.hat/(sigma2.hat + fixed.se^2)); 
+		simRanIntercept[,j]= shrunk.fxj; 
+
+		# shrinkage random effects for (logarea.t0|year) 
+		fixed.fx2 = S[31:60,1]; fixed.fx2 = fixed.fx2-mean(fixed.fx2); 
+		fixed.se2 = S[31:60,2]; 
+		sigma2.hat = mean(fixed.fx2^2)-mean(fixed.se2^2)
+		shrunk.fx2j = fixed.fx2*(sigma2.hat/(sigma2.hat + fixed.se2^2));
+		simRanSlope[,j] = shrunk.fx2j; 
+		
+		cat("#####################################################","\n")
+		cat("Done with simulated data set ",j,"\n"); 
+}
+	
+
+
 
 
