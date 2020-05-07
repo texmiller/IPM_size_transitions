@@ -151,126 +151,46 @@ spline.scatter.smooth(rollx,rollkurt/3-1,gamma=2,xlab="Fitted values",ylab="Exce
 abline(h=0,col="blue",lty=2)
 
 ################################################################################################################
-## Try fitting gamlss JSU to log size data. Use the fixed effect structure corresponding to the best lmer fit,
-## import the random effects, and believe rollaply diagnostics saying skew and kurtosis are nearly linear.
+# Try fitting gamlss JSU to log size data. Use the fixed effect structure corresponding to the best lmer fit,
+# and believe rollaply diagnostics saying skew is linear, and kurtosis is quadratic. 
+# 
+# The random effects terms in the lmer fit are fitted here as fixed effects, then adjusted by shrinkage.  
+# Having fitted (1|year) and (0 + logarea.t0|yer) as fixed effects, we have year-specific coefficients
+# and their estimated standard errors. We then compute BLUPS for the unobserved true effects based 
+# on estimated mixing sigma and estimated s.e.'s.  
 #################################################################################################################
 
-#### Extract random effects from the pilot Gaussian fit, and use them as an offset 
-coefs=fixef(log_model)
-fixed.effect = coefs[1] + coefs[2]*dropD$logarea.t0;
-fixed.effect[dropD$Treatment=="No_shrub"]  =  fixed.effect[dropD$Treatment=="No_shrub"] + coefs[3]; 
-random.effect = fitted(log_model)-fixed.effect; 
-dropD$random.effect = random.effect; 
+theFamily = JSU(tau.link="identity"); XD=dropD; 
 
-### Pilot fit: variance depends on initial logarea. 
-theFamily = "JSU"
-fit_LSS <- gamlss(logarea.t1 ~ logarea.t0 +  Treatment + offset(random.effect), 
-                  data=dropD, family=theFamily, method=RS(250), 
-                  sigma.formula = ~logarea.t0, 
-				  nu.formula = ~logarea.t0, tau.formula = ~logarea.t0)
+# This is the one way I know to avoid the fixed-effect year and logarea:year coefficients
+# being reported as contrasts with a baseline. Doing it like this gives us one value for
+# each year, corresponding to the ranef() values reported by lmer. 
 
-### Iterative re-fit, with variance depending on fitted values 
-dropD$fitted=fitted(fit_LSS);
-for(k in 1:15) {
-	fit_vals= fitted(fit_LSS);
-	dropD$fitted <- 0.5*(dropD$fitted + fit_vals); # cautious update 
-	fit_LSS <- gamlss(logarea.t1 ~ logarea.t0 + I(logarea.t0)^2 + Treatment + offset(random.effect),
-                  data=dropD, family= theFamily, method=RS(250),start.from=fit_LSS,
-                  sigma.formula = ~ fitted, 
-				  nu.formula = ~fitted, tau.formula = ~fitted)
-	new_fit = fitted(fit_LSS); 
-	err = (new_fit - fit_vals)^2; 
-	cat(k, mean(err)^0.5,"\n"); 
-}				  
-
-
-###############################################################################
-## Well, it fit. does it describe the data well?
-## Simulate data from best model
-###############################################################################
-n_sim <- 250
-idaho_sim<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
-for(i in 1:n_sim){
-  idaho_sim[,i] <- rJSU(n = nrow(dropD), 
-                        mu = predict(fit_LSS), sigma = fit_LSS$sigma.fv,
-                        nu = fit_LSS$nu.fv, tau = fit_LSS$tau.fv)
-}
-e = idaho_sim < log(0.5); 
-idaho_sim[e]  = log(0.5); 
-
-################################################################
-#  Rollapply diagnostics applied to the fitted model 
-#  Compare mean, sd, skewness, excess kurtosis vs. fitted value
-################################################################
-px = fitted(fit_LSS); e = order(px); px=px[e]; 
-
-## Real data 
-py = dropD$logarea.t1; py=py[e]; 
-rollx=rollapply(px,100,mean,by=50);
-rollmean = rollapply(py,100,mean,by=50); 
-rollsd=rollapply(py,100,sd,by=50); 
-rollskew=rollapply(py,100,skewness,by=50);
-rollkurt=rollapply(py,100,kurtosis,by=50)/3-1;
-
-thePlot=function(x,Y,xlab,ylab,gamma=1.4,...){
-    pY= matrix(0,nrow(Y),ncol(Y))
-	for(j in 1:ncol(Y)) {
-	  fit=gam(Y[,j]~s(x),gamma=gamma,method="REML")
-      pY[,j]=predict(fit,type="response"); 
-    } 
-	matplot(x,pY,col="grey50",type="o",pch=1,xlab=xlab,ylab=ylab,...);	
-	points(x,pY[,1],col="red",cex=1.5,pch=16); 
-}
-
-par(mfrow=c(2,2),mar=c(5,5,2,1),cex.axis=1.3,cex.lab=1.3); 
-
-Y = matrix(NA,length(rollx),n_sim); 
-for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,mean,by=50); 
-thePlot(rollx,cbind(rollmean,Y),xlab="Fitted value",ylab="Mean");
-
-for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,sd,by=50); 
-thePlot(rollx,cbind(rollsd,Y),xlab="Fitted value",ylab="Std Dev",ylim=c(0,max(cbind(rollsd,Y))));
-
-for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,skewness,by=50); 
-thePlot(rollx,cbind(rollskew,Y),xlab="Fitted value",ylab="Skewness");
-
-for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,kurtosis,by=50)/3-1; 
-thePlot(rollx,cbind(rollkurt,Y),xlab="Fitted value",ylab="Excess Kurtosis");
-
-#######################################################################################
-# Now do the Shrinkage approach, and compare to the lmer random effects
-# Fit everything as fixed effects; used estimated s.e.'s to estimate the
-# mixing sigma; then compute BLUPS for the unobserved true effects based 
-# on estimated sigma and estimated s.e.'s 
-#######################################################################################
-
-### Pilot fit: variance depends on initial logarea. 
-theFamily = "JSU"; XD=dropD; 
-
-# The only way I know to avoid making fixed-effect year and logarea:year coefficients
-# be contrasts with a baseline, so they align with the way lmer works. 
 U=model.matrix(~year + logarea.t0:year - 1, data=XD); 
-
 # fit using the model.matrix, without an intercept 
-fit_LSS <- gamlss(logarea.t1 ~ U + I(logarea.t0^2) + Treatment -1, 
+fit_LSS <- gamlss(logarea.t1 ~ U + I(logarea.t0^2) + Treatment - 1, 
                   data=XD, family=theFamily, method=RS(250), 
                   sigma.formula = ~logarea.t0, 
 				  nu.formula = ~logarea.t0, tau.formula = ~logarea.t0)
 
 ### Iterative re-fit, with variance depending on fitted values 
-dropD$fitted=fitted(fit_LSS);
-for(k in 1:15) {
+dropD$fitted=fitted(fit_LSS); err =1; k=0; 
+while(err>0.0001) {
 	fit_vals= fitted(fit_LSS);
 	XD$fitted <- 0.5*(dropD$fitted + fit_vals); # cautious update 
 	fit_LSS <- gamlss(logarea.t1 ~  U + I(logarea.t0^2) + Treatment -1,
                   data=XD, family= theFamily, method=RS(250),start.from=fit_LSS,
-                  sigma.formula = ~fitted, 
-				  nu.formula = ~fitted, tau.formula = ~fitted)
+                  sigma.formula = ~ fitted, 
+				  nu.formula = ~ fitted, tau.formula = ~ fitted )
 	new_fit = fitted(fit_LSS); 
-	err = (new_fit - fit_vals)^2; 
-	cat(k, mean(err)^0.5,"\n"); 
+	err = (new_fit - fit_vals)^2; err = mean(err)^0.5; k=k+1; 
+	cat(k, err, "\n"); 
 }				  
 dropD$fitted = fitted(fit_LSS); 
+
+######################################################################
+#  Compare lmer and Shrinkage random effects
+######################################################################
 
 S = summary(fit_LSS); 
 
@@ -290,10 +210,10 @@ abline(0,1,col="blue",lty=2);
 
 # shrinkage random effects for (logarea.t0|year) 
 fixed.fx2 = S[31:60,1]; fixed.fx2 = fixed.fx2-mean(fixed.fx2); 
-fixed.se = S[31:60,2]; 
-sigma2.hat = mean(fixed.fx^2)-mean(fixed.se^2)
+fixed.se2 = S[31:60,2]; 
+sigma2.hat = mean(fixed.fx2^2)-mean(fixed.se2^2)
 # BLUP based on sigma.hat and estimated s.e.
-shrunk.fx2 = fixed.fx2*(sigma2.hat/(sigma2.hat + fixed.se^2));
+shrunk.fx2 = fixed.fx2*(sigma2.hat/(sigma2.hat + fixed.se2^2));
 
 # lmer random effects for (1|year) 
 ran.fx2 = ranef(log_model)[[1]]; ran.fx2 = ran.fx2[,2]; 
@@ -305,54 +225,31 @@ matplot(cbind(ran.fx,shrunk.fx),cbind(ran.fx2,shrunk.fx2),col=c("blue","red"),pc
 ylab="Slope year-effect"); 
 legend("topright", legend=c("lmer","Shrinkage"),col=c("blue","red"),cex=1.4,pch=c(1,2),bty="n"); 
 
+save.image(file="PSSPgrowthModels.Rdata"); 
 
-##################################################################
-#  Rollapply diagnostics applied to the model fitted via Shrinkage
-#  Compare mean, sd, skewness, excess kurtosis vs. fitted value
-##################################################################
-px = fitted(fit_LSS); e = order(px); px=px[e]; 
+#############################################################################
+#  Binned data diagnostics applied to the model fitted via Shrinkage. 
+#  Compare mean, sd, skewness, excess kurtosis as a function of fitted value.
+#  TO DO: functional programming instead of copy/paste/edit for each panel. 
+#############################################################################
 
-## Real data 
-py = dropD$logarea.t1; py=py[e]; 
-rollx=rollapply(px,100,mean,by=50);
-rollmean = rollapply(py,100,mean,by=50); 
-rollsd=rollapply(py,100,sd,by=50); 
-rollskew=rollapply(py,100,skewness,by=50);
-rollkurt=rollapply(py,100,kurtosis,by=50)/3-1;
-
-thePlot=function(x,Y,xlab,ylab,gamma=1.4,...){
-    pY= matrix(0,nrow(Y),ncol(Y))
-	for(j in 1:ncol(Y)) {
-	  fit=gam(Y[,j]~s(x),gamma=gamma,method="REML")
-      pY[,j]=predict(fit,type="response"); 
-    } 
-	matplot(x,pY,col="grey50",type="o",pch=1,xlab=xlab,ylab=ylab,...);	
-	points(x,pY[,1],col="red",cex=1.5,pch=16); 
+# Simulate data from best model
+n_sim <- 500
+idaho_sim<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
+for(i in 1:n_sim){
+  idaho_sim[,i] <- rJSU(n = nrow(dropD), 
+                        mu = predict(fit_LSS), sigma = fit_LSS$sigma.fv,
+                        nu = fit_LSS$nu.fv, tau = fit_LSS$tau.fv)
 }
 
-par(mfrow=c(2,2),mar=c(5,5,2,1),cex.axis=1.3,cex.lab=1.3); 
+# Round the output to approximate the rounding in the data recording 
 
-Y = matrix(NA,length(rollx),n_sim); 
-for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,mean,by=50); 
-thePlot(rollx,cbind(rollmean,Y),xlab="Fitted value",ylab="Mean");
-
-for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,sd,by=50); 
-thePlot(rollx,cbind(rollsd,Y),xlab="Fitted value",ylab="Std Dev",ylim=c(0,max(cbind(rollsd,Y))));
-
-for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,skewness,by=50); 
-thePlot(rollx,cbind(rollskew,Y),xlab="Fitted value",ylab="Skewness");
-
-for(j in 1:n_sim) Y[,j] = rollapply(idaho_sim[e,j],100,kurtosis,by=50)/3-1; 
-thePlot(rollx,cbind(rollkurt,Y),xlab="Fitted value",ylab="Excess Kurtosis");
-
-
-#############################################################################
-#  Binned data diagnostics applied to the model fitted via Shrinkage
-#  Compare mean, sd, skewness, excess kurtosis as a function of fitted value
-#############################################################################
+e = idaho_sim < log(0.6); idaho_sim[e]  = log(0.5); 
+e = (idaho_sim > log(0.65))&(idaho_sim < log(0.85)); idaho_sim[e] <- log(0.75); 
+e = (idaho_sim > log(0.9))&(idaho_sim < log(1.1)); idaho_sim[e] <- log(1); 
 
 ## moments of the real data by size bin
-n_bins = 10
+n_bins = 12
 alpha_scale = 0.7
 idaho_moments <- dropD %>% 
   arrange(fitted) %>% 
@@ -367,7 +264,7 @@ idaho_moments <- dropD %>%
 
 
 par(mfrow=c(2,2),mar=c(4,4,1,1),mgp=c(2,1,0)); 
-sim_bin_means=sim_moment_means = matrix(NA,10,n_sim); 
+sim_bin_means=sim_moment_means = matrix(NA,12,n_sim); 
 for(i in 1:n_sim){
     sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
     arrange(fitted) %>% 
@@ -379,10 +276,11 @@ for(i in 1:n_sim){
 }
 matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="mean(Size t1)",cex=1.4); 
 points(idaho_moments$bin_mean, idaho_moments$mean_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(idaho_moments$bin_mean, apply(sim_moment_means,1,mean),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+legend("topleft",legend=c("Model simulations","Median of simulations","Data"),
+col=c(alpha("gray",0.5),alpha("black",alpha_scale), alpha("red",alpha_scale)),pch=1,lwd=2,cex=1.1,bty="n"); 
 
 
-sim_bin_means=sim_moment_means = matrix(NA,10,n_sim); 
 for(i in 1:n_sim){
     sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
     arrange(fitted) %>% 
@@ -394,10 +292,8 @@ for(i in 1:n_sim){
 }
 matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="SD(Size t1)",cex=1.4); 
 points(idaho_moments$bin_mean, idaho_moments$sd_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(idaho_moments$bin_mean, apply(sim_moment_means,1,mean),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
 
-
-sim_bin_means=sim_moment_means = matrix(NA,10,n_sim); 
 for(i in 1:n_sim){
     sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
     arrange(fitted) %>% 
@@ -409,10 +305,8 @@ for(i in 1:n_sim){
 }
 matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Skew(Size t1)",cex=1.4); 
 points(idaho_moments$bin_mean, idaho_moments$skew_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(idaho_moments$bin_mean, apply(sim_moment_means,1,mean),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
 
-
-sim_bin_means=sim_moment_means = matrix(NA,10,n_sim); 
 for(i in 1:n_sim){
     sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
     arrange(fitted) %>% 
@@ -424,6 +318,69 @@ for(i in 1:n_sim){
 }
 matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Kurtosis(Size t1)",cex=1.4); 
 points(idaho_moments$bin_mean, idaho_moments$kurt_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(idaho_moments$bin_mean, apply(sim_moment_means,1,mean),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+
+
+#################################################################################
+#   Simulation: how well do we recover known random effects? 
+#################################################################################
+
+U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) + Treatment - 1, data=dropD); 
+LogLik=function(pars,response,U){
+	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
+	mu = U%*%pars1;  
+	val = dJSU(response, mu=mu,
+	sigma=exp(pars2[1]+pars2[2]*mu),
+	nu = pars2[3]+pars2[4]*mu,
+	tau = exp(pars2[5]+pars2[6]*mu), log=TRUE)
+	return(val); 
+}
+
+# try to fit the real data
+
+out=maxLik(logLik=LogLik,start=runif(ncol(U)+6),response=dropD$logarea.t1,U=U,
+		method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+out=maxLik(logLik=LogLik,start=out$estimate,response=dropD$logarea.t1,U=U,
+		method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+out=maxLik(logLik=LogLik,start=out$estimate,response=dropD$logarea.t1,U=U,
+		method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+
+simRanIntercept = simRanSlope = matrix(NA,30,50); 
+for(j in 1:1) {
+		U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) + Treatment - 1, data=dropD); 
+
+		# fit to the simulated responses 
+		out=maxLik(logLik=LogLik,start=runif(ncol(U)+6),response=idaho_sim[,j],U=U,
+			method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+		
+		out=maxLik(logLik=LogLik,start=out$estimate,response=idaho_sim[,j],,U=U,
+			method="NM",control=list(iterlim=2500,printLevel=1),finalHessian=FALSE); 
+			
+		out=maxLik(logLik=LogLik,start=out$estimate,response=idaho_sim[,j],U=U,
+			method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+		
+		
+		S = summary(fit_j); ### this won't work any more, need to use out$estimate. 
+
+		# shrinkage random effects for (1|year) 
+		fixed.fx = S[1:30,1]; fixed.fx = fixed.fx-mean(fixed.fx); 
+		fixed.se = S[1:30,2]; 
+		sigma2.hat = mean(fixed.fx^2)-mean(fixed.se^2)
+		shrunk.fxj = fixed.fx*(sigma2.hat/(sigma2.hat + fixed.se^2)); 
+		simRanIntercept[,j]= shrunk.fxj; 
+
+		# shrinkage random effects for (logarea.t0|year) 
+		fixed.fx2 = S[31:60,1]; fixed.fx2 = fixed.fx2-mean(fixed.fx2); 
+		fixed.se2 = S[31:60,2]; 
+		sigma2.hat = mean(fixed.fx2^2)-mean(fixed.se2^2)
+		shrunk.fx2j = fixed.fx2*(sigma2.hat/(sigma2.hat + fixed.se2^2));
+		simRanSlope[,j] = shrunk.fx2j; 
+		
+		cat("#####################################################","\n")
+		cat("Done with simulated data set ",j,"\n"); 
+}
+	
+
+
 
 

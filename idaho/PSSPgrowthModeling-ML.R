@@ -13,7 +13,7 @@ setwd("c:/repos/IPM_size_transitions/idaho");
 
 require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(gamlss.tr); require(AICcmodavg); 
-require(lmerTest); 
+require(lmerTest); require(tidyverse); require(maxLik); 
 
 source("Utilities.R");
 
@@ -152,7 +152,9 @@ abline(h=0,col="blue",lty=2)
 
 ################################################################################################################
 # Try fitting gamlss JSU to log size data. Use the fixed effect structure corresponding to the best lmer fit,
-# and believe rollaply diagnostics saying skew is linear, and kurtosis is quadratic. 
+# and believe rollaply diagnostics saying skew is linear, and kurtosis is quadratic (represented by log link)
+#
+# Fitting is done by maximum likelihood using maxLik (easier than mle 
 # 
 # The random effects terms in the lmer fit are fitted here as fixed effects, then adjusted by shrinkage.  
 # Having fitted (1|year) and (0 + logarea.t0|yer) as fixed effects, we have year-specific coefficients
@@ -160,44 +162,51 @@ abline(h=0,col="blue",lty=2)
 # on estimated mixing sigma and estimated s.e.'s.  
 #################################################################################################################
 
-theFamily = JSU(tau.link="identity"); XD=dropD; 
+# Model matrix for the fixed and random effects, specified so that each year gets its own coefficient
+# rather than fitting contrasts against a baseline year (the default in R's regression functions) 
 
-# This is the one way I know to avoid the fixed-effect year and logarea:year coefficients
-# being reported as contrasts with a baseline. Doing it like this gives us one value for
-# each year, corresponding to the ranef() values reported by lmer. 
+U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) + Treatment - 1, data=dropD); 
 
-U=model.matrix(~year + logarea.t0:year - 1, data=XD); 
-# fit using the model.matrix, without an intercept 
-fit_LSS <- gamlss(logarea.t1 ~ U + I(logarea.t0^2) + Treatment - 1, 
-                  data=XD, family=theFamily, method=RS(250), 
-                  sigma.formula = ~logarea.t0, 
-				  nu.formula = ~logarea.t0, tau.formula = ~logarea.t0)
+LogLik=function(pars,response,U){
+	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
+	mu = U%*%pars1;  
+	val = dJSU(response, mu=mu,
+	sigma=exp(pars2[1]+pars2[2]*mu),
+	nu = pars2[3]+pars2[4]*mu,
+	tau = exp(pars2[5]+pars2[6]*mu), log=TRUE)
+	return(sum(val)); 
+}
 
-### Iterative re-fit, with variance depending on fitted values 
-dropD$fitted=fitted(fit_LSS); err =1; k=0; 
-while(err>0.0001) {
-	fit_vals= fitted(fit_LSS);
-	XD$fitted <- 0.5*(dropD$fitted + fit_vals); # cautious update 
-	fit_LSS <- gamlss(logarea.t1 ~  U + I(logarea.t0^2) + Treatment -1,
-                  data=XD, family= theFamily, method=RS(250),start.from=fit_LSS,
-                  sigma.formula = ~ fitted, 
-				  nu.formula = ~ fitted, tau.formula = ~ fitted )
-	new_fit = fitted(fit_LSS); 
-	err = (new_fit - fit_vals)^2; err = mean(err)^0.5; k=k+1; 
-	cat(k, err, "\n"); 
-}				  
-dropD$fitted = fitted(fit_LSS); 
+############ Fit the data. Paranoid as usual about convergence
+coefs = list(5); LL=numeric(5);  
+for(j in 1:5) {
+	out=maxLik(logLik=LogLik,start=c(runif(ncol(U)+1), rep(0,5)), response=dropD$logarea.t1,U=U,
+		method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+
+	out=maxLik(logLik=LogLik,start=out$estimate,response=dropD$logarea.t1,U=U,
+		method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+
+	out=maxLik(logLik=LogLik,start=out$estimate,response=dropD$logarea.t1,U=U,
+		method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+
+	coefs[[j]] = out$estimate; LL[j] = out$maximum;
+	cat(j, "#--------------------------------------#",out$maximum,"\n"); 
+}
+
+j = min(which(LL==max(LL)));
+out=maxLik(logLik=LogLik,start=coefs[[j]],response=dropD$logarea.t1,U=U,
+		method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE); 
+
+coefs=out$estimate; SEs = sqrt(diag(vcov(out))); names(coefs)<-colnames(U);
 
 ######################################################################
 #  Compare lmer and Shrinkage random effects
 ######################################################################
 
-S = summary(fit_LSS); 
-
 par(mfrow=c(2,2),mar=c(4,4,1,1),mgp=c(2,1,0),bty="l"); 
 # shrinkage random effects for (1|year) 
-fixed.fx = S[1:30,1]; fixed.fx = fixed.fx-mean(fixed.fx); 
-fixed.se = S[1:30,2]; 
+fixed.fx = coefs[1:30]; fixed.fx = fixed.fx-mean(fixed.fx); 
+fixed.se = SEs[1:30]; 
 sigma2.hat = mean(fixed.fx^2)-mean(fixed.se^2)
 # BLUP based on sigma.hat and estimated s.e.
 shrunk.fx = fixed.fx*(sigma2.hat/(sigma2.hat + fixed.se^2)); 
@@ -209,8 +218,8 @@ plot(ran.fx,shrunk.fx,xlab="lmer year random effects",ylab="Shrunk year fixed ef
 abline(0,1,col="blue",lty=2); 
 
 # shrinkage random effects for (logarea.t0|year) 
-fixed.fx2 = S[31:60,1]; fixed.fx2 = fixed.fx2-mean(fixed.fx2); 
-fixed.se2 = S[31:60,2]; 
+fixed.fx2 = coefs[33:62]; fixed.fx2 = fixed.fx2-mean(fixed.fx2); 
+fixed.se2 = SEs[33:62]; 
 sigma2.hat = mean(fixed.fx2^2)-mean(fixed.se2^2)
 # BLUP based on sigma.hat and estimated s.e.
 shrunk.fx2 = fixed.fx2*(sigma2.hat/(sigma2.hat + fixed.se2^2));
@@ -233,22 +242,27 @@ save.image(file="PSSPgrowthModels.Rdata");
 #  TO DO: functional programming instead of copy/paste/edit for each panel. 
 #############################################################################
 
-# Simulate data from best model
+# Simulate data from fitted JSU model
+pars1 = coefs[1:ncol(U)]; pars2=coefs[-(1:ncol(U))];
+MLmu = U%*%pars1;  
+MLsigma=exp(pars2[1]+pars2[2]*MLmu)
+MLnu = pars2[3]+pars2[4]*MLmu
+MLtau = exp(pars2[5]+pars2[6]*MLmu)
+
 n_sim <- 500
 idaho_sim<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
 for(i in 1:n_sim){
   idaho_sim[,i] <- rJSU(n = nrow(dropD), 
-                        mu = predict(fit_LSS), sigma = fit_LSS$sigma.fv,
-                        nu = fit_LSS$nu.fv, tau = fit_LSS$tau.fv)
+                        mu = MLmu, sigma = MLsigma, nu=MLnu, tau=MLtau)
 }
 
 # Round the output to approximate the rounding in the data recording 
-
 e = idaho_sim < log(0.6); idaho_sim[e]  = log(0.5); 
 e = (idaho_sim > log(0.65))&(idaho_sim < log(0.85)); idaho_sim[e] <- log(0.75); 
 e = (idaho_sim > log(0.9))&(idaho_sim < log(1.1)); idaho_sim[e] <- log(1); 
 
 ## moments of the real data by size bin
+dropD$fitted  = dropD$logarea.t0; 
 n_bins = 12
 alpha_scale = 0.7
 idaho_moments <- dropD %>% 
@@ -323,64 +337,53 @@ points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=
 
 #################################################################################
 #   Simulation: how well do we recover known random effects? 
+#   Use idaho_sim replicates as "data" and compare BLUP "estimates" with the "truth". 
+#   Key question: how well does shrinkage do at getting the variance right? 
 #################################################################################
 
 U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) + Treatment - 1, data=dropD); 
-LogLik=function(pars,response,U){
-	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
-	mu = U%*%pars1;  
-	val = dJSU(response, mu=mu,
-	sigma=exp(pars2[1]+pars2[2]*mu),
-	nu = pars2[3]+pars2[4]*mu,
-	tau = exp(pars2[5]+pars2[6]*mu), log=TRUE)
-	return(val); 
-}
-
-# try to fit the real data
-
-out=maxLik(logLik=LogLik,start=runif(ncol(U)+6),response=dropD$logarea.t1,U=U,
-		method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
-out=maxLik(logLik=LogLik,start=out$estimate,response=dropD$logarea.t1,U=U,
-		method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
-out=maxLik(logLik=LogLik,start=out$estimate,response=dropD$logarea.t1,U=U,
-		method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
 
 simRanIntercept = simRanSlope = matrix(NA,30,50); 
-for(j in 1:1) {
+simRanIntercept2 = simRanSlope2 = matrix(NA,30,50); 
+fixRanIntercept = fixRanSlope = matrix(NA,30,50); 
+for(j in 1:50) {
 		U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) + Treatment - 1, data=dropD); 
 
 		# fit to the simulated responses 
-		out=maxLik(logLik=LogLik,start=runif(ncol(U)+6),response=idaho_sim[,j],U=U,
+		outj=maxLik(logLik=LogLik,start=coefs,response=idaho_sim[,j],U=U,
 			method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
 		
-		out=maxLik(logLik=LogLik,start=out$estimate,response=idaho_sim[,j],,U=U,
+		outj=maxLik(logLik=LogLik,start=outj$estimate,response=idaho_sim[,j],,U=U,
 			method="NM",control=list(iterlim=2500,printLevel=1),finalHessian=FALSE); 
 			
-		out=maxLik(logLik=LogLik,start=out$estimate,response=idaho_sim[,j],U=U,
-			method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+		outj=maxLik(logLik=LogLik,start=outj$estimate,response=idaho_sim[,j],U=U,
+			method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE); 
 		
+		coefj=outj$estimate; SEj = sqrt(diag(vcov(outj))); 
 		
-		S = summary(fit_j); ### this won't work any more, need to use out$estimate. 
 
 		# shrinkage random effects for (1|year) 
-		fixed.fx = S[1:30,1]; fixed.fx = fixed.fx-mean(fixed.fx); 
-		fixed.se = S[1:30,2]; 
-		sigma2.hat = mean(fixed.fx^2)-mean(fixed.se^2)
-		shrunk.fxj = fixed.fx*(sigma2.hat/(sigma2.hat + fixed.se^2)); 
-		simRanIntercept[,j]= shrunk.fxj; 
+		fixed.fxj = coefj[1:30]; fixed.fxj = fixed.fxj-mean(fixed.fxj); 
+		fixed.sej = SEj[1:30]; 
+		sigma2.hat = mean(fixed.fxj^2)-mean(fixed.sej^2)
+	    simRanIntercept[,j] = fixed.fxj*(sigma2.hat/(sigma2.hat + fixed.sej^2)); 
+		simRanIntercept2[,j] = fixed.fxj*sqrt(sigma2.hat/(sigma2.hat + fixed.sej^2));
+		fixRanIntercept[,j] = fixed.fxj; 
+
 
 		# shrinkage random effects for (logarea.t0|year) 
-		fixed.fx2 = S[31:60,1]; fixed.fx2 = fixed.fx2-mean(fixed.fx2); 
-		fixed.se2 = S[31:60,2]; 
-		sigma2.hat = mean(fixed.fx2^2)-mean(fixed.se2^2)
-		shrunk.fx2j = fixed.fx2*(sigma2.hat/(sigma2.hat + fixed.se2^2));
-		simRanSlope[,j] = shrunk.fx2j; 
-		
+		fixed.fx2j = coefj[33:62]; fixed.fx2j = fixed.fx2j-mean(fixed.fx2j); 
+		fixed.se2j = SEj[33:62]; 
+		sigma2.hat = mean(fixed.fx2j^2)-mean(fixed.se2j^2)
+		simRanSlope[,j] = fixed.fx2j*(sigma2.hat/(sigma2.hat + fixed.se2j^2));
+		simRanSlope2[,j] = fixed.fx2j*sqrt(sigma2.hat/(sigma2.hat + fixed.se2j^2));
+		fixRanSlope[,j] = fixed.fx2j; 
+
 		cat("#####################################################","\n")
 		cat("Done with simulated data set ",j,"\n"); 
 }
 	
-
+save.image(file="PSSPgrowthModels.Rdata"); 
 
 
 
