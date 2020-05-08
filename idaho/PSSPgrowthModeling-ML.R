@@ -37,7 +37,7 @@ allD<-read.csv(file="PSSP_growth_data.csv");
 allD$year <- factor(allD$year); 
 
 ######################################################################
-# Tom's work: exploring the idaho data
+# Clean up the data
 ######################################################################
 library(tidyverse)
 ## drop out these arbitrarily small individuals
@@ -54,22 +54,22 @@ dropD$Treatment[e] = "Control";
 dropD = droplevels(dropD);  
 
 ########################################################################## 
-## Pilot fits with log transformation, constant variance 
+## Pilot Gaussian fits with log transformation, constant variance 
 ########################################################################## 
 log_models <- list()
-log_models[[1]] <- lmer(logarea.t1~ logarea.t0 + W.ARTR + W.HECO + W.POSE + W.PSSP+  W.allcov + W.allpts + Treatment + 
+log_models[[1]] <- lmer(logarea.t1~ logarea.t0 + I(logarea.t0^2) + W.ARTR + W.HECO + W.POSE + W.PSSP+  W.allcov + W.allpts + Treatment + 
              Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F); 
 
 ## coefficients on HECO and POSE are nearly identical, so group them: deltaAIC = 2, i.e. no change at all in logLik.   
-log_models[[2]] <- lmer(logarea.t1~ logarea.t0 + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allcov + W.allpts + Treatment + 
+log_models[[2]] <- lmer(logarea.t1~ logarea.t0 + I(logarea.t0^2) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allcov + W.allpts + Treatment + 
              Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F); 
 
 ## W.allpts is non-significant. Consider two options: drop, group with all other cover 
-log_models[[3]] <- lmer(logarea.t1~ logarea.t0 + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allcov + Treatment + 
+log_models[[3]] <- lmer(logarea.t1~ logarea.t0 + I(logarea.t0^2) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allcov + Treatment + 
              Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F);  			 
 
 ## Based on AIC, the winner by a hair is to group all heterospecific grasses, and group all cover besides the 'big 4'
-log_models[[4]] <- lmer(logarea.t1~ logarea.t0 + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
+log_models[[4]] <- lmer(logarea.t1~ logarea.t0 + I(logarea.t0^2) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
              Group + (logarea.t0|year), control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F); 	
 
 ########################################################################## 
@@ -109,6 +109,12 @@ aictab(log_models); # still model 4, by a hair
 aics = unlist(lapply(log_models,AIC)); best_model=which(aics==min(aics)); 
 log_model = log_models[[best_model]]; 
 summary(log_model); 
+
+### refit with REML, as recommended for estimating random effects 
+best_weights = weights(log_models[[4]]); 
+log_model <- lmer(logarea.t1~ logarea.t0 + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
+             Group + (logarea.t0|year), control=lmerControl(optimizer="bobyqa"),data=dropD,weights=best_weights,REML=TRUE); 
+log_models[[4]] = log_model; 			 
 
 ######################################################################
 # Interrogate the scaled residuals - Gaussian? NO. 
@@ -164,8 +170,8 @@ abline(h=0,col="blue",lty=2)
 
 # Model matrix for the fixed and random effects, specified so that each year gets its own coefficient
 # rather than fitting contrasts against a baseline year (the default in R's regression functions) 
-
-U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) + Treatment - 1, data=dropD); 
+U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) +  
+	W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Group + Treatment - 1, data=dropD);
 
 LogLik=function(pars,response,U){
 	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
@@ -197,6 +203,7 @@ j = min(which(LL==max(LL)));
 out=maxLik(logLik=LogLik,start=coefs[[j]],response=dropD$logarea.t1,U=U,
 		method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE); 
 
+######### save results of ML fit.  
 coefs=out$estimate; SEs = sqrt(diag(vcov(out))); names(coefs)<-colnames(U);
 
 ######################################################################
@@ -218,8 +225,8 @@ plot(ran.fx,shrunk.fx,xlab="lmer year random effects",ylab="Shrunk year fixed ef
 abline(0,1,col="blue",lty=2); 
 
 # shrinkage random effects for (logarea.t0|year) 
-fixed.fx2 = coefs[33:62]; fixed.fx2 = fixed.fx2-mean(fixed.fx2); 
-fixed.se2 = SEs[33:62]; 
+fixed.fx2 = coefs[42:71]; fixed.fx2 = fixed.fx2-mean(fixed.fx2); 
+fixed.se2 = SEs[42:71]; 
 sigma2.hat = mean(fixed.fx2^2)-mean(fixed.se2^2)
 # BLUP based on sigma.hat and estimated s.e.
 shrunk.fx2 = fixed.fx2*(sigma2.hat/(sigma2.hat + fixed.se2^2));
@@ -243,17 +250,18 @@ save.image(file="PSSPgrowthModels.Rdata");
 #############################################################################
 
 # Simulate data from fitted JSU model
-pars1 = coefs[1:ncol(U)]; pars2=coefs[-(1:ncol(U))];
+pars1 = coefs[1:ncol(U)]; 
+pars2 = coefs[-(1:ncol(U))];
 MLmu = U%*%pars1;  
-MLsigma=exp(pars2[1]+pars2[2]*MLmu)
-MLnu = pars2[3]+pars2[4]*MLmu
-MLtau = exp(pars2[5]+pars2[6]*MLmu)
 
 n_sim <- 500
 idaho_sim<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
 for(i in 1:n_sim){
   idaho_sim[,i] <- rJSU(n = nrow(dropD), 
-                        mu = MLmu, sigma = MLsigma, nu=MLnu, tau=MLtau)
+                    mu = MLmu, 
+					sigma = exp(pars2[1]+pars2[2]*MLmu), 
+					nu=pars2[3]+pars2[4]*MLmu,
+					tau=exp(pars2[5]+pars2[6]*MLmu))
 }
 
 # Round the output to approximate the rounding in the data recording 
@@ -341,15 +349,23 @@ points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=
 #   Key question: how well does shrinkage do at getting the variance right? 
 #################################################################################
 
-U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) + Treatment - 1, data=dropD); 
+simRanIntercept = simRanSlope = matrix(NA,30,250); 
+simRanIntercept2 = simRanSlope2 = matrix(NA,30,250); 
+fixRanIntercept = fixRanSlope = matrix(NA,30,250); 
+lmerRanIntercept = lmerRanSlope = matrix(NA,30,250); 
 
-simRanIntercept = simRanSlope = matrix(NA,30,50); 
-simRanIntercept2 = simRanSlope2 = matrix(NA,30,50); 
-fixRanIntercept = fixRanSlope = matrix(NA,30,50); 
-for(j in 1:50) {
-		U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) + Treatment - 1, data=dropD); 
+# Model matrix for ML fits 
+U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) +  
+	W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Group + Treatment - 1, data=dropD);
 
-		# fit to the simulated responses 
+# Use the correct weights for lmer fits 
+pars1 = coefs[1:ncol(U)]; pars2 = coefs[-(1:ncol(U))];
+MLmu = U%*%pars1; MLsigma = exp(pars2[1]+pars2[2]*MLmu); 
+MLweights = 1/MLsigma^2
+
+for(j in 1:250) {
+
+		# fit by ML to the simulated responses 
 		outj=maxLik(logLik=LogLik,start=coefs,response=idaho_sim[,j],U=U,
 			method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
 		
@@ -361,7 +377,6 @@ for(j in 1:50) {
 		
 		coefj=outj$estimate; SEj = sqrt(diag(vcov(outj))); 
 		
-
 		# shrinkage random effects for (1|year) 
 		fixed.fxj = coefj[1:30]; fixed.fxj = fixed.fxj-mean(fixed.fxj); 
 		fixed.sej = SEj[1:30]; 
@@ -372,18 +387,53 @@ for(j in 1:50) {
 
 
 		# shrinkage random effects for (logarea.t0|year) 
-		fixed.fx2j = coefj[33:62]; fixed.fx2j = fixed.fx2j-mean(fixed.fx2j); 
-		fixed.se2j = SEj[33:62]; 
+		fixed.fx2j = coefj[42:71]; fixed.fx2j = fixed.fx2j-mean(fixed.fx2j); 
+		fixed.se2j = SEj[42:71]; 
 		sigma2.hat = mean(fixed.fx2j^2)-mean(fixed.se2j^2)
 		simRanSlope[,j] = fixed.fx2j*(sigma2.hat/(sigma2.hat + fixed.se2j^2));
 		simRanSlope2[,j] = fixed.fx2j*sqrt(sigma2.hat/(sigma2.hat + fixed.se2j^2));
 		fixRanSlope[,j] = fixed.fx2j; 
+
+		# lmer random effects, using the true variance function  
+		lmerFit <- lmer(idaho_sim[,j]~ logarea.t0 + I(logarea.t0^2) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
+             Group + (logarea.t0|year), control=lmerControl(optimizer="bobyqa"),weights=MLweights,data=dropD,REML=TRUE); 	
+		ran.fx = ranef(lmerFit)[[1]]; 
+		lmerRanIntercept[,j] = ran.fx[,1]; 
+		lmerRanSlope[,j] = ran.fx[,2]; 
+
 
 		cat("#####################################################","\n")
 		cat("Done with simulated data set ",j,"\n"); 
 }
 	
 save.image(file="PSSPgrowthModels.Rdata"); 
+
+par(mfrow=c(2,2),bty="l",mgp=c(2,1,0),mar=c(4,4,1,1),cex.axis=1.3,cex.lab=1.3);
+trueRanIntercept = coefs[1:30]-mean(coefs[1:30]);
+matplot(trueRanIntercept,fixRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+matplot(trueRanIntercept,simRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+matplot(trueRanIntercept,simRanIntercept2,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+matplot(trueRanIntercept,lmerRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+
+var(trueRanIntercept); 
+mean(apply(fixRanIntercept,2,var)); 
+mean(apply(simRanIntercept,2,var)); 
+mean(apply(simRanIntercept2,2,var)); 
+mean(apply(lmerRanIntercept,2,var)); 
+
+
+par(mfrow=c(2,2),bty="l",mgp=c(2,1,0),mar=c(4,4,1,1),cex.axis=1.3,cex.lab=1.3);
+trueRanSlope = coefs[42:71]-mean(coefs[42:71]);
+matplot(trueRanSlope,fixRanSlope,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+matplot(trueRanSlope,simRanSlope,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+matplot(trueRanSlope,simRanSlope2,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+matplot(trueRanSlope,lmerRanSlope,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+
+var(trueRanSlope); 
+mean(apply(fixRanSlope,2,var)); 
+mean(apply(simRanSlope,2,var)); 
+mean(apply(simRanSlope2,2,var)); 
+mean(apply(lmerRanSlope,2,var)); 
 
 
 
