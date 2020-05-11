@@ -345,12 +345,36 @@ points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=
 
 #################################################################################
 #   Simulation: how well do we recover known random effects? 
-#   Use idaho_sim replicates as "data" and compare BLUP "estimates" with the "truth". 
+#   Use simulated replicates as "data" and compare BLUP "estimates" with the "truth". 
 #   Key question: how well does shrinkage do at getting the variance right? 
 #################################################################################
 
-simRanIntercept = simRanSlope = matrix(NA,30,250); 
-simRanIntercept2 = simRanSlope2 = matrix(NA,30,250); 
+##### Re-do simulations, so there is no rounding of small values 
+pars1 = coefs[1:ncol(U)]; pars2 = coefs[-(1:ncol(U))]; MLmu = U%*%pars1;  
+n_sim <- 250 
+idaho_sim2<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
+for(i in 1:n_sim){
+  idaho_sim2[,i] <- rJSU(n = nrow(dropD), 
+                    mu = MLmu, 
+					sigma = exp(pars2[1]+pars2[2]*MLmu), 
+					nu=pars2[3]+pars2[4]*MLmu,
+					tau=exp(pars2[5]+pars2[6]*MLmu))
+}
+
+### LogLik that works with BHHH 
+LogLik=function(pars,response,U){
+	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
+	mu = U%*%pars1;  
+	val = dJSU(response, mu=mu,
+	sigma=exp(pars2[1]+pars2[2]*mu),
+	nu = pars2[3]+pars2[4]*mu,
+	tau = exp(pars2[5]+pars2[6]*mu), log=TRUE)
+	return(val); 
+}
+
+#### Fit various ways, compare the results 
+shrinkRanIntercept = shrinkRanSlope = matrix(NA,30,250); 
+shrinkRanIntercept2 = shrinkRanSlope2 = matrix(NA,30,250); 
 fixRanIntercept = fixRanSlope = matrix(NA,30,250); 
 lmerRanIntercept = lmerRanSlope = matrix(NA,30,250); 
 
@@ -366,14 +390,14 @@ MLweights = 1/MLsigma^2
 for(j in 1:250) {
 
 		# fit by ML to the simulated responses 
-		outj=maxLik(logLik=LogLik,start=coefs,response=idaho_sim[,j],U=U,
-			method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+		outj=maxLik(logLik=LogLik,start=coefs,response=idaho_sim2[,j],U=U,
+			method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
 		
-		outj=maxLik(logLik=LogLik,start=outj$estimate,response=idaho_sim[,j],,U=U,
+		outj=maxLik(logLik=LogLik,start=outj$estimate,response=idaho_sim2[,j],,U=U,
 			method="NM",control=list(iterlim=2500,printLevel=1),finalHessian=FALSE); 
 			
-		outj=maxLik(logLik=LogLik,start=outj$estimate,response=idaho_sim[,j],U=U,
-			method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE); 
+		outj=maxLik(logLik=LogLik,start=outj$estimate,response=idaho_sim2[,j],U=U,
+			method="BHHH",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE); 
 		
 		coefj=outj$estimate; SEj = sqrt(diag(vcov(outj))); 
 		
@@ -381,8 +405,8 @@ for(j in 1:250) {
 		fixed.fxj = coefj[1:30]; fixed.fxj = fixed.fxj-mean(fixed.fxj); 
 		fixed.sej = SEj[1:30]; 
 		sigma2.hat = mean(fixed.fxj^2)-mean(fixed.sej^2)
-	    simRanIntercept[,j] = fixed.fxj*(sigma2.hat/(sigma2.hat + fixed.sej^2)); 
-		simRanIntercept2[,j] = fixed.fxj*sqrt(sigma2.hat/(sigma2.hat + fixed.sej^2));
+	    shrinkRanIntercept[,j] = fixed.fxj*(sigma2.hat/(sigma2.hat + fixed.sej^2)); 
+		shrinkRanIntercept2[,j] = fixed.fxj*sqrt(sigma2.hat/(sigma2.hat + fixed.sej^2));
 		fixRanIntercept[,j] = fixed.fxj; 
 
 
@@ -390,12 +414,12 @@ for(j in 1:250) {
 		fixed.fx2j = coefj[42:71]; fixed.fx2j = fixed.fx2j-mean(fixed.fx2j); 
 		fixed.se2j = SEj[42:71]; 
 		sigma2.hat = mean(fixed.fx2j^2)-mean(fixed.se2j^2)
-		simRanSlope[,j] = fixed.fx2j*(sigma2.hat/(sigma2.hat + fixed.se2j^2));
-		simRanSlope2[,j] = fixed.fx2j*sqrt(sigma2.hat/(sigma2.hat + fixed.se2j^2));
+		shrinkRanSlope[,j] = fixed.fx2j*(sigma2.hat/(sigma2.hat + fixed.se2j^2));
+		shrinkRanSlope2[,j] = fixed.fx2j*sqrt(sigma2.hat/(sigma2.hat + fixed.se2j^2));
 		fixRanSlope[,j] = fixed.fx2j; 
 
 		# lmer random effects, using the true variance function  
-		lmerFit <- lmer(idaho_sim[,j]~ logarea.t0 + I(logarea.t0^2) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
+		lmerFit <- lmer(idaho_sim2[,j]~ logarea.t0 + I(logarea.t0^2) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
              Group + (logarea.t0|year), control=lmerControl(optimizer="bobyqa"),weights=MLweights,data=dropD,REML=TRUE); 	
 		ran.fx = ranef(lmerFit)[[1]]; 
 		lmerRanIntercept[,j] = ran.fx[,1]; 
@@ -406,33 +430,33 @@ for(j in 1:250) {
 		cat("Done with simulated data set ",j,"\n"); 
 }
 	
-save.image(file="PSSPgrowthModels.Rdata"); 
+# save.image(file="PSSPgrowthModels.Rdata"); 
 
 par(mfrow=c(2,2),bty="l",mgp=c(2,1,0),mar=c(4,4,1,1),cex.axis=1.3,cex.lab=1.3);
 trueRanIntercept = coefs[1:30]-mean(coefs[1:30]);
 matplot(trueRanIntercept,fixRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
-matplot(trueRanIntercept,simRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
-matplot(trueRanIntercept,simRanIntercept2,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+matplot(trueRanIntercept,shrinkRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+matplot(trueRanIntercept,shrinkRanIntercept2,type="p",pch=1,col="black");abline(0,1,col="blue"); 
 matplot(trueRanIntercept,lmerRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
 
 var(trueRanIntercept); 
 mean(apply(fixRanIntercept,2,var)); 
-mean(apply(simRanIntercept,2,var)); 
-mean(apply(simRanIntercept2,2,var)); 
+mean(apply(shrinkRanIntercept,2,var)); 
+mean(apply(shrinkRanIntercept2,2,var)); 
 mean(apply(lmerRanIntercept,2,var)); 
 
 
 par(mfrow=c(2,2),bty="l",mgp=c(2,1,0),mar=c(4,4,1,1),cex.axis=1.3,cex.lab=1.3);
 trueRanSlope = coefs[42:71]-mean(coefs[42:71]);
 matplot(trueRanSlope,fixRanSlope,type="p",pch=1,col="black");abline(0,1,col="blue"); 
-matplot(trueRanSlope,simRanSlope,type="p",pch=1,col="black");abline(0,1,col="blue"); 
-matplot(trueRanSlope,simRanSlope2,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+matplot(trueRanSlope,shrinkRanSlope,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+matplot(trueRanSlope,shrinkRanSlope2,type="p",pch=1,col="black");abline(0,1,col="blue"); 
 matplot(trueRanSlope,lmerRanSlope,type="p",pch=1,col="black");abline(0,1,col="blue"); 
 
 var(trueRanSlope); 
 mean(apply(fixRanSlope,2,var)); 
-mean(apply(simRanSlope,2,var)); 
-mean(apply(simRanSlope2,2,var)); 
+mean(apply(shrinkRanSlope,2,var)); 
+mean(apply(shrinkRanSlope2,2,var)); 
 mean(apply(lmerRanSlope,2,var)); 
 
 
