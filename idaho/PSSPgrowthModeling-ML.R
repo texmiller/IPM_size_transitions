@@ -439,11 +439,11 @@ matplot(trueRanIntercept,shrinkRanIntercept,type="p",pch=1,col="black");abline(0
 matplot(trueRanIntercept,shrinkRanIntercept2,type="p",pch=1,col="black");abline(0,1,col="blue"); 
 matplot(trueRanIntercept,lmerRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
 
-var(trueRanIntercept); 
-mean(apply(fixRanIntercept,2,var)); 
-mean(apply(shrinkRanIntercept,2,var)); 
-mean(apply(shrinkRanIntercept2,2,var)); 
-mean(apply(lmerRanIntercept,2,var)); 
+sd(trueRanIntercept); 
+mean(apply(fixRanIntercept,2,sd)); 
+mean(apply(shrinkRanIntercept,2,sd)); 
+mean(apply(shrinkRanIntercept2,2,sd)); 
+mean(apply(lmerRanIntercept,2,sd)); 
 
 
 par(mfrow=c(2,2),bty="l",mgp=c(2,1,0),mar=c(4,4,1,1),cex.axis=1.3,cex.lab=1.3);
@@ -453,11 +453,11 @@ matplot(trueRanSlope,shrinkRanSlope,type="p",pch=1,col="black");abline(0,1,col="
 matplot(trueRanSlope,shrinkRanSlope2,type="p",pch=1,col="black");abline(0,1,col="blue"); 
 matplot(trueRanSlope,lmerRanSlope,type="p",pch=1,col="black");abline(0,1,col="blue"); 
 
-var(trueRanSlope); 
-mean(apply(fixRanSlope,2,var)); 
-mean(apply(shrinkRanSlope,2,var)); 
-mean(apply(shrinkRanSlope2,2,var)); 
-mean(apply(lmerRanSlope,2,var)); 
+sd(trueRanSlope); 
+mean(apply(fixRanSlope,2,sd)); 
+mean(apply(shrinkRanSlope,2,sd)); 
+mean(apply(shrinkRanSlope2,2,sd)); 
+mean(apply(lmerRanSlope,2,sd)); 
 
 
 
