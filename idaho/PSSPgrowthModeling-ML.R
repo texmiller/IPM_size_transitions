@@ -372,7 +372,7 @@ LogLik=function(pars,response,U){
 	return(val); 
 }
 
-#### Fit various ways, compare the results 
+#### Estimate the random effects in various ways, compare the results 
 shrinkRanIntercept = shrinkRanSlope = matrix(NA,30,250); 
 shrinkRanIntercept2 = shrinkRanSlope2 = matrix(NA,30,250); 
 fixRanIntercept = fixRanSlope = matrix(NA,30,250); 
@@ -439,12 +439,22 @@ matplot(trueRanIntercept,shrinkRanIntercept,type="p",pch=1,col="black");abline(0
 matplot(trueRanIntercept,shrinkRanIntercept2,type="p",pch=1,col="black");abline(0,1,col="blue"); 
 matplot(trueRanIntercept,lmerRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
 
+# compare estimates of the between-year mixing sigma, averaging over reps 
 sd(trueRanIntercept); 
 mean(apply(fixRanIntercept,2,sd)); 
 mean(apply(shrinkRanIntercept,2,sd)); 
-mean(apply(shrinkRanIntercept2,2,sd)); 
+mean(apply(shrinkRanIntercept2,2,sd)); # winner
 mean(apply(lmerRanIntercept,2,sd)); 
 
+# compare root-mean-square error
+RMSE = function(target, ests) {
+	out=apply(ests, 2, function(x) sum((x-target)^2) )
+	sqrt(mean(out)/length(target)) 
+}
+RMSE(trueRanIntercept,fixRanIntercept); 
+RMSE(trueRanIntercept,shrinkRanIntercept); 
+RMSE(trueRanIntercept,shrinkRanIntercept2); # winner 
+RMSE(trueRanIntercept,lmerRanIntercept); 
 
 par(mfrow=c(2,2),bty="l",mgp=c(2,1,0),mar=c(4,4,1,1),cex.axis=1.3,cex.lab=1.3);
 trueRanSlope = coefs[42:71]-mean(coefs[42:71]);
@@ -453,11 +463,17 @@ matplot(trueRanSlope,shrinkRanSlope,type="p",pch=1,col="black");abline(0,1,col="
 matplot(trueRanSlope,shrinkRanSlope2,type="p",pch=1,col="black");abline(0,1,col="blue"); 
 matplot(trueRanSlope,lmerRanSlope,type="p",pch=1,col="black");abline(0,1,col="blue"); 
 
+# compare estimates of the between-year mixing sigma, averaging over reps 
 sd(trueRanSlope); 
 mean(apply(fixRanSlope,2,sd)); 
 mean(apply(shrinkRanSlope,2,sd)); 
-mean(apply(shrinkRanSlope2,2,sd)); 
+mean(apply(shrinkRanSlope2,2,sd)); # winner 
 mean(apply(lmerRanSlope,2,sd)); 
 
+# compare sum of squared errors
+RMSE(trueRanSlope,fixRanSlope); 
+RMSE(trueRanSlope,shrinkRanSlope); 
+RMSE(trueRanSlope,shrinkRanSlope2); # winner 
+RMSE(trueRanSlope,lmerRanSlope); 
 
 
