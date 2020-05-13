@@ -110,24 +110,25 @@ at the end of the article.
 \section{Introduction}
 
 Structured demographic models -- matrix and integral projection models (MPMs and IPMs) -- are powerful tools for data-driven modeling of population dynamics and viability that are widely used in basic and applied settings. 
-In contrast to long-standing MPMs for populations with discrete structure (life stage, age class, etc.), IPMs are a relatively recent development \citep{easterling2000size} best known for their ability to accommodate populations structured by continuous variables, most commonly size. 
+In contrast to long-standing MPMs for populations with discrete structure (life stage, age class, etc.), IPMs are a relatively recent development \citep{easterling2000size} introduced to readily accomodate populations structured by continuous variables, most commonly size. 
 A related \tom{innovation}{This `innovation' is not unique to IPMs but it was rare in MPMs before IPMs.} of the IPM framework is its emphasis on regression-based modeling of size-dependent vital rates as sub-models of the larger projection model. 
 
 The standard workflow allows ecologists to assemble an IPM from data using familiar regression tools to statistically describe growth, survival, reprduction, and other demographic transitions as functions of size. 
 The relative ease and flexibility of the regression-based approach, potentially rich with covariates (like experimental treatment effects) and hierarchical variance structures (i.e., random effects), has facilitated a growing body of IPM literature that examines how biotic or abiotic factors affect population dynamics \citep[e.g.,][]{schultz2017native,ozgul2010coupled} and explores the consequences of demographic heterogeneity associated with spatio-temporal variation \citep[e.g.,][]{crone2016contrasting,compagnoni2016effect}. 
-The vital rate regressions are the bridge between the individual-level data and the population model; it is important to get them right.
+The vital rate regressions are the bridge between the individual-level data and the population-level model and predictions; it is important to get them right.
 
 Compared to other vital rates, growth is special. 
-The regression sub-models for survival and reproduction provide the expected values of these vital rates as functions of size. 
-However, modeling growth for an IPM is about more than the expected value: the full  probability distribution of future size, conditioned on previous size, must be defined. 
-This distribution is used to populate a growth `kernel' $G(y,x)$ that gives the probability of transitioning from any current size $x$ at time $t$ to any future size $y$ at time $t+1$, and thus incorporates an element of luck: some individuals grow more than average and others less.
+The regression sub-models for survival and reproduction provide the expected values of these vital rates as functions of size (we will use ``size'' as the name
+for whatever continuous variable defines the population structure, which could instead be immune competence, mother's weight, etc.).   
+However, modeling growth for an IPM is about more than the expected value: the full probability distribution of future size, conditioned on previous size, must be defined. 
+This distribution is used to populate a growth `kernel' $G(z',z)$ that gives the probability of transitioning from any current size $z$ at time $t$ to any future size $z'$ at time $t+1$, and thus incorporates an element of luck: some individuals grow more than average and others less.
 As long as survival and reproductive rates are size-dependent then the distribution of size transitions around their expected values should strongly influence IPM predictions. 
 
 The original template for modeling size transitions in an IPM framework was provided by Easterling et al. \citeyear{easterling2000size}, who used simple linear regression and thus assumed that growth residuals were normally distributed with constant variance. 
-Problems with this approach were apparent from the very beginning: in their landmark case study,  Easterling et al. detected non-constant variance of residuals with respect to fitted values, which motivated a two-step approach that fit size-dependence in residuals following a preceding fit of mean growth - an approach that has since been widely adopted (cite). 
-Howeverm, even after accounting for heteroscedasticiy, growth data may still deviate from the assumption of normally distributed residuals. 
-Size transitions are often skewed such that decreases in size are more common than increases \citep{peterson2019improving,salguero2010keeping} or vice versa \citep{stubberud2019effects}.
-Size transitions may also exhibit excess kurtosis (`fat tails'), where extreme growth or shrinkage is more common than expected from the exponentially decaying tails of the normal distribution. 
+Problems with this approach were apparent from the beginning: in their landmark case study, Easterling et al. detected non-constant variance of residuals with respect to fitted values, which motivated a two-step approach that fit size-dependence in residuals following a preceding fit of mean growth - an approach that has since been widely adopted (cite). 
+However, even after accounting for heteroscedasticity, growth data may still deviate from the assumption of normally distributed residuals. 
+Size transitions are often skewed such that large decreases in size are more common than increases \citep{peterson2019improving,salguero2010keeping} or vice versa \citep{stubberud2019effects}.
+Size transitions may also exhibit excess kurtosis (`fat tails'), where extreme growth or shrinkage is more common than predicted by the tails of the normal distribution. 
 
 The observation that the normal distribution may poorly describe how real organisms change in size has been made before. 
 Several studies have emphasized that the growth kernel need not rely on the normal distribution, and that fits of the data to alternative distributions should be explored \citep{easterling2000size,peterson2019improving,rees2014building,williams2012avoiding}. 
@@ -148,9 +149,9 @@ In this afticle, we offer an answer.
 
 Our goal here is to develop a general `recipe' for growth modeling that moves the field beyond the standards set over 20 years ago.
 Like any recipe, users may need to make substitutions or add flourishes to suit their situation. 
-\tom{Modeling growth in IPMs is \emph{modeling}, not statistics.}{Not sure readers will get what you mean here. OK, not sure *I* get what you mean here. I think modeling growth is statistical modeling, which is different from statistical tests.} Statistical tools and tests inform the process, but do
-not dictate it. We are not claiming that we know how to find the ``right'' model for any particular data set or
-application through some model selection procedure. Our goal is to demonstrate how a simple workflow, using tools 
+In our view, modeling growth in IPMs is \emph{modeling}, informed by statistical tools and tests but not dictated by their outcome. 
+In particular, rather than proposing a process based on statistical model selection, we emphasize graphical diagnostics in developing and 
+evaluating a growth model. Through a set of empirical case studies we demonstrate how a simple workflow, using tools 
 that were nonexistent or not readily available when IPMs came into use, makes it straightforward and relatively 
 easy to identify when the default choice (Gaussian with possibly nonconstant variance) is a poor fit to the data, 
 and to then choose and fit a substantially better growth model that is no harder to use in practice. 
@@ -204,6 +205,21 @@ This research was supported by US NSF grants DEB-1933497 (SPE) and ....
 %\bibliographystyle{EcologyLetters}
 \bibliographystyle{apalike}
 \bibliography{BetterGrowthModeling}
+
+% ######################## Appendices ##############################
+\appendix
+
+\section{Estimating mixed-effects models using shrinkage}
+
+
+
+
+
+
+
+
+
+
 
 
 \end{document}
