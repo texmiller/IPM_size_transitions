@@ -430,7 +430,7 @@ for(j in 1:250) {
 		cat("Done with simulated data set ",j,"\n"); 
 }
 	
-# save.image(file="PSSPgrowthModels.Rdata"); 
+save.image(file="PSSPgrowthModels.Rdata"); 
 
 par(mfrow=c(2,2),bty="l",mgp=c(2,1,0),mar=c(4,4,1,1),cex.axis=1.3,cex.lab=1.3);
 trueRanIntercept = coefs[1:30]-mean(coefs[1:30]);
@@ -476,4 +476,5 @@ RMSE(trueRanSlope,shrinkRanSlope);
 RMSE(trueRanSlope,shrinkRanSlope2); # winner 
 RMSE(trueRanSlope,lmerRanSlope); 
 
-
+save(file="ShrinkageTest.Rdata",list=c("idaho_sim2","trueRanIntercept","fixRanIntercept","shrinkRanIntercept","shrinkRanIntercept2","lmerRanIntercept",
+"trueRanSlope","fixRanSlope","shrinkRanSlope","shrinkRanSlope2","lmerRanSlope","dropD")); 
