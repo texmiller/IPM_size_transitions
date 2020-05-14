@@ -192,13 +192,6 @@ regression model. Rather, its form should be chosen to match the observed proper
 based on final diagnostic tests.  
 
 
-
-
-
-
-
-
-
 \section*{Acknowledgements} 
 This research was supported by US NSF grants DEB-1933497 (SPE) and .... 
 
@@ -207,9 +200,70 @@ This research was supported by US NSF grants DEB-1933497 (SPE) and ....
 \bibliography{BetterGrowthModeling}
 
 % ######################## Appendices ##############################
-\appendix
+\newpage 
+\clearpage 
+% \setcounter{page}{1}
+\setcounter{equation}{0}
+\setcounter{figure}{0}
+\setcounter{section}{0}
+\setcounter{table}{0}
+\setcounter{Box}{0}
+\renewcommand{\theequation}{S.\arabic{equation}}
+\renewcommand{\thetable}{S-\arabic{table}}
+\renewcommand{\thefigure}{S-\arabic{figure}}
+\renewcommand{\theBox}{S-\arabic{Box}}
+\renewcommand{\thesection}{S.\arabic{section}}
+
+\centerline{\Large{\textbf{Appendices}}}
 
 \section{Estimating mixed-effects models using shrinkage}
+
+Ecologists often fit demographic and other statistical models that include random effects terms to
+quantify variation among years, spatial locations, individuals, etc. Random effects
+are a natural choice when interest centers on the magnitude of variation (e.g., how much does mortality vary among years?)  
+rather than individual values (e.g., mortality in 2013). They also allow each estimate to 
+``borrows strength'' from others, so that (for example) the estimate from a year with small sample size (and thus large 
+sampling variability) is shifted towards the center of the overall distribution. 
+
+Specialized software is often used to fit such models, such as the \textbf{nlme, lme4,mgcv} and \textbf{gamm4} libraries in R,  
+but these only allow a small subset of the distribution families we want to consider for modeling growth increments (the \textbf{gamlss} 
+package allows many distribution families, but in our experience the fitting algorithms often fail to converge or fail to find the global optimum,
+even when random effects are simple in structure or entirely absent). One way past this limitation is Bayesian estimation using STAN with
+user-written (or borrowed) code for the chosen growth distribution (see section XX for an example). 
+
+In this appendix we describe another option: fitting in a fixed-effects framework followed by shrinkage of coefficient estimates. This 
+Appendix overlaps considerably with Appendix S1 of \citet{metcalf-etal-2015}, but for completeness we make it self-contained. 
+
+The first step is to fit the model by maximum likelihood with variation included as fixed effects. For example, in modeling 
+\emph{Pseudoroegneria spicata} we wanted to include, as random effects, between-year variation in the slope and intercept of
+future size (log of plant area) as a function of current size. For a simple example, let us suppose that initial size and year 
+are the only covariates. To estimate year-specific intercepts and slopes, we use \texttt{model.matrix} to construct the
+appropriate design matrix: 
+\begin{verbatim}
+U = model.matrix(~year + logarea.t0:year - 1, data=dropD)
+\end{verbatim}
+where \texttt{logarea.t0} is initial log area, and \texttt{dropD} is the data frame including initial and final sizes and year as an
+unordered factor. If there are $n$ years the resulting \texttt{U} matrix has $2n$ columns, corresponding to $n$ intercepts and $n$ slopes.
+A likelihood function to fit a growth model with a Gaussian distribution, suitable for use with the \textbf{maxLik} package, can be written as:
+\begin{verbatim}
+LogLik=function(pars,final.size,U){
+pars1 = pars[1:ncol(U)]; # extract regression coefficients
+mu = U%*%pars;  
+val = dJSU(final.size, mu=mu,
+sigma=exp(pars2[1]+pars2[2]*mu),
+nu = pars2[3]+pars2[4]*mu,
+tau = exp(pars2[5]+pars2[6]*mu), log=TRUE)
+return(sum(val)); 
+}
+
+
+
+and the likelihood function is 
+  
+
+  
+
+
 
 
 
