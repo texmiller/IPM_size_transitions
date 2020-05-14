@@ -79,7 +79,7 @@ log_models[[4]] <- lmer(logarea.t1~ logarea.t0 + I(logarea.t0^2) + W.ARTR + I(W.
 
 ## NegLogLik function to fit variance model for residuals 
 varPars = function(pars) {
-    return(-sum(dnorm(resids, mean=0, sd=pars[1]*exp(pars[2]*fitted_vals),log=TRUE)))
+    return(-sum(dnorm(resids, mean=0, sd=exp(pars[1] + pars[2]*fitted_vals),log=TRUE)))
 }	
 
 for(mod in 1:4) {
@@ -90,7 +90,7 @@ while(err > 0.000001) {
 	fitted_vals = fitted(log_model);resids = residuals(log_model); 
 	out=optim(c(sd(resids),0),varPars,control=list(maxit=5000)); 
 	pars=out$par; 
-	new_sigma = pars[1]*exp(pars[2]*fitted_vals); new_weights = 1/((new_sigma)^2)
+	new_sigma = exp(pars[1] + pars[2]*fitted_vals); new_weights = 1/((new_sigma)^2)
 	new_weights = 0.5*(weights(log_model) + new_weights); # cautious update 
 	new_model <- update(log_model,weights=new_weights); 
 	err = weights(log_model)-weights(new_model); err=sqrt(mean(err^2)); 
@@ -180,20 +180,20 @@ LogLik=function(pars,response,U){
 	sigma=exp(pars2[1]+pars2[2]*mu),
 	nu = pars2[3]+pars2[4]*mu,
 	tau = exp(pars2[5]+pars2[6]*mu), log=TRUE)
-	return(sum(val)); 
+	return(val); 
 }
 
 ############ Fit the data. Paranoid as usual about convergence
 coefs = list(5); LL=numeric(5);  
 for(j in 1:5) {
 	out=maxLik(logLik=LogLik,start=c(runif(ncol(U)+1), rep(0,5)), response=dropD$logarea.t1,U=U,
-		method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+		method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
 
 	out=maxLik(logLik=LogLik,start=out$estimate,response=dropD$logarea.t1,U=U,
 		method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
 
 	out=maxLik(logLik=LogLik,start=out$estimate,response=dropD$logarea.t1,U=U,
-		method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+		method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
 
 	coefs[[j]] = out$estimate; LL[j] = out$maximum;
 	cat(j, "#--------------------------------------#",out$maximum,"\n"); 
@@ -201,7 +201,7 @@ for(j in 1:5) {
 
 j = min(which(LL==max(LL)));
 out=maxLik(logLik=LogLik,start=coefs[[j]],response=dropD$logarea.t1,U=U,
-		method="BFGS",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE); 
+		method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE); 
 
 ######### save results of ML fit.  
 coefs=out$estimate; SEs = sqrt(diag(vcov(out))); names(coefs)<-colnames(U);
@@ -343,11 +343,12 @@ points(idaho_moments$bin_mean, idaho_moments$kurt_t1,pch=1,lwd=2,col=alpha("red"
 points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
 
 
-#################################################################################
+########################################################################################
 #   Simulation: how well do we recover known random effects? 
-#   Use simulated replicates as "data" and compare BLUP "estimates" with the "truth". 
+#
+#   Use simulated replicates as "data" and compare shrinkage estimates with the "truth". 
 #   Key question: how well does shrinkage do at getting the variance right? 
-#################################################################################
+#########################################################################################
 
 ##### Re-do simulations, so there is no rounding of small values 
 pars1 = coefs[1:ncol(U)]; pars2 = coefs[-(1:ncol(U))]; MLmu = U%*%pars1;  
@@ -430,8 +431,6 @@ for(j in 1:250) {
 		cat("Done with simulated data set ",j,"\n"); 
 }
 	
-save.image(file="PSSPgrowthModels.Rdata"); 
-
 par(mfrow=c(2,2),bty="l",mgp=c(2,1,0),mar=c(4,4,1,1),cex.axis=1.3,cex.lab=1.3);
 trueRanIntercept = coefs[1:30]-mean(coefs[1:30]);
 matplot(trueRanIntercept,fixRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
