@@ -252,11 +252,11 @@ matrix is easily constructed using the \texttt{model.matrix} function:
 \begin{verbatim}
 U = model.matrix(~year + init.size:year - 1, data=growthData)
 \end{verbatim}
-If there are $n$ years, the matrix \texttt{U} specified in this way has $2n$ columns corresponding to $n$ annual 
-intercepts and $n$ annual slopes. 
+If there are $T$ years, the matrix \texttt{U} specified in this way has $2T$ columns corresponding to $n$ annual 
+intercepts and $T$ annual slopes. 
 
-Using this design matrix, it is easy to write a log likelihood function suitable for use with the \textbf{maxLik} package, 
-assuming a log link function between the mean and variance of new size: 
+Using this design matrix, we can readily write a log likelihood function for use with 
+the \textbf{maxLik} package, with a log link function for the variance because it is necessarily positive: 
 \begin{verbatim}
 LogLik=function(pars,new.size,U){
 	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
@@ -265,7 +265,7 @@ LogLik=function(pars,new.size,U){
 }
 \end{verbatim} 
 
-We can then estimate parameters with \texttt{maxLik}, starting from a random guess: 
+Parameters can then be estimated parameters with \texttt{maxLik}, starting from a random guess: 
 \begin{verbatim}
 start=c(runif(ncol(U)), rep(0,3))
 out=maxLik(logLik=LogLik,start=start, new.size=simData$new.size,U=U,
@@ -274,6 +274,10 @@ coefs = out$estimate; SEs = sqrt(diag(vcov(out)));
 \end{verbatim}  
 In real life we would repeat the optimization several times with multiple starting values, to gain confidence that
 the optimal parameter values had been found. 
+
+Focus now on the year-specific intercept parameters $\hat{a}_t, t = 1,2,\cdots T$. Maximum likelihood also gives us a 
+standard error estimate for each of these, $\hat{s}_t$ stored in the code above as the vectors \texttt{SEs}. Those
+allow us to estimate the parameters of a random effects model for the intercepts. 
   
 
 
