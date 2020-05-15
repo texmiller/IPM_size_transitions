@@ -227,48 +227,53 @@ sampling variability) is shifted towards the center of the overall distribution.
 
 Specialized software is often used to fit such models, such as the \textbf{nlme, lme4, mgcv} and \textbf{gamm4} libraries in R,  
 but these only allow a small subset of the distribution families we want to consider for modeling growth increments (the \textbf{gamlss} 
-package allows many distribution families, but in our experience the fitting algorithms often fail to converge or fail to find the global optimum,
-even when random effects are simple in structure or entirely absent). One way past this limitation is Bayesian estimation using STAN with
-user-written (or borrowed) code for the chosen growth distribution (see section XX for an example). 
+package allows many distribution families, but in our experience, even when random effects are simple in structure 
+the fitting algorithms often fail to converge or fail to find the global optimum). 
 
-In this appendix we describe another option: fitting in a fixed-effects framework followed by shrinkage of coefficient estimates. This 
-Appendix overlaps considerably with Appendix S1 of \citet{metcalf-etal-2015}, but for completeness we make it self-contained. 
+One way past this limitation is Bayesian estimation, using STAN with user-written (or borrowed) 
+code for the chosen growth distribution (see section XX for an example). 
+In this appendix we describe another option: fitting in a fixed-effects framework followed by shrinkage of coefficient estimates. The 
+material in this Appendix overlaps with Appendix S1 of \citet{metcalf-etal-2015}, but for completeness we make it self-contained. 
 
 To illustrate shrinkage, we use a simple model based on our analysis of \emph{Pseudoroegneria spicata}. That model includes random effects
-for between-year variation in the slope and intercept of future size (log of plant area) as a function of current size. To keep the
-example simple, we assume that the those are the only covariates, and assume that growth increments are Gaussian with non-constant
-variance. If the variance were constant, the model could be fitted using \texttt{lmer},
+for between-year variation in the slope and intercept of future size (log of plant area) as a function of initial size. To keep the
+example simple, we assume that initial size and year are the only covariates, and we assume that growth increments 
+follow a skew-Normal distribution with nonconstant variance and constant skew parameter. 
+As in our \emph{P. spicata} model, we use the GLM-style assumption that the location and scale parameters 
+are both functions of the same linear predictor. Code is in the script \texttt{SimpleShrinkageExample-ML.R}. 
+
+The analogous Gaussian model, with constant variance, could be fitted as follows using \texttt{lmer}:
 \begin{verbatim}
 lmer(new.size ~ init.size + (init.size|year), data=growthData, REML=TRUE); 
 \end{verbatim}
-where \texttt{growthData} is a data frame holding the data with \texttt{year} as an unordered factor. Functions in 
-\textbf{nlme, mgcv} and \textbf{gamm4} could fit nonconstant variance models similarly. 
-
-As a ``worked example'' we now explain how a nonconstant variance model can be fitted using just maximum likelihood -- which would 
-be wasted effort for this model, but also works when growth increments are not Gaussian. The first step is fitting a model
-where the between-year variation is included as fixed effects. The \texttt{model.matrix} function constructs the
-appropriate design matrix, as follows: 
+where \texttt{growthData} is a data frame holding the data with \texttt{year} as an unordered factor. For our skew-Normal
+model, we instead use maximum likelihood with all between-year variation included as fixed effects. The appropriate design
+matrix is easily constructed using the \texttt{model.matrix} function: 
 \begin{verbatim}
 U = model.matrix(~year + init.size:year - 1, data=growthData)
 \end{verbatim}
 If there are $n$ years, the matrix \texttt{U} specified in this way has $2n$ columns corresponding to $n$ annual 
-intercepts and $n$ annual slopes. With this we can write a log likelihood function, suitable for use with the \textbf{maxLik} package, 
+intercepts and $n$ annual slopes. 
+
+Using this design matrix, it is easy to write a log likelihood function suitable for use with the \textbf{maxLik} package, 
 assuming a log link function between the mean and variance of new size: 
 \begin{verbatim}
 LogLik=function(pars,new.size,U){
 	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
 	mu = U%*%pars1;  
-	dnorm(new.size, mean=mu, sd=exp(pars2[1]+pars2[2]*mu),log=TRUE)
+	dSN1(new.size, mu=mu, sigma=exp(pars2[1]+pars2[2]*mu),nu=pars2[3],log=TRUE)
 }
 \end{verbatim} 
-We can then use \texttt{maxLik}, starting from a random guess at parameter values:
+
+We can then estimate parameters with \texttt{maxLik}, starting from a random guess: 
 \begin{verbatim}
-start=c(runif(ncol(U)), rep(0,2))
+start=c(runif(ncol(U)), rep(0,3))
 out=maxLik(logLik=LogLik,start=start, new.size=simData$new.size,U=U,
-			method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE);
+			method="BHHH",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE);
 coefs = out$estimate; SEs = sqrt(diag(vcov(out)));			
 \end{verbatim}  
-
+In real life we would repeat the optimization several times with multiple starting values, to gain confidence that
+the optimal parameter values had been found. 
   
 
 
