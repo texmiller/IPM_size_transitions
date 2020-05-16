@@ -232,7 +232,8 @@ the fitting algorithms often fail to converge or fail to find the global optimum
 
 One way past this limitation is Bayesian estimation, using STAN with user-written (or borrowed) 
 code for the chosen growth distribution (see section XX for an example). 
-In this appendix we describe another option: fitting in a fixed-effects framework followed by shrinkage of coefficient estimates. The 
+In this appendix we describe another option, introduced by \citet{gould-nichols-1998}: 
+fitting in a fixed-effects framework followed by shrinkage of coefficient estimates. The 
 material in this Appendix overlaps with Appendix S1 of \citet{metcalf-etal-2015}, but for completeness we make it self-contained. 
 
 To illustrate shrinkage, we use a simple model based on our analysis of \emph{Pseudoroegneria spicata}. That model includes random effects
@@ -277,8 +278,30 @@ the optimal parameter values had been found.
 
 Focus now on the year-specific intercept parameters $\hat{a}_t, t = 1,2,\cdots T$. Maximum likelihood also gives us a 
 standard error estimate for each of these, $\hat{s}_t$ stored in the code above as the vectors \texttt{SEs}. Those
-allow us to estimate the parameters of a random effects model for the intercepts. 
-  
+allow us to estimate the parameters of a random effects model for the intercepts, and thereby improve the year-specific
+estimates. The model is as follows. We view the year-specific estimates $\hat{a}_t$ as consisting of unobserved true
+values plus measurement error:
+\be
+\hat{a}_t= a_t + \varepsilon_t 
+\ee
+where the errors $\varepsilon_t$ have variances $s^2_t$. We then make the standard mixed-models assumptions that the $a_t$
+are drawn independently from some fixed distribution with unknown variance $\sigma^2$, while the estimation errors satisfy 
+\be
+(i) \; \mathbb{E}(\varepsilon_t \vert a_t) = 0, \qquad (ii) \; Cov(\varepsilon_t, a_r) = 0 \mbox{ for all } t,r.  
+\ee
+In the present setting, these are optimistic assumptions. Assumption $(i)$ says that the year-specific estimates are unbiased.
+This is not true for maximum likelihood, but if the assumptions of maximum likelihood are satisfied the bias is asympototically
+negligible compared to the standard error (the bias scales as the inverse of sample size, the standard error as the square root
+of the inverse of sample size). The second assumption is also unlikely to hold exactly, because the estimates for each year
+are not based on separate data sets. Each year-specific estimate will be mainly based on data from that year, but whenever some 
+model parameters are estimated from the full data set, each year-specific estimate is affected in part by data from other years. 
+This result in cross-year correlations among estimates, and thus cross-year correlations in their deviations from true values. 
+
+It follows from $(ii)$ that 
+\be
+Var(\hat{a_t}) = Cov(\hat{a_t}, \hat{a_t}) \sigma^2 + s_i^2
+\ee
+
 
 
 
