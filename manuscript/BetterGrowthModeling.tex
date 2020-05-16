@@ -260,47 +260,70 @@ Using this design matrix, we can readily write a log likelihood function for use
 the \textbf{maxLik} package, with a log link function for the variance because it is necessarily positive: 
 \begin{verbatim}
 LogLik=function(pars,new.size,U){
-	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
-	mu = U%*%pars1;  
-	dSN1(new.size, mu=mu, sigma=exp(pars2[1]+pars2[2]*mu),nu=pars2[3],log=TRUE)
+    pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
+    mu = U%*%pars1;  
+    sigma = exp(pars2[1]+pars2[2]*mu);
+    dSN1(new.size, mu=mu, sigma=sigma, nu=pars2[3], log=TRUE)
 }
 \end{verbatim} 
 
-Parameters can then be estimated parameters with \texttt{maxLik}, starting from a random guess: 
+Parameters and their standard errors can then be estimated with \texttt{maxLik}, 
+starting from a random guess: 
 \begin{verbatim}
 start=c(runif(ncol(U)), rep(0,3))
 out=maxLik(logLik=LogLik,start=start, new.size=simData$new.size,U=U,
 			method="BHHH",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE);
-coefs = out$estimate; SEs = sqrt(diag(vcov(out)));			
+coefs = out$estimate; # parameters
+V = vcov(out); SEs = sqrt(diag(V));	# standard errors 
 \end{verbatim}  
-In real life we would repeat the optimization several times with multiple starting values, to gain confidence that
+In real life we would repeat the optimization several times with several different starting values, to be confident that
 the optimal parameter values had been found. 
 
-Focus now on the year-specific intercept parameters $\hat{a}_t, t = 1,2,\cdots T$. Maximum likelihood also gives us a 
-standard error estimate for each of these, $\hat{s}_t$ stored in the code above as the vectors \texttt{SEs}. Those
-allow us to estimate the parameters of a random effects model for the intercepts, and thereby improve the year-specific
-estimates. The model is as follows. We view the year-specific estimates $\hat{a}_t$ as consisting of unobserved true
-values plus measurement error:
+Focus now on the year-specific intercept parameters $\hat{a}_t, t = 1,2,\cdots T$. 
+We can view the year-specific estimates $\hat{a}_t$ as consisting of unobserved true values $a_t$ plus sampling error:
 \be
 \hat{a}_t= a_t + \varepsilon_t 
 \ee
-where the errors $\varepsilon_t$ have variances $s^2_t$. We then make the standard mixed-models assumptions that the $a_t$
-are drawn independently from some fixed distribution with unknown variance $\sigma^2$, while the estimation errors satisfy 
-\be
-(i) \; \mathbb{E}(\varepsilon_t \vert a_t) = 0, \qquad (ii) \; Cov(\varepsilon_t, a_r) = 0 \mbox{ for all } t,r.  
-\ee
-In the present setting, these are optimistic assumptions. Assumption $(i)$ says that the year-specific estimates are unbiased.
-This is not true for maximum likelihood, but if the assumptions of maximum likelihood are satisfied the bias is asympototically
-negligible compared to the standard error (the bias scales as the inverse of sample size, the standard error as the square root
-of the inverse of sample size). The second assumption is also unlikely to hold exactly, because the estimates for each year
-are not based on separate data sets. Each year-specific estimate will be mainly based on data from that year, but whenever some 
-model parameters are estimated from the full data set, each year-specific estimate is affected in part by data from other years. 
-This result in cross-year correlations among estimates, and thus cross-year correlations in their deviations from true values. 
+Because of the sampling errors, the sample variance of
+the estimates $\hat{a}_t$ is an upward-biased estimate of the true across-year variance in the parameter. 
+That is undesirable if the model will be used to project how temporal variability affects population dynamics. 
+However, maximum liklihood estimation gives us an approximaten variance-covariance matrix $\hat{V}$ of the
+sampling errors, \texttt{V} in the code above. With that information, we can estimate the parameters
+of a random effects model for the intercept parameters, and thereby improve the year-specific estimates and
+the estimate of the across-year variance.  
 
-It follows from $(ii)$ that 
+The model is as follows. We make the standard mixed-models assumptions that the $a_t$ are drawn 
+independently from some fixed distribution with unknown variance $\sigma^2$. We also assume that the estimates 
+$\hat{a}_t$ are unbiased, that is
 \be
-Var(\hat{a_t}) = Cov(\hat{a_t}, \hat{a_t}) \sigma^2 + s_i^2
+\mathbb{E}(\varepsilon_t \vert a_t) = 0.    
 \ee
+These are optimistic assumptions, but not excessively optimistic. Some degree of temporal correlation will often be
+present; if the estimates $\hat{a}_t$ show substantial temporal autocorrelation, you may want to account for it as
+we mention at the end of this Appendix. Maximum likelihood parameter estimates are not unbiased, but if the assumptions
+of maximum likelihood are satisfied the bias is asympototically negligible compared to the standard error (the 
+bias scales as the inverse of sample size, the standard error as the square root of the inverse of sample size).  
+
+Let $S^2$ denote the sample variance of the estimates $\hat{a}_t$. It can then be shown that 
+\be
+\mathbb{E}(S^2) = \sigma^2  + \frac{1}{T}\sum\limits_{t=1}^T \mathbb{E} Var(\varepsilon_t) 
+- \frac{1}{T(T-1)}\sum\limits_{i=1}^{j-1} \sum\limits_{j=1}^T \mathbb{E}Cov(\varepsilon_i, \varepsilon_j). 
+\ee
+This is eqn. (1) in \citet{gould-nichols-1989} in our notation, without the term resulting from temporal autocorrelation. 
+
+The terms besides $\sigma^2$ on the right-hand are the expected impact of sampling error on the across-year variance
+of the parameter estimates; their presence makes $S^2$ a biased estimated of $\sigma^2$. However,
+all of those terms correspond to entries in the variance-covariance matrix $V$. We can therefore use our estimated
+variance-covariance matrix $\hat{V}$ to removes the bias due to sampling variability: 
+\be
+\hat{\sigma^2}  = S^2 - \frac{1}{T}\sum\limits_{t=1}^T \hat{V}_{t,t} + 
+\frac{1}{T(T-1)}\sum\limits_{i=1}^{j-1} \sum\limits_{j=1}^T \hat{V}_{i,j}. 
+\ee
+
+$\hat{\sigma^2}$ estimates the variance of the distribution from which the $a_t$ are assumed
+to be drawn. Using that estimate, we can adjust the year-specific estimates to reduce (on average) the
+impact of sampling error. There are two op
+ 
 
 
 
