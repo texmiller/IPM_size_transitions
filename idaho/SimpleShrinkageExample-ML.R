@@ -47,6 +47,7 @@ out=maxLik(logLik=LogLik,start=out$estimate, new.size=dropD$logarea.t1,U=U,
 			method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
 pars=out$estimate; 
 
+####################### Simulate a data set from the fitted model 
 simData = data.frame(init.size = dropD$logarea.t0, year = factor(dropD$year));
 pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
 mu = U%*%pars1; nu=pars2[3]
@@ -76,21 +77,22 @@ out=maxLik(logLik=LogLik,start=out$estimate, new.size=simData$new.size,U=U,
 			method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE); 
 
 #####save results of ML fit  
-coefs = out$estimate; SEs = sqrt(diag(vcov(out))); names(coefs)<-colnames(U);
+coefs = out$estimate; names(coefs)<-colnames(U);
+V = vcov(out); SEs = sqrt(diag(vcov(out))); 
 
 ##############################################################
 # 3. Shrink the fixed-effects estimates 
 ##############################################################
+T = length(unique(simData$year)); 
+V1 = V[1:T,1:T]; V2 = V[(T+1):(2*T),(T+1):(2*T)]; 
 
-fixed.fx = coefs[1:22]; fixed.fx = fixed.fx-mean(fixed.fx); 
-fixed.se = SEs[1:22]; 
-var.hat = mean(fixed.fx^2)-mean(fixed.se^2)
-shrinkRanIntercept = fixed.fx*sqrt(var.hat/(var.hat + fixed.se^2));
+fixed.fx = coefs[1:T]; fixed.fx = fixed.fx-mean(fixed.fx); 
+var.hat = mean(fixed.fx^2) - mean(diag(V1)) + (sum(V1)-sum(diag(V1)))/(2*T*(T-1)); 
+shrinkRanIntercept = fixed.fx*sqrt(var.hat/(var.hat + diag(V1)));
 
-fixed.fx2 = coefs[23:44]; fixed.fx2 = fixed.fx2-mean(fixed.fx2); 
-fixed.se2 = SEs[23:44]; 
-var2.hat = mean(fixed.fx2^2)-mean(fixed.se2^2)
-shrinkRanSlope = fixed.fx2*sqrt(var2.hat/(var2.hat + fixed.se2^2)); 
+fixed.fx2 = coefs[(T+1):(2*T)]; fixed.fx2 = fixed.fx2-mean(fixed.fx2); 
+var2.hat = mean(fixed.fx2^2) - mean(diag(V2)) + (sum(V2)-sum(diag(V2)))/(2*T*(T-1)); 
+shrinkRanSlope = fixed.fx2*sqrt(var2.hat/(var2.hat + diag(V2))); 
 
 graphics.off(); dev.new(height=4,width=8)
 par(mfrow=c(1,2),bty="l",mar=c(4,4,1,1),mgp=c(2,1,0)); 

@@ -308,8 +308,9 @@ Let $S^2$ denote the sample variance of the estimates $\hat{a}_t$. It can then b
 \be
 \mathbb{E}(S^2) = \sigma^2  + \frac{1}{T}\sum\limits_{t=1}^T \mathbb{E} Var(\varepsilon_t) 
 - \frac{1}{T(T-1)}\sum\limits_{i=1}^{j-1} \sum\limits_{j=1}^T \mathbb{E}Cov(\varepsilon_i, \varepsilon_j). 
+\label{eqn:biasTerms}
 \ee
-This is eqn. (1) in \citet{gould-nichols-1989} in our notation, without the term resulting from temporal autocorrelation. 
+This is eqn. (1) in \citet{gould-nichols-1998} in our notation, without the term that results from temporal autocorrelation. 
 
 The terms besides $\sigma^2$ on the right-hand are the expected impact of sampling error on the across-year variance
 of the parameter estimates; their presence makes $S^2$ a biased estimated of $\sigma^2$. However,
@@ -319,14 +320,39 @@ variance-covariance matrix $\hat{V}$ to removes the bias due to sampling variabi
 \hat{\sigma^2}  = S^2 - \frac{1}{T}\sum\limits_{t=1}^T \hat{V}_{t,t} + 
 \frac{1}{T(T-1)}\sum\limits_{i=1}^{j-1} \sum\limits_{j=1}^T \hat{V}_{i,j}. 
 \ee
-
 $\hat{\sigma^2}$ estimates the variance of the distribution from which the $a_t$ are assumed
-to be drawn. Using that estimate, we can adjust the year-specific estimates to reduce (on average) the
-impact of sampling error. There are two op
- 
+to be drawn. 
 
+Using that estimate, we can adjust the year-specific estimates to reduce (on average) the
+impact of sampling error. Depending on your purposes, there are two possible ways to make the
+adjustment. The first is to replace $\hat{a}_t$ by the least-squares estimate of $a_t$ under the assumed random-effects
+model; this is given by 
+\be
+\widetilde{a}_t = \bar{\hat{a_t}} + \frac{\hat{\sigma}^2}{\hat{\sigma}^2 + \hat{V}_{t,t}}\left (\hat{a_t} - \bar{\hat{a_t}} \right). 
+\ee
+It corresponds to the year-specific random effect reported by \texttt{lmer} or \texttt{lme}. The name ``shrinkage'' comes from
+the fact that each estimate is adjusted towards the overall mean, with larger adjustments of values that have higher estimated
+sample error variance, $V_{t,t}$. The second option 
+\be
+\widetilde{a}_t = \bar{\hat{a_t}} + \sqrt{\frac{\hat{\sigma}^2}{\hat{\sigma}^2 + \hat{V}_{t,t}}}\left (\hat{a_t} - \bar{\hat{a_t}} \right). 
+\ee
+This smaller amount of shrinkage, which is used in the popular capture-recapture analysis software MARK, has the property such that the expected sample variance of the adjusted estimates $\widetilde{a}_t$ equals $\hat{\sigma^2}$. 
 
+The first option is theoretically preferable if you are mainly interested in the year-specific values. The second is theoretically 
+preferable if you are mainly interested in the across-year variance, for example if you intend to do stochastic population 
+projections by bootstrapping from the set of estimated year-specific coefficients. \citet{metcalf-etal-2015} found that
+even the second option produced a small negative bias in the temporal variance of population growth rates, comparable in magnitude to the
+positive bias of using the unadjusted fixed effects estimates. However, their simulation studies had equal amounts of data in
+each year, so standard errors $\sqrt{V_{t,t}}$ were similar across years. When this is not the case -- when fixed-effects estimates
+have substantial variation in standard errors -- shrinkage provides a principled way to rein in estimates based on relatively
+little data, and we therefore recommend it. 
 
+Finally, as mentioned above, estimation of $\sigma^2$ can account for temporal autocorrelation in the true coefficient values $a_t$. 
+Such correlations, when present, add a term to eqn. \eqref{eqn:biasTerms} (see eqn. (1) in \citet{gould-nichols-1998}), 
+which can be estimated from the sample autocorrelation of the $\hat{a}_t$. However, reliable estimation of the autocorrelations 
+will rarely be possible unless they go to zero quickly, so we choose to omit that term rather than use it with unreliable estimates
+of the autocorrelations.   
+  
 
 
 
