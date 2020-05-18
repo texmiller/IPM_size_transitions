@@ -16,19 +16,7 @@ require(gamlss); require(gamlss.tr); require(AICcmodavg);
 require(lmerTest); require(tidyverse); require(maxLik); 
 
 source("Utilities.R");
-
-### Spline scatterplot smoothing function
-### Adjustable dof cost gamma, for use with rollapply outputs 
-spline.scatter.smooth=function(x,y,gamma=10,show.quadratic=FALSE,...) {
-  fit=gam(y~s(x),gamma=gamma,method="REML")
-  plot(x,y,type="p",...);
-  out=predict(fit,type="response"); 
-  points(x,out,type="l",lwd=1)
-  if(show.quadratic){
-    fit2 = lm(y~x+I(x^2));
-    points(x,fit2$fitted,type="l",col="red",lwd=2,lty=2);
-  }
-}
+source("../Diagnostics.R"); 
 
 ##############################################################
 # 1. Read in the data
@@ -85,8 +73,7 @@ varPars = function(pars) {
 for(mod in 1:4) {
 err = 1; rep=0; 
 while(err > 0.000001) {
-	rep=rep+1; 
-	log_model = log_models[[mod]];
+	rep=rep+1; log_model = log_models[[mod]];
 	fitted_vals = fitted(log_model);resids = residuals(log_model); 
 	out=optim(c(sd(resids),0),varPars,control=list(maxit=5000)); 
 	pars=out$par; 
@@ -140,21 +127,7 @@ log_gamlss_fit$failed
 ## Rollapply diagnostics on the scaled residuals 
 ########################################################################
 px = fitted(log_model); py=log_scaledResids; 
-e = order(px); px=px[e]; py=py[e];  
-
-rollx=rollapply(px,50,mean,by=25);
-rollmean = rollapply(py,50,mean,by=25); 
-rollsd=rollapply(py,50,sd,by=25); 
-rollkurt=rollapply(py,50,kurtosis,by=25);
-rollskew=rollapply(py,50,skewness,by=25);
-
-par(mfrow=c(2,2),mar=c(5,5,2,1),cex.axis=1.3,cex.lab=1.3); 
-spline.scatter.smooth(rollx,rollmean,gamma=2,xlab="Fitted values",ylab="Mean");
-spline.scatter.smooth(rollx,rollsd,gamma=2,xlab="Fitted values",ylab="Std Dev"); 
-spline.scatter.smooth(rollx,rollskew,gamma=2,xlab="Fitted values",ylab="Skew"); 
-abline(h=0,col="blue",lty=2) 
-spline.scatter.smooth(rollx,rollkurt/3-1,gamma=2,xlab="Fitted values",ylab="Excess kurtosis"); 
-abline(h=0,col="blue",lty=2)
+z = rollMoments(px,py,windows=10,smooth=TRUE,scaled=TRUE) 
 
 ################################################################################################################
 # Try fitting gamlss JSU to log size data. Use the fixed effect structure corresponding to the best lmer fit,
@@ -388,6 +361,8 @@ pars1 = coefs[1:ncol(U)]; pars2 = coefs[-(1:ncol(U))];
 MLmu = U%*%pars1; MLsigma = exp(pars2[1]+pars2[2]*MLmu); 
 MLweights = 1/MLsigma^2
 
+T = length(unique(dropD$year)); 
+
 for(j in 1:250) {
 
 		# fit by ML to the simulated responses 
@@ -395,17 +370,18 @@ for(j in 1:250) {
 			method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
 		
 		outj=maxLik(logLik=LogLik,start=outj$estimate,response=idaho_sim2[,j],,U=U,
-			method="NM",control=list(iterlim=2500,printLevel=1),finalHessian=FALSE); 
+			method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
 			
 		outj=maxLik(logLik=LogLik,start=outj$estimate,response=idaho_sim2[,j],U=U,
 			method="BHHH",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE); 
 		
-		coefj=outj$estimate; SEj = sqrt(diag(vcov(outj))); 
+		coefj=outj$estimate; SEj = sqrt(diag(vcov(outj))); V = vcov(out); 
+		V1 = V[1:T,1:T]; V2 = V[(T+1):(2*T),(T+1):(2*T)]; 
 		
 		# shrinkage random effects for (1|year) 
 		fixed.fxj = coefj[1:30]; fixed.fxj = fixed.fxj-mean(fixed.fxj); 
 		fixed.sej = SEj[1:30]; 
-		sigma2.hat = mean(fixed.fxj^2)-mean(fixed.sej^2)
+		sigma2.hat = mean(fixed.fxj^2)-mean(fixed.sej^2)+ (sum(V1)-sum(diag(V1)))/(2*T*(T-1)); 
 	    shrinkRanIntercept[,j] = fixed.fxj*(sigma2.hat/(sigma2.hat + fixed.sej^2)); 
 		shrinkRanIntercept2[,j] = fixed.fxj*sqrt(sigma2.hat/(sigma2.hat + fixed.sej^2));
 		fixRanIntercept[,j] = fixed.fxj; 
@@ -414,7 +390,7 @@ for(j in 1:250) {
 		# shrinkage random effects for (logarea.t0|year) 
 		fixed.fx2j = coefj[42:71]; fixed.fx2j = fixed.fx2j-mean(fixed.fx2j); 
 		fixed.se2j = SEj[42:71]; 
-		sigma2.hat = mean(fixed.fx2j^2)-mean(fixed.se2j^2)
+		sigma2.hat = mean(fixed.fx2j^2)-mean(fixed.se2j^2)+ (sum(V2)-sum(diag(V2)))/(2*T*(T-1)); 
 		shrinkRanSlope[,j] = fixed.fx2j*(sigma2.hat/(sigma2.hat + fixed.se2j^2));
 		shrinkRanSlope2[,j] = fixed.fx2j*sqrt(sigma2.hat/(sigma2.hat + fixed.se2j^2));
 		fixRanSlope[,j] = fixed.fx2j; 

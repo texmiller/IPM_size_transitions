@@ -1,10 +1,9 @@
 ##############################################################################
 # Growth kernel modeling for Pseudoroegneria spicata, USSES Idaho. 
+# Compares f(initial size) vs. f(fitted value) specifications for SD, 
+# skewness, and kurtosis parameters in JSU distribution 
 #
-# Historical and modern data from by Adler et al. removals experiments paper.
-# Modern data are just the Control and Grass-removal treaments.  
-#
-# Original: SPE April 2020
+# Original: SPE May 
 #
 ##############################################################################
 
@@ -111,7 +110,6 @@ for(j in 1:5) {
 j = min(which(LL==max(LL)));
 lmer_style_fit=maxLik(logLik=LogLik2,start=coefs[[j]],response=dropD$logarea.t1,init=dropD$logarea.t0, U=U,
 		method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE); 
-
 
 AIC(lmer_style_fit)
 AIC(GLM_style_fit); 

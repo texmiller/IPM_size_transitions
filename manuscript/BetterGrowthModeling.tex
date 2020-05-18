@@ -14,6 +14,38 @@
 
 %\usepackage[sc]{mathpazo} %Like Palatino with extensive math support
 
+
+% Coloring of R code listings
+\usepackage[formats]{listings}
+\usepackage{color}
+\definecolor{mygreen}{rgb}{0.1,0.5,0.1}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+\definecolor{mygrey}{rgb}{0.3,0.3,0.1}
+\lstset{
+language=R,
+otherkeywords={data.frame},
+basicstyle=\normalsize\ttfamily, 
+commentstyle=\normalsize\ttfamily,
+keywordstyle=\normalsize\ttfamily,
+stringstyle=\color{mymauve}, 
+commentstyle=\color{mygreen},
+keywordstyle=\color{blue},
+showstringspaces=false, xleftmargin=2.5ex,
+columns=flexible,
+literate={~}{{$\sim \; \; $}}1,
+alsodigit={\.,\_},
+deletekeywords={on,by,data,R,Q,mean,var,sd,log,family,na,options,q,weights,effects,matrix,nrow,ncol,wt,fix,distance},
+}
+\lstset{escapeinside={(*}{*)}} 
+
+\lstdefineformat{Rpretty}{
+	; = \space,
+	\, = [\ \,\]]\string\space,
+	<- = [\ ]\space\string\space,
+	\= = [\ ]\space\string\space}
+
+
 \usepackage{lineno}
 \renewcommand{\refname}{Literature Cited}
 \renewcommand{\floatpagefraction}{0.98}
@@ -232,50 +264,53 @@ the fitting algorithms often fail to converge or fail to find the global optimum
 
 One way past this limitation is Bayesian estimation, using STAN with user-written (or borrowed) 
 code for the chosen growth distribution (see section XX for an example). 
-In this appendix we describe another option, introduced by \citet{gould-nichols-1998}: 
-fitting in a fixed-effects framework followed by shrinkage of coefficient estimates. The 
-material in this Appendix overlaps with Appendix S1 of \citet{metcalf-etal-2015}, but for completeness we make it self-contained. 
+In this appendix we describe another option, introduced by \citet{link-nichols-1994} and \citet{gould-nichols-1998}: 
+fitting in a fixed-effects framework followed by shrinkage of coefficient estimates. None of the ideas here are ours. 
+The material in this Appendix overlaps with Appendix S1 of \citet{metcalf-etal-2015}, 
+but for completeness we make it self-contained. Appendix D of \citet{cooch-white-2020} (written by K.D. Burnham)
+provides more details and many examples in the context of capture-recapture analysis. 
 
-To illustrate shrinkage, we use a simple model based on our analysis of \emph{Pseudoroegneria spicata}. That model includes random effects
-for between-year variation in the slope and intercept of future size (log of plant area) as a function of initial size. To keep the
+Here we explain and illustrate shrinkage using a simple model based on our analysis of \emph{Pseudoroegneria spicata}. 
+That model includes random effects for between-year variation in the slope and intercept of future size 
+(log of plant area) as a function of initial size. To keep the
 example simple, we assume that initial size and year are the only covariates, and we assume that growth increments 
 follow a skew-Normal distribution with nonconstant variance and constant skew parameter. 
 As in our \emph{P. spicata} model, we use the GLM-style assumption that the location and scale parameters 
 are both functions of the same linear predictor. Code is in the script \texttt{SimpleShrinkageExample-ML.R}. 
 
 The analogous Gaussian model, with constant variance, could be fitted as follows using \texttt{lmer}:
-\begin{verbatim}
+\begin{lstlisting}
 lmer(new.size ~ init.size + (init.size|year), data=growthData, REML=TRUE); 
-\end{verbatim}
+\end{lstlisting}
 where \texttt{growthData} is a data frame holding the data with \texttt{year} as an unordered factor. For our skew-Normal
 model, we instead use maximum likelihood with all between-year variation included as fixed effects. The appropriate design
 matrix is easily constructed using the \texttt{model.matrix} function: 
-\begin{verbatim}
+\begin{lstlisting}
 U = model.matrix(~year + init.size:year - 1, data=growthData)
-\end{verbatim}
+\end{lstlisting}
 If there are $T$ years, the matrix \texttt{U} specified in this way has $2T$ columns corresponding to $n$ annual 
 intercepts and $T$ annual slopes. 
 
 Using this design matrix, we can readily write a log likelihood function for use with 
 the \textbf{maxLik} package, with a log link function for the variance because it is necessarily positive: 
-\begin{verbatim}
+\begin{lstlisting}
 LogLik=function(pars,new.size,U){
     pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
     mu = U%*%pars1;  
     sigma = exp(pars2[1]+pars2[2]*mu);
     dSN1(new.size, mu=mu, sigma=sigma, nu=pars2[3], log=TRUE)
 }
-\end{verbatim} 
+\end{lstlisting} 
 
 Parameters and their standard errors can then be estimated with \texttt{maxLik}, 
 starting from a random guess: 
-\begin{verbatim}
+\begin{lstlisting}
 start=c(runif(ncol(U)), rep(0,3))
 out=maxLik(logLik=LogLik,start=start, new.size=simData$new.size,U=U,
-			method="BHHH",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE);
+	method="BHHH",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE);
 coefs = out$estimate; # parameters
 V = vcov(out); SEs = sqrt(diag(V));	# standard errors 
-\end{verbatim}  
+\end{lstlisting}  
 In real life we would repeat the optimization several times with several different starting values, to be confident that
 the optimal parameter values had been found. 
 
@@ -299,8 +334,8 @@ $\hat{a}_t$ are unbiased, that is
 \mathbb{E}(\varepsilon_t \vert a_t) = 0.    
 \ee
 These are optimistic assumptions, but not excessively optimistic. Some degree of temporal correlation will often be
-present; if the estimates $\hat{a}_t$ show substantial temporal autocorrelation, you may want to account for it as
-we mention at the end of this Appendix. Maximum likelihood parameter estimates are not unbiased, but if the assumptions
+present, and as we explain at the end, it is theoretically possible to account for it. 
+Maximum likelihood parameter estimates are not unbiased, but if the assumptions
 of maximum likelihood are satisfied the bias is asympototically negligible compared to the standard error (the 
 bias scales as the inverse of sample size, the standard error as the square root of the inverse of sample size).  
 
@@ -310,7 +345,8 @@ Let $S^2$ denote the sample variance of the estimates $\hat{a}_t$. It can then b
 - \frac{1}{T(T-1)}\sum\limits_{i=1}^{j-1} \sum\limits_{j=1}^T \mathbb{E}Cov(\varepsilon_i, \varepsilon_j). 
 \label{eqn:biasTerms}
 \ee
-This is eqn. (1) in \citet{gould-nichols-1998} in our notation, without the term that results from temporal autocorrelation. 
+This is eqn. (1) in \citet{gould-nichols-1998} in our notation, without the term that 
+results from temporal autocorrelation. 
 
 The terms besides $\sigma^2$ on the right-hand are the expected impact of sampling error on the across-year variance
 of the parameter estimates; their presence makes $S^2$ a biased estimated of $\sigma^2$. However,
@@ -319,50 +355,46 @@ variance-covariance matrix $\hat{V}$ to removes the bias due to sampling variabi
 \be
 \hat{\sigma^2}  = S^2 - \frac{1}{T}\sum\limits_{t=1}^T \hat{V}_{t,t} + 
 \frac{1}{T(T-1)}\sum\limits_{i=1}^{j-1} \sum\limits_{j=1}^T \hat{V}_{i,j}. 
+\label{eqn:hatSigma}
 \ee
 $\hat{\sigma^2}$ estimates the variance of the distribution from which the $a_t$ are assumed
 to be drawn. 
 
-Using that estimate, we can adjust the year-specific estimates to reduce (on average) the
+Using that estimate, we can adjust the year-specific estimates to reduce the expected 
 impact of sampling error. Depending on your purposes, there are two possible ways to make the
-adjustment. The first is to replace $\hat{a}_t$ by the least-squares estimate of $a_t$ under the assumed random-effects
-model; this is given by 
-\be
-\widetilde{a}_t = \bar{\hat{a_t}} + \frac{\hat{\sigma}^2}{\hat{\sigma}^2 + \hat{V}_{t,t}}\left (\hat{a_t} - \bar{\hat{a_t}} \right). 
-\ee
-It corresponds to the year-specific random effect reported by \texttt{lmer} or \texttt{lme}. The name ``shrinkage'' comes from
-the fact that each estimate is adjusted towards the overall mean, with larger adjustments of values that have higher estimated
-sample error variance, $V_{t,t}$. The second option 
+adjustment. The first option is the one used in the popular capture-recapture analysis 
+software Mark \citet{cooch-white-2020}, 
 \be
 \widetilde{a}_t = \bar{\hat{a_t}} + \sqrt{\frac{\hat{\sigma}^2}{\hat{\sigma}^2 + \hat{V}_{t,t}}}\left (\hat{a_t} - \bar{\hat{a_t}} \right). 
+\label{eqn:ShrinkLess}
 \ee
-This smaller amount of shrinkage, which is used in the popular capture-recapture analysis software MARK, has the property such that the expected sample variance of the adjusted estimates $\widetilde{a}_t$ equals $\hat{\sigma^2}$. 
+The name ``shrinkage'' comes from the fact that each estimate is adjusted towards the overall mean, with 
+larger adjustments of values that have higher estimated sampling error variance, $\hat{V}_{t,t}$. 
+This shrinkage estimate has the property that the expected sample variance of the 
+adjusted estimates $\widetilde{a}_t$ is very close to $\hat{\sigma^2}$, so the $\widetilde{a}_t$ approximate
+the actual amount of 
 
-The first option is theoretically preferable if you are mainly interested in the year-specific values. The second is theoretically 
-preferable if you are mainly interested in the across-year variance, for example if you intend to do stochastic population 
-projections by bootstrapping from the set of estimated year-specific coefficients. \citet{metcalf-etal-2015} found that
-even the second option produced a small negative bias in the temporal variance of population growth rates, comparable in magnitude to the
-positive bias of using the unadjusted fixed effects estimates. However, their simulation studies had equal amounts of data in
-each year, so standard errors $\sqrt{V_{t,t}}$ were similar across years. When this is not the case -- when fixed-effects estimates
-have substantial variation in standard errors -- shrinkage provides a principled way to rein in estimates based on relatively
-little data, and we therefore recommend it. 
+The second is to replace $\hat{a}_t$ by the least-squares estimate of $a_t$ under the 
+additional assumption that the $a_t$ are drawn from a Gaussian distribution; this is given by 
+\be
+\widetilde{a}_t = \bar{\hat{a_t}} + \frac{\hat{\sigma}^2}{\hat{\sigma}^2 + \hat{V}_{t,t}}\left (\hat{a_t} - \bar{\hat{a_t}} \right). 
+\label{eqn:ShrinkMore}
+\ee
+This option is theoretically preferable if you are mainly interested in year-specific values, rather than the across-year variance,
+and the Gaussian assumption is reasonable. However, \citet{metcalf-etal-2015} found that even the \eqref{eqn:ShrinkLess}, which does 
+less shrinkage, produced a small negative bias in the temporal variance of population growth rates. This argues for  
+always using the first option, as MARK does, and we do the same here. 
 
-Finally, as mentioned above, estimation of $\sigma^2$ can account for temporal autocorrelation in the true coefficient values $a_t$. 
-Such correlations, when present, add a term to eqn. \eqref{eqn:biasTerms} (see eqn. (1) in \citet{gould-nichols-1998}), 
-which can be estimated from the sample autocorrelation of the $\hat{a}_t$. However, reliable estimation of the autocorrelations 
-will rarely be possible unless they go to zero quickly, so we choose to omit that term rather than use it with unreliable estimates
-of the autocorrelations.   
+We differ from MARK, however, in using \eqref{eqn:hatSigma} rather than an iterative method that takes \eqref{eqn:hatSigma} as its 
+starting estimate and refines the estimate by using weighted least squares based on the current estimate. 
+\citet{metcalf-etal-2015} found, in simulation studies, that the iterative method was slightly beneficial at best, and 
+wildly inaccurate at worst. We advise against it. 
+
+Finally, as mentioned above, the estimate of $\sigma^2$ can account for temporal autocorrelation in the $a_t$. 
+When present, those correlations add a term to eqn. \eqref{eqn:biasTerms} (see eqn. (1) in \citet{gould-nichols-1998}), 
+which can be estimated from the sample autocorrelation of the $\hat{a}_t$. We do not recommend doing this (and therefore omit
+the formulas) because the autocorrelations can only be reliably estimated if they fall to nearly zero within lag $m \ll T$, in which
+case the autocorrelation term is small (specifically, $O(m/T)$). Otherwise, the random error from using poorly estimated 
+autocorrelations is likely to outweight the small bias from omitting that term. 
   
-
-
-
-
-
-
-
-
-
-
-
-
 \end{document}
