@@ -1,3 +1,8 @@
+add_panel_label <- function(ltype="a",cex=1) {
+    text <- paste(LETTERS[letters==ltype], ")", sep="")
+    mtext(text=text, side=3, adj=0,cex=cex)
+}
+
 ###########################################################################
 ### Spline scatterplot smoothing function
 ### Adjustable dof cost gamma, for use with rollapply outputs 

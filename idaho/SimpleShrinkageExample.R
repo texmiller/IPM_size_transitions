@@ -8,8 +8,8 @@
 rm(list=ls(all=TRUE));
 setwd("c:/repos/IPM_size_transitions/idaho"); 
 
-require(lme4); require(tidyverse); require(maxLik); 
-source("Utilities.R");
+require(lme4); require(tidyverse); require(maxLik); require(gamlss); 
+source("Utilities.R"); source("../Diagnostics.R"); 
 
 ##############################################################
 # 1. Generate artificial data for the example 
@@ -97,6 +97,10 @@ shrinkRanSlope = fixed.fx2*sqrt(var2.hat/(var2.hat + diag(V2)));
 graphics.off(); dev.new(height=4,width=8)
 par(mfrow=c(1,2),bty="l",mar=c(4,4,1,1),mgp=c(2,1,0)); 
 plot(trueRanIntercept,shrinkRanIntercept,type="p",xlab="True year-specific intercept",ylab="Estimated"); abline(0,1); 
+add_panel_label("a"); 
 plot(trueRanSlope,shrinkRanSlope,type="p",xlab="True year-specific slope",ylab="Estimated"); abline(0,1); 
+add_panel_label("b"); 
 
-save.image(file="SimpleShrinkageExample.Rdata"); 
+dev.copy2pdf(file="../manuscript/figures/SimpleShrinkage.pdf") 
+
+# save.image(file="SimpleShrinkageExample.Rdata"); 

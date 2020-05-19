@@ -265,19 +265,24 @@ the fitting algorithms often fail to converge or fail to find the global optimum
 One way past this limitation is Bayesian estimation, using STAN with user-written (or borrowed) 
 code for the chosen growth distribution (see section XX for an example). 
 In this appendix we describe another option, introduced by \citet{link-nichols-1994} and \citet{gould-nichols-1998}: 
-fitting in a fixed-effects framework followed by shrinkage of coefficient estimates. None of the ideas here are ours. 
-The material in this Appendix overlaps with Appendix S1 of \citet{metcalf-etal-2015}, 
+fitting a fixed-effects model by Maximum Likleihood, followed by shrinkage of coefficient estimates. 
+None of the ideas here are original. The material overlaps Appendix S1 of \citet{metcalf-etal-2015}, 
 but for completeness we make it self-contained. Appendix D of \citet{cooch-white-2020} (written by K.D. Burnham)
-provides more details and many examples in the context of capture-recapture analysis. 
+provides more details and examples in the context of capture-recapture analysis. 
 
-Here we explain and illustrate shrinkage using a simple model based on our analysis of \emph{Pseudoroegneria spicata}. 
+Here we explain shrinkage using a simple model based on our analysis of \emph{Pseudoroegneria spicata}. 
 That model includes random effects for between-year variation in the slope and intercept of future size 
-(log of plant area) as a function of initial size. To keep the
-example simple, we assume that initial size and year are the only covariates, and we assume that growth increments 
+(log area) as a function of initial size. To keep the example simple, we assume that initial size 
+and year are the only covariates, and we assume that growth increments 
 follow a skew-Normal distribution with nonconstant variance and constant skew parameter. 
-As in our \emph{P. spicata} model, we use the GLM-style assumption that the location and scale parameters 
-are both functions of the same linear predictor. Code is in the script \texttt{SimpleShrinkageExample-ML.R}. 
+Code for this example is in the script \texttt{SimpleShrinkageExample.R}. The first part of the script generates
+an artificial data set by fitting the model to a subset of the growth data (20th century Control plots), and
+randomly generating new ``size next year'' values for each individual in the actual data set. 
+The second part contains the ``data'' analysis. 
 
+As in our \emph{P. spicata} analysis, we assumed that that the skew and kurtosis parameters were functions
+of the location parameter; this dominated $(\Delta AIC \approx 30)$ the alternate 
+model with skew and kurtosis depending on initial size.   
 The analogous Gaussian model, with constant variance, could be fitted as follows using \texttt{lmer}:
 \begin{lstlisting}
 lmer(new.size ~ init.size + (init.size|year), data=growthData, REML=TRUE); 
@@ -307,7 +312,7 @@ starting from a random guess:
 \begin{lstlisting}
 start=c(runif(ncol(U)), rep(0,3))
 out=maxLik(logLik=LogLik,start=start, new.size=simData$new.size,U=U,
-	method="BHHH",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE);
+  method="BHHH",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE);
 coefs = out$estimate; # parameters
 V = vcov(out); SEs = sqrt(diag(V));	# standard errors 
 \end{lstlisting}  
@@ -361,8 +366,8 @@ $\hat{\sigma^2}$ estimates the variance of the distribution from which the $a_t$
 to be drawn. 
 
 Using that estimate, we can adjust the year-specific estimates to reduce the expected 
-impact of sampling error. Depending on your purposes, there are two possible ways to make the
-adjustment. The first option is the one used in the popular capture-recapture analysis 
+impact of sampling error. Depending on your purposes, there are two possible adjustments. 
+The first option is the one used in the popular capture-recapture analysis 
 software Mark \citet{cooch-white-2020}, 
 \be
 \widetilde{a}_t = \bar{\hat{a_t}} + \sqrt{\frac{\hat{\sigma}^2}{\hat{\sigma}^2 + \hat{V}_{t,t}}}\left (\hat{a_t} - \bar{\hat{a_t}} \right). 
@@ -380,15 +385,15 @@ additional assumption that the $a_t$ are drawn from a Gaussian distribution; thi
 \widetilde{a}_t = \bar{\hat{a_t}} + \frac{\hat{\sigma}^2}{\hat{\sigma}^2 + \hat{V}_{t,t}}\left (\hat{a_t} - \bar{\hat{a_t}} \right). 
 \label{eqn:ShrinkMore}
 \ee
-This option is theoretically preferable if you are mainly interested in year-specific values, rather than the across-year variance,
-and the Gaussian assumption is reasonable. However, \citet{metcalf-etal-2015} found that even the \eqref{eqn:ShrinkLess}, which does 
-less shrinkage, produced a small negative bias in the temporal variance of population growth rates. This argues for  
+This option is theoretically preferable if you are mainly interested in year-specific values rather than the across-year variance,
+and the Gaussian assumption is reasonable. However, \citet{metcalf-etal-2015} found that even \eqref{eqn:ShrinkLess}, which does 
+less shrinkage, resulted in a small downward bias in the temporal variance of population growth rates. This argues for  
 always using the first option, as MARK does, and we do the same here. 
 
 We differ from MARK, however, in using \eqref{eqn:hatSigma} rather than an iterative method that takes \eqref{eqn:hatSigma} as its 
 starting estimate and refines the estimate by using weighted least squares based on the current estimate. 
-\citet{metcalf-etal-2015} found, in simulation studies, that the iterative method was slightly beneficial at best, and 
-wildly inaccurate at worst. We advise against it. 
+\citet{metcalf-etal-2015} found, in simulation studies, that the iterative method was usually slightly beneficial but 
+sometimes wildly inaccurate. We therefore advise against it. 
 
 Finally, as mentioned above, the estimate of $\sigma^2$ can account for temporal autocorrelation in the $a_t$. 
 When present, those correlations add a term to eqn. \eqref{eqn:biasTerms} (see eqn. (1) in \citet{gould-nichols-1998}), 
@@ -396,5 +401,34 @@ which can be estimated from the sample autocorrelation of the $\hat{a}_t$. We do
 the formulas) because the autocorrelations can only be reliably estimated if they fall to nearly zero within lag $m \ll T$, in which
 case the autocorrelation term is small (specifically, $O(m/T)$). Otherwise, the random error from using poorly estimated 
 autocorrelations is likely to outweight the small bias from omitting that term. 
+
+The take-home message is that estimating random effects from the regression coefficients is very simple: 
+\begin{lstlisting}
+# Variance-covariance matrices for intercepts and slopes
+V1 = V[1:T,1:T]; V2 = V[(T+1):(2*T),(T+1):(2*T)]; 
+# Extract year-specific intercepts, center them to zero   
+fixed.fx = coefs[1:T]; fixed.fx = fixed.fx-mean(fixed.fx); 
+
+# Estimate sigma^2
+var.hat = mean(fixed.fx^2) - mean(diag(V1)) + 
+              (sum(V1)-sum(diag(V1)))/(2*T*(T-1)); 
+
+# Shrink deviations from the mean 
+shrinkRanIntercept = fixed.fx*sqrt(var.hat/(var.hat + diag(V1)));
+
+# Do it all again for the slopes 
+fixed.fx2 = coefs[(T+1):(2*T)]; fixed.fx2 = fixed.fx2-mean(fixed.fx2); 
+var2.hat = mean(fixed.fx2^2) - mean(diag(V2)) + 
+               (sum(V2)-sum(diag(V2)))/(2*T*(T-1)); 
+shrinkRanSlope = fixed.fx2*sqrt(var2.hat/(var2.hat + diag(V2))); 
+\end{lstlisting}
+
+The figure below shows the results for one artificial PSSP ``data'' set, having $T=22$ years and growth measurments on 
+about 175 individuals/year on average. The true random year effects (the ones used to generate the data) are recovered
+with good accuracy and no bias. In particular there is no sign of extreme values being pulled in too far
+towards the mean, which would cause an S-shaped graph of estimated versus true values. 
+
+\centerline{\includegraphics[width=\textwidth]{figures/SimpleShrinkage.pdf}}
+
   
 \end{document}
