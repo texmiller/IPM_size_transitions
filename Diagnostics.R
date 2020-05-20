@@ -41,7 +41,7 @@ rollMoments=function(px,py,windows=10,smooth=TRUE,scaled=TRUE) {
   rollskew=rollapply(py,width=width,skewness,by=by);
 
   if(smooth) {
-  par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.3); 
+  par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.4,bty="l"); 
   spline.scatter.smooth(rollx,rollmean,gamma=2,xlab="Fitted values",ylab="Mean");
   if(scaled) abline(h=0,col="red",lty=2,lwd=2) 
 
@@ -51,8 +51,8 @@ rollMoments=function(px,py,windows=10,smooth=TRUE,scaled=TRUE) {
   spline.scatter.smooth(rollx,rollskew,gamma=2,xlab="Fitted values",ylab="Skew"); 
   if(scaled) abline(h=0,col="red",lty=2,lwd=2) 
 
-  spline.scatter.smooth(rollx,rollkurt/3-1,gamma=2,xlab="Fitted values",ylab="Excess kurtosis"); 
-  if(scaled) abline(h=0,col="red",lty=2,lwd=2)
+  spline.scatter.smooth(rollx,rollkurt,gamma=2,xlab="Fitted values",ylab="Kurtosis"); 
+  if(scaled) abline(h=3,col="red",lty=2,lwd=2)
 }
 return(list(rollx=rollx,rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollskew=rollskew))
 }

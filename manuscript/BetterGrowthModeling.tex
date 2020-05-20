@@ -166,27 +166,24 @@ The observation that the normal distribution may poorly describe how real organi
 Several studies have emphasized that the growth kernel need not rely on the normal distribution, and that fits of the data to alternative distributions should be explored \citep{easterling2000size,peterson2019improving,rees2014building,williams2012avoiding}. 
 Yet, default use of Gaussian growth kernels (often with non-constant variance) remains the standard practice. 
 An ISI Web of Knowledge search on the terms `integral projection model ecology' (DATE) returned \# IPM studies published in the past decade (2010--2020), \# of which assumed a Gaussian growth kernel\tom{}{Not sure if this is worth the trouble of doing, so I am just writing in placeholders for now. I think I know what I would find.}.
-The general state-of-the-art in the literature appears stuck where it was 15 or so years ago, using the default model without pausing to examine critically whether or not it actually provides a good description of the data. 
+The general state-of-the-art in the literature appears to be stuck where it was 15 or so years ago, using the default model without pausing to examine critically whether or not it actually provides a good description of the data. 
 We are guilty of this, ourselves. 
-% Our goal here is to break that logjam, by building on Peterson et al. to provide a practical ``new default'' that researchers can follow to choose, fit, and implement better descriptions of individual growth for IPMs and any other size-structured population model.
-% The default growth model traces back to Easterling et al. (2000). The analyses described there pre-date version 1.0 of R by several years, and they were quickly replaced by better methods such as the linear and generalized linear mixed models regression functions in R, notably the option to fit linear mixed models with nonconstant growth variance. 
-% But as Peterson et al. recentlynoted, despite the growing list of other options and repeated calls in the literature for greater attention to growth modeling, the general state-of-the-art in the literature remains stuck where it was 15 or so years ago, using the default model without pausing to examine critically whether or not it actually provides a good description of the data. Our goal here is to break that logjam, by building on Peterson et al. to provide a practical ``new default'' that researchers can follow to choose, fit, and implement better descriptions of individual growth for IPMs and any other size-structured population model. 
 
 The persistence of Gaussian growth modeling is understandable. 
 There is a long tradition of statistical modeling built around the assumption of normally distributed residuals with constant variance (e.g., ANOVA).
 Popular software pacakges such as lme4 \citep{bates2007lme4} and MCMCglmm \citep{hadfield2010mcmc} make it easy to fit growth models with potentially complex fixed- and random-effect structures, but the families of continuous response distributions they can accommodate are limited and default to Gaussian.
 Abandoning these convenient and widely accesible tools for the sake of a more `exotic' growth kernel also means, it may seem, sacrificing the flexibility to rigorously model diverse and potentially complex sources of variation in growth, some of which may be the driving motivation for conducting the study in the first place.
 The question, then, is how can ecologists break the apparent trade-off between realistically capturing the variance, skew, and kurtosis of size transition data on the one hand, and flexibly modeling the covariates and random effects that we know or suspect to be important on the other. 
-In this afticle, we offer an answer. 
+In this article, we offer an answer. 
 
 Our goal here is to develop a general `recipe' for growth modeling that moves the field beyond the standards set over 20 years ago.
 Like any recipe, users may need to make substitutions or add flourishes to suit their situation. 
 In our view, modeling growth in IPMs is \emph{modeling}, informed by statistical tools and tests but not dictated by their outcome. 
-In particular, rather than proposing a process based on statistical model selection, we emphasize graphical diagnostics in developing and 
+Rather than proposing a process centered on statistical model selection, we emphasize graphical diagnostics in developing and 
 evaluating a growth model. Through a set of empirical case studies we demonstrate how a simple workflow, using tools 
 that were nonexistent or not readily available when IPMs came into use, makes it straightforward and relatively 
-easy to identify when the default choice (Gaussian with possibly nonconstant variance) is a poor fit to the data, 
-and to then choose and fit a substantially better growth model that is no harder to use in practice. 
+easy to identify when the default model is a poor fit to the data, and to then choose and fit a substantially 
+better growth model that is no harder to use in practice. 
 
 The remainder of this article is structured as follows:
 \begin{itemize}
@@ -213,15 +210,80 @@ to automate this step are available in R.
 \item Refit the growth model using the chosen distribution, with shape (skew and kurtosis) varying according to the patterns 
 seen in the graphical diagnostics. How this can be done depends on features of the model at hand, in particular whether or not it
 includes random effects. 
-\item Test the final model through graphical diagnostics comparing simulated growth increments with the data. A good model will generate
-simulated data that look like the real data.   
+\item Test the final model through graphical diagnostics comparing simulated growth increments with the data. 
+A good model will generate simulated data that look like the real data.  
 \end{enumerate}
-The assumption of non-constant variance in the pilot model means that it is not necessary to seek a data transformation that stabilizes
-the growth variance. Transformation may have other benefits (e.g., log transformation avoids spurious negative sizes, or some other transformation
-may be helpful in modeling survival or fecundity). However, it does entail some model selection to specify the mean-variance relationship of
-future size. In contrast, we recommend that statistical model selection should be the basis for choosing the form of the final
-regression model. Rather, its form should be chosen to match the observed properties of the scaled residuals, and at most slightly modified
-based on final diagnostic tests.  
+The assumption of non-constant variance in the pilot model means that the data need not be transformed in a way that stabilizes
+the growth variance. That is always an option when it does not create new problems, and transformation may  
+have other benefits (e.g., log transformation avoids spurious negative sizes, or some other transformation
+may be helpful in modeling survival or fecundity). Non-constant variance, like other shape parameters, has to be modeled
+as a function of size and other covariates. However, we recommend that formal statistical model selection 
+should not be the basis for specifying the final regression model. Rather, its form should be chosen to 
+match observable properties of the scaled residuals, and at most slightly modified based on final diagnostic tests. 
+
+
+\section{Case study: bunchgrass, \emph{Pseudoroegneria spicata}}
+
+We again consider a species where one of is a repeat offender, using the default model initially because 
+it was hard to do better then \citep{adler-etal-2010}, but sticking with it long after that 
+\citep[e.g.,][]{Tredennick2018, Adler-2018}. 
+
+NOTE: for now, this is just an outline of methods and results. 
+
+We used the most recently curated version of the data \citep[][at doi.org/10.5061/dryad.96dn293]{Adler-2018},
+both legacy (22 annual transitions between 1926 and 1957) and modern (8 annual transitions from
+2008 to 2016, excluding moisture manipulation treatments). We excluded seedlings, which require separate models
+\citep{Chu-2014a, Chu-2015, snyder-ellner-2018}, and individuals mapped as ``too small to measure'' that should be modeled separately
+as a discrete size category (though in the past we have not done that). The measure of plant size was log basal cover. 
+Based on past analyses, (1) we did not distinguish between historical and 
+modern Control treatments \citep{Adler-2018} (2) we included size by year interactions with year-specific slope and intercept
+for a linear relationship between current and future size (log basal cover); (3) Quadrat group (labeling sets of spatially
+nearby quadrats), Treatment (Control or Shrub removal) and competition with other species were included as covariates. 
+As in past models, competition was measured by distance-weighted cover of competing species, using nonparametric competition
+kernels estimated from the data \citep{Teller-2016}. The ``pilot'' model (Gaussian) was constructed using \texttt{lmer}
+with annual slope and intercept specified as random effects, using iterative re-weighting to fit a model with non-constant
+variance (exponential function of fitted value). It also included a quadratic term in initial size, based on the rolling
+moments diagnostics on the scaled residuals. 
+
+Results: \begin{enumerate}
+
+\item Model selection for constructing the ``pilot'' model was limited to the competition effects,  
+using AIC values as reported by \texttt{lmer}). The selected model had  
+three competition covariates: (1) the shrub \emph{Artemisia tripartita}, (2) the other two dominant 
+bunchgrasses combined, and (3) all other species combined. 
+
+
+\item Scaled residuals were non-Gaussian, negatively skewed, and fat-tailed (all $P<0.001$). 
+
+\item Best-fitting distribution was JSU, then ST5 ($\Delta AIC = 1.32$). 
+
+\item Rolling moments diagnostic showed mean and SD nearly constant (as they should be),
+large trends in skew (positive to negative) and kurtosis (small to large), see Fig. 
+\ref{fig:rollingMomentsPSSP}. 
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=.8\textwidth]{figures/RollingMomentsDiagnostic-PSSP.pdf}
+\caption{Rolling-window moments diagnostics applied to the scaled residuals from the pilot Gaussian
+fit for \emph{P. spicata}.}
+\label{fig:rollingMomentsPSSP}
+\end{figure} 
+
+\item Based on the diagnostics, the fitted model was JSU with the same linear predictor as the pilot model,
+the same function form for the variance (exponential in fitted value), linear skewness parameter \texttt{nu},
+and exponential kurtosis parameter \texttt{tau}. Random effects estimated by shrinkage were very similar to those
+from the \texttt{lmer} pilot model. 
+
+\item All of the terms in the fitted JSU model were significant. Only one quadrat group (the one exposed to sheep grazing) 
+had a significantly nonzero effect, so reduction to Grazed/Ungrazed might be considered. 
+
+\item Binned data moment diagnostics were used to compare the real data to multiple one-year-ahead simulations
+of the fitted model (i.e., for each real individual in the data, generate a simulated size next year according to
+the fitted model). 
+
+\end{enumerate} 
+
+
 
 
 \section*{Acknowledgements} 

@@ -131,7 +131,7 @@ z = rollMoments(px,py,windows=10,smooth=TRUE,scaled=TRUE)
 
 ################################################################################################################
 # Try fitting gamlss JSU to log size data. Use the fixed effect structure corresponding to the best lmer fit,
-# and believe rollaply diagnostics saying skew is linear, and kurtosis is quadratic (represented by log link)
+# and believe rollaply diagnostics saying skew is linear, and kurtosis is quadratic
 #
 # Fitting is done by maximum likelihood using maxLik (easier than mle 
 # 
@@ -152,14 +152,14 @@ LogLik=function(pars,response,U){
 	val = dJSU(response, mu=mu,
 	sigma=exp(pars2[1]+pars2[2]*mu),
 	nu = pars2[3]+pars2[4]*mu,
-	tau = exp(pars2[5]+pars2[6]*mu), log=TRUE)
+	tau = pmax(0.01,pars2[5]+pars2[6]*mu + pars2[7]*mu^2), log=TRUE)
 	return(val); 
 }
 
 ############ Fit the data. Paranoid as usual about convergence
 coefs = list(5); LL=numeric(5);  
 for(j in 1:5) {
-	out=maxLik(logLik=LogLik,start=c(runif(ncol(U)+1), rep(0,5)), response=dropD$logarea.t1,U=U,
+	out=maxLik(logLik=LogLik,start=c(runif(ncol(U)), c(1,0,0,0,0.2,0,0)), response=dropD$logarea.t1,U=U,
 		method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
 
 	out=maxLik(logLik=LogLik,start=out$estimate,response=dropD$logarea.t1,U=U,
@@ -177,7 +177,7 @@ out=maxLik(logLik=LogLik,start=coefs[[j]],response=dropD$logarea.t1,U=U,
 		method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE); 
 
 ######### save results of ML fit.  
-coefs=out$estimate; SEs = sqrt(diag(vcov(out))); names(coefs)<-colnames(U);
+names(out$estimate)<-colnames(U); coefs=out$estimate; SEs = sqrt(diag(vcov(out))); 
 
 ######################################################################
 #  Compare lmer and Shrinkage random effects
@@ -189,7 +189,7 @@ fixed.fx = coefs[1:30]; fixed.fx = fixed.fx-mean(fixed.fx);
 fixed.se = SEs[1:30]; 
 sigma2.hat = mean(fixed.fx^2)-mean(fixed.se^2)
 # BLUP based on sigma.hat and estimated s.e.
-shrunk.fx = fixed.fx*(sigma2.hat/(sigma2.hat + fixed.se^2)); 
+shrunk.fx = fixed.fx*sqrt(sigma2.hat/(sigma2.hat + fixed.se^2)); 
 
 # lmer random effects for (1|year) 
 ran.fx = ranef(log_model)[[1]]; ran.fx = ran.fx[,1]; 
@@ -202,9 +202,9 @@ fixed.fx2 = coefs[42:71]; fixed.fx2 = fixed.fx2-mean(fixed.fx2);
 fixed.se2 = SEs[42:71]; 
 sigma2.hat = mean(fixed.fx2^2)-mean(fixed.se2^2)
 # BLUP based on sigma.hat and estimated s.e.
-shrunk.fx2 = fixed.fx2*(sigma2.hat/(sigma2.hat + fixed.se2^2));
+shrunk.fx2 = fixed.fx2*sqrt(sigma2.hat/(sigma2.hat + fixed.se2^2));
 
-# lmer random effects for (1|year) 
+# lmer random effects for (logarea.t0|year) 
 ran.fx2 = ranef(log_model)[[1]]; ran.fx2 = ran.fx2[,2]; 
 sd(fixed.fx2); sd(shrunk.fx2); sd(ran.fx2); 
 plot(ran.fx2,shrunk.fx2,xlab="lmer size:year random effects",ylab="Shrunk size:year fixed effects",pch=1,lwd=2,cex=1.2); 
@@ -243,7 +243,10 @@ e = (idaho_sim > log(0.65))&(idaho_sim < log(0.85)); idaho_sim[e] <- log(0.75);
 e = (idaho_sim > log(0.9))&(idaho_sim < log(1.1)); idaho_sim[e] <- log(1); 
 
 ## moments of the real data by size bin
-dropD$fitted  = dropD$logarea.t0; 
+dropD$fitted  = dropD$logarea.t0; ### NOTE! these plots are really structured by initial size
+
+Lkurtosis=function(x) log(kurtosis(x)); 
+
 n_bins = 12
 alpha_scale = 0.7
 idaho_moments <- dropD %>% 
@@ -253,12 +256,12 @@ idaho_moments <- dropD %>%
   summarise(mean_t1 = mean(logarea.t1),
             sd_t1 = sd(logarea.t1),
             skew_t1 = skewness(logarea.t1),
-            kurt_t1 = kurtosis(logarea.t1),
+            kurt_t1 = Lkurtosis(logarea.t1),
             bin_mean = mean(fitted),
             bin_n = n()) 
 
 
-par(mfrow=c(2,2),mar=c(4,4,1,1),mgp=c(2,1,0)); 
+par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2,1,0),bty="l"); 
 sim_bin_means=sim_moment_means = matrix(NA,12,n_sim); 
 for(i in 1:n_sim){
     sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
@@ -269,12 +272,13 @@ for(i in 1:n_sim){
               bin_mean = mean(fitted))
 	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
 }
+
 matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="mean(Size t1)",cex=1.4); 
 points(idaho_moments$bin_mean, idaho_moments$mean_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
 points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
 legend("topleft",legend=c("Model simulations","Median of simulations","Data"),
 col=c(alpha("gray",0.5),alpha("black",alpha_scale), alpha("red",alpha_scale)),pch=1,lwd=2,cex=1.1,bty="n"); 
-
+add_panel_label("a")
 
 for(i in 1:n_sim){
     sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
@@ -288,6 +292,7 @@ for(i in 1:n_sim){
 matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="SD(Size t1)",cex=1.4); 
 points(idaho_moments$bin_mean, idaho_moments$sd_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
 points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+add_panel_label("b")
 
 for(i in 1:n_sim){
     sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
@@ -301,20 +306,21 @@ for(i in 1:n_sim){
 matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Skew(Size t1)",cex=1.4); 
 points(idaho_moments$bin_mean, idaho_moments$skew_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
 points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+add_panel_label("c")
 
 for(i in 1:n_sim){
     sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
     arrange(fitted) %>% 
     mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
     group_by(size_bin) %>% 
-    summarise(mean_t1 = kurtosis(sim),
+    summarise(mean_t1 = Lkurtosis(sim),
               bin_mean = mean(fitted))
 	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
 }
-matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Kurtosis(Size t1)",cex=1.4); 
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Log kurtosis(Size t1)",cex=1.4); 
 points(idaho_moments$bin_mean, idaho_moments$kurt_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
 points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-
+add_panel_label("d")
 
 ########################################################################################
 #   Simulation: how well do we recover known random effects? 
@@ -453,3 +459,140 @@ RMSE(trueRanSlope,lmerRanSlope);
 
 save(file="ShrinkageTest.Rdata",list=c("idaho_sim2","trueRanIntercept","fixRanIntercept","shrinkRanIntercept","shrinkRanIntercept2","lmerRanIntercept",
 "trueRanSlope","fixRanSlope","shrinkRanSlope","shrinkRanSlope2","lmerRanSlope","dropD")); 
+
+#######################################################################
+# Does quadratic for tau improve the situation? AIC is for it 
+#######################################################################
+
+U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) +  
+	W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Group + Treatment - 1, data=dropD);
+
+LogLikQ=function(pars,response,U){
+	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
+	mu = U%*%pars1;  
+	val = dJSU(response, mu=mu,
+	sigma=exp(pars2[1]+pars2[2]*mu),
+	nu = pars2[3]+pars2[4]*mu,
+	tau = pars2[5] + pars2[6]*mu + pars2[7]*mu^2, log=TRUE)
+	return(val); 
+}
+
+outQ=maxLik(logLik=LogLikQ,start=c(coefs,0), response=dropD$logarea.t1,U=U,
+		method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE); 
+coefsQ = outQ$estimate; 
+
+########################################################################################
+# Do another binned data comparison 
+########################################################################################
+
+# Simulate data from fitted JSU model
+pars1 = coefsQ[1:ncol(U)]; 
+pars2 = coefsQ[-(1:ncol(U))];
+MLmu = U%*%pars1;  
+
+n_sim <- 500
+idaho_sim<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
+for(i in 1:n_sim){
+  idaho_sim[,i] <- rJSU(n = nrow(dropD), 
+                    mu = MLmu, 
+					sigma = exp(pars2[1]+pars2[2]*MLmu), 
+					nu=pars2[3]+pars2[4]*MLmu,
+					tau=pars2[5]+pars2[6]*MLmu + pars2[7]*MLmu^2)
+}
+
+# Round the output to approximate the rounding in the data recording 
+e = idaho_sim < log(0.6); idaho_sim[e]  = log(0.5); 
+e = (idaho_sim > log(0.65))&(idaho_sim < log(0.85)); idaho_sim[e] <- log(0.75); 
+e = (idaho_sim > log(0.9))&(idaho_sim < log(1.1)); idaho_sim[e] <- log(1); 
+
+## moments of the real data by size bin
+dropD$fitted  = dropD$logarea.t0; ### NOTE! these plots are really structured by initial size
+
+Lkurtosis=function(x) log(kurtosis(x)); 
+
+n_bins = 12
+alpha_scale = 0.7
+idaho_moments <- dropD %>% 
+  arrange(fitted) %>% 
+  mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+  group_by(size_bin) %>% 
+  summarise(mean_t1 = mean(logarea.t1),
+            sd_t1 = sd(logarea.t1),
+            skew_t1 = skewness(logarea.t1),
+            kurt_t1 = Lkurtosis(logarea.t1),
+            bin_mean = mean(fitted),
+            bin_n = n()) 
+
+
+par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2,1,0),bty="l"); 
+sim_bin_means=sim_moment_means = matrix(NA,12,n_sim); 
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
+    arrange(fitted) %>% 
+    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_t1 = mean(sim),
+              bin_mean = mean(fitted))
+	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
+}
+
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="mean(Size t1)",cex=1.4); 
+points(idaho_moments$bin_mean, idaho_moments$mean_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+legend("topleft",legend=c("Model simulations","Median of simulations","Data"),
+col=c(alpha("gray",0.5),alpha("black",alpha_scale), alpha("red",alpha_scale)),pch=1,lwd=2,cex=1.1,bty="n"); 
+add_panel_label("a")
+
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
+    arrange(fitted) %>% 
+    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_t1 = sd(sim),
+              bin_mean = mean(fitted))
+	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
+}
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="SD(Size t1)",cex=1.4); 
+points(idaho_moments$bin_mean, idaho_moments$sd_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+add_panel_label("b")
+
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
+    arrange(fitted) %>% 
+    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_t1 = skewness(sim),
+              bin_mean = mean(fitted))
+	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
+}
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Skew(Size t1)",cex=1.4); 
+points(idaho_moments$bin_mean, idaho_moments$skew_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+add_panel_label("c")
+
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
+    arrange(fitted) %>% 
+    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_t1 = Lkurtosis(sim),
+              bin_mean = mean(fitted))
+	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
+}
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Log kurtosis(Size t1)",cex=1.4); 
+points(idaho_moments$bin_mean, idaho_moments$kurt_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+add_panel_label("d")
+
+
+
+
+
+
+
+
+
+
+
+
