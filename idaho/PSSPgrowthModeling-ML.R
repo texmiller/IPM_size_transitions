@@ -99,7 +99,7 @@ summary(log_model);
 
 ### refit with REML, as recommended for estimating random effects 
 best_weights = weights(log_models[[4]]); 
-log_model <- lmer(logarea.t1~ logarea.t0 + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
+log_model <- lmer(logarea.t1~ logarea.t0 +I(logarea.t0^2) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
              Group + (logarea.t0|year), control=lmerControl(optimizer="bobyqa"),data=dropD,weights=best_weights,REML=TRUE); 
 log_models[[4]] = log_model; 			 
 
@@ -117,23 +117,34 @@ anscombe.test(log_scaledResids) # kurtosis: FAILS, P < 0.001
 agostino.test(log_scaledResids) # skewness: FAILS, P<0.001 
 
 ########################################################################
-## See what family gamlss thinks the scaled residuals conform to: JSU. 
-########################################################################
-log_gamlss_fit <- fitDist(log_scaledResids,type="realline")
-log_gamlss_fit$fits
-log_gamlss_fit$failed
-
-########################################################################
 ## Rollapply diagnostics on the scaled residuals 
 ########################################################################
 px = fitted(log_model); py=log_scaledResids; 
 z = rollMoments(px,py,windows=10,smooth=TRUE,scaled=TRUE) 
 
+dropD$fitted <- fitted(log_model); 
+dropD <- dropD %>% mutate(size_bin = cut_number(fitted,n=12))
+
+bins = levels(dropD$size_bin); 
+mus = sigmas = nus = taus = bin_means = numeric(length(bins)); 
+for(j in 1:length(bins)){
+	Xj=subset(dropD,size_bin==bins[j])
+	fitj = gamlssML(Xj$logarea.t1 ~ 1,family="SHASHo") # lazy, but OK for now 
+	mus[j]=fitj$mu; sigmas[j]=fitj$sigma; nus[j]=fitj$nu; taus[j]=fitj$tau; 
+	bin_means[j]=mean(Xj$fitted); 
+}	
+
+par(mfrow=c(2,2));   
+spline.scatter.smooth(bin_means,mus,xlab="Fitted value",ylab="Location parameter mu"); #OK
+spline.scatter.smooth(mus,log(sigmas),xlab="mu",ylab="log sigma"); #linear 
+spline.scatter.smooth(mus,nus,xlab="mu",ylab="log nu"); #quadratic
+spline.scatter.smooth(mus,log(taus),xlab="mu",ylab="log tau"); #linear 
+  
 ################################################################################################################
-# Try fitting gamlss JSU to log size data. Use the fixed effect structure corresponding to the best lmer fit,
-# and believe rollaply diagnostics saying skew is linear, and kurtosis is quadratic
+# Try fitting gamlss SHASHo to log size data. Use the fixed effect structure corresponding to the best lmer fit,
+# and believe rollaply diagnostics 
 #
-# Fitting is done by maximum likelihood using maxLik (easier than mle 
+# Fitting is done by maximum likelihood using maxLik (easier than mle) 
 # 
 # The random effects terms in the lmer fit are fitted here as fixed effects, then adjusted by shrinkage.  
 # Having fitted (1|year) and (0 + logarea.t0|yer) as fixed effects, we have year-specific coefficients
@@ -149,17 +160,28 @@ U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) +
 LogLik=function(pars,response,U){
 	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
 	mu = U%*%pars1;  
-	val = dJSU(response, mu=mu,
+	val = dSHASHo(response, mu=mu,
 	sigma=exp(pars2[1]+pars2[2]*mu),
-	nu = pars2[3]+pars2[4]*mu,
-	tau = pmax(0.01,pars2[5]+pars2[6]*mu + pars2[7]*mu^2), log=TRUE)
+	nu = pars2[3]+pars2[4]*mu + pars2[5]*mu^2,
+	tau = exp(pars2[6]+pars2[7]*mu), log=TRUE)
 	return(val); 
 }
 
 ############ Fit the data. Paranoid as usual about convergence
 coefs = list(5); LL=numeric(5);  
+
+# starting values 
+lmer_coef = coef(log_model)$year; 
+fixed_start = unlist(c(lmer_coef[1:30,1], lmer_coef[1,-(1:2)], lmer_coef[1:30,2])); 
+
+fit_sigma = lm(log(sigmas)~mus);
+fit_nu = lm(nus~mus + I(mus^2));
+fit_tau = lm(log(taus)~mus); 
+
+p0=c(fixed_start, coef(fit_sigma), coef(fit_nu),coef(fit_tau));
+
 for(j in 1:5) {
-	out=maxLik(logLik=LogLik,start=c(runif(ncol(U)), c(1,0,0,0,0.2,0,0)), response=dropD$logarea.t1,U=U,
+	out=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=dropD$logarea.t1,U=U,
 		method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
 
 	out=maxLik(logLik=LogLik,start=out$estimate,response=dropD$logarea.t1,U=U,
@@ -222,7 +244,7 @@ save.image(file="PSSPgrowthModels.Rdata");
 #  TO DO: functional programming instead of copy/paste/edit for each panel. 
 #############################################################################
 
-# Simulate data from fitted JSU model
+# Simulate data from fitted SHASH model
 pars1 = coefs[1:ncol(U)]; 
 pars2 = coefs[-(1:ncol(U))];
 MLmu = U%*%pars1;  
@@ -230,11 +252,11 @@ MLmu = U%*%pars1;
 n_sim <- 500
 idaho_sim<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
 for(i in 1:n_sim){
-  idaho_sim[,i] <- rJSU(n = nrow(dropD), 
+  idaho_sim[,i] <- rSHASHo(n = nrow(dropD), 
                     mu = MLmu, 
 					sigma = exp(pars2[1]+pars2[2]*MLmu), 
-					nu=pars2[3]+pars2[4]*MLmu,
-					tau=exp(pars2[5]+pars2[6]*MLmu))
+					nu=pars2[3]+pars2[4]*MLmu + pars2[5]*MLmu^2,
+					tau=exp(pars2[6]+pars2[7]*MLmu))
 }
 
 # Round the output to approximate the rounding in the data recording 
@@ -247,7 +269,7 @@ dropD$fitted  = dropD$logarea.t0; ### NOTE! these plots are really structured by
 
 Lkurtosis=function(x) log(kurtosis(x)); 
 
-n_bins = 12
+n_bins = 10
 alpha_scale = 0.7
 idaho_moments <- dropD %>% 
   arrange(fitted) %>% 
@@ -262,7 +284,7 @@ idaho_moments <- dropD %>%
 
 
 par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2,1,0),bty="l"); 
-sim_bin_means=sim_moment_means = matrix(NA,12,n_sim); 
+sim_bin_means=sim_moment_means = matrix(NA,10,n_sim); 
 for(i in 1:n_sim){
     sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
     arrange(fitted) %>% 
@@ -321,6 +343,110 @@ matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xl
 points(idaho_moments$bin_mean, idaho_moments$kurt_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
 points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
 add_panel_label("d")
+
+
+#############################################################################
+# Ditto, for quantiles 
+#############################################################################
+n_bins = 10; alpha_scale = 0.7
+idaho_moments <- dropD %>% 
+  arrange(fitted) %>% 
+  mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+  group_by(size_bin) %>% 
+  summarise(q1 = quantile(logarea.t1,0.05),
+            q2 = quantile(logarea.t1,0.25),
+            q3 = quantile(logarea.t1,0.5),
+            q4 = quantile(logarea.t1,0.75),
+			q5 = quantile(logarea.t1,0.95),
+            bin_mean = mean(fitted),
+            bin_n = n()) 
+
+par(mfrow=c(3,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2,1,0),bty="l"); 
+sim_bin_means=sim_moment_means = matrix(NA,10,n_sim); 
+
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
+    arrange(fitted) %>% 
+    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(q1 = quantile(sim,0.05),
+              bin_mean = mean(fitted))
+	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$q1; 		  
+}
+
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="q1",cex=1.4); 
+title("5 percentile"); 
+points(idaho_moments$bin_mean, idaho_moments$q1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+legend("topleft",legend=c("Model simulations","Median of simulations","Data"),
+col=c(alpha("gray",0.5),alpha("black",alpha_scale), alpha("red",alpha_scale)),pch=1,lwd=2,cex=1.1,bty="n"); 
+add_panel_label("a")
+
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
+    arrange(fitted) %>% 
+    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(q2 = quantile(sim,0.25),
+              bin_mean = mean(fitted))
+	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$q2; 		  
+}
+
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="q2",cex=1.4); 
+title("25 percentile"); 
+points(idaho_moments$bin_mean, idaho_moments$q2,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+add_panel_label("b")
+
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
+    arrange(fitted) %>% 
+    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(q3 = quantile(sim,0.5),
+              bin_mean = mean(fitted))
+	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$q3; 		  
+}
+
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="q3",cex=1.4); 
+title("50 percentile"); 
+points(idaho_moments$bin_mean, idaho_moments$q3,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+add_panel_label("c")
+
+
+ for(i in 1:n_sim){
+    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
+    arrange(fitted) %>% 
+    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(q4 = quantile(sim,0.75),
+              bin_mean = mean(fitted))
+	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$q4; 		  
+}
+
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="q4",cex=1.4); 
+title("75 percentile"); 
+points(idaho_moments$bin_mean, idaho_moments$q4,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+add_panel_label("d")
+
+
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
+    arrange(fitted) %>% 
+    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(q4 = quantile(sim,0.95),
+              bin_mean = mean(fitted))
+	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$q4; 		  
+}
+
+matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="q5",cex=1.4); 
+title("95 percentile"); 
+points(idaho_moments$bin_mean, idaho_moments$q5,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+add_panel_label("e")
 
 ########################################################################################
 #   Simulation: how well do we recover known random effects? 
