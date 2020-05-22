@@ -170,15 +170,19 @@ LogLik=function(pars,response,U){
 ############ Fit the data. Paranoid as usual about convergence
 coefs = list(5); LL=numeric(5);  
 
-# starting values 
+# Starting values from the pilot model are jittered to do multi-start optimization). 
+# Using good starting values really speeds up convergence in the ML fits  
+
+# Linear predictor coefficients extracted from the lmer model 
 lmer_coef = coef(log_model)$year; 
 fixed_start = unlist(c(lmer_coef[1:30,1], lmer_coef[1,-(1:2)], lmer_coef[1:30,2])); 
 
+# Shape and scale coefficients from the rollaply diagnostic plots 
 fit_sigma = lm(log(sigmas)~mus);
 fit_nu = lm(nus~mus + I(mus^2));
 fit_tau = lm(log(taus)~mus); 
-
 p0=c(fixed_start, coef(fit_sigma), coef(fit_nu),coef(fit_tau));
+
 
 for(j in 1:5) {
 	out=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=dropD$logarea.t1,U=U,
@@ -201,9 +205,10 @@ out=maxLik(logLik=LogLik,start=coefs[[j]],response=dropD$logarea.t1,U=U,
 ######### save results of ML fit.  
 names(out$estimate)<-colnames(U); coefs=out$estimate; SEs = sqrt(diag(vcov(out))); 
 
-######################################################################
+###########################################################################
 #  Compare lmer and Shrinkage random effects
-######################################################################
+#  With SHASH this is not really meaningful, as mu is not the mean response
+###########################################################################
 
 par(mfrow=c(2,2),mar=c(4,4,1,1),mgp=c(2,1,0),bty="l"); 
 # shrinkage random effects for (1|year) 
@@ -243,7 +248,6 @@ save.image(file="PSSPgrowthModels.Rdata");
 #  Compare mean, sd, skewness, excess kurtosis as a function of fitted value.
 #  TO DO: functional programming instead of copy/paste/edit for each panel. 
 #############################################################################
-
 # Simulate data from fitted SHASH model
 pars1 = coefs[1:ncol(U)]; 
 pars2 = coefs[-(1:ncol(U))];
@@ -348,105 +352,11 @@ add_panel_label("d")
 #############################################################################
 # Ditto, for quantiles 
 #############################################################################
-n_bins = 10; alpha_scale = 0.7
-idaho_moments <- dropD %>% 
-  arrange(fitted) %>% 
-  mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
-  group_by(size_bin) %>% 
-  summarise(q1 = quantile(logarea.t1,0.05),
-            q2 = quantile(logarea.t1,0.25),
-            q3 = quantile(logarea.t1,0.5),
-            q4 = quantile(logarea.t1,0.75),
-			q5 = quantile(logarea.t1,0.95),
-            bin_mean = mean(fitted),
-            bin_n = n()) 
+dev.new(width=7,height=7); 
 
-par(mfrow=c(3,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2,1,0),bty="l"); 
-sim_bin_means=sim_moment_means = matrix(NA,10,n_sim); 
+source("quantileComparePlot.R"); 
 
-for(i in 1:n_sim){
-    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
-    arrange(fitted) %>% 
-    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
-    group_by(size_bin) %>% 
-    summarise(q1 = quantile(sim,0.05),
-              bin_mean = mean(fitted))
-	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$q1; 		  
-}
-
-matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="q1",cex=1.4); 
-title("5 percentile"); 
-points(idaho_moments$bin_mean, idaho_moments$q1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-legend("topleft",legend=c("Model simulations","Median of simulations","Data"),
-col=c(alpha("gray",0.5),alpha("black",alpha_scale), alpha("red",alpha_scale)),pch=1,lwd=2,cex=1.1,bty="n"); 
-add_panel_label("a")
-
-for(i in 1:n_sim){
-    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
-    arrange(fitted) %>% 
-    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
-    group_by(size_bin) %>% 
-    summarise(q2 = quantile(sim,0.25),
-              bin_mean = mean(fitted))
-	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$q2; 		  
-}
-
-matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="q2",cex=1.4); 
-title("25 percentile"); 
-points(idaho_moments$bin_mean, idaho_moments$q2,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-add_panel_label("b")
-
-for(i in 1:n_sim){
-    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
-    arrange(fitted) %>% 
-    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
-    group_by(size_bin) %>% 
-    summarise(q3 = quantile(sim,0.5),
-              bin_mean = mean(fitted))
-	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$q3; 		  
-}
-
-matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="q3",cex=1.4); 
-title("50 percentile"); 
-points(idaho_moments$bin_mean, idaho_moments$q3,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-add_panel_label("c")
-
-
- for(i in 1:n_sim){
-    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
-    arrange(fitted) %>% 
-    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
-    group_by(size_bin) %>% 
-    summarise(q4 = quantile(sim,0.75),
-              bin_mean = mean(fitted))
-	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$q4; 		  
-}
-
-matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="q4",cex=1.4); 
-title("75 percentile"); 
-points(idaho_moments$bin_mean, idaho_moments$q4,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-add_panel_label("d")
-
-
-for(i in 1:n_sim){
-    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
-    arrange(fitted) %>% 
-    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
-    group_by(size_bin) %>% 
-    summarise(q4 = quantile(sim,0.95),
-              bin_mean = mean(fitted))
-	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$q4; 		  
-}
-
-matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="q5",cex=1.4); 
-title("95 percentile"); 
-points(idaho_moments$bin_mean, idaho_moments$q5,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-add_panel_label("e")
+out=quantileComparePlot(dropD$logarea.t0,dropD$logarea.t1,idaho_sim,10);
 
 ########################################################################################
 #   Simulation: how well do we recover known random effects? 
@@ -460,21 +370,20 @@ pars1 = coefs[1:ncol(U)]; pars2 = coefs[-(1:ncol(U))]; MLmu = U%*%pars1;
 n_sim <- 250 
 idaho_sim2<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
 for(i in 1:n_sim){
-  idaho_sim2[,i] <- rJSU(n = nrow(dropD), 
+  idaho_sim2[,i] <- rSHASHo(n = nrow(dropD), 
                     mu = MLmu, 
 					sigma = exp(pars2[1]+pars2[2]*MLmu), 
-					nu=pars2[3]+pars2[4]*MLmu,
-					tau=exp(pars2[5]+pars2[6]*MLmu))
+					nu=pars2[3]+pars2[4]*MLmu + pars2[5]*MLmu^2,
+					tau=exp(pars2[6]+pars2[7]*MLmu))
 }
 
-### LogLik that works with BHHH 
 LogLik=function(pars,response,U){
 	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
 	mu = U%*%pars1;  
-	val = dJSU(response, mu=mu,
+	val = dSHASHo(response, mu=mu,
 	sigma=exp(pars2[1]+pars2[2]*mu),
-	nu = pars2[3]+pars2[4]*mu,
-	tau = exp(pars2[5]+pars2[6]*mu), log=TRUE)
+	nu = pars2[3]+pars2[4]*mu + pars2[5]*mu^2,
+	tau = exp(pars2[6]+pars2[7]*mu), log=TRUE)
 	return(val); 
 }
 
@@ -507,7 +416,7 @@ for(j in 1:250) {
 		outj=maxLik(logLik=LogLik,start=outj$estimate,response=idaho_sim2[,j],U=U,
 			method="BHHH",control=list(iterlim=5000,printLevel=1),finalHessian=TRUE); 
 		
-		coefj=outj$estimate; SEj = sqrt(diag(vcov(outj))); V = vcov(out); 
+		coefj=outj$estimate; SEj = sqrt(diag(vcov(outj))); V = vcov(outj); 
 		V1 = V[1:T,1:T]; V2 = V[(T+1):(2*T),(T+1):(2*T)]; 
 		
 		# shrinkage random effects for (1|year) 
@@ -585,137 +494,6 @@ RMSE(trueRanSlope,lmerRanSlope);
 
 save(file="ShrinkageTest.Rdata",list=c("idaho_sim2","trueRanIntercept","fixRanIntercept","shrinkRanIntercept","shrinkRanIntercept2","lmerRanIntercept",
 "trueRanSlope","fixRanSlope","shrinkRanSlope","shrinkRanSlope2","lmerRanSlope","dropD")); 
-
-#######################################################################
-# Does quadratic for tau improve the situation? AIC is for it 
-#######################################################################
-
-U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) +  
-	W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Group + Treatment - 1, data=dropD);
-
-LogLikQ=function(pars,response,U){
-	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
-	mu = U%*%pars1;  
-	val = dJSU(response, mu=mu,
-	sigma=exp(pars2[1]+pars2[2]*mu),
-	nu = pars2[3]+pars2[4]*mu,
-	tau = pars2[5] + pars2[6]*mu + pars2[7]*mu^2, log=TRUE)
-	return(val); 
-}
-
-outQ=maxLik(logLik=LogLikQ,start=c(coefs,0), response=dropD$logarea.t1,U=U,
-		method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE); 
-coefsQ = outQ$estimate; 
-
-########################################################################################
-# Do another binned data comparison 
-########################################################################################
-
-# Simulate data from fitted JSU model
-pars1 = coefsQ[1:ncol(U)]; 
-pars2 = coefsQ[-(1:ncol(U))];
-MLmu = U%*%pars1;  
-
-n_sim <- 500
-idaho_sim<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
-for(i in 1:n_sim){
-  idaho_sim[,i] <- rJSU(n = nrow(dropD), 
-                    mu = MLmu, 
-					sigma = exp(pars2[1]+pars2[2]*MLmu), 
-					nu=pars2[3]+pars2[4]*MLmu,
-					tau=pars2[5]+pars2[6]*MLmu + pars2[7]*MLmu^2)
-}
-
-# Round the output to approximate the rounding in the data recording 
-e = idaho_sim < log(0.6); idaho_sim[e]  = log(0.5); 
-e = (idaho_sim > log(0.65))&(idaho_sim < log(0.85)); idaho_sim[e] <- log(0.75); 
-e = (idaho_sim > log(0.9))&(idaho_sim < log(1.1)); idaho_sim[e] <- log(1); 
-
-## moments of the real data by size bin
-dropD$fitted  = dropD$logarea.t0; ### NOTE! these plots are really structured by initial size
-
-Lkurtosis=function(x) log(kurtosis(x)); 
-
-n_bins = 12
-alpha_scale = 0.7
-idaho_moments <- dropD %>% 
-  arrange(fitted) %>% 
-  mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
-  group_by(size_bin) %>% 
-  summarise(mean_t1 = mean(logarea.t1),
-            sd_t1 = sd(logarea.t1),
-            skew_t1 = skewness(logarea.t1),
-            kurt_t1 = Lkurtosis(logarea.t1),
-            bin_mean = mean(fitted),
-            bin_n = n()) 
-
-
-par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2,1,0),bty="l"); 
-sim_bin_means=sim_moment_means = matrix(NA,12,n_sim); 
-for(i in 1:n_sim){
-    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
-    arrange(fitted) %>% 
-    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
-    group_by(size_bin) %>% 
-    summarise(mean_t1 = mean(sim),
-              bin_mean = mean(fitted))
-	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
-}
-
-matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="mean(Size t1)",cex=1.4); 
-points(idaho_moments$bin_mean, idaho_moments$mean_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-legend("topleft",legend=c("Model simulations","Median of simulations","Data"),
-col=c(alpha("gray",0.5),alpha("black",alpha_scale), alpha("red",alpha_scale)),pch=1,lwd=2,cex=1.1,bty="n"); 
-add_panel_label("a")
-
-for(i in 1:n_sim){
-    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
-    arrange(fitted) %>% 
-    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
-    group_by(size_bin) %>% 
-    summarise(mean_t1 = sd(sim),
-              bin_mean = mean(fitted))
-	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
-}
-matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="SD(Size t1)",cex=1.4); 
-points(idaho_moments$bin_mean, idaho_moments$sd_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-add_panel_label("b")
-
-for(i in 1:n_sim){
-    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
-    arrange(fitted) %>% 
-    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
-    group_by(size_bin) %>% 
-    summarise(mean_t1 = skewness(sim),
-              bin_mean = mean(fitted))
-	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
-}
-matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Skew(Size t1)",cex=1.4); 
-points(idaho_moments$bin_mean, idaho_moments$skew_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-add_panel_label("c")
-
-for(i in 1:n_sim){
-    sim_moments <- bind_cols(dropD,data.frame(sim=idaho_sim[,i])) %>% 
-    arrange(fitted) %>% 
-    mutate(size_bin = cut_number(fitted,n=n_bins)) %>% 
-    group_by(size_bin) %>% 
-    summarise(mean_t1 = Lkurtosis(sim),
-              bin_mean = mean(fitted))
-	sim_bin_means[,i]=sim_moments$bin_mean; sim_moment_means[,i]=sim_moments$mean_t1; 		  
-}
-matplot(idaho_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Log kurtosis(Size t1)",cex=1.4); 
-points(idaho_moments$bin_mean, idaho_moments$kurt_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-add_panel_label("d")
-
-
-
-
-
-
 
 
 
