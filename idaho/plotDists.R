@@ -77,57 +77,30 @@ dev.new(); contour(nus,invdeltas,kurts,xlab="nu",ylab="theta",main="Excess Kurto
 #####################################################################
 # Base density function 
 #####################################################################
-dJPB=function(x,epsilon,delta) {
+dJP09B=function(x,epsilon,delta) {
+		if (any(delta <= 0)) stop("need tau > 0");
 		S = sinh(delta*asinh(x)-epsilon);
 		C = cosh(delta*asinh(x)-epsilon);
 		fac = sqrt(2*pi*(1+x^2));
 		return(delta*C*exp(-0.5*S^2)/fac)
 }
 
-######## this should be the same as dSHASHo, and it is. 
+######## this should be the same as dSHASHo with mu=0, sigma=1, and it is. 
 eps=runif(1,-1,1); delta=1 + runif(1,-0.3,0.3);
-plot(function(x) dJPB(x,eps,delta),-8,8); 
+plot(function(x) dJP09B(x,eps,delta),-8,8); 
 x=seq(-8,8,length=500); 
 points(x, dSHASHo(x,mu=0,sigma=1,eps,delta),type="l",lty=2); 
 
-integrate(function(x) x^2*dJP(x,0,2),-10,10,subdivisions=4000); 
+integrate(function(x) (x^2)*dJP09B(x,0,2),-10,10,subdivisions=4000); 
 m2B(0,2); 
 
 #####################################################################
-# Density with mu=0 parameterized by sigma, epsilon, and tau=1/delta 
+# Full SHASH density function, using gamlss notation 
+# This should be identical to SHASHo 
 #####################################################################
-dJPBs = function(x,sigma,nu,tau,log=FALSE) {
-		sigmaB=sqrt(varB(nu,tau))
-		(sigmaB/sigma)*dSHASHo(sigmaB*x/sigma,nu,tau,log=log)
-}		
-plot(function(x) dJPBs(x,1,0.2,2),-3,3); 
-
-#### test -- seems to be OK, relative to likely integration errors
-sigma=sqrt(2.5); nu=runif(1,-.3,.3); tau=0.5+runif(1); 
-mu = sigma*m1B(nu,tau); 
-endpts = mu+seq(-50*sigma,50*sigma,length=50001); h=endpts[2]-endpts[1];
-meshpts = endpts[-1]-h/2; 
-h*sum(((meshpts-mu)^2)*dJPBs(meshpts,sigma,nu,tau));
-
-#####################################################################
-# Density parameterized by mu, sigma, nu= epsilon, and tau=delta 
-#####################################################################
-dSHASHsc = function(x,mu,sigma,nu,tau,log=FALSE) {
-    if (any(sigma <= 0)) 
-        stop(paste("sigma must be positive", "\n", ""))
-    if (any(tau <= 0)) 
-        stop(paste("tau must be positive", "\n", ""))
-
-	JPsmean = sigma* m1B(nu,tau); 
-	
-	dJPBs(x - mu + JPsmean,sigma,nu,tau,log=log)
-} 
-
-mu = 0; sigma=sqrt(1.5); nu=runif(1,-.3,.3); tau=0.75+0.5*runif(1); 
-endpts = mu+seq(-50*sigma,50*sigma,length=125000); h=endpts[2]-endpts[1];
-meshpts = endpts[-1]-h/2; 
-h*sum(meshpts*dSHASHsc(meshpts,mu,sigma,nu,tau));
-mu; 
-
-	
+dJP09=function(x,mu,sigma,nu,tau) { 
+   if (any(sigma <= 0)) stop("need sigma > 0")
+   if (any(tau <= 0)) stop("need tau > 0")
+   return( dJP09B((x-mu)/sigma, epsilon=nu, delta=tau)/sigma )
+}
 
