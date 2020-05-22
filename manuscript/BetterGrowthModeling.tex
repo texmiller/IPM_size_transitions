@@ -205,8 +205,9 @@ residuals should be Gaussian with constant variance.
 \item Use statistical and graphical diagnostics, which we detail below, to identify if and how the standardized residuals deviate
 from Gaussian: are there skew and kurtosis, and if so, how do those vary across the size distribution? If the standardized residuals
 are as expected under the pilot model, skip to the last step. 
-\item Otherwise, identify a distribution with nonzero skew and/or kurtosis that provides a good fit to the standardized residuals. Tools 
-to automate this step are available in R. 
+\item Otherwise, identify a distribution with nonzero skew and/or kurtosis that can fit the observed properties of the 
+standardized residuals. 
+
 \item Refit the growth model using the chosen distribution, with shape (skew and kurtosis) varying according to the patterns 
 seen in the graphical diagnostics. How this can be done depends on features of the model at hand, in particular whether or not it
 includes random effects. 
@@ -240,46 +241,106 @@ modern Control treatments \citep{Adler-2018} (2) we included size by year intera
 for a linear relationship between current and future size (log basal cover); (3) Quadrat group (labeling sets of spatially
 nearby quadrats), Treatment (Control or Shrub removal) and competition with other species were included as covariates. 
 As in past models, competition was measured by distance-weighted cover of competing species, using nonparametric competition
-kernels estimated from the data \citep{Teller-2016}. The ``pilot'' model (Gaussian) was constructed using \texttt{lmer}
-with annual slope and intercept specified as random effects, using iterative re-weighting to fit a model with non-constant
-variance (exponential function of fitted value). It also included a quadratic term in initial size, based on the rolling
-moments diagnostics on the scaled residuals. 
+kernels estimated from the data \citep{Teller-2016}. 
+
+The ``pilot'' model (Gaussian) was constructed using \texttt{lmer} with annual slope and intercept specified 
+as random effects, using iterative re-weighting to fit a model with non-constant variance (exponential function of fitted value). 
+It also included a quadratic term in initial size, based on residual diagnostics of a model without the quadratic term. 
 
 Results: \begin{enumerate}
 
-\item Model selection for constructing the ``pilot'' model was limited to the competition effects,  
+\item Model selection for the ``pilot'' model was limited to the competition effects,  
 using AIC values as reported by \texttt{lmer}). The selected model had  
 three competition covariates: (1) the shrub \emph{Artemisia tripartita}, (2) the other two dominant 
 bunchgrasses combined, and (3) all other species combined. 
 
+\item The set of all scaled residuals was non-Gaussian, based on quantile-quantile plot, mostly in the lower tail. Statistical tests
+confirmed that the distribution was non-Gaussian, skewed and fat-tailed (all $P<0.001$). 
 
-\item Scaled residuals were non-Gaussian, negatively skewed, and fat-tailed (all $P<0.001$). 
-
-\item Best-fitting distribution was JSU, then ST5 ($\Delta AIC = 1.32$). 
-
-\item Rolling moments diagnostic showed mean and SD nearly constant (as they should be),
-large trends in skew (positive to negative) and kurtosis (small to large), see Fig. 
-\ref{fig:rollingMomentsPSSP}. 
+\item Rolling moments diagnostics applied to the scaled residuals (Fig. \ref{fig:rollingMomentsPSSP}) show that the mean 
+and Std Dev are nearly constant as a function of the fitted value (conditional mean), as they should be. The small trend in 
+the mean shows that the regression coefficients are slightly biased, which is not unexpected because the Gaussian assumption is violated. 
+In contrast, there are large trends in the skew and kurtosis. 
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=.8\textwidth]{figures/RollingMomentsDiagnostic-PSSP.pdf}
-\caption{Rolling-window moments diagnostics applied to the scaled residuals from the pilot Gaussian
-fit for \emph{P. spicata}.}
+\includegraphics[width=.9\textwidth]{figures/RollingMomentsPSSP.pdf}
+\caption{Rolling moments of scaled residuals from the pilot model, as a function of fitted
+values, for \emph{P. spicata}. The dashed red line is the value expected if the pilot model fits the
+data, in particular skew=0 and kurtosis=3.}
 \label{fig:rollingMomentsPSSP}
 \end{figure} 
 
-\item Based on the diagnostics, the fitted model was JSU with the same linear predictor as the pilot model,
-the same function form for the variance (exponential in fitted value), linear skewness parameter \texttt{nu},
-and exponential kurtosis parameter \texttt{tau}. Random effects estimated by shrinkage were very similar to those
-from the \texttt{lmer} pilot model. 
+\item Because the skew and kurtosis are variable, it is not informative to find a distribution that fits
+the entire set of scaled residuals. For example: a mixture of distributions, some with positive skew and some
+with negative, is likely to have very high kurtosis even if none of the component distributions does. So selecting
+a distribution family can't just be turned over to \texttt{fitDist}. 
 
-\item All of the terms in the fitted JSU model were significant. Only one quadrat group (the one exposed to sheep grazing) 
-had a significantly nonzero effect, so reduction to Grazed/Ungrazed might be considered. 
+Instead, we have to ask: what families are flexible enough to accomodate the features in Fig. \ref{fig:rollingMomentsPSSP}?
+We need at least 4 parameters (mean, variance, skew, kurtosis) -- JSU, SHASH the various skew $t$ distributions 
+are convenient options. Moreover,the family must allow both positive and exactly zero excess kurtosis relative to a Gaussian. 
+In JSU and skew $t$ that makes fitting problematic, because exactly zero excess kurtosis only occurs as a limit, not at 
+any actually possible parameter values ($df \to \infty$ for $t$, and $\tau \to 0$ for JSU). So let's try SHASH, which covers most
+of the mathematically possible set of (skew, kurtosis) combinations (see Jones \& Pusey 2009).  
 
-\item Binned data moment diagnostics were used to compare the real data to multiple one-year-ahead simulations
-of the fitted model (i.e., for each real individual in the data, generate a simulated size next year according to
-the fitted model). 
+\item SHASH has the problem that the location parameter $\mu$ is not the ``fitted value'' (distribution mean), $\sigma$ is not actually
+the standard deviation, $\nu$ is not actually the skew, and $\tau$ is not actually the kurtosis. We can't figure out how to model 
+the variation in those parameters by looking at variation in moments of the pilot residuals, or of anything else for that matter. 
+
+So instead, I broke the data into even-size bins based on fitted values of the pilot model, and fitted a SHASH distribution to
+the set of final sizes, Fig. \ref{fig:rollingSHASHparsPSSP}. Panel A), $\mu$ as a function of the fitted values, doesn't really inform
+modeling, but it shows that $\mu$ can be regarded as a ``fitted value''. The other plots tell us how the other distribution parameters
+should be modeled as a function of $\mu$, which is what we need to write down the growth model likelihood: $\sigma$ and $\tau$ are linear,
+$\nu$ is quadratic. 
+ 
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=.9\textwidth]{figures/RollingSHASHparsPSSP.png}
+\caption{Binned data SHASH parameters plot for \emph{P. spicata}. }
+\label{fig:rollingSHASHparsPSSP}
+\end{figure} 
+
+\item The model is easy to fit by ML. Used \texttt{maxLik}, which allows the \texttt{BHHH} optimization method that seems to be faster 
+than anything \texttt{mle} or \texttt{bbmle} can use. Now, does it do a good job of fitting the data? 
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=.9\textwidth]{figures/BinnedConditionalMoments.pdf}
+\caption{Binned data comparison of moments between simulations of the fitted SHASH model (grey, black) and the actual data (red) for 
+{P. spicata}. Individuals were binned based on their initial size. }
+\label{fig:BinnedConditionalMoments}
+\end{figure} 
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=.9\textwidth]{figures/BinnedConditionalQuantiles.pdf}
+\caption{Binned data comparison of distribution quantiles between simulations of the fitted SHASH model (grey, black) and the actual data (red) for 
+{P. spicata}. Individuals were binned based on their initial size. }
+\label{fig:BinnedConditionalQuantiles}
+\end{figure} 
+
+Figures \ref{fig:BinnedConditionalMoments}  and \ref{fig:BinnedConditionalQuantiles} show two comparisons between the actual data and simulations
+of the fitted SHASH model (i.e., repeated draws of subsequent size for all individuals in the data set), for a series of bins defined by initial
+size. The comparison based on quantiles (fig. \ref{fig:BinnedConditionalQuantiles}) looks really good. The one based on moments is less good. 
+
+The real-data moments exhibit some ``random'' variability -- e.g., not a steady trend in skew and kurtosis -- so perhaps they are being
+dominated by a few outliers? Maybe that plot is unduly pessimistic, and to really ask if the model is consistent with the data we should 
+ad bootstrap samples from the data as multiple pink dots analogous to the multiple grey dots for the model simulations. 
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=.9\textwidth]{figures/ShrinkageTest.pdf}
+\caption{Comparison of ``true'' and estimated intercept year effects for {P. spicata}. }
+\label{fig:ShrinkageTest}
+\end{figure} 
+
+
+\item Finally, a simulation study was done to see how well the shrinkage approach recovers known year effects. Fig. \ref{fig:ShrinkageTest}
+illustrates the results for the intercept coefficient. Panels A,B,C,D are the fixed-effects estimates, recommended shrunk estimates,
+more strongly shrunk estimate, and estimates from \texttt{lmer}. Except for \texttt{lmer} they all look pretty similar, and they are,
+but the recommended shrunk estimates had the lowest mean-square error for both slope and intercept (averaged across all years),
+and their sample variance was closest to the across-year variance in the data-generating model. So shrinkage is barely worth doing, but
+it's easy and it does make a small improvement. 
 
 \end{enumerate} 
 

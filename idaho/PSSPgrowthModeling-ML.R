@@ -120,11 +120,17 @@ agostino.test(log_scaledResids) # skewness: FAILS, P<0.001
 ## Rollapply diagnostics on the scaled residuals 
 ########################################################################
 px = fitted(log_model); py=log_scaledResids; 
-z = rollMoments(px,py,windows=10,smooth=TRUE,scaled=TRUE) 
 
+graphics.off(); dev.new(width=8,height=6); 
+par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
+z = rollMoments(px,py,windows=10,smooth=TRUE,scaled=TRUE) 
+dev.copy2pdf(file="../manuscript/figures/RollingMomentsPSSP.pdf") 
+
+########################################################################
+## Binned data SHASH parameter estimates on subsequent size 
+########################################################################
 dropD$fitted <- fitted(log_model); 
 dropD <- dropD %>% mutate(size_bin = cut_number(fitted,n=12))
-
 bins = levels(dropD$size_bin); 
 mus = sigmas = nus = taus = bin_means = numeric(length(bins)); 
 for(j in 1:length(bins)){
@@ -134,11 +140,22 @@ for(j in 1:length(bins)){
 	bin_means[j]=mean(Xj$fitted); 
 }	
 
-par(mfrow=c(2,2));   
-spline.scatter.smooth(bin_means,mus,xlab="Fitted value",ylab="Location parameter mu"); #OK
-spline.scatter.smooth(mus,log(sigmas),xlab="mu",ylab="log sigma"); #linear 
-spline.scatter.smooth(mus,nus,xlab="mu",ylab="log nu"); #quadratic
-spline.scatter.smooth(mus,log(taus),xlab="mu",ylab="log tau"); #linear 
+graphics.off(); dev.new(width=8,height=6); 
+par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
+spline.scatter.smooth(bin_means,mus,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu ))); #OK
+add_panel_label("a"); 
+spline.scatter.smooth(mus,log(sigmas),xlab=expression(paste("Location parameter  ", mu )),
+			ylab=expression(paste("log Scale parameter  ", sigma))); #linear 
+add_panel_label("b"); 
+spline.scatter.smooth(mus,nus,xlab=expression(paste("Location parameter  ", mu )),
+			ylab=expression(paste("Skewness parameter  ", nu ))); #quadratic
+add_panel_label("c"); 
+spline.scatter.smooth(mus,log(taus),xlab=expression(paste("Location parameter  ", mu )),
+			ylab=expression(paste("log Kurtosis parameter  ", tau))); #linear 
+add_panel_label("d"); 
+  
+dev.copy2pdf(file="../manuscript/figures/RollingSHASHparsPSSP.pdf") 
+savePlot(file="../manuscript/figures/RollingSHASHparsPSSP.png",type="png"); 
   
 ################################################################################################################
 # Try fitting gamlss SHASHo to log size data. Use the fixed effect structure corresponding to the best lmer fit,
@@ -147,9 +164,8 @@ spline.scatter.smooth(mus,log(taus),xlab="mu",ylab="log tau"); #linear
 # Fitting is done by maximum likelihood using maxLik (easier than mle) 
 # 
 # The random effects terms in the lmer fit are fitted here as fixed effects, then adjusted by shrinkage.  
-# Having fitted (1|year) and (0 + logarea.t0|yer) as fixed effects, we have year-specific coefficients
-# and their estimated standard errors. We then compute BLUPS for the unobserved true effects based 
-# on estimated mixing sigma and estimated s.e.'s.  
+# Having fitted (1|year) and (0 + logarea.t0|year) as fixed effects, we have year-specific coefficients
+# and their estimated standard errors, which are all we need to do shrinkage. 
 #################################################################################################################
 
 # Model matrix for the fixed and random effects, specified so that each year gets its own coefficient
@@ -215,7 +231,6 @@ par(mfrow=c(2,2),mar=c(4,4,1,1),mgp=c(2,1,0),bty="l");
 fixed.fx = coefs[1:30]; fixed.fx = fixed.fx-mean(fixed.fx); 
 fixed.se = SEs[1:30]; 
 sigma2.hat = mean(fixed.fx^2)-mean(fixed.se^2)
-# BLUP based on sigma.hat and estimated s.e.
 shrunk.fx = fixed.fx*sqrt(sigma2.hat/(sigma2.hat + fixed.se^2)); 
 
 # lmer random effects for (1|year) 
@@ -228,7 +243,6 @@ abline(0,1,col="blue",lty=2);
 fixed.fx2 = coefs[42:71]; fixed.fx2 = fixed.fx2-mean(fixed.fx2); 
 fixed.se2 = SEs[42:71]; 
 sigma2.hat = mean(fixed.fx2^2)-mean(fixed.se2^2)
-# BLUP based on sigma.hat and estimated s.e.
 shrunk.fx2 = fixed.fx2*sqrt(sigma2.hat/(sigma2.hat + fixed.se2^2));
 
 # lmer random effects for (logarea.t0|year) 
@@ -348,15 +362,17 @@ points(idaho_moments$bin_mean, idaho_moments$kurt_t1,pch=1,lwd=2,col=alpha("red"
 points(idaho_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
 add_panel_label("d")
 
+dev.copy2pdf(file="../manuscript/figures/BinnedConditionalMoments.pdf")
 
 #############################################################################
 # Ditto, for quantiles 
 #############################################################################
-dev.new(width=7,height=7); 
-
 source("quantileComparePlot.R"); 
 
+dev.new(width=7,height=9); 
 out=quantileComparePlot(dropD$logarea.t0,dropD$logarea.t1,idaho_sim,10);
+
+dev.copy2pdf(file="../manuscript/figures/BinnedConditionalQuantiles.pdf")
 
 ########################################################################################
 #   Simulation: how well do we recover known random effects? 
@@ -451,9 +467,15 @@ for(j in 1:250) {
 par(mfrow=c(2,2),bty="l",mgp=c(2,1,0),mar=c(4,4,1,1),cex.axis=1.3,cex.lab=1.3);
 trueRanIntercept = coefs[1:30]-mean(coefs[1:30]);
 matplot(trueRanIntercept,fixRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
-matplot(trueRanIntercept,shrinkRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+add_panel_label("a"); 
 matplot(trueRanIntercept,shrinkRanIntercept2,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+add_panel_label("b"); 
+matplot(trueRanIntercept,shrinkRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+add_panel_label("c"); 
 matplot(trueRanIntercept,lmerRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
+add_panel_label("d"); 
+dev.copy2pdf(file="../manuscript/figures/ShrinkageTest.pdf"); 
+
 
 # compare estimates of the between-year mixing sigma, averaging over reps 
 sd(trueRanIntercept); 
