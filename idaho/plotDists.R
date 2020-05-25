@@ -104,3 +104,47 @@ dJP09=function(x,mu,sigma,nu,tau) {
    return( dJP09B((x-mu)/sigma, epsilon=nu, delta=tau)/sigma )
 }
 
+
+xvals=seq(-6,6,length=1000);
+gof = function(pars) {
+	y1 = dSHASHo(xvals,pars[1],exp(pars[2]),pars[3],exp(pars[4]))
+	err = (y1-y2)^2; 
+	return(sum(err))
+}	
+
+df=12; 
+#y2 = dlnorm(xvals,mu=0,sigma=1,nu=6,tau=df);
+y2 = 0.5*exp(-abs(xvals)^1.2);
+out=optim(par=c(0,0,0,0),fn=gof,method="Nelder-Mead",control=list(maxit=10000,trace=4))$par; 
+y1 = dSHASHo(xvals,out[1],exp(out[2]),out[3],exp(out[4]));
+
+matplot(xvals,cbind(y1,y2),col=c("black","blue"),type="l",lty=c(1,2)); 
+legend("topright",legend=c("SHASH","True"),col=c("black","blue"),lty=c(1,2))
+abline(h=0,col="black",lty=3); 
+
+
+xvals=seq(-6,6,length=1000);
+gof = function(pars) {
+	y1 = dsgt(xvals,pars[1],exp(pars[2]),2*pnorm(pars[3])-1,exp(pars[4]),exp(pars[5]))
+	err = (y1-y2)^2; 
+	return(sum(err))
+}	
+
+df=12; 
+y2 = 0.5*exp(-abs(xvals)^1.2);
+pars=optim(par=c(0,0,0,1,2),fn=gof,method="Nelder-Mead",control=list(maxit=10000,trace=4))$par; 
+y1 = dsgt(xvals,pars[1],exp(pars[2]),2*pnorm(pars[3])-1,exp(pars[4]),exp(pars[5]))
+matplot(xvals,cbind(y1,y2),col=c("black","blue"),type="l",lty=c(1,2)); 
+legend("topright",legend=c("SHASH","True"),col=c("black","blue"),lty=c(1,2))
+abline(h=0,col="black",lty=3); 
+
+
+
+
+
+
+
+
+
+
+
