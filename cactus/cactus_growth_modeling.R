@@ -4,7 +4,7 @@
 # Data collection described in Miller et al. 2009, Ohm and Miller 2014, Czachura and Miller 2020, and elsewhere  
 # This data set includes 2018 data, which has not been previously published. 
 #
-# Last update: 38 May, 2020
+# Last update: 2 June, 2020
 #
 ##############################################################################
 
@@ -189,7 +189,8 @@ CYIM_bin_fit %>%
             nu=unique(nu),
             tau=unique(tau)) -> CYIM_bin_fit
 
-par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);  
+par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);
+## Steve's spline.scatter.smooth() function not working for me and I did not both trying to figure out why
 plot(CYIM_bin_fit$mean_fitted,CYIM_bin_fit$mu,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu )),type="b")
 plot(CYIM_bin_fit$mu,CYIM_bin_fit$sigma,xlab=expression(paste("Location parameter  ", mu )),
                       ylab=expression(paste("Scale parameter  ", sigma)),type="b")
