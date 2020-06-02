@@ -91,32 +91,33 @@ for(mod in 1:length(CYIM_lmer_models)) {CYIM_lmer_models[[mod]] <- update(CYIM_l
 aictab(CYIM_lmer_models); # still support for model 1
 
 ######### Here's the best Gaussian model ########################################
-aics = unlist(lapply(CYIM_lmer_models,AIC)); best_model=which(aics==min(aics)); 
 CYIM_lmer_best = CYIM_lmer_models[[best_model]]; 
 summary(CYIM_lmer_best); 
 
 ### refit with REML, as recommended for estimating random effects 
 best_weights = weights(CYIM_lmer_best)
 CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,weights=best_weights,REML=TRUE) 
+plot(log(vol_t1) ~ log(vol_t),data=CYIM)
+abline(fixef(CYIM_lmer_best))
 
 ######################################################################
 # Interrogate the scaled residuals - Gaussian? NO. 
 ###################################################################### 
 plot(fitted(CYIM_lmer_best), 1/sqrt(weights(CYIM_lmer_best)),xlab="Fitted",ylab="Estimated residual Std Dev"); 
-log_scaledResids = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))
-plot(fitted(CYIM_lmer_best), log_scaledResids); 
+scaledResids = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))
+plot(fitted(CYIM_lmer_best), scaledResids); 
 
-qqPlot(log_scaledResids); # really bad in lower tail, not too bad in upper 
+qqPlot(scaledResids); # really bad in both tails
 
-jarque.test(log_scaledResids) # normality test: FAILS, P < 0.001 
-anscombe.test(log_scaledResids) # kurtosis: FAILS, P < 0.001 
-agostino.test(log_scaledResids) # skewness: FAILS, P<0.001 
+jarque.test(scaledResids) # normality test: FAILS, P < 0.001 
+anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.001 
+agostino.test(scaledResids) # skewness: FAILS, P<0.001 
 
 
 ########################################################################
 ## Rollapply diagnostics on the scaled residuals 
 ########################################################################
-px = fitted(CYIM_lmer_best); py=log_scaledResids; 
+px = fitted(CYIM_lmer_best); py=scaledResids; 
 
 graphics.off(); dev.new(width=8,height=6); 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
@@ -126,15 +127,17 @@ dev.copy2pdf(file="../manuscript/figures/RollingMomentsCYIM.pdf")
 ## clear negative skew and excess kurtosis
 
 ## what if we did not do the interative re-weighting and just examined the residuals of the original gaussian model?
+orig_mod <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
 graphics.off(); dev.new(width=8,height=6); 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);
-rollMoments(fitted(CYIM_lmer_models[[1]]),residuals(CYIM_lmer_models[[1]]),windows=10,smooth=TRUE,scaled=TRUE) 
+rollMoments(fitted(orig_mod),residuals(orig_mod),windows=10,smooth=TRUE,scaled=TRUE) 
 dev.copy2pdf(file="../manuscript/figures/RollingMomentsCYIM_rawresids.pdf") 
 
 ########################################################################
 ## what is the likely distribution of the residuals?
 ## because there are trends wrt to fitted value, I will do this in slices. 
 ########################################################################
+## I should re-write this code as a loop because it runs fitDist 3 times more than necessary
 n_bins <- 8
 select_dist <- tibble(fit_best = fitted(CYIM_lmer_best),
                       scale_resid = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))) %>% 
@@ -149,3 +152,48 @@ select_dist <- tibble(fit_best = fitted(CYIM_lmer_best),
             aic_margin = unique(aic_margin))
 # a little bit of everything but some version of the skewed t is commonly favored, though the SHASH is strongly favored for the smaller bins
 
+## again again, what if I used the raw residuals? -- still support for the skewed t
+select_dist_orig <- tibble(fit_best = fitted(orig_mod),
+                      scale_resid = residuals(orig_mod)*sqrt(weights(orig_mod))) %>% 
+  mutate(bin = as.integer(cut_number(fit_best,n_bins))) %>% 
+  group_by(bin) %>% 
+  mutate(best_dist = names(fitDist(scale_resid,type="realline")$fits[1]),
+         secondbest_dist = names(fitDist(scale_resid,type="realline")$fits[2]),
+         aic_margin = fitDist(scale_resid,type="realline")$fits[2] - fitDist(scale_resid,type="realline")$fits[1]) %>% 
+  summarise(n_bin = n(),
+            best_dist = unique(best_dist),
+            secondbest_dist = unique(secondbest_dist),
+            aic_margin = unique(aic_margin))
+
+########################################################################
+## Fit parameters of the skewed t to binned size data -- to get a visual sense of relationships between mu and other params
+########################################################################
+CYIM_bin_fit <-CYIM %>% 
+  mutate(fitted = fitted(CYIM_lmer_best),
+         bin = as.integer(cut_number(fitted,n_bins))) %>% 
+  mutate(mu=NA, sigma=NA,nu=NA,tau=NA)
+for(b in 1:n_bins){
+  ## I get the most stable tau estimates with ST3
+  bin_fit <- gamlssML(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==b]) ~ 1,family="ST3")
+  CYIM_bin_fit$mu[CYIM_bin_fit$bin==b] <- bin_fit$mu
+  CYIM_bin_fit$sigma[CYIM_bin_fit$bin==b] <- bin_fit$sigma
+  CYIM_bin_fit$nu[CYIM_bin_fit$bin==b] <- bin_fit$nu
+  CYIM_bin_fit$tau[CYIM_bin_fit$bin==b] <- bin_fit$tau
+}
+CYIM_bin_fit %>% 
+  group_by(bin) %>% 
+  summarise(N = n(),
+            mean_fitted = mean(fitted),
+            mu = unique(mu),
+            sigma=unique(sigma),
+            nu=unique(nu),
+            tau=unique(tau)) -> CYIM_bin_fit
+
+par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);  
+plot(CYIM_bin_fit$mean_fitted,CYIM_bin_fit$mu,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu )),type="b")
+plot(CYIM_bin_fit$mu,CYIM_bin_fit$sigma,xlab=expression(paste("Location parameter  ", mu )),
+                      ylab=expression(paste("Scale parameter  ", sigma)),type="b")
+plot(CYIM_bin_fit$mu,CYIM_bin_fit$nu,xlab=expression(paste("Location parameter  ", mu )),
+                      ylab=expression(paste("Skewness parameter  ", nu )),type="b")
+plot(CYIM_bin_fit$mu,CYIM_bin_fit$tau,xlab=expression(paste("Location parameter  ", mu )),
+                      ylab=expression(paste("Kurtosis parameter  ", tau)),type="b") ## garbage tau estimate for group 1
