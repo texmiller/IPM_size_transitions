@@ -4,7 +4,7 @@
 # Data collection described in Miller et al. 2009, Ohm and Miller 2014, Czachura and Miller 2020, and elsewhere  
 # This data set includes 2018 data, which has not been previously published. 
 #
-# Last update: 2 June, 2020
+# Last update: 8 June, 2020
 #
 ##############################################################################
 
@@ -14,6 +14,7 @@ setwd("./cactus");
 require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(gamlss.tr); require(AICcmodavg); 
 require(lmerTest); require(tidyverse); require(maxLik); 
+require(actuar); require(lattice); require(grid); require(scales)
 
 # Steve's diagnostics functions
 source("../Diagnostics.R") 
@@ -68,14 +69,16 @@ varPars = function(pars) {
   return(-sum(dnorm(resids, mean=0, sd=exp(pars[1] + pars[2]*fitted_vals),log=TRUE)))
 }	
 
+##update to save sigma pars
+pars<-list()
 for(mod in 1:length(CYIM_lmer_models)) {
   err = 1; rep=0; 
   while(err > 0.000001) {
     rep=rep+1; model = CYIM_lmer_models[[mod]];
     fitted_vals = fitted(model);resids = residuals(model); 
     out=optim(c(sd(resids),0),varPars,control=list(maxit=5000)); 
-    pars=out$par; 
-    new_sigma = exp(pars[1] + pars[2]*fitted_vals); new_weights = 1/((new_sigma)^2)
+    pars[[mod]]=out$par; 
+    new_sigma = exp(pars[[mod]][1] + pars[[mod]][2]*fitted_vals); new_weights = 1/((new_sigma)^2)
     new_weights = 0.5*(weights(model) + new_weights); # cautious update 
     new_model <- update(model,weights=new_weights); 
     err = weights(model)-weights(new_model); err=sqrt(mean(err^2)); 
@@ -88,7 +91,7 @@ aictab(CYIM_lmer_models) ## no strong support for quadratic term
 aics = unlist(lapply(CYIM_lmer_models,AIC)); best_model=which(aics==min(aics)); 
 best_weights=weights(CYIM_lmer_models[[best_model]]); 
 for(mod in 1:length(CYIM_lmer_models)) {CYIM_lmer_models[[mod]] <- update(CYIM_lmer_models[[mod]],weights=best_weights)}
-aictab(CYIM_lmer_models); # still support for model 1
+aictab(CYIM_lmer_models); # stronger support for model 1
 
 ######### Here's the best Gaussian model ########################################
 CYIM_lmer_best = CYIM_lmer_models[[best_model]]; 
@@ -97,22 +100,40 @@ summary(CYIM_lmer_best);
 ### refit with REML, as recommended for estimating random effects 
 best_weights = weights(CYIM_lmer_best)
 CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,weights=best_weights,REML=TRUE) 
-plot(log(vol_t1) ~ log(vol_t),data=CYIM)
-abline(fixef(CYIM_lmer_best))
+## this is as good as we can do with a Gaussian model - here's what it looks like
+
+## Visualize the best Gaussian model
+##dummy variable for initial size
+size_dim <- 100
+size_dum <- seq(min(log(CYIM$vol_t)),max(log(CYIM$vol_t)),length.out = size_dim)
+##make a polygon for the Gaussian kernel with non-constant variance
+CYIM_lmer_best_kernel <- matrix(NA,size_dim,size_dim)
+for(i in 1:size_dim){
+  mu_size <- fixef(CYIM_lmer_best)[1] + fixef(CYIM_lmer_best)[2] * size_dum[i]
+  CYIM_lmer_best_kernel[,i] <- dnorm(size_dum,
+                                     mean = mu_size,
+                                     sd = exp(pars[[best_model]][1] + pars[[best_model]][2]*mu_size))
+}
+
+levelplot(CYIM_lmer_best_kernel,row.values = size_dum, column.values = size_dum,cuts=30,
+          col.regions=rainbow(30),xlab="log Size t",ylab="log Size t+1",
+          panel = function(...) {
+            panel.levelplot(...)
+            grid.points(log(CYIM$vol_t), log(CYIM$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
+          }) 
 
 ######################################################################
 # Interrogate the scaled residuals - Gaussian? NO. 
 ###################################################################### 
 plot(fitted(CYIM_lmer_best), 1/sqrt(weights(CYIM_lmer_best)),xlab="Fitted",ylab="Estimated residual Std Dev"); 
+lines(fitted(CYIM_lmer_best),exp(pars[[best_model]][1] + pars[[best_model]][2]*fitted(CYIM_lmer_best)),col="red")
 scaledResids = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))
 plot(fitted(CYIM_lmer_best), scaledResids); 
-
 qqPlot(scaledResids); # really bad in both tails
 
 jarque.test(scaledResids) # normality test: FAILS, P < 0.001 
 anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.001 
 agostino.test(scaledResids) # skewness: FAILS, P<0.001 
-
 
 ########################################################################
 ## Rollapply diagnostics on the scaled residuals 
