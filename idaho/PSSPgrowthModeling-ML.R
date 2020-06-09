@@ -126,6 +126,22 @@ par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4)
 z = rollMoments(px,py,windows=10,smooth=TRUE,scaled=TRUE) 
 dev.copy2pdf(file="../manuscript/figures/RollingMomentsPSSP.pdf") 
 
+
+###########################################################################
+# Try fitDist on binned data, various ways (only the last version remains)
+###########################################################################
+logResids<- data.frame(fitted=fitted(log_model),resids=dropD$logarea.t1); 
+logResids <- logResids %>% mutate(size_bin = cut_number(fitted,n=12))
+
+bins = levels(logResids$size_bin); dists=list(length(bins)); 
+for(j in 1:length(bins)){
+	Xj=subset(logResids,size_bin==bins[j])
+	dists[[j]]=fitDist(resids,data=Xj,type="realline"); 
+	cat(j,"\n"); 
+}
+### Results are not consistent, lots of convergence errors, 
+### and best for a bin often has skew but no kurtosis  
+
 ########################################################################
 ## Binned data SHASH parameter estimates on subsequent size 
 ########################################################################
@@ -156,7 +172,9 @@ add_panel_label("d");
   
 dev.copy2pdf(file="../manuscript/figures/RollingSHASHparsPSSP.pdf") 
 savePlot(file="../manuscript/figures/RollingSHASHparsPSSP.png",type="png"); 
-  
+
+
+ 
 ################################################################################################################
 # Try fitting gamlss SHASHo to log size data. Use the fixed effect structure corresponding to the best lmer fit,
 # and believe rollaply diagnostics 
