@@ -55,10 +55,10 @@ table(CYIM$plot,CYIM$year_t) ## first four years has fewer plants from fewer plo
 ## There are no other fixed effects screaming out to be included in the models, but we could test for climate drivers
 ## and ant defense effects, as we have done elsewhere
 ########################################################################## 
-CYIM_lmer_models <- list()
+CYIM_lmer_models <- list() ## drop plot rfx for now bc they create a headache in the shrinkage method later
 ## random effects are intercept-only - convergence troubles otherwise
-CYIM_lmer_models[[1]] <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
-CYIM_lmer_models[[2]] <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
+CYIM_lmer_models[[1]] <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
+CYIM_lmer_models[[2]] <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|year_t), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
 
 ########################################################################## 
 ## 3. Use iterative re-weighting to fit with nonconstant variance,  
@@ -95,12 +95,12 @@ for(mod in 1:length(CYIM_lmer_models)) {CYIM_lmer_models[[mod]] <- update(CYIM_l
 aictab(CYIM_lmer_models); # stronger support for model 1
 
 ######### Here's the best Gaussian model ########################################
-CYIM_lmer_best = CYIM_lmer_models[[best_model]]; 
+CYIM_lmer_best = CYIM_lmer_models[[1]]; 
 summary(CYIM_lmer_best); 
 
 ### refit with REML, as recommended for estimating random effects 
 best_weights = weights(CYIM_lmer_best)
-CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,weights=best_weights,REML=TRUE) 
+CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t), data=CYIM,weights=best_weights,REML=TRUE) 
 ## this is as good as we can do with a Gaussian model - here's what it looks like
 
 ## Visualize the best Gaussian model
@@ -150,13 +150,6 @@ dev.copy2pdf(file="../manuscript/figures/RollingMomentsCYIM.pdf")
 ## scaled residuals look about mean zero and unit variance (but maybe some weird trends with fitted values)
 ## clear negative skew and excess kurtosis
 
-## what if we did not do the interative re-weighting and just examined the residuals of the original gaussian model?
-orig_mod <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
-graphics.off(); dev.new(width=8,height=6); 
-par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);
-rollMoments(fitted(orig_mod),residuals(orig_mod),windows=10,smooth=TRUE,scaled=TRUE) 
-dev.copy2pdf(file="../manuscript/figures/RollingMomentsCYIM_rawresids.pdf") 
-
 ########################################################################
 ## what is the likely distribution of the residuals?
 ## because there are trends wrt to fitted value, I will do this in slices. 
@@ -176,19 +169,6 @@ select_dist <- tibble(fit_best = fitted(CYIM_lmer_best),
             aic_margin = unique(aic_margin))
 # a little bit of everything but some version of the skewed t is commonly favored, though the SHASH is strongly favored for the smaller bins
 
-## again again, what if I used the raw residuals? -- still support for the skewed t
-select_dist_orig <- tibble(fit_best = fitted(orig_mod),
-                      scale_resid = residuals(orig_mod)*sqrt(weights(orig_mod))) %>% 
-  mutate(bin = as.integer(cut_number(fit_best,n_bins))) %>% 
-  group_by(bin) %>% 
-  mutate(best_dist = names(fitDist(scale_resid,type="realline")$fits[1]),
-         secondbest_dist = names(fitDist(scale_resid,type="realline")$fits[2]),
-         aic_margin = fitDist(scale_resid,type="realline")$fits[2] - fitDist(scale_resid,type="realline")$fits[1]) %>% 
-  summarise(n_bin = n(),
-            best_dist = unique(best_dist),
-            secondbest_dist = unique(secondbest_dist),
-            aic_margin = unique(aic_margin))
-
 ########################################################################
 ## Fit parameters of the skewed t to binned size data -- to get a visual sense of relationships between mu and other params
 ########################################################################
@@ -196,13 +176,6 @@ CYIM_bin_fit <-CYIM %>%
   mutate(fitted = fitted(CYIM_lmer_best),
          bin = as.integer(cut_number(fitted,n_bins))) %>% 
   mutate(mu=NA, sigma=NA,nu=NA,tau=NA)
-
-hist(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==1]))
-hist(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==2]))
-hist(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==3]))
-hist(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==4]))
-gamlssML(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==1]) ~ 1,family="SHASH")
-
 for(b in 1:n_bins){
   ## I get the most stable tau estimates with ST3
   bin_fit <- gamlssML(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==b]) ~ 1,family="ST3")
@@ -282,3 +255,33 @@ plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$q,type="b")
 # RFX were (1|year) and (1|plot) so there will be year- and plot-specific fixed effects
 #################################################################################################################
 
+# as a reminder, here is best model: lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
+# Model matrix for the fixed and random effects, specified so that each year gets its own coefficient
+# dropping plot for now because I am not sure how to suppress intercept for it, and this will create some issues later on
+U=model.matrix(~  log(vol_t) + year_t, data=CYIM)
+
+LogLik=function(pars,response,U){
+  pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
+  mu = U%*%pars1;  
+  val = dST3(x = response, 
+             mu=mu,
+             ## maybe sigma response to mu is non-monotonic?
+             sigma=exp(pars2[1]+pars2[2]*mu+pars2[3]*mu^2),
+             ## nu could be accelerating
+             nu = pars2[4]+pars2[5]*mu + pars2[6]*mu^2,
+            tau = exp(pars2[7]+pars2[8]*mu), log=TRUE)
+  return(val); 
+}
+
+############ Fit the data -- five separate times (Steve's paranoia)
+coefs = list(5); LL=numeric(5);  
+
+# Starting values from the pilot model are jittered to do multi-start optimization). 
+# Using good starting values really speeds up convergence in the ML fits  
+
+# Linear predictor coefficients extracted from the lmer model 
+fixed_start = c(fixef(CYIM_lmer_best)[1] + unlist(ranef(CYIM_lmer_best)$year_t)[1], #intercept adjusted by the year-1 random effect
+                fixef(CYIM_lmer_best)[2], # size slope
+                unlist(ranef(CYIM_lmer_best)$year_t)[-1]) # all the other year
+
+# Shape and scale coefficients from the rollaply diagnostic plots 
