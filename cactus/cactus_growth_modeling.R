@@ -116,12 +116,14 @@ for(i in 1:size_dim){
                                      sd = exp(pars[[best_model]][1] + pars[[best_model]][2]*mu_size))
 }
 
+graphics.off(); dev.new(width=6,height=5); 
 levelplot(CYIM_lmer_best_kernel,row.values = size_dum, column.values = size_dum,cuts=30,
           col.regions=rainbow(30),xlab="log Size t",ylab="log Size t+1",
           panel = function(...) {
             panel.levelplot(...)
             grid.points(log(CYIM$vol_t), log(CYIM$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
           }) 
+dev.copy2pdf(file="../manuscript/figures/cactus_Gaussian_kernel_data.pdf") 
 
 ######################################################################
 # Interrogate the scaled residuals - Gaussian? NO. 
@@ -160,7 +162,7 @@ dev.copy2pdf(file="../manuscript/figures/RollingMomentsCYIM_rawresids.pdf")
 ## because there are trends wrt to fitted value, I will do this in slices. 
 ########################################################################
 ## I should re-write this code as a loop because it runs fitDist 3 times more than necessary
-n_bins <- 10
+n_bins <- 8
 select_dist <- tibble(fit_best = fitted(CYIM_lmer_best),
                       scale_resid = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))) %>% 
   mutate(bin = as.integer(cut_number(fit_best,n_bins))) %>% 
@@ -263,12 +265,20 @@ CYIM_bin_sgt_fit %>%
 
 par(mfrow=c(2,3),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);
 ## Steve's spline.scatter.smooth() function not working for me and I did not both trying to figure out why
-plot(CYIM_bin_sgt_fit$mean_fitted,CYIM_bin_sgt_fit$mu,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu )),type="b")
-plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$sigma,xlab=expression(paste("Location parameter  ", mu )),
-     ylab=expression(paste("Scale parameter  ", sigma)),type="b")
-plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$lambda,xlab=expression(paste("Location parameter  ", mu )),
-     ylab=expression(paste("Skewness parameter  ", nu )),type="b")
-plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$p,xlab=expression(paste("Location parameter  ", mu )),
-     ylab=expression(paste("Kurtosis parameter  ", tau)),type="b") 
-plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$q,xlab=expression(paste("Location parameter  ", mu )),
-     ylab=expression(paste("Kurtosis parameter  ", tau)),type="b") 
+plot(CYIM_bin_sgt_fit$mean_fitted,CYIM_bin_sgt_fit$mu,xlab="Fitted value",type="b")
+plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$sigma,type="b")
+plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$lambda,type="b")
+plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$p,type="b") 
+plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$q,type="b") 
+## weird q estimates for the smallest group (like I saw in ST nu param). As q->Inf, SGT becomes skewed normal, among other things
+################################################################################################################
+# Proceed to fitting gamlss ST3 to log size data (may also try SGT just for fun). 
+## Use the fixed effect structure corresponding to the best lmer fit,
+# and use moment diagnostics to guide functions for other parameeters
+#
+# Fitting is done by maximum likelihood using maxLik (easier than mle) 
+# 
+# The random effects terms in the lmer fit are fitted here as fixed effects, then adjusted by shrinkage. 
+# RFX were (1|year) and (1|plot) so there will be year- and plot-specific fixed effects
+#################################################################################################################
+
