@@ -14,7 +14,8 @@ setwd("./cactus");
 require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(gamlss.tr); require(AICcmodavg); 
 require(lmerTest); require(tidyverse); require(maxLik); 
-require(actuar); require(lattice); require(grid); require(scales)
+require(actuar); require(lattice); require(grid); require(scales);
+require(sgt)
 
 # Steve's diagnostics functions
 source("../Diagnostics.R") 
@@ -159,7 +160,7 @@ dev.copy2pdf(file="../manuscript/figures/RollingMomentsCYIM_rawresids.pdf")
 ## because there are trends wrt to fitted value, I will do this in slices. 
 ########################################################################
 ## I should re-write this code as a loop because it runs fitDist 3 times more than necessary
-n_bins <- 8
+n_bins <- 10
 select_dist <- tibble(fit_best = fitted(CYIM_lmer_best),
                       scale_resid = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))) %>% 
   mutate(bin = as.integer(cut_number(fit_best,n_bins))) %>% 
@@ -193,6 +194,13 @@ CYIM_bin_fit <-CYIM %>%
   mutate(fitted = fitted(CYIM_lmer_best),
          bin = as.integer(cut_number(fitted,n_bins))) %>% 
   mutate(mu=NA, sigma=NA,nu=NA,tau=NA)
+
+hist(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==1]))
+hist(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==2]))
+hist(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==3]))
+hist(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==4]))
+gamlssML(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==1]) ~ 1,family="SHASH")
+
 for(b in 1:n_bins){
   ## I get the most stable tau estimates with ST3
   bin_fit <- gamlssML(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==b]) ~ 1,family="ST3")
@@ -218,4 +226,49 @@ plot(CYIM_bin_fit$mu,CYIM_bin_fit$sigma,xlab=expression(paste("Location paramete
 plot(CYIM_bin_fit$mu,CYIM_bin_fit$nu,xlab=expression(paste("Location parameter  ", mu )),
                       ylab=expression(paste("Skewness parameter  ", nu )),type="b")
 plot(CYIM_bin_fit$mu,CYIM_bin_fit$tau,xlab=expression(paste("Location parameter  ", mu )),
-                      ylab=expression(paste("Kurtosis parameter  ", tau)),type="b") ## garbage tau estimate for group 1
+                      ylab=expression(paste("Kurtosis parameter  ", tau)),type="b") 
+
+## The skewed t fits are a little unstable for some groups and ST3 is the only one that converges.
+## and I am getting garbage tau estimate for group 1, wondering if I would do better with the skewed generalized t
+## NegLogLik function to fit variance model for residuals 
+sgt_fit = function(pars,dat) {
+  return(-sum(dsgt(dat, mu=pars[1], sigma=pars[2], lambda=pars[3], p=pars[4], q=pars[5], log=TRUE, mean.cent = F)))
+}	
+
+CYIM_bin_sgt_fit <-CYIM %>% 
+  mutate(fitted = fitted(CYIM_lmer_best),
+         resids = residuals(CYIM_lmer_best),
+         bin = as.integer(cut_number(fitted,n_bins))) 
+for(b in 1:n_bins){
+  bin_fit <- optim(c(mean(CYIM_bin_sgt_fit$fitted[CYIM_bin_sgt_fit$bin==b]),
+                     sd(CYIM_bin_sgt_fit$resids[CYIM_bin_sgt_fit$bin==b]),0,2,2),
+                   sgt_fit,dat=log(CYIM_bin_sgt_fit$vol_t1[CYIM_bin_sgt_fit$bin==b]),control=list(maxit=5000))
+  CYIM_bin_sgt_fit$mu[CYIM_bin_sgt_fit$bin==b] <- bin_fit$par[1]
+  CYIM_bin_sgt_fit$sigma[CYIM_bin_sgt_fit$bin==b] <- bin_fit$par[2]
+  CYIM_bin_sgt_fit$lambda[CYIM_bin_sgt_fit$bin==b] <- bin_fit$par[3]
+  CYIM_bin_sgt_fit$p[CYIM_bin_sgt_fit$bin==b] <- bin_fit$par[4]
+  CYIM_bin_sgt_fit$q[CYIM_bin_sgt_fit$bin==b] <- bin_fit$par[5]
+  CYIM_bin_sgt_fit$converge[CYIM_bin_sgt_fit$bin==b] <- bin_fit$convergence
+}
+CYIM_bin_sgt_fit %>% 
+  group_by(bin) %>% 
+  summarise(N = n(),
+            mean_fitted = mean(fitted),
+            mu = unique(mu),
+            sigma=unique(sigma),
+            lambda=unique(lambda),
+            p=unique(p),
+            q=unique(q),
+            converge=unique(converge)) -> CYIM_bin_sgt_fit
+
+par(mfrow=c(2,3),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);
+## Steve's spline.scatter.smooth() function not working for me and I did not both trying to figure out why
+plot(CYIM_bin_sgt_fit$mean_fitted,CYIM_bin_sgt_fit$mu,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu )),type="b")
+plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$sigma,xlab=expression(paste("Location parameter  ", mu )),
+     ylab=expression(paste("Scale parameter  ", sigma)),type="b")
+plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$lambda,xlab=expression(paste("Location parameter  ", mu )),
+     ylab=expression(paste("Skewness parameter  ", nu )),type="b")
+plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$p,xlab=expression(paste("Location parameter  ", mu )),
+     ylab=expression(paste("Kurtosis parameter  ", tau)),type="b") 
+plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$q,xlab=expression(paste("Location parameter  ", mu )),
+     ylab=expression(paste("Kurtosis parameter  ", tau)),type="b") 
