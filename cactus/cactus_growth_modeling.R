@@ -57,8 +57,8 @@ table(CYIM$plot,CYIM$year_t) ## first four years has fewer plants from fewer plo
 ########################################################################## 
 CYIM_lmer_models <- list() ## drop plot rfx for now bc they create a headache in the shrinkage method later
 ## random effects are intercept-only - convergence troubles otherwise
-CYIM_lmer_models[[1]] <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
-CYIM_lmer_models[[2]] <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|year_t), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
+CYIM_lmer_models[[1]] <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
+CYIM_lmer_models[[2]] <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
 
 ########################################################################## 
 ## 3. Use iterative re-weighting to fit with nonconstant variance,  
@@ -100,7 +100,7 @@ summary(CYIM_lmer_best);
 
 ### refit with REML, as recommended for estimating random effects 
 best_weights = weights(CYIM_lmer_best)
-CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t), data=CYIM,weights=best_weights,REML=TRUE) 
+CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,weights=best_weights,REML=TRUE) 
 ## this is as good as we can do with a Gaussian model - here's what it looks like
 
 ## Visualize the best Gaussian model
@@ -258,7 +258,7 @@ plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$q,type="b")
 # as a reminder, here is best model: lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
 # Model matrix for the fixed and random effects, specified so that each year gets its own coefficient
 # dropping plot for now because I am not sure how to suppress intercept for it, and this will create some issues later on
-U=model.matrix(~  log(vol_t) + year_t, data=CYIM)
+U=model.matrix(~  log(vol_t) + year_t + plot, data=CYIM)
 
 LogLik=function(pars,response,U){
   pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
@@ -267,8 +267,9 @@ LogLik=function(pars,response,U){
              mu=mu,
              ## maybe sigma response to mu is non-monotonic?
              sigma=exp(pars2[1]+pars2[2]*mu+pars2[3]*mu^2),
-             ## nu could be accelerating
-             nu = pars2[4]+pars2[5]*mu + pars2[6]*mu^2,
+             ## nu could be accelerating -- I added a log link here bc I got an error in the maxLik fit that nu must be positive
+             ## weird, because gamlss uses identity linl
+             nu = exp(pars2[4]+pars2[5]*mu + pars2[6]*mu^2),
             tau = exp(pars2[7]+pars2[8]*mu), log=TRUE)
   return(val); 
 }
@@ -280,8 +281,37 @@ coefs = list(5); LL=numeric(5);
 # Using good starting values really speeds up convergence in the ML fits  
 
 # Linear predictor coefficients extracted from the lmer model 
-fixed_start = c(fixef(CYIM_lmer_best)[1] + unlist(ranef(CYIM_lmer_best)$year_t)[1], #intercept adjusted by the year-1 random effect
+fixed_start = c(fixef(CYIM_lmer_best)[1] + unlist(ranef(CYIM_lmer_best)$year_t)[1] + unlist(ranef(CYIM_lmer_best)$plot)[1], #intercept adjusted by the year-1/ plot-1 random effects
                 fixef(CYIM_lmer_best)[2], # size slope
-                unlist(ranef(CYIM_lmer_best)$year_t)[-1]) # all the other year
+                unlist(ranef(CYIM_lmer_best)$year_t)[-1], # all the other years
+                unlist(ranef(CYIM_lmer_best)$plot)[-1]) # all the other plots
+## make sure the dimensions line up
+length(fixed_start);ncol(U) #nail
 
 # Shape and scale coefficients from the rollaply diagnostic plots 
+fit_sigma = lm(log(sigma)~mu + I(mu^2), data=CYIM_bin_fit)
+fit_nu = lm(nu~mu + I(mu^2), data=CYIM_bin_fit)
+fit_tau = lm(log(tau)~mu, data=CYIM_bin_fit)
+p0=c(fixed_start, coef(fit_sigma), coef(fit_nu),coef(fit_tau))
+
+for(j in 1:5) {
+  out=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=log(CYIM$vol_t1),U=U,
+             method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
+  
+  out=maxLik(logLik=LogLik,start=out$estimate,response=log(CYIM$vol_t1),U=U,
+             method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+  
+  out=maxLik(logLik=LogLik,start=out$estimate,response=log(CYIM$vol_t1),U=U,
+             method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
+  
+  coefs[[j]] = out$estimate; LL[j] = out$maximum;
+  cat(j, "#--------------------------------------#",out$maximum,"\n"); 
+}
+
+j = min(which(LL==max(LL)));
+out=maxLik(logLik=LogLik,start=coefs[[j]],response=log(CYIM$vol_t1),U=U,
+           method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE); 
+
+######### save results of ML fit.  
+names(out$estimate)<-colnames(U); coefs=out$estimate; SEs = sqrt(diag(vcov(out))); 
+
