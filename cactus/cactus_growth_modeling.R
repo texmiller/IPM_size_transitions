@@ -55,7 +55,7 @@ table(CYIM$plot,CYIM$year_t) ## first four years has fewer plants from fewer plo
 ## There are no other fixed effects screaming out to be included in the models, but we could test for climate drivers
 ## and ant defense effects, as we have done elsewhere
 ########################################################################## 
-CYIM_lmer_models <- list() ## drop plot rfx for now bc they create a headache in the shrinkage method later
+CYIM_lmer_models <- list() 
 ## random effects are intercept-only - convergence troubles otherwise
 CYIM_lmer_models[[1]] <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
 CYIM_lmer_models[[2]] <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
@@ -257,7 +257,6 @@ plot(CYIM_bin_sgt_fit$mu,CYIM_bin_sgt_fit$q,type="b")
 
 # as a reminder, here is best model: lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
 # Model matrix for the fixed and random effects, specified so that each year gets its own coefficient
-# dropping plot for now because I am not sure how to suppress intercept for it, and this will create some issues later on
 U=model.matrix(~  log(vol_t) + year_t + plot, data=CYIM)
 
 LogLik=function(pars,response,U){
