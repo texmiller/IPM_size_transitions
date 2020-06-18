@@ -1,0 +1,331 @@
+---
+title: 'Better Growth Modeling: cactus case study'
+author: "Tom Miller"
+date: "6/12/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE)
+rm(list=ls(all=TRUE));
+require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
+require(gamlss); require(gamlss.tr); require(AICcmodavg); 
+require(lmerTest); require(tidyverse); require(maxLik); 
+require(actuar); require(lattice); require(grid); require(scales);
+require(sgt); require(formatR)
+
+# function for converting cactus size measurements to volume
+volume <- function(h, w, p){
+  (1/3)*pi*h*(((w + p)/2)/2)^2
+}
+# Steve's diagnostics functions
+source("../Diagnostics.R")
+
+# read in data
+CYIM<-read_csv("cholla_demography_20042018_EDI.csv") %>% 
+  ## filter out transplants and drop seed addition plots (which start with letter H)
+  ## also drop Year_t==2018 because I don't have 2019 size data (not entered yet). 2018 data still included in 2017-2018 transition.
+  ## For now I am dropping the early years from plots T1-T3 because these cause problems with shrinkage parameter estimates.
+    filter(Transplant == 0,
+         str_sub(Plot,1,1)!="H",
+         Year_t > 2007,
+         Year_t!=2018) %>% 
+  ## convert height, max width, perp width to volume of cone, take natural log
+  mutate(vol_t = volume(Height_t,Width_t,Perp_t),
+         vol_t1 = volume(Height_t1,Width_t1,Perp_t1),
+         plot = as.factor(Plot),
+         year_t = as.factor(Year_t),
+         ID = interaction(TagID,plot)) %>%
+  select(year_t,plot,vol_t,vol_t1) %>% 
+  filter() %>% 
+  ## sort by initial size
+  arrange(vol_t) %>% 
+   
+  ## drop rows with NAs
+  drop_na()
+```
+
+## About the data
+This document walks through growth modeling with the cactus (_Cylyndriopuntia imbricata_, or CYIM) case study. The plants are a little oddly shaped. We measure plant size by taking maximum height, maximum width of the crown, and then an additional width measurement perpendicular to the maximum. We then convert this into the volume of a cone ($cm^3$) and take the natural log of this as the size variable. 
+```{r pics, echo=FALSE, out.width = '50%', fig.align = 'center'}
+knitr::include_graphics("SEV1.jpg")
+knitr::include_graphics("SEV2.jpg")
+```
+\newpage
+There are a total of `r length(unique(CYIM$ID))` individuals in the data set spanning `r length(levels(CYIM$plot))` plots or spatial blocks and `r length(levels(CYIM$year_t))` transition-years. There are some additional, earlier years of data but they come from different plots and that was causing problems in the shrinkage model. So I filtered out these early years (above). Note that even in these later years, plots 7 and 8 did not start until 2011. 
+```{r plot_year_breakdown, echo=FALSE}
+table(CYIM$plot,CYIM$year_t)
+```
+
+There is no 2008 transition year because we started new plots in 2009. So data from 2008 end the 2007 transition-year but did not start a new transition-year. 
+
+## Gaussian fits
+Use lme4 to fit Gaussian models of the form $size_{t+1} \sim size_{t}$.
+There are temporal and spatial random effects.
+No obvious fixed effects besides initial size (this is an observational study) but I can test whether a quandratic term for initial size improves fit. 
+Random effects are intercept-only because convergence problems otherwise.
+```{r lmer_fits}
+CYIM_lmer_models <- list() 
+CYIM_lmer_models[[1]] <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
+CYIM_lmer_models[[2]] <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
+```
+
+Now use the iterative re-weighting approach to re-fit these with non-constant variance:
+```{r lmer_reweight, results="hide}
+## NegLogLik function to fit variance model for residuals 
+varPars = function(pars) {
+  return(-sum(dnorm(resids, mean=0, sd=exp(pars[1] + pars[2]*fitted_vals),log=TRUE)))
+}	
+
+pars<-list()
+for(mod in 1:length(CYIM_lmer_models)) {
+  err = 1; rep=0; 
+  ## Steve's error level was too high a bar to clear. I raised this.
+  while(err > 0.0001) {
+    rep=rep+1; model = CYIM_lmer_models[[mod]];
+    fitted_vals = fitted(model);resids = residuals(model); 
+    out=optim(c(sd(resids),0),varPars,control=list(maxit=5000)); 
+    pars[[mod]]=out$par; 
+    new_sigma = exp(pars[[mod]][1] + pars[[mod]][2]*fitted_vals); new_weights = 1/((new_sigma)^2)
+    new_weights = 0.5*(weights(model) + new_weights); # cautious update 
+    new_model <- update(model,weights=new_weights); 
+    err = weights(model)-weights(new_model); err=sqrt(mean(err^2)); 
+    cat(mod,rep,err,"\n") # check on convergence of estimated weights 
+    CYIM_lmer_models[[mod]]<-new_model; 
+  }}
+```
+
+For fair AIC comparison, re-fit both models with best weights. 
+```{r lmer_aic}
+######### For a fair AIC comparison, fit all models with the same weights 
+aics = unlist(lapply(CYIM_lmer_models,AIC)); best_model=which(aics==min(aics)); 
+best_weights=weights(CYIM_lmer_models[[best_model]]); 
+for(mod in 1:length(CYIM_lmer_models)) {
+  CYIM_lmer_models[[mod]] <- update(CYIM_lmer_models[[mod]],weights=best_weights)
+  }
+aictab(CYIM_lmer_models)
+```
+
+The linear model is favored.
+Last step is to re-fit with REML=T.
+```{r lmer_refit}
+aics = unlist(lapply(CYIM_lmer_models,AIC)); best_model=which(aics==min(aics));
+CYIM_lmer_best = CYIM_lmer_models[[best_model]] 
+best_weights = weights(CYIM_lmer_best)
+CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,weights=best_weights,REML=TRUE) 
+```
+
+Now visualize this kernel. This model is the *very best* we could do in a Gaussian framework (assuming there are no major fixed effects we are missing).
+```{r plot_gaussian_kernel}
+##dummy variable for initial size
+size_dim <- 100
+size_dum <- seq(min(log(CYIM$vol_t)),max(log(CYIM$vol_t)),length.out = size_dim)
+##make a polygon for the Gaussian kernel with non-constant variance
+CYIM_lmer_best_kernel <- matrix(NA,size_dim,size_dim)
+for(i in 1:size_dim){
+  mu_size <- fixef(CYIM_lmer_best)[1] + fixef(CYIM_lmer_best)[2] * size_dum[i]
+  CYIM_lmer_best_kernel[,i] <- dnorm(size_dum,
+                                     mean = mu_size,
+                                     sd = exp(pars[[best_model]][1] + pars[[best_model]][2]*mu_size))
+}
+
+levelplot(CYIM_lmer_best_kernel,row.values = size_dum, column.values = size_dum,cuts=30,
+          col.regions=rainbow(30),xlab="log Size t",ylab="log Size t+1",
+          panel = function(...) {
+            panel.levelplot(...)
+            grid.points(log(CYIM$vol_t), log(CYIM$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
+          }) 
+```
+
+Visually, this looks great. But is it any good? No. Scaled residuals are not remotely Gaussian. 
+```{r gaussian_resids}
+scaledResids = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))
+par(mfrow=c(1,2))
+plot(fitted(CYIM_lmer_best), scaledResids) 
+qqPlot(scaledResids) # really bad in both tails
+jarque.test(scaledResids) # normality test: FAILS, P < 0.001 
+anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.001 
+agostino.test(scaledResids) # skewness: FAILS, P<0.001 
+```
+
+One last look at the standardized residuals. They are roughly mean zero and unit variance -- so that checks out. But there is negative skew and excess kurtosis, especially at large sizes. 
+```{r}
+px = fitted(CYIM_lmer_best); py=scaledResids; 
+par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
+z = rollMoments(px,py,windows=10,smooth=TRUE,scaled=TRUE) 
+```
+
+## Finding a better distribution
+We now know the Gaussian provides a poor fit to the residual variance. We would like to know which distribution provides a better - ideally _good_ - fit. Because there is size-dependence in skew and kurtosis, we cannot marginalize over the entire distribution of residuals (this may point us in the wrong direction). Instead, we can slice up the data into bins of expected value and find the best distribution for each bin using gamlss' fitDist(). 
+```{r find_dist,message=F,warning=F}
+n_bins <- 8
+## I need to rewrite this code because it runs fitDist 4 separate times
+select_dist <- tibble(fit_best = fitted(CYIM_lmer_best),
+                      scale_resid = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))) %>% 
+  mutate(bin = as.integer(cut_number(fit_best,n_bins)),
+         best_dist = NA,
+         secondbest_dist = NA,
+         aic_margin = NA) 
+for(b in 1:n_bins){
+  bin_fit <- fitDist(select_dist$scale_resid[select_dist$bin==b],type="realline")
+  select_dist$best_dist[select_dist$bin==b] <- names(bin_fit$fits[1])
+  select_dist$secondbest_dist[select_dist$bin==b] <- names(bin_fit$fits[2])
+  select_dist$aic_margin[select_dist$bin==b] <- bin_fit$fits[2] - bin_fit$fits[1]
+}
+(select_dist %>% 
+  group_by(bin) %>% 
+  summarise(n_bin = n(),
+            best_dist = unique(best_dist),
+            secondbest_dist = unique(secondbest_dist),
+            aic_margin = unique(aic_margin)) -> select_dist)
+```
+
+It's a little bit of everything and convergence is not great (I've suppressed those warnings in this output). The skewed $t$ pops up a lot though, so I will procede with that one and hope in the end the fit is decent. To guide the skewed $t$ fits we can visualize how the higher moments are related to the fitted value. 
+```{r ST_moments}
+CYIM_bin_fit <-CYIM %>% 
+  mutate(fitted = fitted(CYIM_lmer_best),
+         bin = as.integer(cut_number(fitted,n_bins))) %>% 
+  mutate(mu=NA, sigma=NA,nu=NA,tau=NA)
+for(b in 1:n_bins){
+  ## I get the most stable tau estimates with ST3
+  bin_fit <- gamlssML(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==b]) ~ 1,family="ST3")
+  CYIM_bin_fit$mu[CYIM_bin_fit$bin==b] <- bin_fit$mu
+  CYIM_bin_fit$sigma[CYIM_bin_fit$bin==b] <- bin_fit$sigma
+  CYIM_bin_fit$nu[CYIM_bin_fit$bin==b] <- bin_fit$nu
+  CYIM_bin_fit$tau[CYIM_bin_fit$bin==b] <- bin_fit$tau
+}
+CYIM_bin_fit %>% 
+  group_by(bin) %>% 
+  summarise(N = n(),
+            mean_fitted = mean(fitted),
+            mu = unique(mu),
+            sigma=unique(sigma),
+            nu=unique(nu),
+            tau=unique(tau)) -> CYIM_bin_fit
+
+par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);
+## Steve's spline.scatter.smooth() function not working for me and I did not both trying to figure out why
+plot(CYIM_bin_fit$mean_fitted,CYIM_bin_fit$mu,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu )),type="b")
+plot(CYIM_bin_fit$mu,CYIM_bin_fit$sigma,xlab=expression(paste("Location parameter  ", mu )),
+                      ylab=expression(paste("Scale parameter  ", sigma)),type="b")
+plot(CYIM_bin_fit$mu,CYIM_bin_fit$nu,xlab=expression(paste("Location parameter  ", mu )),
+                      ylab=expression(paste("Skewness parameter  ", nu )),type="b")
+plot(CYIM_bin_fit$mu,CYIM_bin_fit$tau,xlab=expression(paste("Location parameter  ", mu )),
+                      ylab=expression(paste("Kurtosis parameter  ", tau)),type="b") 
+```
+
+## Fitting the final model
+Now we can fit a custom model via maximum likelihood, matching the structure of the best lmre model but fitting the random effects as fixed instead and estimating the corresponding variances with Steve's shrinkage methods. The likelihood function is based on the skewed $t$ (using gamlss' dST3() - the parameterization that seemed best behaved.)
+
+First we will defined the linear predictor for the location parameter mu (which is not necessarily the expected value). Note that this with parameterzation, the intercept is year1/plot1.
+```{r model_matrix}
+U=model.matrix(~  0 + year_t + plot + log(vol_t), data=CYIM)
+```
+
+Next define a likelihood function using this linear predictor for the location. For now I am fitting the higher moments as simple linear functions of location. The log links make me sufficient to capture the shapes apparent in the plots above. 
+```{r like_fun}
+LogLik=function(pars,response,U){
+  pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
+  mu = U%*%pars1;  
+  val = dST3(x = response, 
+             mu=mu,
+             sigma = exp(pars2[1] + pars2[2]*mu), 
+             nu = exp(pars2[3] + pars2[4]*mu), 
+             tau = exp(pars2[5] + pars2[6]*mu), log=T) 
+  return(val); 
+}
+```
+
+Now fit it, using the lmer fit as starting parameter values. This comes straight from Steve's PSSP code, including his convergence paranoia, which is probably warranted.
+```{r like_fit, results="hide"}
+coefs = list(5); LL=numeric(5);  
+
+# Starting values from the pilot model are jittered to do multi-start optimization). 
+# Using good starting values really speeds up convergence in the ML fits  
+# Linear predictor coefficients extracted from the lmer model 
+fixed_start = c(unlist(ranef(CYIM_lmer_best)$year_t) + unlist(ranef(CYIM_lmer_best)$plot)[1], #year estimates, conditioned on plot 1
+                unlist(ranef(CYIM_lmer_best)$plot)[-1],
+                fixef(CYIM_lmer_best)[2]) # size slope
+## make sure the dimensions line up
+#length(fixed_start);ncol(U);colnames(U) 
+
+# Shape and scale coefficients from the rollaply diagnostic plots 
+fit_sigma = lm(log(sigma)~mu, data=CYIM_bin_fit)
+fit_nu = lm(log(nu)~mu, data=CYIM_bin_fit)
+fit_tau = lm(log(tau)~mu, data=CYIM_bin_fit)
+p0=c(fixed_start, coef(fit_sigma), coef(fit_nu),coef(fit_tau))
+
+for(j in 1:5) {
+  out=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=log(CYIM$vol_t1),U=U,
+             method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
+  
+  out=maxLik(logLik=LogLik,start=out$estimate,response=log(CYIM$vol_t1),U=U,
+             method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+  
+  out=maxLik(logLik=LogLik,start=out$estimate,response=log(CYIM$vol_t1),U=U,
+             method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
+  
+  coefs[[j]] = out$estimate; LL[j] = out$maximum;
+  cat(j, "#--------------------------------------#",out$maximum,"\n"); 
+}
+
+j = min(which(LL==max(LL))) ## they actually all land on the same likelihood-that's good!
+out=maxLik(logLik=LogLik,start=coefs[[j]],response=log(CYIM$vol_t1),U=U,
+           method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE) 
+
+######### save results of ML fit.  
+names(out$estimate)<-c(colnames(U),"sigma_b0","sigma_b1","nu_b0","nu_b1","tau_b0","tau_b1")
+coefs=out$estimate
+years=1:9
+plots=10:16
+SEs = sqrt(diag(vcov(out))) 
+```
+
+Now use Steve's shrinkage code to get the random effect variances and compare these to the lmer estimates. I will need Steve to explain to me what the shrinkage step is doing, and what is the theory for this (or I should do my own homework). 
+```{r shrinkage_year}
+# shrinkage random effects for (1|year) 
+year_fixed.fx = coefs[years] - mean(coefs[years])
+year_fixed.se = SEs[years]
+year_sigma2.hat = mean(year_fixed.fx^2)-mean(year_fixed.se^2)
+year_shrunk.fx = year_fixed.fx*sqrt(year_sigma2.hat/(year_sigma2.hat + year_fixed.se^2)) 
+# lmer random effects for (1|year) 
+year_ran.fx = ranef(CYIM_lmer_best)["year_t"]
+
+plot(year_ran.fx$year_t$`(Intercept)`,year_shrunk.fx,xlab="lmer year random effects",ylab="Shrunk year fixed effects",type="n")
+text(year_ran.fx$year_t$`(Intercept)`,year_shrunk.fx,labels=rownames(year_ran.fx$year_t))
+abline(0,1,col="blue",lty=2);
+
+tibble(sd_estimate = c(sd(year_fixed.fx),sd(year_shrunk.fx),sd(year_ran.fx$year_t$`(Intercept)`)),
+       method = c("fixed","shrunk","lme4"))
+```
+
+
+The code for plots is more complicated than years, because plot effects were parameterized as contrasts. What is the SE of plot 1?? Is it the mean of the year SEs? -- probably not! I am going to drop plot 1 from the shrunk effects, because I don't know how to calculate its SE. This will bias the variance. 
+
+These estimates don't look as good as the year effects but, again, the shrinkage variance corresponds well to the lme4 esimate.
+
+```{r shrinkage_plot}
+# shrinkage random effects for (1|plot) 
+plot_coefs <- mean(coefs[years])+coefs[plots]
+plot_fixed.fx = plot_coefs - mean(plot_coefs)
+plot_fixed.se = SEs[plots]
+plot_sigma2.hat = mean(plot_fixed.fx^2)-mean(plot_fixed.se^2)
+plot_shrunk.fx = plot_fixed.fx*sqrt(plot_sigma2.hat/(plot_sigma2.hat + plot_fixed.se^2)) 
+# lmer random effects for (1|plot) 
+plot_ran.fx = ranef(CYIM_lmer_best)["plot"]
+
+plot(plot_ran.fx$plot$`(Intercept)`,c(NA,plot_shrunk.fx),xlab="lmer year random effects",ylab="Shrunk year fixed effects",type="n")
+text(plot_ran.fx$plot$`(Intercept)`,c(NA,plot_shrunk.fx),labels=rownames(plot_ran.fx$plot))
+abline(0,1,col="blue",lty=2);
+
+tibble(sd_estimate = c(sd(plot_fixed.fx),sd(plot_shrunk.fx),sd(plot_ran.fx$plot$`(Intercept)`)),
+       method = c("fixed","shrunk","lme4"))
+```
+
+```{r}
+
+```
+
+## Visual diagnostics of model fit via shrinkage
+
