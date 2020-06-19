@@ -37,11 +37,10 @@ CYIM<-read_csv("cholla_demography_20042018_EDI.csv") %>%
          plot = as.factor(Plot),
          year_t = as.factor(Year_t),
          ID = interaction(TagID,plot)) %>%
-  select(year_t,plot,vol_t,vol_t1) %>% 
+  select(ID,year_t,plot,vol_t,vol_t1) %>% 
   filter() %>% 
   ## sort by initial size
   arrange(vol_t) %>% 
-   
   ## drop rows with NAs
   drop_na()
 ```
@@ -50,15 +49,13 @@ CYIM<-read_csv("cholla_demography_20042018_EDI.csv") %>%
 This document walks through growth modeling with the cactus (_Cylyndriopuntia imbricata_, or CYIM) case study. The plants are a little oddly shaped. We measure plant size by taking maximum height, maximum width of the crown, and then an additional width measurement perpendicular to the maximum. We then convert this into the volume of a cone ($cm^3$) and take the natural log of this as the size variable. 
 ```{r pics, echo=FALSE, out.width = '50%', fig.align = 'center'}
 knitr::include_graphics("SEV1.jpg")
-knitr::include_graphics("SEV2.jpg")
 ```
-\newpage
-There are a total of `r length(unique(CYIM$ID))` individuals in the data set spanning `r length(levels(CYIM$plot))` plots or spatial blocks and `r length(levels(CYIM$year_t))` transition-years. There are some additional, earlier years of data but they come from different plots and that was causing problems in the shrinkage model. So I filtered out these early years (above). Note that even in these later years, plots 7 and 8 did not start until 2011. 
+
+There are a total of `r length(unique(CYIM$ID))` individuals in the data set spanning `r length(levels(CYIM$plot))` plots or spatial blocks and `r length(levels(CYIM$year_t))` transition-years. There are some additional, earlier years of data but they come from different plots and that was causing problems in the shrinkage model. So I filtered out these early years. Note that even in these later years, plots 7 and 8 did not start until 2011. 
 ```{r plot_year_breakdown, echo=FALSE}
 table(CYIM$plot,CYIM$year_t)
 ```
 
-There is no 2008 transition year because we started new plots in 2009. So data from 2008 end the 2007 transition-year but did not start a new transition-year. 
 
 ## Gaussian fits
 Use lme4 to fit Gaussian models of the form $size_{t+1} \sim size_{t}$.
@@ -72,7 +69,7 @@ CYIM_lmer_models[[2]] <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|ye
 ```
 
 Now use the iterative re-weighting approach to re-fit these with non-constant variance:
-```{r lmer_reweight, results="hide}
+```{r lmer_reweight, results="hide"}
 ## NegLogLik function to fit variance model for residuals 
 varPars = function(pars) {
   return(-sum(dnorm(resids, mean=0, sd=exp(pars[1] + pars[2]*fitted_vals),log=TRUE)))
@@ -301,10 +298,9 @@ tibble(sd_estimate = c(sd(year_fixed.fx),sd(year_shrunk.fx),sd(year_ran.fx$year_
 ```
 
 
-The code for plots is more complicated than years, because plot effects were parameterized as contrasts. What is the SE of plot 1?? Is it the mean of the year SEs? -- probably not! I am going to drop plot 1 from the shrunk effects, because I don't know how to calculate its SE. This will bias the variance. 
+The code for plots is more complicated than years, because plot effects were parameterized as contrasts. What is the SE of the plot 1 effect?? Is it the mean of the year SEs? -- probably not! I am going to drop plot 1 from the shrunk effects, because I don't know how to calculate its SE. This will bias the variance, hopefully not too much. 
 
 These estimates don't look as good as the year effects but, again, the shrinkage variance corresponds well to the lme4 esimate.
-
 ```{r shrinkage_plot}
 # shrinkage random effects for (1|plot) 
 plot_coefs <- mean(coefs[years])+coefs[plots]
@@ -323,9 +319,34 @@ tibble(sd_estimate = c(sd(plot_fixed.fx),sd(plot_shrunk.fx),sd(plot_ran.fx$plot$
        method = c("fixed","shrunk","lme4"))
 ```
 
-```{r}
-
-```
+Steve had an interesting idea for an alternative way to fit two random effects, with one used as an offset for the other. Might swing back to that, especially since the reference-level problem is nagging at me. 
 
 ## Visual diagnostics of model fit via shrinkage
+Here is the top-level view of the skewed t kernel, shown side by side with the Gaussian kernel from above. This will be the mean kernel, averaged over years and plots.
+```{r ST_kernel}
+CYIM_ST_kernel <- matrix(NA,size_dim,size_dim)
+for(i in 1:size_dim){
+  mu_size <- mean(coefs[c(years,plots)]) + coefs["log(vol_t)"] * size_dum[i]
+  CYIM_ST_kernel[,i] <- dST3(x = size_dum, 
+             mu=mu_size,
+             sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*mu_size), 
+             nu = exp(coefs["nu_b0"] + coefs["nu_b1"]*mu_size), 
+             tau = exp(coefs["tau_b0"] + coefs["tau_b1"]*mu_size)) 
+}
+
+par(mfrow=c(1,2))
+levelplot(CYIM_lmer_best_kernel,row.values = size_dum, column.values = size_dum,cuts=30,
+          col.regions=rainbow(30),xlab="log Size t",ylab="log Size t+1",main="Gaussian, non-constant variance",
+          panel = function(...) {
+            panel.levelplot(...)
+            grid.points(log(CYIM$vol_t), log(CYIM$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
+          }) 
+levelplot(CYIM_ST_kernel,row.values = size_dum, column.values = size_dum,cuts=30,
+          col.regions=rainbow(30),xlab="log Size t",ylab="log Size t+1",main="Skewed t",
+          panel = function(...) {
+            panel.levelplot(...)
+            grid.points(log(CYIM$vol_t), log(CYIM$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
+          })
+
+```
 
