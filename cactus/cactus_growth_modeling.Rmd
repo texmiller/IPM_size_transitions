@@ -19,6 +19,8 @@ require(sgt); require(formatR)
 volume <- function(h, w, p){
   (1/3)*pi*h*(((w + p)/2)/2)^2
 }
+# log kurtosis function for diagnostics
+Lkurtosis=function(x) log(kurtosis(x)); 
 # Steve's diagnostics functions
 source("../Diagnostics.R")
 
@@ -220,23 +222,24 @@ First we will defined the linear predictor for the location parameter mu (which 
 U=model.matrix(~  0 + year_t + plot + log(vol_t), data=CYIM)
 ```
 
-Next define a likelihood function using this linear predictor for the location. For now I am fitting the higher moments as simple linear functions of location. The log links make me sufficient to capture the shapes apparent in the plots above. 
+Next define a likelihood function using this linear predictor for the location. I am including quadratic terms for sigma and tau based on preliminary fit where linear models for these parameters led to a not-so-great fit at some sizes. Quadratic terms are also suggested in the moment plots above.
 ```{r like_fun}
 LogLik=function(pars,response,U){
   pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
   mu = U%*%pars1;  
   val = dST3(x = response, 
              mu=mu,
-             sigma = exp(pars2[1] + pars2[2]*mu), 
-             nu = exp(pars2[3] + pars2[4]*mu), 
-             tau = exp(pars2[5] + pars2[6]*mu), log=T) 
+             sigma = exp(pars2[1] + pars2[2]*mu + pars2[3]*mu^2), 
+             nu = exp(pars2[4] + pars2[5]*mu), 
+             tau = exp(pars2[6] + pars2[7]*mu + pars2[8]*mu^2), log=T) 
   return(val); 
 }
 ```
 
-Now fit it, using the lmer fit as starting parameter values. This comes straight from Steve's PSSP code, including his convergence paranoia, which is probably warranted.
+Now fit it, using the lmer() fit for the mean (location) and lm() fits for the higher moments as starting parameter values. This comes straight from Steve's PSSP code, including his convergence paranoia, which is probably warranted. In preliminary fits, all the iterations converged on the same likelihoods, and this takes forever, so I am skimping on the paranoia here, but we might return to it to make this a good example to follow. This could also be a model selection step; easy to pull AIC from the maxLik fit. 
 ```{r like_fit, results="hide"}
-coefs = list(5); LL=numeric(5);  
+paranoid_iter <- 1
+coefs = list(paranoid_iter); LL=numeric(paranoid_iter);  
 
 # Starting values from the pilot model are jittered to do multi-start optimization). 
 # Using good starting values really speeds up convergence in the ML fits  
@@ -248,12 +251,12 @@ fixed_start = c(unlist(ranef(CYIM_lmer_best)$year_t) + unlist(ranef(CYIM_lmer_be
 #length(fixed_start);ncol(U);colnames(U) 
 
 # Shape and scale coefficients from the rollaply diagnostic plots 
-fit_sigma = lm(log(sigma)~mu, data=CYIM_bin_fit)
+fit_sigma = lm(log(sigma)~mu + I(mu^2), data=CYIM_bin_fit)
 fit_nu = lm(log(nu)~mu, data=CYIM_bin_fit)
-fit_tau = lm(log(tau)~mu, data=CYIM_bin_fit)
+fit_tau = lm(log(tau)~mu + I(mu^2), data=CYIM_bin_fit)
 p0=c(fixed_start, coef(fit_sigma), coef(fit_nu),coef(fit_tau))
 
-for(j in 1:5) {
+for(j in 1:paranoid_iter) {
   out=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=log(CYIM$vol_t1),U=U,
              method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
   
@@ -272,8 +275,9 @@ out=maxLik(logLik=LogLik,start=coefs[[j]],response=log(CYIM$vol_t1),U=U,
            method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE) 
 
 ######### save results of ML fit.  
-names(out$estimate)<-c(colnames(U),"sigma_b0","sigma_b1","nu_b0","nu_b1","tau_b0","tau_b1")
+names(out$estimate)<-c(colnames(U),"sigma_b0","sigma_b1","sigma_b2","nu_b0","nu_b1","tau_b0","tau_b1","tau_b2")
 coefs=out$estimate
+## these are the indices of plot and year effects, to make the next steps a little more intuitive
 years=1:9
 plots=10:16
 SEs = sqrt(diag(vcov(out))) 
@@ -321,6 +325,7 @@ tibble(sd_estimate = c(sd(plot_fixed.fx),sd(plot_shrunk.fx),sd(plot_ran.fx$plot$
 
 Steve had an interesting idea for an alternative way to fit two random effects, with one used as an offset for the other. Might swing back to that, especially since the reference-level problem is nagging at me. 
 
+\newpage
 ## Visual diagnostics of model fit via shrinkage
 Here is the top-level view of the skewed t kernel, shown side by side with the Gaussian kernel from above. This will be the mean kernel, averaged over years and plots.
 ```{r ST_kernel}
@@ -329,9 +334,9 @@ for(i in 1:size_dim){
   mu_size <- mean(coefs[c(years,plots)]) + coefs["log(vol_t)"] * size_dum[i]
   CYIM_ST_kernel[,i] <- dST3(x = size_dum, 
              mu=mu_size,
-             sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*mu_size), 
+             sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*mu_size + coefs["sigma_b2"]*mu_size^2), 
              nu = exp(coefs["nu_b0"] + coefs["nu_b1"]*mu_size), 
-             tau = exp(coefs["tau_b0"] + coefs["tau_b1"]*mu_size)) 
+             tau = exp(coefs["tau_b0"] + coefs["tau_b1"]*mu_size + coefs["tau_b2"]*mu_size^2)) 
 }
 
 par(mfrow=c(1,2))
@@ -348,5 +353,126 @@ levelplot(CYIM_ST_kernel,row.values = size_dum, column.values = size_dum,cuts=30
             grid.points(log(CYIM$vol_t), log(CYIM$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
           })
 
+```
+
+Now finer diagnostics comparing moments and quantiles of the real data against data generated by the fitted models. I am including the Gaussian and ST models for comparison. Now that I know a quadratic term for sigma improves fit, it might be fairer to included this in the Gaussian model, but proceeding with the original form of non-constant variance for now. 
+
+The skewed t model generally looks to be fitting well. Is it a strikingly better fit than the Gaussian? In mean and SD, no, which is not surprising because non-constant variance in lme4 can generally handle those. The fitted skewness of the ST is not particularly impressive, at least in this visualization, because the model can generate data with a really wide range of skewness just by chance, including positive and negative skew. Not sure yet if this is a problem, or just a natural consequence of the skewed t or skewed distributions generally. Kurtosis looks great and this is a clear 'winner' over the Gaussian.
+```{r ST_binned_diagnostics, echo=F}
+# Simulate data from fitted SHASH model
+MLmu = U%*%coefs[1:ncol(U)] 
+
+n_sim <- 500
+cactus_sim<-cactus_sim_norm<-matrix(NA,nrow=nrow(CYIM),ncol=n_sim)
+for(i in 1:n_sim){
+  cactus_sim[,i] <- rST3(n = nrow(CYIM), 
+                    mu = MLmu, 
+					   sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*MLmu  + coefs["sigma_b2"]*MLmu^2), 
+             nu = exp(coefs["nu_b0"] + coefs["nu_b1"]*MLmu), 
+             tau = exp(coefs["tau_b0"] + coefs["tau_b1"]*MLmu + coefs["tau_b2"]*MLmu^2))
+  cactus_sim_norm[,i] <- rnorm(n = nrow(CYIM),
+                               mean = predict(CYIM_lmer_best),
+                               sd = exp(pars[[best_model]][1] + pars[[best_model]][2]*predict(CYIM_lmer_best)))
+}
+
+n_bins = 10
+alpha_scale = 0.7
+cactus_moments <- CYIM %>% 
+  arrange(log(vol_t)) %>% 
+  mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+  group_by(size_bin) %>% 
+  summarise(mean_t1 = mean(log(vol_t1)),
+            sd_t1 = sd(log(vol_t1)),
+            skew_t1 = skewness(log(vol_t1)),
+            kurt_t1 = Lkurtosis(log(vol_t1)),
+            bin_mean = mean(log(vol_t)),
+            bin_n = n()) 
+
+par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2,1,0),bty="l"); 
+sim_bin_means=sim_moment_means=sim_moment_means_norm = matrix(NA,n_bins,n_sim); 
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(CYIM,data.frame(sim=cactus_sim[,i],
+                                             sim_norm=cactus_sim_norm[,i])) %>% 
+    arrange(log(vol_t)) %>% 
+    mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_t1 = mean(sim),
+              mean_t1_norm = mean(sim_norm),
+              bin_mean = mean(log(vol_t)))
+	sim_bin_means[,i]=sim_moments$bin_mean; 
+	sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;		  
+}
+
+matplot(cactus_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="mean(Size t1)",cex=1.4)
+matplot(cactus_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.5),pch=16,add=T)
+points(cactus_moments$bin_mean+0.2, cactus_moments$mean_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+legend("topleft",legend=c("Skewed t","Gaussian","Median","Data"),
+col=c(alpha("gray",0.5),alpha("cornflowerblue",0.5),alpha("black",alpha_scale), alpha("red",alpha_scale)),pch=1,lwd=2,bty="n"); 
+add_panel_label("a")
+
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(CYIM,data.frame(sim=cactus_sim[,i],
+                                             sim_norm=cactus_sim_norm[,i])) %>% 
+    arrange(log(vol_t)) %>% 
+    mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_t1 = sd(sim),
+              mean_t1_norm = sd(sim_norm),
+              bin_mean = mean(log(vol_t)))
+	sim_bin_means[,i]=sim_moments$bin_mean; 
+	sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;		  
+}
+matplot(cactus_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="SD(Size t1)",cex=1.4) 
+matplot(cactus_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.5),pch=16,add=T)
+points(cactus_moments$bin_mean+0.2, cactus_moments$sd_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+add_panel_label("b")
+
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(CYIM,data.frame(sim=cactus_sim[,i],
+                                             sim_norm=cactus_sim_norm[,i])) %>% 
+    arrange(log(vol_t)) %>% 
+    mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_t1 = skewness(sim),
+              mean_t1_norm = skewness(sim_norm),
+              bin_mean = mean(log(vol_t)))
+	sim_bin_means[,i]=sim_moments$bin_mean; 
+	sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;	  
+}
+matplot(cactus_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Skew(Size t1)",cex=1.4)
+matplot(cactus_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.5),pch=16,add=T)
+points(cactus_moments$bin_mean+0.2, cactus_moments$skew_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+add_panel_label("c")
+
+for(i in 1:n_sim){
+    sim_moments <- bind_cols(CYIM,data.frame(sim=cactus_sim[,i],
+                                             sim_norm=cactus_sim_norm[,i])) %>% 
+    arrange(log(vol_t)) %>% 
+    mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_t1 = Lkurtosis(sim),
+              mean_t1_norm = Lkurtosis(sim_norm),
+              bin_mean = mean(log(vol_t)))
+	sim_bin_means[,i]=sim_moments$bin_mean; 
+	sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;	  
+}
+matplot(cactus_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Log kurtosis(Size t1)",cex=1.4)
+matplot(cactus_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.5),pch=16,add=T)
+points(cactus_moments$bin_mean+0.2, cactus_moments$kurt_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+add_panel_label("d")
+
+```
+
+Steve wrote this nifty function to do something similar but with quantiles. I have not added the Gaussian comparison but this might be worth doing. 
+```{r quantile_diagnostics}
+quantileComparePlot(log(CYIM$vol_t),log(CYIM$vol_t1),cactus_sim,n_bins)
 ```
 
