@@ -487,6 +487,8 @@ plot(log(CYIM_full$vol_t),CYIM_full$Survival_t1,xlab="log Size_t",ylab="Survival
 lines(size_dum,invlogit(fixef(surv_mod)[1]+fixef(surv_mod)[2]*size_dum),lwd=3)
 plot(log(CYIM_full$vol_t),log(CYIM_full$vol_t1),xlab="log Size_t",ylab="log Size_t+1",col=alpha("gray",0.5))
 lines(size_dum,mean(coefs[c(years,plots)]) + coefs["log(vol_t)"] * size_dum,lwd=3)
+lines(size_dum,fixef(CYIM_lmer_best)[1]+fixef(CYIM_lmer_best)[2]*size_dum,col="red")
+legend("topleft",legend=c("ST location","lmer mean"),lwd=c(2,1),col=c("black","red"))
 plot(log(CYIM_full$vol_t),CYIM_full$Goodbuds_t1>0,xlab="log Size_t",ylab="Flowering",col=alpha("gray",0.5))
 lines(size_dum,invlogit(fixef(flow_mod)[1]+fixef(flow_mod)[2]*size_dum),lwd=3)
 plot(log(CYIM_full$vol_t[CYIM_full$Goodbuds_t1>0]),CYIM_full$Goodbuds_t1[CYIM_full$Goodbuds_t1>0],xlab="log Size_t",ylab="Fertility",col=alpha("gray",0.5))
@@ -562,12 +564,36 @@ cactus_params$max.size <- log(max(CYIM$vol_t1))
 source("cactus_IPM_source_fns.R")
 
 mat.size = 200
-lower.extension = -0.2
-upper.extension = 1
+lower.extension = -2
+upper.extension = 1.5
 kernel_ST <- bigmatrix(params = cactus_params,
           lower.extension = lower.extension, 
           upper.extension = upper.extension,
           mat.size = mat.size,
           dist="ST")
+kernel_norm <- bigmatrix(params = cactus_params,
+          lower.extension = lower.extension, 
+          upper.extension = upper.extension,
+          mat.size = mat.size,
+          dist="norm")
+
+lambda(kernel_ST$IPMmat);lambda(kernel_norm$IPMmat)
+
+plot(kernel_ST$meshpts,stable.stage(kernel_ST$IPMmat)[3:(mat.size+2)],type="l")
+lines(kernel_norm$meshpts,stable.stage(kernel_norm$IPMmat)[3:(mat.size+2)],type="l",lty=2)
+
+CYIM %>% 
+  ggplot()+
+  geom_histogram(aes(x=log(vol_t),fill=as.factor(year_t)),position = "dodge")+
+  theme(legend.position = "none") +
+  xlab("log volume") + ylab("Observed frequency")
+
+```
+
+Here is the future size distribution for the most common size in the population. ***SOMETHING IS WRONG. ST PEAK IS NOT MOVING AS I CHANGE STARTING SIZE.
+```{r}
+
+plot(size_dum,gxy_ST(x=8,y=size_dum,params=cactus_params),type="l")
+lines(size_dum,gxy_norm(x=8,y=size_dum,params=cactus_params),lty=2)
 ```
 
