@@ -18,7 +18,7 @@ gxy_norm<-function(x,y,params){
   xb=pmin(pmax(x,params$min.size),params$max.size) #Transforms all values below/above limits in min/max size
   grow_mu <- params$grow.mu.norm + params$grow.bsize.norm * xb
   grow_sd <- exp(params$grow.sd.b0 + params$grow.sd.b1*grow_mu)
-  return(dnorm(y,mean=grow_mu,sd=growth_sd))
+  return(dnorm(y,mean=grow_mu,sd=grow_sd))
     
 }
 
@@ -31,7 +31,7 @@ sx<-function(x,params){
 
 ## COMBINED GROWTH_SURVIVAL
 pxy <- function(x,y,params,dist){
-  result <- ifelse(dist=="ST",sx(x,params)*gxy_ST(x,y,params),sx(x,params)*gxy_norm(x,y,params))
+  result <- sx(x,params)*do.call(paste0("gxy_",dist),list(x,y,params))
   return(result)
 }
 
