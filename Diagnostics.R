@@ -57,6 +57,55 @@ rollMoments=function(px,py,windows=10,smooth=TRUE,scaled=TRUE) {
 return(list(rollx=rollx,rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollskew=rollskew))
 }
 
+###############################################################################
+# Nonparametric measures of skew and excess kurtosis
+###############################################################################
+NPskewness=function(x) (mean(x)-median(x))/sd(x) 
+
+NPkurtosis=function(x) {
+	q = quantile(x,c(0.05,0.25,0.75,0.95))
+	u = (q[4]-q[1])/(q[3]-q[2]) - 2.438664
+	return (as.numeric(u)) 
+}
+
+#####################################################################################
+## Rollapply moment diagnostics on mean, SD, Nonparametric skew, excess Nonparametric kurtosis 
+## Inputs: 
+##	  px is the covariate (vector), py is the response (vector of equal length)
+##    windows (number) determines window size, by stating how many 
+##       non-overlapping windows would include the entire data set. 
+##		 The default windows=10 means each window includes 10% of the data
+##    smooth=TRUE results in calling spline.scatter.smooth to make plots
+##    scaled=TRUE adds benchmarks mean=0,sd=1,skew=excess kurtosis=3 to the plots
+#####################################################################################
+rollMomentsNP=function(px,py,windows=10,smooth=TRUE,scaled=TRUE) {
+
+  e = order(px); px=px[e]; py=py[e];  
+
+  width=round(length(px)/windows); by=round(width/2); 
+  rollx=rollapply(px,width=width,mean,by=by);
+  rollmean = rollapply(py,width=width,mean,by=by); 
+  rollsd=rollapply(py,width=width,sd,by=by); 
+  rollkurt=rollapply(py,width=width,NPkurtosis,by=by);
+  rollskew=rollapply(py,width=width,NPskewness,by=by);
+
+  if(smooth) {
+  par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.4,bty="l"); 
+  spline.scatter.smooth(rollx,rollmean,gamma=2,xlab="Fitted values",ylab="Mean");
+  if(scaled) abline(h=0,col="red",lty=2,lwd=2) 
+
+  spline.scatter.smooth(rollx,rollsd,gamma=2,xlab="Fitted values",ylab="Std Dev"); 
+  if(scaled) abline(h=1,col="red",lty=2,lwd=2) 
+
+  spline.scatter.smooth(rollx,rollskew,gamma=2,xlab="Fitted values",ylab="Skew"); 
+  if(scaled) abline(h=0,col="red",lty=2,lwd=2) 
+
+  spline.scatter.smooth(rollx,rollkurt,gamma=2,xlab="Fitted values",ylab="Kurtosis"); 
+  if(scaled) abline(h=0,col="red",lty=2,lwd=2)
+}
+return(list(rollx=rollx,rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollskew=rollskew))
+}
+
 ###########################################################################################
 ## Tom copied the quantile comparison function here
 #########################################################################################
