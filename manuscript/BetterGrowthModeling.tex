@@ -207,7 +207,10 @@ from Gaussian: are there skew and kurtosis, and if so, how do those vary across 
 are as expected under the pilot model, skip to the last step. 
 \item Otherwise, identify a distribution with nonzero skew and/or kurtosis that can fit the observed properties of the 
 standardized residuals. 
-
+\item \new{If skew and/or kurtosis are not constant as functions of initial size and other covariates, use graphical diagnostics
+to identify how the shape and skew parameters of the chosen distribution vary as a function of initial size, 
+or (when there are other covariates or random effects) as a function of the predicted final size
+from the Gaussian model with nonconstant growth variance.}   
 \item Refit the growth model using the chosen distribution, with shape (skew and kurtosis) varying according to the patterns 
 seen in the graphical diagnostics. How this can be done depends on features of the model at hand, in particular whether or not it
 includes random effects. 
@@ -222,12 +225,51 @@ as a function of size and other covariates. However, we recommend that formal st
 should not be the basis for specifying the final regression model. Rather, its form should be chosen to 
 match observable properties of the scaled residuals, and at most slightly modified based on final diagnostic tests. 
 
+\section{How should skewness and kurtosis be measured?}
+The standard measures of skewness (asymmetry) and excess kurtosis (tail thickness, relative to a Gaussian distribution) are based
+on the third and fourth central moments, respectively, of the distribution. 
+\be
+\mbox{Skewness} = \frac{m_3}{\sigma^3}, \quad \mbox{Excess kurtosis} = \frac{m_4}{\sigma^4}-3
+\ee
+where $m_k$ is the $k^{th}$ central moment, $\mathbb{E}(X - \bar{X})^k$ and $\sigma^2$ is the variance (second central moment). 
+A Gaussian distribution has zero skewness, and zero excess kurtosis. 
+
+These are familiar and easy to calculate, but their use for choosing and evaluating a growth model is hindered by their
+poor sampling properties. Estimates based on sample moments involve high powers of data values, and as a result, outliers in
+the data will produce extreme outliers in the sample estimates. Figure \ref{fig:NPmoments} shows a simulated example, where the
+underlying ``data'' are a sample of size 200 from a $t$ distribution with 10 degrees of freedom; the true skew is 0, and the 
+true excess kurtosis is very close to 1. The distance between the largest and smallest sample values (indicated by the dotted red
+vertical lines), relative to the distance between the 5th and 95th percentiles, shows the extent of atypical extreme values
+that are generated. 
+
+We therefore use ``nonparametric'' (NP) measures of skew and kurtosis that are not so sensitive to extreme values: 
+\be
+\begin{aligned}
+\mbox{NP Skewness} & = \frac{\mbox{Mean - Median}}{\sigma}, \\
+\mbox{NP Excess Kurtosis} & = \frac{\mbox{95th percentile - 5th percentile}}{\mbox{75th percentile-25th percentile}} -  2.438664
+\end{aligned}
+\ee
+Note 2.438664 is the value of the percentile ratio for a Gaussian, so that a Gaussian distribution also has zero NP skewness,
+and zero NP kurtosis. The sampling distributions are much less prone to extreme values (fig. \ref{fig:NPmoments}) so they 
+will be more useful here for comparing candidate theoretical distributions with observed growth increments based on skewness
+and kurtosis. 
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{figures/NPmoments.pdf}
+\caption{Histograms of skewness and kurtosis estimates using the usual moment-based definitions, compared with the nonparametric
+skewness and kurtosis measures. Histograms are based on 5000 replicate draws of a sample of 200 independent values fron 
+a $t$ distribution with 10 degrees of freedom. 
+Dotted red vertical lines mark the range of sample estimates, and dashed blue lines show the 5th and 95th percentiles.
+True value is indicated by a black dot on the $x$-axis.}
+\label{fig:NPmoments}
+\end{figure} 
 
 \section{Case study: bunchgrass, \emph{Pseudoroegneria spicata}}
 
-We again consider a species where one of is a repeat offender, using the default model initially because 
-it was hard to do better then \citep{adler-etal-2010}, but sticking with it long after that 
-\citep[e.g.,][]{Tredennick2018, Adler-2018}. 
+We again consider a species where one of us a repeat offender -- initially using the default model because 
+it was hard to do better at the time \citep{adler-etal-2010}, but sticking with it 
+\citep[e.g.,][]{Tredennick2018, Adler-2018} when it would have been easy to do better.   
 
 NOTE: for now, this is just an outline of methods and results. 
 
@@ -264,7 +306,7 @@ In contrast, there are large trends in the skew and kurtosis.
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=.9\textwidth]{figures/RollingMomentsPSSP.pdf}
+\includegraphics[width=.9\textwidth]{figures/RollingNPMomentsPSSP.pdf}
 \caption{Rolling moments of scaled residuals from the pilot model, as a function of fitted
 values, for \emph{P. spicata}. The dashed red line is the value expected if the pilot model fits the
 data, in particular skew=0 and kurtosis=3.}
