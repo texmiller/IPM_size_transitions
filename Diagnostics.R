@@ -91,16 +91,16 @@ rollMomentsNP=function(px,py,windows=10,smooth=TRUE,scaled=TRUE) {
 
   if(smooth) {
   par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.4,bty="l"); 
-  spline.scatter.smooth(rollx,rollmean,gamma=2,xlab="Fitted values",ylab="Mean");
+  spline.scatter.smooth(rollx,rollmean,gamma=2.8,xlab="Fitted values",ylab="Mean");
   if(scaled) abline(h=0,col="red",lty=2,lwd=2) 
 
-  spline.scatter.smooth(rollx,rollsd,gamma=2,xlab="Fitted values",ylab="Std Dev"); 
+  spline.scatter.smooth(rollx,rollsd,gamma=2.8,xlab="Fitted values",ylab="Std Dev"); 
   if(scaled) abline(h=1,col="red",lty=2,lwd=2) 
 
-  spline.scatter.smooth(rollx,rollskew,gamma=2,xlab="Fitted values",ylab="Skew"); 
+  spline.scatter.smooth(rollx,rollskew,gamma=2.8,xlab="Fitted values",ylab="Skew"); 
   if(scaled) abline(h=0,col="red",lty=2,lwd=2) 
 
-  spline.scatter.smooth(rollx,rollkurt,gamma=2,xlab="Fitted values",ylab="Kurtosis"); 
+  spline.scatter.smooth(rollx,rollkurt,gamma=2.8,xlab="Fitted values",ylab="Kurtosis"); 
   if(scaled) abline(h=0,col="red",lty=2,lwd=2)
 }
 return(list(rollx=rollx,rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollskew=rollskew))
