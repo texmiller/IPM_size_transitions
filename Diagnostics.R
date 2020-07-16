@@ -79,7 +79,7 @@ NPkurtosis=function(x,p=0.05) {
 	qN = qnorm(c(p,0.25,0.75,1-p))
 	u = (q[4]-q[1])/(q[3]-q[2]);
 	uN = (qN[4]-qN[1])/(qN[3]-qN[2]);
-	return (as.numeric(u-uN)) 
+	return (as.numeric(u/uN-1)) 
 }
 	
 #####################################################################################

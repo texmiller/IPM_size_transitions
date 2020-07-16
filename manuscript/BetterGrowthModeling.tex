@@ -226,34 +226,47 @@ should not be the basis for specifying the final regression model. Rather, its f
 match observable properties of the scaled residuals, and at most slightly modified based on final diagnostic tests. 
 
 \section{How should skewness and kurtosis be measured?}
-The standard measures of skewness (asymmetry) and excess kurtosis (tail thickness, relative to a Gaussian distribution) are based
-on the third and fourth central moments, respectively, of the distribution. 
+The standard measures of skewness (asymmetry) and excess kurtosis (tail thickness, relative 
+to a Gaussian distribution) are based on the third and fourth central moments, respectively, of the distribution: 
 \be
 \mbox{Skewness} = \frac{m_3}{\sigma^3}, \quad \mbox{Excess kurtosis} = \frac{m_4}{\sigma^4}-3
 \ee
-where $m_k$ is the $k^{th}$ central moment, $\mathbb{E}(X - \bar{X})^k$ and $\sigma^2$ is the variance (second central moment). 
+where $m_k = \mathbb{E}(X - \bar{X})^k$ is the $k^{th}$ central moment and $\sigma^2$ is the variance (second central moment). 
 A Gaussian distribution has zero skewness, and zero excess kurtosis. 
 
-These are familiar and easy to calculate, but their use for choosing and evaluating a growth model is hindered by their
-poor sampling properties. Estimates based on sample moments involve high powers of data values, and as a result, outliers in
-the data will produce extreme outliers in the sample estimates. Figure \ref{fig:NPmoments} shows a simulated example, where the
-underlying ``data'' are a sample of size 200 from a $t$ distribution with 10 degrees of freedom; the true skew is 0, and the 
-true excess kurtosis is very close to 1. The distance between the largest and smallest sample values (indicated by the dotted red
+These are easy to calculate but their use for choosing and evaluating growth models is hindered by their
+poor sampling properties. Estimates from data involve high powers of data values, and as a result, it only takes a 
+a few outliers in the data to produce a very inaccurate estimate. Figure \ref{fig:NPmoments} shows a simulated example, where the
+underlying ``data'' are a sample of size 200 from a $t$ distribution with 18 degrees of freedom; the true skew is 0, and the 
+true excess kurtosis is 1.5. The distance between the largest and smallest estimates (indicated by the dotted red
 vertical lines), relative to the distance between the 5th and 95th percentiles, shows the extent of atypical extreme values
 that are generated. 
 
-We therefore use ``nonparametric'' (NP) measures of skew and kurtosis that are based on quantiles, and are therefore
-no so sensitive to extreme values: 
+We therefore use ``nonparametric'' (NP) measures of skew and kurtosis that are based on quantiles and therefore are 
+less sensitive to extreme values. Let $q_\alpha$ denote the $\alpha$ quantile of a distribution or sample (e.g., $q_{0.05}$ 
+is the 5th percentile. For any $0 < \alpha < 0.5$ a quantile-based measure of skewness is given by \citep{mcgillivray-1986}
 \be
-\begin{aligned}
-\mbox{NP Skewness} & = \frac{\mbox{Mean - Median}}{\sigma}, \mbox{THIS HAS BEEN CHANGED} \\
-\mbox{NP Excess Kurtosis} & = \frac{\mbox{95th percentile - 5th percentile}}{\mbox{75th percentile-25th percentile}} -  2.438664
-\end{aligned}
+\mbox{NP Skewness} = \frac{q_\alpha + q_{1-\alpha} - 2 q_{0.5}}{q_{1-\alpha} - q_\alpha}.
 \ee
-Note 2.438664 is the value of the percentile ratio for a Gaussian, so that a Gaussian distribution also has zero NP skewness,
-and zero NP kurtosis. The sampling distributions are much less prone to extreme values (fig. \ref{fig:NPmoments}) so they 
-will be more useful here for comparing candidate theoretical distributions with observed growth increments based on skewness
-and kurtosis. 
+NP Skewness is a measure of asymmetry between the tails of the distribution above and below its median. The size of the upper
+tail can be measured (for any given $\alpha$) by $\tau_U = q_{1-\alpha} - q_{0.5}$; for $\alpha=0.05$ this is the difference
+between the 95th percentile and the median. The lower tail size is $\tau_L = q_{0.5} - q_\alpha$. The definition above
+is equivalent to  
+\be
+\mbox{NP Skewness} = \frac{\tau_U - \tau_L}{(\tau_U + \tau_L)/2}.
+\ee
+So an NP Skewness of $\pm 0.2$ says that the difference in tail sizes is 20\% of their average. The range of possible values 
+is -1 to 1. We use $\alpha=0.1$ here, but other values may be more informative depending on the data set. 
+ 
+An analogous quantile-based measure of kurtosis is 
+\be
+\mbox{NP Kurtosis}  = \frac{q_{1-\alpha} - q_{\alpha}}{q_{0.75} - q_{0.25}}.
+\ee
+For $\alpha=0.05$, NP Kurtosis is the difference between the 95th and 5th percentiles, relative to the interquartile range. 
+To facilitate interpretation, we scale this measure relative to the kurtosis of a Gaussian distribution, and substract 1. 
+This gives a ``NP Excess Kurtosis'' such that a Gaussian distribution has value 0. A value of 0.2 means that the tails
+are (on average) 20\% broader than those of a Gaussian with the same interquartile range, and a value of -0.2 means that the tails
+are (on average) 20\% narrower than a Gaussian with the same interquartile range. 
 
 \begin{figure}[tbp]
 \centering
