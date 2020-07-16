@@ -42,10 +42,10 @@ rollMoments=function(px,py,windows=10,smooth=TRUE,scaled=TRUE) {
 
   if(smooth) {
   par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.4,bty="l"); 
-  spline.scatter.smooth(rollx,rollmean,gamma=2,xlab="Fitted values",ylab="Mean");
+  spline.scatter.smooth(rollx,rollmean,gamma=2,xlab="Fitted values",ylab="Mean", ylim=c(-1,1));
   if(scaled) abline(h=0,col="red",lty=2,lwd=2) 
 
-  spline.scatter.smooth(rollx,rollsd,gamma=2,xlab="Fitted values",ylab="Std Dev"); 
+  spline.scatter.smooth(rollx,rollsd,gamma=2,xlab="Fitted values",ylab="Std Dev",ylim=c(0,2)); 
   if(scaled) abline(h=1,col="red",lty=2,lwd=2) 
 
   spline.scatter.smooth(rollx,rollskew,gamma=2,xlab="Fitted values",ylab="Skew"); 
@@ -60,11 +60,18 @@ return(list(rollx=rollx,rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollsk
 ###############################################################################
 # Nonparametric measures of skew and excess kurtosis
 ###############################################################################
+NPsd = function(x) {
+	u = diff(quantile(x,c(0.25,0.75))/(qnorm(0.75)-qnorm(0.25)))
+	as.numeric(u)
+}	
+	
 NPskewness=function(x) (mean(x)-median(x))/sd(x) 
 
-NPkurtosis=function(x) {
-	q = quantile(x,c(0.05,0.25,0.75,0.95))
-	u = (q[4]-q[1])/(q[3]-q[2]) - 2.438664
+NPkurtosis=function(x,p=0.05) {
+	q = quantile(x,c(p,0.25,0.75,1-p))
+	u = (q[4]-q[1])/(q[3]-q[2]) 
+	
+
 	return (as.numeric(u)) 
 }
 
@@ -90,17 +97,17 @@ rollMomentsNP=function(px,py,windows=10,smooth=TRUE,scaled=TRUE) {
   rollskew=rollapply(py,width=width,NPskewness,by=by);
 
   if(smooth) {
-  par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.4,bty="l"); 
-  spline.scatter.smooth(rollx,rollmean,gamma=2.8,xlab="Fitted values",ylab="Mean");
+  par(mfrow=c(2,2),mar=c(4,5,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2.2,1,0),bty="l"); 
+  spline.scatter.smooth(rollx,rollmean,gamma=2.8,xlab="Fitted values",ylab="Mean", ylim=c(-1,1));
   if(scaled) abline(h=0,col="red",lty=2,lwd=2) 
 
-  spline.scatter.smooth(rollx,rollsd,gamma=2.8,xlab="Fitted values",ylab="Std Dev"); 
+  spline.scatter.smooth(rollx,rollsd,gamma=2.8,xlab="Fitted values",ylab="Std Dev",ylim=c(0,2)); 
   if(scaled) abline(h=1,col="red",lty=2,lwd=2) 
 
-  spline.scatter.smooth(rollx,rollskew,gamma=2.8,xlab="Fitted values",ylab="Skew"); 
+  spline.scatter.smooth(rollx,rollskew,gamma=2.8,xlab="Fitted values",ylab="NP Skew"); 
   if(scaled) abline(h=0,col="red",lty=2,lwd=2) 
 
-  spline.scatter.smooth(rollx,rollkurt,gamma=2.8,xlab="Fitted values",ylab="Kurtosis"); 
+  spline.scatter.smooth(rollx,rollkurt,gamma=2.8,xlab="Fitted values",ylab="NP Kurtosis"); 
   if(scaled) abline(h=0,col="red",lty=2,lwd=2)
 }
 return(list(rollx=rollx,rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollskew=rollskew))

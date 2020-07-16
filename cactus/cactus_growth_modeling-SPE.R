@@ -91,7 +91,7 @@ aics = unlist(lapply(CYIM_lmer_models,AIC)); best_model=which(aics==min(aics));
 CYIM_lmer_best = CYIM_lmer_models[[best_model]] 
 best_weights = weights(CYIM_lmer_best)
 CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|year_t) + (1|plot), data=CYIM,weights=best_weights,REML=TRUE) 
-
+CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,weights=best_weights,REML=TRUE) 
 
 # Now visualize this kernel. This model is the *very best* we could do in a Gaussian framework 
 # (assuming there are no major fixed effects we are missing).
@@ -129,11 +129,11 @@ agostino.test(scaledResids) # skewness: FAILS, P<0.001
 # so that checks out. But there is negative skew and excess kurtosis, especially at large sizes. 
 px = fitted(CYIM_lmer_best); py=scaledResids; 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
-
 z = rollMoments(px,py,windows=8,smooth=TRUE,scaled=TRUE) 
 
 ##### Use nonparametric measures of skew and excess kurtosis. 
 dev.new(); z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE) 
+
 
 
 ## Finding a better distribution
