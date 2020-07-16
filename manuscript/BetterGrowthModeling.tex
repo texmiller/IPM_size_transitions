@@ -242,10 +242,11 @@ true excess kurtosis is very close to 1. The distance between the largest and sm
 vertical lines), relative to the distance between the 5th and 95th percentiles, shows the extent of atypical extreme values
 that are generated. 
 
-We therefore use ``nonparametric'' (NP) measures of skew and kurtosis that are not so sensitive to extreme values: 
+We therefore use ``nonparametric'' (NP) measures of skew and kurtosis that are based on quantiles, and are therefore
+no so sensitive to extreme values: 
 \be
 \begin{aligned}
-\mbox{NP Skewness} & = \frac{\mbox{Mean - Median}}{\sigma}, \\
+\mbox{NP Skewness} & = \frac{\mbox{Mean - Median}}{\sigma}, \mbox{THIS HAS BEEN CHANGED} \\
 \mbox{NP Excess Kurtosis} & = \frac{\mbox{95th percentile - 5th percentile}}{\mbox{75th percentile-25th percentile}} -  2.438664
 \end{aligned}
 \ee

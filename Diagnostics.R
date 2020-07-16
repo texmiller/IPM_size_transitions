@@ -58,23 +58,30 @@ return(list(rollx=rollx,rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollsk
 }
 
 ###############################################################################
-# Nonparametric measures of skew and excess kurtosis
+# Nonparametric measures of scale, skew and excess kurtosis
 ###############################################################################
 NPsd = function(x) {
 	u = diff(quantile(x,c(0.25,0.75))/(qnorm(0.75)-qnorm(0.25)))
 	as.numeric(u)
 }	
 	
-NPskewness=function(x) (mean(x)-median(x))/sd(x) 
+NPskewness.Pearson = function(x) 3*(mean(x)-median(x))/sd(x) 
+
+NPskewness = function(x,p=0.1) {
+	q = quantile(x,c(p,0.5,1-p))
+	u = (q[3]+q[1]-2*q[2])/(q[3]-q[1]);
+	return(as.numeric(u)); 
+	
+}	
 
 NPkurtosis=function(x,p=0.05) {
 	q = quantile(x,c(p,0.25,0.75,1-p))
-	u = (q[4]-q[1])/(q[3]-q[2]) 
-	
-
-	return (as.numeric(u)) 
+	qN = qnorm(c(p,0.25,0.75,1-p))
+	u = (q[4]-q[1])/(q[3]-q[2]);
+	uN = (qN[4]-qN[1])/(qN[3]-qN[2]);
+	return (as.numeric(u-uN)) 
 }
-
+	
 #####################################################################################
 ## Rollapply moment diagnostics on mean, SD, Nonparametric skew, excess Nonparametric kurtosis 
 ## Inputs: 
