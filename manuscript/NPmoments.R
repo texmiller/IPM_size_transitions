@@ -32,23 +32,23 @@ dev.new(height=5,width=8);
 par(mfcol=c(2,2),mar=c(4,4,2,2),mgp=c(2.2,1,0),cex.axis=1.3,cex.lab=1.3);
 hist(sampSkew,50,xlab="Skewness",main="Skewness");
 abline(v=qB(sampSkew),col="blue",lty=2,lwd=2); 
-abline(v=qB2(sampSkew),col="red",lty=3,lwd=2); 
-points(0,0,col="black",pch=16,cex=1.5); 
+abline(v=qB2(sampSkew),col="red",lty=3,lwd=3); 
+points(0,0,col="black",pch=16,cex=1.75); 
 
 hist(sampNPSkew,50,xlab="NP Skewness",main="NP Skewness");
 abline(v=qB(sampNPSkew),col="blue",lty=2,lwd=2); 
-abline(v=qB2(sampNPSkew),col="red",lty=3,lwd=2); 
-points(0,0,col="black",pch=16,cex=1.5);
+abline(v=qB2(sampNPSkew),col="red",lty=3,lwd=3); 
+points(0,0,col="black",pch=16,cex=1.75);
 
 hist(sampK,50,xlab="Excess Kurtosis",main="Excess Kurtosis"); 
 abline(v=qB(sampK),col="blue",lty=2,lwd=2); 
-abline(v=qB2(sampK),col="red",lty=3,lwd=2); 
-points(trueK-3,0,col="black",pch=16,cex=1.5);
+abline(v=qB2(sampK),col="red",lty=3,lwd=3); 
+points(trueK-3,0,col="black",pch=16,cex=1.75);
 
 hist(sampNPK,50,xlab="NP Excess Kurtosis",main="Excess NP Kurtosis"); 
 abline(v=qB(sampNPK),col="blue",lty=2,lwd=2); 
-abline(v=qB2(sampNPK),col="red",lty=3,lwd=2); 
-points(trueNPK,0,col="black",pch=16,cex=1.5);
+abline(v=qB2(sampNPK),col="red",lty=3,lwd=3); 
+points(trueNPK,0,col="black",pch=16,cex=1.75);
 
 dev.copy2pdf(file="figures/NPmoments.pdf"); 
 
