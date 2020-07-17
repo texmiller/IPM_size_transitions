@@ -45,7 +45,7 @@ abline(v=qB(sampK),col="blue",lty=2,lwd=2);
 abline(v=qB2(sampK),col="red",lty=3,lwd=2); 
 points(trueK-3,0,col="black",pch=16,cex=1.5);
 
-hist(sampNPK,50,xlab="Excess NP Kurtosis",main="Excess NP Kurtosis"); 
+hist(sampNPK,50,xlab="NP Excess Kurtosis",main="Excess NP Kurtosis"); 
 abline(v=qB(sampNPK),col="blue",lty=2,lwd=2); 
 abline(v=qB2(sampNPK),col="red",lty=3,lwd=2); 
 points(trueNPK,0,col="black",pch=16,cex=1.5);

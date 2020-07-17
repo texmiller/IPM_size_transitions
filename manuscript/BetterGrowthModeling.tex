@@ -12,8 +12,7 @@
 \setlist{topsep=.125em,itemsep=-0.15em,leftmargin=0.75cm}
 \setlength{\parindent}{0.35in}
 
-%\usepackage[sc]{mathpazo} %Like Palatino with extensive math support
-
+\usepackage[sc]{mathpazo} %Like Palatino with extensive math support
 
 % Coloring of R code listings
 \usepackage[formats]{listings}
@@ -231,19 +230,20 @@ to a Gaussian distribution) are based on the third and fourth central moments, r
 \be
 \mbox{Skewness} = \frac{m_3}{\sigma^3}, \quad \mbox{Excess kurtosis} = \frac{m_4}{\sigma^4}-3
 \ee
-where $m_k = \mathbb{E}(X - \bar{X})^k$ is the $k^{th}$ central moment and $\sigma^2$ is the variance (second central moment). 
-A Gaussian distribution has zero skewness, and zero excess kurtosis. 
+where $m_k = \mathbb{E}(X - \bar{X})^k$ is the $k^{th}$ central moment of a random quantity $X$ 
+and $\sigma^2$ is the variance (second central moment). A Gaussian distribution has zero skewness 
+and zero excess kurtosis. 
 
-These are easy to calculate but their use for choosing and evaluating growth models is hindered by their
-poor sampling properties. Estimates from data involve high powers of data values, and as a result, it only takes a 
-a few outliers in the data to produce a very inaccurate estimate. Figure \ref{fig:NPmoments} shows a simulated example, where the
-underlying ``data'' are a sample of size 200 from a $t$ distribution with 18 degrees of freedom; the true skew is 0, and the 
+The standard measures are easy to calculate but their use for choosing and evaluating growth models is hindered by their
+poor sampling properties. Empirical estimates involve high powers of data values, and as a result, it only takes a 
+a few outliers to produce a very inaccurate estimate. Figure \ref{fig:NPmoments} shows a simulated example, where the
+underlying ``data'' are a sample of size 200 from a $t$ distribution with 8 degrees of freedom; the true skew is 0, and the 
 true excess kurtosis is 1.5. The distance between the largest and smallest estimates (indicated by the dotted red
-vertical lines), relative to the distance between the 5th and 95th percentiles, shows the extent of atypical extreme values
-that are generated. 
+vertical lines), relative to the distance between the 5th and 95th percentiles, shows the broad extent of 
+extreme values that can occur even with a good size sample.  
 
 We therefore use ``nonparametric'' (NP) measures of skew and kurtosis that are based on quantiles and therefore are 
-less sensitive to extreme values. Let $q_\alpha$ denote the $\alpha$ quantile of a distribution or sample (e.g., $q_{0.05}$ 
+less sensitive to a few extreme data values. Let $q_\alpha$ denote the $\alpha$ quantile of a distribution or sample (e.g., $q_{0.05}$ 
 is the 5th percentile. For any $0 < \alpha < 0.5$ a quantile-based measure of skewness is given by \citep{mcgillivray-1986}
 \be
 \mbox{NP Skewness} = \frac{q_\alpha + q_{1-\alpha} - 2 q_{0.5}}{q_{1-\alpha} - q_\alpha}.
@@ -254,28 +254,32 @@ between the 95th percentile and the median. The lower tail size is $\tau_L = q_{
 is equivalent to  
 \be
 \mbox{NP Skewness} = \frac{\tau_U - \tau_L}{(\tau_U + \tau_L)/2}.
+\label{eqn:NPskew}
 \ee
 So an NP Skewness of $\pm 0.2$ says that the difference in tail sizes is 20\% of their average. The range of possible values 
-is -1 to 1. We use $\alpha=0.1$ here, but other values may be more informative depending on the data set. 
+is -1 to 1. Our scan of the literature suggests that $\alpha=0.25$ (sometimes called ``Kelly's skewness'') 
+and $\alpha=0.1$ (``Bowley's skewness'' are common choices. We used $\alpha=0.1$, unless otherwise stated.  
  
-An analogous quantile-based measure of kurtosis is 
+An analogous quantile-based measure of kurtosis \citep{jones-etal-1994} is 
 \be
 \mbox{NP Kurtosis}  = \frac{q_{1-\alpha} - q_{\alpha}}{q_{0.75} - q_{0.25}}.
+\label{eqn:NPkurt}
 \ee
 For $\alpha=0.05$, NP Kurtosis is the difference between the 95th and 5th percentiles, relative to the interquartile range. 
-To facilitate interpretation, we scale this measure relative to the kurtosis of a Gaussian distribution, and substract 1. 
-This gives a ``NP Excess Kurtosis'' such that a Gaussian distribution has value 0. A value of 0.2 means that the tails
+The numerator in \eqref{eqn:NPkurt} is the sum of $\tau_L$ and $\tau_U$ for the chosen value of $\alpha$. 
+To facilitate interpretation, we scale NP Kurtosis relative to its value for Gaussian distribution, and substract 1. 
+We call this ``NP Excess Kurtosis''. The value for a Gaussian distribution is zero. A value of 0.2 means that the tails
 are (on average) 20\% broader than those of a Gaussian with the same interquartile range, and a value of -0.2 means that the tails
-are (on average) 20\% narrower than a Gaussian with the same interquartile range. 
+are (on average) 20\% narrower than a Gaussian with the same interquartile range. We calculate NP Kurtosis using $\alpha=0.05$ 
+unless otherwise stated, but again this is somewhat arbitrary. 
 
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=\textwidth]{figures/NPmoments.pdf}
 \caption{Histograms of skewness and kurtosis estimates using the usual moment-based definitions, compared with the nonparametric
 skewness and kurtosis measures. Histograms are based on 5000 replicate draws of a sample of 200 independent values fron 
-a $t$ distribution with 10 degrees of freedom. 
-Dotted red vertical lines mark the range of sample estimates, and dashed blue lines show the 5th and 95th percentiles.
-True value is indicated by a black dot on the $x$-axis.}
+a $t$ distribution with 8 degrees of freedom. Dotted red vertical lines mark the range of sample estimates, 
+and dashed blue lines show the 5th and 95th percentiles. The true value is indicated by a black dot on the $x$-axis.}
 \label{fig:NPmoments}
 \end{figure} 
 
