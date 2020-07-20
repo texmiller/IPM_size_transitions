@@ -34,9 +34,6 @@ XH = na.omit(XH);
 
 XH$Site=factor(XH$Site); XH$Year=factor(XH$Year); 
 
-plot(log(Area2)~log(Area1),data=XH);
-
-
 #####################################################################
 # Follow the original model, using cube-root transform  
 # Fit all healthy fans, look for effects of fate, site, year
@@ -47,6 +44,10 @@ fitH2=lm(nlog(Area2)~nlog(Area1)+factor(Site):factor(Year),data=XH);
 fitH3=lm(nlog(Area2)~nlog(Area1)+factor(Site)*factor(Year)+nlog(Area1):factor(Site)+nlog(Area1):factor(Year),data=XH); 
 
 ################### Interrogate the residuals: not Gaussian 
+jarque.test(fitH1$residuals) # normality test: FAILS, P < 0.001 
+anscombe.test(fitH1$residuals) # kurtosis: FAILS, P < 0.01 
+agostino.test(fitH1$residuals) # skewness: FAILS, P<0.001 
+
 jarque.test(fitH3$residuals) # normality test: FAILS, P < 0.001 
 anscombe.test(fitH3$residuals) # kurtosis: FAILS, P < 0.01 
 agostino.test(fitH3$residuals) # skewness: FAILS, P<0.001 
@@ -59,7 +60,6 @@ fitH2=lm(logarea.t1~logarea.t0 + I(logarea.t0^2), data=XH); # quadratic is signi
 fitH3=lm(logarea.t1~logarea.t0 + I(logarea.t0^2) + I(logarea.t0^3), data=XH); # also cubic
 fitH4=lm(logarea.t1~logarea.t0 + I(logarea.t0^2) + I(logarea.t0^3)+ I(logarea.t0^4), data=XH); # nope
 # cubic it is 
-
 
 ########################################################################## 
 ## Use iterative re-weighting to fit with nonconstant variance,  
@@ -97,6 +97,22 @@ jarque.test(scaledResids) # normality test: FAILS, P < 0.02
 agostino.test(scaledResids) # skewness: OK, P=0.78 
 anscombe.test(scaledResids) # kurtosis: FAILS, P=0.02, kurtosis=3.7 
 
-z = rollMoments(fitted_vals,scaledResids,windows=8,smooth=TRUE,scaled=TRUE) 
+#####################################################################
+#  Data display figure and pilot model 
+#####################################################################
+par(mfrow=c(2,2),bty="l",cex.axis=1.3,cex.lab=1.3,mar=c(4,4,1,1),mgp=c(2.2,1,0)); 
+
+plot(Area2~Area1,data=XH,xlab="Initial size",ylab="Subsequent size") 
+add_panel_label("a"); 
+
+plot(I(Area2^0.3333)~I(Area1^0.3333),data=XH,xlab="(Initial size)^1/3",ylab="(Subsequent size)^(1/3)") 
+add_panel_label("b"); 
+
+plot(log(Area2)~log(Area1),data=XH,xlab="log(Initial size)",ylab="log(Subsequent size)") 
+add_panel_label("c"); 
+
+
+
+z = rollMomentsNP(fitted_vals,scaledResids,windows=8,smooth=TRUE,scaled=TRUE) 
 ## mean and SD look good, skew is variable, kurtosis on both sides of Gaussian! 
 

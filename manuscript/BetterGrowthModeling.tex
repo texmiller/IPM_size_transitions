@@ -260,8 +260,8 @@ is equivalent to
 \label{eqn:NPskew}
 \ee
 So an NP Skewness of $\pm 0.2$ says that the difference in tail sizes is 20\% of their average. The range of possible values 
-is -1 to 1. Our scan of the literature suggests that $\alpha=0.25$ (sometimes called ``Kelly's skewness'') 
-and $\alpha=0.1$ (``Bowley's skewness'' are common choices. We used $\alpha=0.1$, unless otherwise stated.  
+is -1 to 1. Both $\alpha=0.25$ (sometimes called ``Kelly's skewness'') and $\alpha=0.1$ (``Bowley's skewness'') 
+are common choices. We used $\alpha=0.1$, unless otherwise stated.  
  
 An analogous quantile-based measure of kurtosis \citep{jones-etal-1994} is 
 \be
@@ -274,7 +274,7 @@ To facilitate interpretation, we scale NP Kurtosis relative to its value for Gau
 We call this ``NP Excess Kurtosis''. The value for a Gaussian distribution is zero. A value of 0.2 means that the tails
 are (on average) 20\% broader than those of a Gaussian with the same interquartile range, and a value of -0.2 means that the tails
 are (on average) 20\% narrower than a Gaussian with the same interquartile range. We calculate NP Kurtosis using $\alpha=0.05$ 
-unless otherwise stated, but again this is somewhat arbitrary. 
+unless otherwise stated, to focus on the tail edges, but again this is somewhat arbitrary. 
 
 \begin{figure}[tbp]
 \centering
@@ -286,9 +286,30 @@ and dashed blue lines show the 5th and 95th percentiles. The true value is indic
 \label{fig:NPmoments}
 \end{figure} 
 
+\section{Case study: Sea fan corals, \emph{Gorgonia ventalina}}
+We begin with a simple example where current size is the only predictor of future size. \citet{bruno-et-al-2011} developed
+an IPM to understand the rise and fall of the \emph{Aspergillus sydowii} outbreak in Caribbean sea fan corals 
+\emph{G. ventalina}. The model was based on repeated observations of marked corals in permanent transects at several sites 
+near Akumal, Mexico, recording disease status (infected/uninfected) and the area of uninfected tissue. 
+The epidemic peak had passed and disease incidence was already low, so infected fans were relatively infrequent. 
+We therefore limit the analysis here to uninfected individuals. \citet{bruno-et-al-2011} found statistically significant year
+and site effects, but as those explained a very small fraction of the variation in growth increments, they fitted a single growth
+model to data pooled across years and sites. We do the same here. The pooled data set consists of 358 observed
+size transitions. Script \text{AkumalCorals.R} contains the analysis. 
+
+The data clearly exhibit size-dependent growth variance. \citet{bruno-et-al-2011} chose to stabilize the variance by transforming size,
+using the cube-root of total fan area as the measure of individual size, and then fitting the default model with Gaussian growth 
+increments. But transformation only solves the one problem of size-dependent variance: residuals from the default model 
+are non-Gaussian, and still exhibit significant skew and kurtosis ($p<0.01$ in Jarque-Bera Normality test, D'Agostino skewness test, 
+and Anscombe-Glynn kurtosis test). This remains true in a model with site and year effects and site:year interaction. 
+
+
+
+
+
 \section{Case study: bunchgrass, \emph{Pseudoroegneria spicata}}
 
-We again consider a species where one of us a repeat offender -- initially using the default model because 
+We again consider a species where one of us is the offender -- initially using the default model because 
 it was hard to do better at the time \citep{adler-etal-2010}, but sticking with it 
 \citep[e.g.,][]{Tredennick2018, Adler-2018} when it would have been easy to do better.   
 
