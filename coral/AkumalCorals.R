@@ -6,6 +6,19 @@ require(lmerTest); require(tidyverse); require(maxLik);
 
 source("../Diagnostics.R"); 
 
+#################################################################
+# Recruit size data
+#################################################################
+recruitSizes=c(16.7, 6.4, 10, 4.1, 4.7, 11.2, 6.3, 9.7, 5); #these are areas of known recruits  
+
+#xmin=min(log(recruitSizes)); xmax=max(log(recruitSizes));
+#mins=maxs=numeric(500); 
+#for(k in 1:500) {
+#	z=rnorm(length(recruitSizes),mean=mean(log(recruitSizes)),sd=sd(log(recruitSizes)));
+#	mins[k]=min(z); maxs[k]=max(z); 
+#}	
+# hist(mins); abline(v=xmin); hist(maxs); abline(v=xmax); 
+
 ##########################################################
 # Setup the main data frame: do this before any analysis
 ##########################################################
@@ -35,8 +48,8 @@ XH = na.omit(XH);
 XH$Site=factor(XH$Site); XH$Year=factor(XH$Year); 
 
 #####################################################################
-# Follow the original model, using cube-root transform  
-# Fit all healthy fans, look for effects of fate, site, year
+# Following the original model, use a cube-root transform.   
+# We fit all healthy fans, and look for effects of fate, site, year
 #####################################################################
 nlog=function(x) x^(1/3)
 fitH1=lm(nlog(Area2)~nlog(Area1), data=XH); 
@@ -55,52 +68,47 @@ agostino.test(fitH3$residuals) # skewness: FAILS, P<0.001
 ######################################################################### 
 # Since 1/3 power transformation isn't the cure, use log 
 #########################################################################
+
+######## parametric modeling, constant variance 
 XH$logarea.t0 = log(XH$Area1); XH$logarea.t1 = log(XH$Area2); 
 fitH2=lm(logarea.t1~logarea.t0 + I(logarea.t0^2), data=XH); # quadratic is significant 
 fitH3=lm(logarea.t1~logarea.t0 + I(logarea.t0^2) + I(logarea.t0^3), data=XH); # also cubic
 fitH4=lm(logarea.t1~logarea.t0 + I(logarea.t0^2) + I(logarea.t0^3)+ I(logarea.t0^4), data=XH); # nope
-# cubic it is 
+AIC(fitH1,fitH2,fitH3,fitH4); # cubic it is!  
 
-########################################################################## 
-## Use iterative re-weighting to fit with nonconstant variance,  
-##########################################################################
+###### better: Simon Wood to the rescue! 
+fitGAU <- gam(list(logarea.t1~s(logarea.t0),~s(logarea.t0)), data=XH,family=gaulss())
+summary(fitGAU); 
 
-## NegLogLik function to fit variance model for residuals 
-varPars = function(pars) {
-    return(-sum(dnorm(resids, mean=0, sd=exp(pars[1] + pars[2]*fitted_vals + pars[3]*fitted_vals^2),log=TRUE)))
-}	
+####  get values of the fitted splines to explore their properties 
+z_vals = seq(min(XH$logarea.t0),max(XH$logarea.t0),length=250); 
+fitted_vals = predict(fitGAU,type="response",newdata=data.frame(logarea.t0=z_vals)); 
 
-err = 1; rep=0; log_model=lm(logarea.t1 ~ logarea.t0 + I(logarea.t0^2) + I(logarea.t0^3), weights=rep(1,length(XH$logarea.t0)),data=XH); 
-while(err > 0.000001) {
-	rep=rep+1; 
-	fitted_vals = fitted(log_model); resids = residuals(log_model); 
-	out=optim(c(log(sd(resids)),0,0),varPars,control=list(maxit=5000)); 
-	pars=out$par; 
-	new_sigma = exp(pars[1] + pars[2]*fitted_vals + pars[3]*fitted_vals^2); 
-	new_weights = 1/((new_sigma)^2)
-	new_weights = 0.5*(weights(log_model) + new_weights); # cautious update 
-	new_model <- update(log_model,weights=new_weights); 
-	err = weights(log_model)-weights(new_model); err=sqrt(mean(err^2)); 
-	cat(rep,err,"\n") # check on convergence of estimated weights 
-	log_model <- new_model; 
-}
-## refit and compare, using the estimated weights 
-fitH2=lm(logarea.t1~logarea.t0 + I(logarea.t0^2), data=XH,weights=new_weights); 
-fitH3=lm(logarea.t1~logarea.t0 + I(logarea.t0^2) + I(logarea.t0^3), data=XH,weights=new_weights); 
-fitH4=lm(logarea.t1~logarea.t0 + I(logarea.t0^2) + I(logarea.t0^3)+ I(logarea.t0^4), data=XH,weights=new_weights); 
-AIC(fitH2,fitH3,fitH4); # cubic wins (by a hair), so stick with it. 
+##### mean is fitted very well by a quadratic, slightly better by cubic (spline has df just above 3). 
+mean_fit1 = lm(fitted_vals[,1]~z_vals); 
+mean_fit2 = lm(fitted_vals[,1]~z_vals+I(z_vals^2)); 
+mean_fit3 = lm(fitted_vals[,1]~z_vals+I(z_vals^2) + I(z_vals^3));  
 
-scaledResids = residuals(log_model)*sqrt(weights(log_model))
-fitted_vals = fitted(log_model); 
+#### log(sigma) is fitted well be a quadratic (spine has df just above 2) 
+sigma_hat = 1/fitted_vals[,2]; 
+sd_fit1 = lm(log(sigma_hat)~z_vals); # R^2 = 0.97 
+sd_fit2 = lm(log(sigma_hat)~z_vals+I(z_vals^2)); # R^2 = 0.999 
 
-jarque.test(scaledResids) # normality test: FAILS, P < 0.02 
-agostino.test(scaledResids) # skewness: OK, P=0.78 
-anscombe.test(scaledResids) # kurtosis: FAILS, P=0.02, kurtosis=3.7 
+###### Interrogate the scaled residuals 
+fitted_all = predict(fitGAU,type="response"); 
+fitted_mean = fitted_all[,1];
+fitted_sd = 1/fitted_all[,2]; 
+scaledResids=residuals(fitGAU,type="response")/fitted_sd;  
+ 
+jarque.test(scaledResids) # normality test: FAILS, P < 0.001 
+agostino.test(scaledResids) # skewness: marginal, p=0.044 
+anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.01 
 
 #####################################################################
 #  Data display figure and pilot model 
 #####################################################################
-par(mfrow=c(2,2),bty="l",cex.axis=1.3,cex.lab=1.3,mar=c(4,4,1,1),mgp=c(2.2,1,0)); 
+graphics.off(); dev.new(width=9,height=7); 
+par(mfrow=c(2,2),mar=c(4,4,2,1), bty="l",cex.axis=1.3,cex.lab=1.3,mgp=c(2.2,1,0)); 
 
 plot(Area2~Area1,data=XH,xlab="Initial size",ylab="Subsequent size") 
 add_panel_label("a"); 
@@ -108,11 +116,19 @@ add_panel_label("a");
 plot(I(Area2^0.3333)~I(Area1^0.3333),data=XH,xlab="(Initial size)^1/3",ylab="(Subsequent size)^(1/3)") 
 add_panel_label("b"); 
 
-plot(log(Area2)~log(Area1),data=XH,xlab="log(Initial size)",ylab="log(Subsequent size)") 
-add_panel_label("c"); 
+plot(log(Area2)~log(Area1),data=XH,xlab="log(Initial size)",ylab="log(Subsequent size)",ylim=c(1,8.3)) 
+points(z_vals,fitted_vals[,1],type="l",lty=3,col="blue",lwd=3); 
+points(z_vals,fitted_vals[,1]+2/fitted_vals[,2],type="l",lty=2,col="blue",lwd=2); 
+points(z_vals,fitted_vals[,1]-2/fitted_vals[,2],type="l",lty=2,col="blue",lwd=2); 
+add_panel_label("c");
 
+qqPlot(scaledResids,xlab="Normal quantiles",ylab="Scaled residuals"); 
+add_panel_label("d");
 
+dev.copy2pdf(file="../manuscript/figures/AkumalPilot.pdf"); 
 
-z = rollMomentsNP(fitted_vals,scaledResids,windows=8,smooth=TRUE,scaled=TRUE) 
+z = rollMomentsNP(fitted_mean,scaledResids,windows=10,smooth=TRUE,scaled=TRUE) 
+dev.copy2pdf(file="../manuscript/figures/AkumalRollingResiduals.pdf");
+
 ## mean and SD look good, skew is variable, kurtosis on both sides of Gaussian! 
 

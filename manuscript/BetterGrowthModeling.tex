@@ -1,12 +1,13 @@
 \documentclass[11pt]{article}
 
 \usepackage{amsmath,amsfonts,amssymb,graphicx,setspace,authblk}
-\usepackage{titlesec,blkarray, bm} %mathrsfs -- Tom could not install this package...needed?
+\usepackage{titlesec,blkarray, bm} 
 \usepackage{float,afterpage}
 \usepackage[running,mathlines]{lineno}
 \usepackage[vmargin=1in,hmargin=1in]{geometry}
 \usepackage[authoryear,sort]{natbib}
 \usepackage[dvipsnames]{xcolor}
+\usepackage{hyperref}
 
 \usepackage{enumitem}
 \setlist{topsep=.125em,itemsep=-0.15em,leftmargin=0.75cm}
@@ -68,7 +69,7 @@ deletekeywords={on,by,data,R,Q,mean,var,sd,log,family,na,options,q,weights,effec
 \DeclareMathOperator{\var}{\textit{Var}}
 \DeclareMathOperator{\cov}{\textit{Cov}}
 
-\usepackage{hyperref}
+
 
 %%%%%%%%% Macros to simplify using our notation 
 
@@ -245,6 +246,17 @@ true excess kurtosis is 1.5. The distance between the largest and smallest estim
 vertical lines), relative to the distance between the 5th and 95th percentiles, shows the broad extent of 
 extreme values that can occur even with a good size sample.  
 
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{figures/NPmoments.pdf}
+\caption{Histograms of skewness and kurtosis estimates using the usual moment-based definitions, compared with the nonparametric
+skewness and kurtosis measures. Histograms are based on 5000 replicate draws of a sample of 200 independent values fron 
+a $t$ distribution with 8 degrees of freedom. Dotted red vertical lines mark the range of sample estimates, 
+and dashed blue lines show the 5th and 95th percentiles. The true value is indicated by a black dot on the $x$-axis.
+Figure drawn by script \texttt{NPmoments.R}}
+\label{fig:NPmoments}
+\end{figure} 
+
 We therefore use ``nonparametric'' (NP) measures of skew and kurtosis that are based on quantiles and therefore are 
 less sensitive to a few extreme data values. Let $q_\alpha$ denote the $\alpha$ quantile of a distribution or sample (e.g., $q_{0.05}$ 
 is the 5th percentile. For any $0 < \alpha < 0.5$ a quantile-based measure of skewness is given by \citep{mcgillivray-1986}
@@ -276,18 +288,11 @@ are (on average) 20\% broader than those of a Gaussian with the same interquarti
 are (on average) 20\% narrower than a Gaussian with the same interquartile range. We calculate NP Kurtosis using $\alpha=0.05$ 
 unless otherwise stated, to focus on the tail edges, but again this is somewhat arbitrary. 
 
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=\textwidth]{figures/NPmoments.pdf}
-\caption{Histograms of skewness and kurtosis estimates using the usual moment-based definitions, compared with the nonparametric
-skewness and kurtosis measures. Histograms are based on 5000 replicate draws of a sample of 200 independent values fron 
-a $t$ distribution with 8 degrees of freedom. Dotted red vertical lines mark the range of sample estimates, 
-and dashed blue lines show the 5th and 95th percentiles. The true value is indicated by a black dot on the $x$-axis.}
-\label{fig:NPmoments}
-\end{figure} 
+Figure \ref{fig:NPmoments}C,D illustrate how, applied to exactly the same simulated samples, the NP measures of skewness and
+kurtosis produce a smaller fraction of highly inaccurate estimates due to a small number of extreme values in the sample.    
 
 \section{Case study: Sea fan corals, \emph{Gorgonia ventalina}}
-We begin with a simple example where current size is the only predictor of future size. \citet{bruno-et-al-2011} developed
+We begin with a simple example where current size is the only predictor of future size. \cite{bruno-etal-2011} developed
 an IPM to understand the rise and fall of the \emph{Aspergillus sydowii} outbreak in Caribbean sea fan corals 
 \emph{G. ventalina}. The model was based on repeated observations of marked corals in permanent transects at several sites 
 near Akumal, Mexico, recording disease status (infected/uninfected) and the area of uninfected tissue. 
@@ -297,15 +302,67 @@ and site effects, but as those explained a very small fraction of the variation 
 model to data pooled across years and sites. We do the same here. The pooled data set consists of 358 observed
 size transitions. Script \text{AkumalCorals.R} contains the analysis. 
 
-The data clearly exhibit size-dependent growth variance. \citet{bruno-et-al-2011} chose to stabilize the variance by transforming size,
-using the cube-root of total fan area as the measure of individual size, and then fitting the default model with Gaussian growth 
-increments. But transformation only solves the one problem of size-dependent variance: residuals from the default model 
-are non-Gaussian, and still exhibit significant skew and kurtosis ($p<0.01$ in Jarque-Bera Normality test, D'Agostino skewness test, 
-and Anscombe-Glynn kurtosis test). This remains true in a model with site and year effects and site:year interaction. 
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{figures/AkumalPilot.pdf}
+\caption{Pilot Gaussian model for growth of sea fan corals, \emph{Gorgonia ventalina}. \textbf{A)} Untransformed
+data on size transitions. \textbf{B)} Size transitions on the cube-root scale used by \citet{bruno-etal-2011}. 
+\textbf{C)} Size transitions on log scale, showing the mean (dotted red line) and mean$\pm 2$ standard deviations
+for the pilot Gaussian model with non-constant variance. \textbf{C)} Normal quantile-quantile plot of scaled residuals
+from the pilot Gaussian model. Figure made by script \texttt{AkumalCorals.R}.}
+\label{fig:AkumalPilot}
+\end{figure} 
+
+The data clearly exhibit size-dependent growth variance (fig. \ref{fig:AkumalPilot}A). 
+\citet{bruno-etal-2011} chose to stabilize the variance by transforming size,
+using the cube-root of total fan area as the size measure (fig. \ref{fig:AkumalPilot}B), and then fitting the standard 
+model with Gaussian growth increments. But transformation only solves the one problem of size-dependent variance: residuals from 
+the default model are non-Gaussian, and still exhibit significant skew and kurtosis ($p<0.01$ in Jarque-Bera Normality test, D'Agostino skewness test, 
+and Anscombe-Glynn kurtosis test using R functions \texttt{jarque.test,agostino.test,anscombe.test} in the 
+in the \textbf{moments} package \citep{komsta-2015}). This remains true in a model with site and year effects and 
+site:year interaction. 
+
+We therefore develop a model using log-transformation, which has two advantages. First, eviction at the lower size limit is
+easily prevented by choosing a large negative value for minimum log area. Second, the distribution of recruit sizes is closer to Gaussian
+on log scale than on cube-root scale (because the sample size is small both log- and cube root-transformed sizes are not significantly
+non-Gaussian, but log-transformed data have smaller Jarque-Bera and Kolmogorov-Smirnov test statistics for non-normality). 
+
+With initial size as the only predictor, the simplest way to fit a Gaussian model with nonconstant variance is the
+\texttt{gam} function in \textbf{mgcv} library \citep{wood-2017} using the \texttt{gaulss} family. The mean and 
+standard deviation are both fitted as smoothing spline functions of initial size, and the \texttt{predict} function
+returns the fitted mean and also the inverse of the fitted standard deviations with which we can compute the scaled residuals: 
+\begin{lstlisting}
+# XH is a data frame holding the data
+# logarea.t0, .t1 denote initial and final values of log-transformed area   
+fitGAU <- gam(list(logarea.t1~s(logarea.t0),~s(logarea.t0)),data=XH,family=gaulss())
+fitted_all = predict(fitGAU,type="response"); 
+fitted_sd = 1/fitted_all[,2]; 
+scaledResids = residuals(fitGAU,type=''response'')/fitted_sd;  
+\end{lstlisting}
+Fig. \ref{fig:AkumalPilot}C) shows the log-transformed data and Gaussian model. There are no visual signs of trouble,
+but the scaled residuals are non-Gaussian (fig. \ref{fig:AkumalPilot}D; $p<0.03$ Jarque-Bera test for Normality).
+There is little skew (skewness=0.06), but significant kurtosis (excess kurtosis 0.67, $p=0.03$ Anscome-Glynn test). 
+
+We now need to find a better-fitting distribution. The overall properties of the scaled residuals may be misleading,
+if the shape of the growth distribution depends on initial size or other covariates. For example, a mixture of growth
+distributions, positive skew at small initial sizes and negative skew at large sizes, may have zero skew overall but
+positive excess kurtosis. A distribution family with those properties (e.g., a $t$ distribution) would be a bad
+fit to the conditional distribution of growth for any initial size. 
 
 
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{figures/AkumalRollingResiduals.pdf}
+\caption{Rolling moments plot for scaled residuals from the pilot Gaussian model for growth of sea fan corals, \emph{Gorgonia ventalina}. 
+Figure made by scripts \texttt{AkumalCorals.R} and \texttt{Diagnostics.R}.}
+\label{fig:AkumalRollingResiduals}
+\end{figure} 
 
-
+Properties of conditional distributions therefore should guide distribution choice. In fig \ref{fig:AkumalRollingResiduals},
+summary statistics (mean, standard deviation, NP skewness, NP excess kurtosis) are plotted (solid points) for a set of sliding windows, each
+containing 10\% of the scaled residuals sorted according to the predicted mean of final size. The red dashed lines are what we
+would see if the pilot model was exactly right: zero mean, skewness and excess kurtosis, and standard deviation of one. 
+The black curve is a spline regression through the points using \texttt{gam}. 
 
 \section{Case study: bunchgrass, \emph{Pseudoroegneria spicata}}
 
