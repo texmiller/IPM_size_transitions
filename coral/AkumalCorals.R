@@ -127,10 +127,10 @@ z = rollMomentsNP(XH$logarea.t0,scaledResids,windows=10,smooth=TRUE,scaled=TRUE,
 
 
 ###########################################################################
-# Try fitDist on binned data, various ways (only the last version remains)
+# Try fitDist on binned data
 ###########################################################################
 logResids <- data.frame(init=XH$logarea.t0,resids=scaledResids); 
-logResids <- logResids %>% mutate(size_bin = cut_number(init,n=6))
+logResids <- logResids %>% mutate(size_bin = cut_number(init,n=5))
 
 bins = levels(logResids$size_bin); dists=list(length(bins)); 
 for(j in 1:length(bins)){
