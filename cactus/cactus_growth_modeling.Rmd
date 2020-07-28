@@ -294,7 +294,7 @@ AIC_norm <- AIC(CYIM_lmer_best)
 The AIC comparison is a blowout, though I am not sure if it is ok to use the lmer AIC. Might be better to re-fit with plot and year as fixed. 
 ```{r aic_compare}
 tibble(growth_function=c("Gaussian","Skewed t"),
-       AIC = c(AIC_ST,AIC_norm))
+       AIC = c(AIC_norm,AIC_ST))
 ```
 
 
