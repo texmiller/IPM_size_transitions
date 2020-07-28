@@ -1,6 +1,7 @@
 rm(list=ls(all=TRUE));
 
-setwd("c:/repos/IPM_size_transitions/cactus"); 
+setwd("c:/repos/IPM_size_transitions/cactus"); #Steve
+setwd("C:/Users/tm9/Desktop/git local/IPM_size_transitions/cactus"); #Tom
 
 require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(gamlss.tr); require(AICcmodavg); 
@@ -53,7 +54,7 @@ CYIM_lmer_models <- list()
 CYIM_lmer_models[[1]] <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
 CYIM_lmer_models[[2]] <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
 
-Now use the iterative re-weighting approach to re-fit these with non-constant variance:
+## Now use the iterative re-weighting approach to re-fit these with non-constant variance:
 ## NegLogLik function to fit variance model for residuals 
 ## SPE: based on the residual diagnostic plot for a linear model of log(sigma), a quadratic term is added. 
 varPars = function(pars) {
@@ -91,20 +92,22 @@ aics = unlist(lapply(CYIM_lmer_models,AIC)); best_model=which(aics==min(aics));
 CYIM_lmer_best = CYIM_lmer_models[[best_model]] 
 best_weights = weights(CYIM_lmer_best)
 CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|year_t) + (1|plot), data=CYIM,weights=best_weights,REML=TRUE) 
-CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,weights=best_weights,REML=TRUE) 
+##refit the residuals as a function of mean
+fitted_vals = fitted(CYIM_lmer_best);resids = residuals(CYIM_lmer_best)
+best_pars <- optim(c(sd(resids),0,0),varPars,control=list(maxit=5000))
 
 # Now visualize this kernel. This model is the *very best* we could do in a Gaussian framework 
 # (assuming there are no major fixed effects we are missing).
 ##dummy variable for initial size
 size_dim <- 100
 size_dum <- seq(min(log(CYIM$vol_t)),max(log(CYIM$vol_t)),length.out = size_dim)
-##make a polygon for the Gaussian kernel with non-constant variance
+##make a polygon for the Gaussian kernel with non-constant variance -- updated with the quadratic terms for mean and variance
 CYIM_lmer_best_kernel <- matrix(NA,size_dim,size_dim)
 for(i in 1:size_dim){
-  mu_size <- fixef(CYIM_lmer_best)[1] + fixef(CYIM_lmer_best)[2] * size_dum[i]
+  mu_size <- fixef(CYIM_lmer_best)[1] + fixef(CYIM_lmer_best)[2] * size_dum[i] + fixef(CYIM_lmer_best)[3]*size_dum[i]^2
   CYIM_lmer_best_kernel[,i] <- dnorm(size_dum,
                                      mean = mu_size,
-                                     sd = exp(pars[[best_model]][1] + pars[[best_model]][2]*mu_size))
+                                     sd = exp(best_pars$par[1] + best_pars$par[2]*mu_size + best_pars$par[3]*mu_size^2))
 }
 
 levelplot(CYIM_lmer_best_kernel,row.values = size_dum, column.values = size_dum,cuts=30,
@@ -113,9 +116,6 @@ levelplot(CYIM_lmer_best_kernel,row.values = size_dum, column.values = size_dum,
             panel.levelplot(...)
             grid.points(log(CYIM$vol_t), log(CYIM$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
           }) 
-
-
-# Visually, this looks great. But is it any good? No. Scaled residuals are not remotely Gaussian. 
 
 scaledResids = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))
 par(mfrow=c(1,2))
