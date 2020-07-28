@@ -46,6 +46,8 @@ XH = subset(XH, select=c(Site,Fan.number,Year,Area1,Area2))
 XH = na.omit(XH); 
 
 XH$Site=factor(XH$Site); XH$Year=factor(XH$Year); 
+XH$logarea.t0 = log(XH$Area1); 
+XH$logarea.t1 = log(XH$Area2); 
 
 #####################################################################
 # Following the original model, use a cube-root transform.   
@@ -66,17 +68,9 @@ anscombe.test(fitH3$residuals) # kurtosis: FAILS, P < 0.01
 agostino.test(fitH3$residuals) # skewness: FAILS, P<0.001 
 
 ######################################################################### 
-# Since 1/3 power transformation isn't the cure, use log 
+# Since cube-root transformation isn't the cure, use log 
 #########################################################################
 
-######## parametric modeling, constant variance 
-XH$logarea.t0 = log(XH$Area1); XH$logarea.t1 = log(XH$Area2); 
-fitH2=lm(logarea.t1~logarea.t0 + I(logarea.t0^2), data=XH); # quadratic is significant 
-fitH3=lm(logarea.t1~logarea.t0 + I(logarea.t0^2) + I(logarea.t0^3), data=XH); # also cubic
-fitH4=lm(logarea.t1~logarea.t0 + I(logarea.t0^2) + I(logarea.t0^3)+ I(logarea.t0^4), data=XH); # nope
-AIC(fitH1,fitH2,fitH3,fitH4); # cubic it is!  
-
-###### better: Simon Wood to the rescue! 
 fitGAU <- gam(list(logarea.t1~s(logarea.t0),~s(logarea.t0)), data=XH,family=gaulss())
 summary(fitGAU); 
 
@@ -89,7 +83,7 @@ mean_fit1 = lm(fitted_vals[,1]~z_vals);
 mean_fit2 = lm(fitted_vals[,1]~z_vals+I(z_vals^2)); 
 mean_fit3 = lm(fitted_vals[,1]~z_vals+I(z_vals^2) + I(z_vals^3));  
 
-#### log(sigma) is fitted well be a quadratic (spine has df just above 2) 
+#### log(sigma) is fitted well be a quadratic (spline has df just above 2) 
 sigma_hat = 1/fitted_vals[,2]; 
 sd_fit1 = lm(log(sigma_hat)~z_vals); # R^2 = 0.97 
 sd_fit2 = lm(log(sigma_hat)~z_vals+I(z_vals^2)); # R^2 = 0.999 
@@ -125,10 +119,27 @@ add_panel_label("c");
 qqPlot(scaledResids,xlab="Normal quantiles",ylab="Scaled residuals"); 
 add_panel_label("d");
 
-dev.copy2pdf(file="../manuscript/figures/AkumalPilot.pdf"); 
+# dev.copy2pdf(file="../manuscript/figures/AkumalPilot.pdf"); 
 
-z = rollMomentsNP(fitted_mean,scaledResids,windows=10,smooth=TRUE,scaled=TRUE) 
-dev.copy2pdf(file="../manuscript/figures/AkumalRollingResiduals.pdf");
+z = rollMomentsNP(XH$logarea.t0,scaledResids,windows=10,smooth=TRUE,scaled=TRUE,xlab="Initial log area") 
+# dev.copy2pdf(file="../manuscript/figures/AkumalRollingResiduals.pdf");
+## mean and SD look good, skew is variable and small except at small sizes, kurtosis on both sides of Gaussian! 
 
-## mean and SD look good, skew is variable, kurtosis on both sides of Gaussian! 
+
+###########################################################################
+# Try fitDist on binned data, various ways (only the last version remains)
+###########################################################################
+logResids <- data.frame(init=XH$logarea.t0,resids=scaledResids); 
+logResids <- logResids %>% mutate(size_bin = cut_number(init,n=6))
+
+bins = levels(logResids$size_bin); dists=list(length(bins)); 
+for(j in 1:length(bins)){
+	Xj=subset(logResids,size_bin==bins[j])
+	dists[[j]]=fitDist(resids,data=Xj,type="realline"); 
+	cat(j,"\n"); 
+	print(dists[[j]]$fits); 
+	cat("   ","\n"); 
+}
+
+
 

@@ -92,8 +92,9 @@ NPkurtosis=function(x,p=0.05) {
 ##    smooth=TRUE results in calling spline.scatter.smooth to make plots
 ##    scaled=TRUE adds benchmarks mean=0,sd=1,skew=excess kurtosis=3 to the plots
 #####################################################################################
-rollMomentsNP=function(px,py,windows=10,smooth=TRUE,scaled=TRUE) {
+rollMomentsNP=function(px,py,windows=10,smooth=TRUE,scaled=TRUE,xlab=NULL) {
 
+  if(is.null(xlab)) xlab="Fitted values"; 
   e = order(px); px=px[e]; py=py[e];  
 
   width=round(length(px)/windows); by=round(width/2); 
@@ -105,17 +106,21 @@ rollMomentsNP=function(px,py,windows=10,smooth=TRUE,scaled=TRUE) {
 
   if(smooth) {
   par(mfrow=c(2,2),mar=c(4,5,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2.2,1,0),bty="l"); 
-  spline.scatter.smooth(rollx,rollmean,gamma=2.8,xlab="Fitted values",ylab="Mean", ylim=c(-1,1));
+  spline.scatter.smooth(rollx,rollmean,gamma=2.8,xlab=xlab,ylab="Mean", ylim=c(-1,1));
   if(scaled) abline(h=0,col="red",lty=2,lwd=2) 
+  add_panel_label("a"); 
 
-  spline.scatter.smooth(rollx,rollsd,gamma=2.8,xlab="Fitted values",ylab="Std Dev",ylim=c(0,2)); 
+  spline.scatter.smooth(rollx,rollsd,gamma=2.8,xlab=xlab,ylab="Std Dev",ylim=c(0,2)); 
   if(scaled) abline(h=1,col="red",lty=2,lwd=2) 
+    add_panel_label("b"); 
 
-  spline.scatter.smooth(rollx,rollskew,gamma=2.8,xlab="Fitted values",ylab="NP Skew"); 
+  spline.scatter.smooth(rollx,rollskew,gamma=2.8,xlab=xlab,ylab="NP Skew"); 
   if(scaled) abline(h=0,col="red",lty=2,lwd=2) 
+  add_panel_label("c"); 
 
-  spline.scatter.smooth(rollx,rollkurt,gamma=2.8,xlab="Fitted values",ylab="NP Kurtosis"); 
+  spline.scatter.smooth(rollx,rollkurt,gamma=2.8,xlab=xlab,ylab="NP Kurtosis"); 
   if(scaled) abline(h=0,col="red",lty=2,lwd=2)
+  add_panel_label("d"); 
 }
 return(list(rollx=rollx,rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollskew=rollskew))
 }
