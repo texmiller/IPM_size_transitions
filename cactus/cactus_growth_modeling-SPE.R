@@ -143,7 +143,6 @@ dev.new(); z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE)
 # us in the wrong direction). Instead, we can slice up the data into bins of expected 
 # value and find the best distribution for each bin using gamlss' fitDist(). 
 n_bins <- 8
-## I need to rewrite this code because it runs fitDist 4 separate times
 select_dist <- tibble(fit_best = fitted(CYIM_lmer_best),
                       scale_resid = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))) %>% 
   mutate(bin = as.integer(cut_number(fit_best,n_bins)),
