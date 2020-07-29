@@ -5,6 +5,7 @@ require(gamlss); require(gamlss.tr); require(AICcmodavg);
 require(lmerTest); require(tidyverse); require(maxLik); 
 
 source("../Diagnostics.R"); 
+source("../fitChosenDists.R"); 
 
 #################################################################
 # Recruit size data
@@ -127,19 +128,44 @@ z = rollMomentsNP(XH$logarea.t0,scaledResids,windows=10,smooth=TRUE,scaled=TRUE,
 
 
 ###########################################################################
-# Try fitDist on binned data
+# Fit suitable distributions to binned data 
 ###########################################################################
 logResids <- data.frame(init=XH$logarea.t0,resids=scaledResids); 
 logResids <- logResids %>% mutate(size_bin = cut_number(init,n=5))
 
-bins = levels(logResids$size_bin); dists=list(length(bins)); 
+source("../fitChosenDists.R"); 
+
+tryDists=c("EGB2","GT","JSU", "SHASHo","SEP1","SEP2","SEP3","SEP4"); 
+tryDensities=list(dEGB2, dGT, dJSU, dSHASHo, dSEP1, dSEP2, dSEP3, dSEP4); 
+
+bins = levels(logResids$size_bin); maxVals = matrix(NA,length(bins),length(tryDists)); 
 for(j in 1:length(bins)){
+for(k in 1:length(tryDists)) {
 	Xj=subset(logResids,size_bin==bins[j])
-	dists[[j]]=fitDist(resids,data=Xj,type="realline"); 
-	cat(j,"\n"); 
-	print(dists[[j]]$fits); 
-	cat("   ","\n"); 
+	fitj = gamlssMaxlik(y=Xj$resids,DIST=tryDists[k],density=tryDensities[[k]]); 
+	maxVals[j,k] = fitj$maximum;
+	cat("Finished ", tryDists[k]," ",j,k, fitj$maximum,"\n"); 
 }
+}
+
+## best two for each bin 
+for(j in 1:length(bins)){
+	e = order(-maxVals[j,]); 
+	cat(j, tryDists[e][1:2],"\n"); 
+}	
+
+# overall ranking 
+e = order(-colSums(maxVals)); 
+rbind(tryDists[e],round(colSums(maxVals)[e],digits=3)); 
+
+# And the winner is: SEP2 
+
+###########################################################################
+# Graphical diagnostics to choose the form of the fitted model
+# Estimate the parameters of SEP2 for a set of bins, and plot 
+###########################################################################
+
+
 
 
 
