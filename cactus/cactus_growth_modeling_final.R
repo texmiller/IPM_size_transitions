@@ -1,14 +1,8 @@
----
-title: 'Better Growth Modeling: cactus case study'
-author: "Tom Miller"
-date: "6/21/2020"
-output: pdf_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = T)
-knitr::opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy=TRUE)
 rm(list=ls(all=TRUE));
+
+setwd("c:/repos/IPM_size_transitions/cactus"); #Steve
+setwd("C:/Users/tm9/Desktop/git local/IPM_size_transitions/cactus"); #Tom
+
 require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(gamlss.tr); require(AICcmodavg); 
 require(lmerTest); require(tidyverse); require(maxLik); 
@@ -19,9 +13,12 @@ require(sgt); require(formatR); require(popbio)
 volume <- function(h, w, p){
   (1/3)*pi*h*(((w + p)/2)/2)^2
 }
+
 invlogit <- function(x){exp(x)/(1+exp(x))}
+
 # log kurtosis function for diagnostics
 Lkurtosis=function(x) log(kurtosis(x)); 
+
 # Steve's diagnostics functions
 source("../Diagnostics.R")
 
@@ -49,88 +46,69 @@ CYIM_full %>%
   select(ID,year_t,plot,vol_t,vol_t1) %>% 
   ## drop rows with NAs
   drop_na() -> CYIM
-```
 
-## About the data
-This document walks through growth modeling with the cactus (_Cylyndriopuntia imbricata_, or CYIM) case study. The plants are a little oddly shaped. We measure plant size by taking maximum height, maximum width of the crown, and then an additional width measurement perpendicular to the maximum. We then convert this into the volume of a cone ($cm^3$) and take the natural log of this as the size variable. 
-```{r pics, echo=FALSE, out.width = '50%', fig.align = 'center'}
-knitr::include_graphics("SEV1.jpg")
-```
-
-There are a total of `r length(unique(CYIM$ID))` individuals in the data set spanning `r length(levels(CYIM$plot))` plots or spatial blocks and `r length(levels(CYIM$year_t))` transition-years. There are some additional, earlier years of data but they come from different plots and that was causing problems in the shrinkage model. So I filtered out these early years. Note that even in these later years, plots 7 and 8 did not start until 2011. 
-```{r plot_year_breakdown, echo=FALSE}
 table(CYIM$plot,CYIM$year_t)
-```
 
-***
-## Gaussian fits
-Use lme4 to fit Gaussian models of the form $size_{t+1} \sim size_{t}$.
-There are temporal and spatial random effects.
-No obvious fixed effects besides initial size (this is an observational study) but I can test whether a quandratic term for initial size improves fit. 
-Random effects are intercept-only because convergence problems otherwise.
-```{r lmer_fits}
+
+# Gaussian fits -----------------------------------------------------------
 CYIM_lmer_models <- list() 
 CYIM_lmer_models[[1]] <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
 CYIM_lmer_models[[2]] <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|year_t) + (1|plot), data=CYIM,REML=F,control=lmerControl(optimizer="bobyqa"))
-```
 
-Now use the iterative re-weighting approach to re-fit these with non-constant variance:
-```{r lmer_reweight, results="hide"}
+## Now use the iterative re-weighting approach to re-fit these with non-constant variance:
 ## NegLogLik function to fit variance model for residuals 
+## SPE: based on the residual diagnostic plot for a linear model of log(sigma), a quadratic term is added. 
 varPars = function(pars) {
-  return(-sum(dnorm(resids, mean=0, sd=exp(pars[1] + pars[2]*fitted_vals),log=TRUE)))
+  return(-sum(dnorm(resids, mean=0, sd=exp(pars[1] + pars[2]*fitted_vals + pars[3]*fitted_vals^2),log=TRUE)))
 }	
 
 pars<-list()
 for(mod in 1:length(CYIM_lmer_models)) {
   err = 1; rep=0; 
-  ## Steve's error level was too high a bar to clear. I raised this.
-  while(err > 0.0001) {
+  while(err > 0.000001) {
     rep=rep+1; model = CYIM_lmer_models[[mod]];
     fitted_vals = fitted(model);resids = residuals(model); 
-    out=optim(c(sd(resids),0),varPars,control=list(maxit=5000)); 
+    out=optim(c(sd(resids),0,0),varPars,control=list(maxit=5000)); 
     pars[[mod]]=out$par; 
-    new_sigma = exp(pars[[mod]][1] + pars[[mod]][2]*fitted_vals); new_weights = 1/((new_sigma)^2)
+    new_sigma = exp(pars[[mod]][1] + pars[[mod]][2]*fitted_vals+ pars[[mod]][3]*fitted_vals^2); new_weights = 1/((new_sigma)^2)
     new_weights = 0.5*(weights(model) + new_weights); # cautious update 
     new_model <- update(model,weights=new_weights); 
     err = weights(model)-weights(new_model); err=sqrt(mean(err^2)); 
     cat(mod,rep,err,"\n") # check on convergence of estimated weights 
     CYIM_lmer_models[[mod]]<-new_model; 
   }}
-```
 
-For fair AIC comparison, re-fit both models with best weights. 
-```{r lmer_aic}
+
 ######### For a fair AIC comparison, fit all models with the same weights 
 aics = unlist(lapply(CYIM_lmer_models,AIC)); best_model=which(aics==min(aics)); 
 best_weights=weights(CYIM_lmer_models[[best_model]]); 
 for(mod in 1:length(CYIM_lmer_models)) {
   CYIM_lmer_models[[mod]] <- update(CYIM_lmer_models[[mod]],weights=best_weights)
   }
-aictab(CYIM_lmer_models)
-```
+AIC(CYIM_lmer_models[[1]],CYIM_lmer_models[[2]])
 
-The linear model is favored.
-Last step is to re-fit with REML=T.
-```{r lmer_refit}
+
+# The quadratic model is favored. Last step is to re-fit with REML=T.
 aics = unlist(lapply(CYIM_lmer_models,AIC)); best_model=which(aics==min(aics));
 CYIM_lmer_best = CYIM_lmer_models[[best_model]] 
 best_weights = weights(CYIM_lmer_best)
-CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + (1|year_t) + (1|plot), data=CYIM,weights=best_weights,REML=TRUE) 
-```
+CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|year_t) + (1|plot), data=CYIM,weights=best_weights,REML=TRUE) 
+##refit the residuals as a function of mean
+fitted_vals = fitted(CYIM_lmer_best);resids = residuals(CYIM_lmer_best)
+best_pars <- optim(c(sd(resids),0,0),varPars,control=list(maxit=5000))
 
-Now visualize this kernel. This model is the *very best* we could do in a Gaussian framework (assuming there are no major fixed effects we are missing).
-```{r plot_gaussian_kernel}
+# Now visualize this kernel. This model is the *very best* we could do in a Gaussian framework 
+# (assuming there are no major fixed effects we are missing).
 ##dummy variable for initial size
 size_dim <- 100
 size_dum <- seq(min(log(CYIM$vol_t)),max(log(CYIM$vol_t)),length.out = size_dim)
-##make a polygon for the Gaussian kernel with non-constant variance
+##make a heatmap for the Gaussian kernel with non-constant variance -- updated with the quadratic terms for mean and variance
 CYIM_lmer_best_kernel <- matrix(NA,size_dim,size_dim)
 for(i in 1:size_dim){
-  mu_size <- fixef(CYIM_lmer_best)[1] + fixef(CYIM_lmer_best)[2] * size_dum[i]
+  mu_size <- fixef(CYIM_lmer_best)[1] + fixef(CYIM_lmer_best)[2] * size_dum[i] + fixef(CYIM_lmer_best)[3]*size_dum[i]^2
   CYIM_lmer_best_kernel[,i] <- dnorm(size_dum,
                                      mean = mu_size,
-                                     sd = exp(pars[[best_model]][1] + pars[[best_model]][2]*mu_size))
+                                     sd = exp(best_pars$par[1] + best_pars$par[2]*mu_size + best_pars$par[3]*mu_size^2))
 }
 
 levelplot(CYIM_lmer_best_kernel,row.values = size_dum, column.values = size_dum,cuts=30,
@@ -139,10 +117,8 @@ levelplot(CYIM_lmer_best_kernel,row.values = size_dum, column.values = size_dum,
             panel.levelplot(...)
             grid.points(log(CYIM$vol_t), log(CYIM$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
           }) 
-```
 
-Visually, this looks great. But is it any good? No. Scaled residuals are not remotely Gaussian. 
-```{r gaussian_resids}
+
 scaledResids = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))
 par(mfrow=c(1,2))
 plot(fitted(CYIM_lmer_best), scaledResids) 
@@ -150,21 +126,23 @@ qqPlot(scaledResids) # really bad in both tails
 jarque.test(scaledResids) # normality test: FAILS, P < 0.001 
 anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.001 
 agostino.test(scaledResids) # skewness: FAILS, P<0.001 
-```
 
-One last look at the standardized residuals. They are roughly mean zero and unit variance -- so that checks out. But there is negative skew and excess kurtosis, especially at large sizes. 
-```{r}
+# One last look at the standardized residuals. They are roughly mean zero and unit variance -- 
+# so that checks out. But there is negative skew and excess kurtosis, especially at large sizes. 
 px = fitted(CYIM_lmer_best); py=scaledResids; 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
-z = rollMoments(px,py,windows=10,smooth=TRUE,scaled=TRUE) 
-```
+z = rollMoments(px,py,windows=8,smooth=TRUE,scaled=TRUE) 
 
-***
-## Finding a better distribution
-We now know the Gaussian provides a poor fit to the residual variance. We would like to know which distribution provides a better - ideally _good_ - fit. Because there is size-dependence in skew and kurtosis, we cannot marginalize over the entire distribution of residuals (this may point us in the wrong direction). Instead, we can slice up the data into bins of expected value and find the best distribution for each bin using gamlss' fitDist(). 
-```{r find_dist,message=F,warning=F}
+##### Alternatively, use nonparametric measures of skew and excess kurtosis. 
+z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE) 
+
+# Finding a better distribution -------------------------------------------
+# We now know the Gaussian provides a poor fit to the residual variance. We would like to know which 
+# distribution provides a better - ideally _good_ - fit. Because there is size-dependence in skew and 
+# kurtosis, we cannot marginalize over the entire distribution of residuals (this may point 
+# us in the wrong direction). Instead, we can slice up the data into bins of expected 
+# value and find the best distribution for each bin using gamlss' fitDist(). 
 n_bins <- 8
-## I need to rewrite this code because it runs fitDist 4 separate times
 select_dist <- tibble(fit_best = fitted(CYIM_lmer_best),
                       scale_resid = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))) %>% 
   mutate(bin = as.integer(cut_number(fit_best,n_bins)),
@@ -177,23 +155,21 @@ for(b in 1:n_bins){
   select_dist$secondbest_dist[select_dist$bin==b] <- names(bin_fit$fits[2])
   select_dist$aic_margin[select_dist$bin==b] <- bin_fit$fits[2] - bin_fit$fits[1]
 }
-(select_dist %>% 
+select_dist %>% 
   group_by(bin) %>% 
   summarise(n_bin = n(),
             best_dist = unique(best_dist),
             secondbest_dist = unique(secondbest_dist),
-            aic_margin = unique(aic_margin)) -> select_dist)
-```
+            aic_margin = unique(aic_margin))
 
-It's a little bit of everything and convergence is not great (I've suppressed those warnings in this output). The skewed $t$ pops up a lot though, so I will procede with that one and hope in the end the fit is decent. To guide the skewed $t$ fits we can visualize how the higher moments are related to the fitted value. 
-```{r ST_moments}
+# It's a little bit of everything and convergence is not great (I've suppressed those warnings 
+# in this output). I am proceeding with the SHASH, which is support for 3/8 groups
 CYIM_bin_fit <-CYIM %>% 
   mutate(fitted = fitted(CYIM_lmer_best),
          bin = as.integer(cut_number(fitted,n_bins))) %>% 
   mutate(mu=NA, sigma=NA,nu=NA,tau=NA)
 for(b in 1:n_bins){
-  ## I get the most stable tau estimates with ST3
-  bin_fit <- gamlssML(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==b]) ~ 1,family="ST3")
+  bin_fit <- gamlssML(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==b]) ~ 1,family="SHASH")
   CYIM_bin_fit$mu[CYIM_bin_fit$bin==b] <- bin_fit$mu
   CYIM_bin_fit$sigma[CYIM_bin_fit$bin==b] <- bin_fit$sigma
   CYIM_bin_fit$nu[CYIM_bin_fit$bin==b] <- bin_fit$nu
@@ -217,33 +193,36 @@ plot(CYIM_bin_fit$mu,CYIM_bin_fit$nu,xlab=expression(paste("Location parameter  
                       ylab=expression(paste("Skewness parameter  ", nu )),type="b")
 plot(CYIM_bin_fit$mu,CYIM_bin_fit$tau,xlab=expression(paste("Location parameter  ", mu )),
                       ylab=expression(paste("Kurtosis parameter  ", tau)),type="b") 
-```
 
-***
-## Fitting the final model
-Now we can fit a custom model via maximum likelihood, matching the structure of the best lmre model but fitting the random effects as fixed instead and estimating the corresponding variances with Steve's shrinkage methods. The likelihood function is based on the skewed $t$ (using gamlss' dST3() - the parameterization that seemed best behaved.)
 
-First we will defined the linear predictor for the location parameter mu (which is not necessarily the expected value). Note that this with parameterzation, the intercept is year1/plot1.
-```{r model_matrix}
-U=model.matrix(~  0 + year_t + plot + log(vol_t), data=CYIM)
-```
+# Fitting the final model -------------------------------------------------
+# Now we can fit a custom model via maximum likelihood, matching the structure of the best lmer 
+# model but fitting the random effects as fixed instead and estimating the corresponding variances 
+# with Steve's shrinkage methods. 
 
-Next define a likelihood function using this linear predictor for the location. I am including quadratic terms for sigma and tau based on preliminary fit where linear models for these parameters led to a not-so-great fit at some sizes. Quadratic terms are also suggested in the moment plots above.
-```{r like_fun}
+#First we will defined the linear predictor for the location parameter mu 
+#(which is not necessarily the expected value). Note that this with parameterzation, the intercept is year1/plot1.
+U=model.matrix(~  0 + year_t + plot + log(vol_t)+ I(log(vol_t)^2), data=CYIM)
+
+# Next define a likelihood function using this linear predictor for the location. I am including 
+# quadratic terms for sigma and nu based on the binned fits above.
 LogLik=function(pars,response,U){
   pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
   mu = U%*%pars1;  
-  val = dST3(x = response, 
+  val = dSHASH(x = response, 
              mu=mu,
              sigma = exp(pars2[1] + pars2[2]*mu + pars2[3]*mu^2), 
-             nu = exp(pars2[4] + pars2[5]*mu), 
-             tau = exp(pars2[6] + pars2[7]*mu + pars2[8]*mu^2), log=T) 
+             nu = exp(pars2[4] + pars2[5]*mu + pars2[6]*mu^2), 
+             tau = exp(pars2[7] + pars2[8]*mu), log=T) 
   return(val); 
 }
-```
 
-Now fit it, using the lmer() fit for the mean (location) and lm() fits for the higher moments as starting parameter values. This comes straight from Steve's PSSP code, including his convergence paranoia, which is probably warranted. In preliminary fits, all the iterations converged on the same likelihoods, and this takes forever, so I am skimping on the paranoia here, but we might return to it to make this a good example to follow. This could also be a model selection step; easy to pull AIC from the maxLik fit. 
-```{r like_fit, results="hide"}
+# Now fit it, using the lmer() fit for the mean (location) and lm() fits for the higher moments as starting parameter values. 
+# This comes straight from Steve's PSSP code, including his convergence paranoia, which is probably warranted. 
+# In preliminary fits, all the iterations converged on the same likelihoods, and this takes forever, 
+# so I am skimping on the paranoia here, but we might return to it to make this a good example to follow. 
+# This could also be a model selection step; easy to pull AIC from the maxLik fit. 
+
 paranoid_iter <- 1
 coefs = list(paranoid_iter); LL=numeric(paranoid_iter);  
 
@@ -252,14 +231,14 @@ coefs = list(paranoid_iter); LL=numeric(paranoid_iter);
 # Linear predictor coefficients extracted from the lmer model 
 fixed_start = c(unlist(ranef(CYIM_lmer_best)$year_t) + unlist(ranef(CYIM_lmer_best)$plot)[1], #year estimates, conditioned on plot 1
                 unlist(ranef(CYIM_lmer_best)$plot)[-1],
-                fixef(CYIM_lmer_best)[2]) # size slope
+                fixef(CYIM_lmer_best)[2],fixef(CYIM_lmer_best)[3])
 ## make sure the dimensions line up
-#length(fixed_start);ncol(U);colnames(U) 
+length(fixed_start);ncol(U);colnames(U) 
 
 # Shape and scale coefficients from the rollaply diagnostic plots 
 fit_sigma = lm(log(sigma)~mu + I(mu^2), data=CYIM_bin_fit)
-fit_nu = lm(log(nu)~mu, data=CYIM_bin_fit)
-fit_tau = lm(log(tau)~mu + I(mu^2), data=CYIM_bin_fit)
+fit_nu = lm(log(nu)~mu + I(mu^2), data=CYIM_bin_fit)
+fit_tau = lm(log(tau)~mu, data=CYIM_bin_fit)
 p0=c(fixed_start, coef(fit_sigma), coef(fit_nu),coef(fit_tau))
 
 for(j in 1:paranoid_iter) {
@@ -281,25 +260,21 @@ out=maxLik(logLik=LogLik,start=coefs[[j]],response=log(CYIM$vol_t1),U=U,
            method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE) 
 
 ######### save results of ML fit.  
-names(out$estimate)<-c(colnames(U),"sigma_b0","sigma_b1","sigma_b2","nu_b0","nu_b1","tau_b0","tau_b1","tau_b2")
+names(out$estimate)<-c(colnames(U),"sigma_b0","sigma_b1","sigma_b2","nu_b0","nu_b1","nu_b2","tau_b0","tau_b1")
 coefs=out$estimate
 ## these are the indices of plot and year effects, to make the next steps a little more intuitive
 years=1:9
 plots=10:16
 SEs = sqrt(diag(vcov(out))) 
-AIC_ST <- 2*length(coefs) - 2*out$maximum
+AIC_SHASH <- 2*length(coefs) - 2*out$maximum
 AIC_norm <- AIC(CYIM_lmer_best)
-```
 
-The AIC comparison is a blowout, though I am not sure if it is ok to use the lmer AIC. Might be better to re-fit with plot and year as fixed. 
-```{r aic_compare}
-tibble(growth_function=c("Gaussian","Skewed t"),
-       AIC = c(AIC_norm,AIC_ST))
-```
+# The AIC comparison is a blowout, though I am not sure if it is ok to 
+# use the lmer AIC. Might be better to re-fit with plot and year as fixed. 
+tibble(growth_function=c("Gaussian","SHASH"),AIC = c(AIC_norm,AIC_SHASH))
 
-
-Now use Steve's shrinkage code to get the random effect variances and compare these to the lmer estimates. I will need Steve to explain to me what the shrinkage step is doing, and what is the theory for this (or I should do my own homework). 
-```{r shrinkage_year}
+# Now use Steve's shrinkage code to get the random effect variances and compare these to the lmer estimates. 
+# I will need Steve to explain to me what the shrinkage step is doing, and what is the theory for this (or I should do my own homework). 
 # shrinkage random effects for (1|year) 
 year_fixed.fx = coefs[years] - mean(coefs[years])
 year_fixed.se = SEs[years]
@@ -314,12 +289,13 @@ abline(0,1,col="blue",lty=2);
 
 tibble(sd_estimate = c(sd(year_fixed.fx),sd(year_shrunk.fx),sd(year_ran.fx$year_t$`(Intercept)`)),
        method = c("fixed","shrunk","lme4"))
-```
 
-The code for plots is more complicated than years, because plot effects were parameterized as contrasts. What is the SE of the plot 1 effect?? Is it the mean of the year SEs? -- probably not! I am going to drop plot 1 from the shrunk effects, because I don't know how to calculate its SE. This will bias the variance, hopefully not too much. 
+# The code for plots is more complicated than years, because plot effects were parameterized as contrasts. 
+# What is the SE of the plot 1 effect?? Is it the mean of the year SEs? -- probably not! 
+# I am going to drop plot 1 from the shrunk effects, because I don't know how to calculate its SE. 
+# This will bias the variance, hopefully not too much. 
 
-These estimates don't look as good as the year effects but, again, the shrinkage variance corresponds well to the lme4 esimate.
-```{r shrinkage_plot}
+# These estimates don't look as good as the year effects but, again, the shrinkage variance corresponds well to the lme4 esimate.
 # shrinkage random effects for (1|plot) 
 plot_coefs <- mean(coefs[years])+coefs[plots]
 plot_fixed.fx = plot_coefs - mean(plot_coefs)
@@ -335,50 +311,49 @@ abline(0,1,col="blue",lty=2);
 
 tibble(sd_estimate = c(sd(plot_fixed.fx),sd(plot_shrunk.fx),sd(plot_ran.fx$plot$`(Intercept)`)),
        method = c("fixed","shrunk","lme4"))
-```
 
-Steve had an interesting idea for an alternative way to fit two random effects, with one used as an offset for the other. Might swing back to that, especially since the reference-level problem is nagging at me. 
+# Steve had an interesting idea for an alternative way to fit two random effects, with one used as an offset for the other. 
+# Might swing back to that, especially since the reference-level problem is nagging at me. 
 
-***
 ## Visual diagnostics of model fit via shrinkage
-Here is the top-level view of the skewed t kernel. This will be the mean kernel, averaged over years and plots.
-```{r ST_kernel}
-CYIM_ST_kernel <- matrix(NA,size_dim,size_dim)
+## Here is the top-level view of the skewed t kernel. This will be the mean kernel, averaged over years and plots.
+CYIM_SHASH_kernel <- matrix(NA,size_dim,size_dim)
 for(i in 1:size_dim){
-  mu_size <- mean(coefs[c(years,plots)]) + coefs["log(vol_t)"] * size_dum[i]
-  CYIM_ST_kernel[,i] <- dST3(x = size_dum, 
+  mu_size <- mean(coefs[c(years,plots)]) + coefs["log(vol_t)"] * size_dum[i] + coefs["I(log(vol_t)^2)"] * size_dum[i]^2
+  CYIM_SHASH_kernel[,i] <- dSHASH(x = size_dum, 
              mu=mu_size,
              sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*mu_size + coefs["sigma_b2"]*mu_size^2), 
-             nu = exp(coefs["nu_b0"] + coefs["nu_b1"]*mu_size), 
-             tau = exp(coefs["tau_b0"] + coefs["tau_b1"]*mu_size + coefs["tau_b2"]*mu_size^2)) 
+             nu = exp(coefs["nu_b0"] + coefs["nu_b1"]*mu_size + coefs["nu_b2"]*mu_size^2), 
+             tau = exp(coefs["tau_b0"] + coefs["tau_b1"]*mu_size)) 
 }
 
-levelplot(CYIM_ST_kernel,row.values = size_dum, column.values = size_dum,cuts=30,
-          col.regions=rainbow(30),xlab="log Size t",ylab="log Size t+1",main="Skewed t",
+
+levelplot(CYIM_SHASH_kernel,row.values = size_dum, column.values = size_dum,cuts=30,
+          col.regions=rainbow(30),xlab="log Size t",ylab="log Size t+1",main="SHASH",
           panel = function(...) {
             panel.levelplot(...)
             grid.points(log(CYIM$vol_t), log(CYIM$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
           })
-```
 
-Now finer diagnostics comparing moments and quantiles of the real data against data generated by the fitted models. I am including the Gaussian and ST models for comparison. Now that I know a quadratic term for sigma improves fit, it might be fairer to included this in the Gaussian model, but proceeding with the original form of non-constant variance for now. 
 
-The skewed t model generally looks to be fitting well. Is it a strikingly better fit than the Gaussian? In mean and SD, no, which is not surprising because non-constant variance in lme4 can generally handle those. The fitted skewness of the ST is not particularly impressive, at least in this visualization, because the model can generate data with a really wide range of skewness just by chance, including positive and negative skew. Not sure yet if this is a problem, or just a natural consequence of the skewed t or skewed distributions generally. The median skewness estimates look good, i.e., show negative skew consistent with the data. Kurtosis looks great and this is a clear 'winner' over the Gaussian.
-```{r ST_binned_diagnostics, echo=F}
+# Final fit - diagnostics -------------------------------------------------
+# Now finer diagnostics comparing moments and quantiles of the real data against data generated 
+# by the fitted models. I am including the Gaussian and SHASH models for comparison. 
+
 # Simulate data from fitted SHASH model
 MLmu = U%*%coefs[1:ncol(U)] 
 
 n_sim <- 500
 cactus_sim<-cactus_sim_norm<-matrix(NA,nrow=nrow(CYIM),ncol=n_sim)
 for(i in 1:n_sim){
-  cactus_sim[,i] <- rST3(n = nrow(CYIM), 
+  cactus_sim[,i] <- rSHASH(n = nrow(CYIM), 
                     mu = MLmu, 
 					   sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*MLmu  + coefs["sigma_b2"]*MLmu^2), 
-             nu = exp(coefs["nu_b0"] + coefs["nu_b1"]*MLmu), 
-             tau = exp(coefs["tau_b0"] + coefs["tau_b1"]*MLmu + coefs["tau_b2"]*MLmu^2))
+             nu = exp(coefs["nu_b0"] + coefs["nu_b1"]*MLmu + coefs["nu_b2"]*MLmu^2), 
+             tau = exp(coefs["tau_b0"] + coefs["tau_b1"]*MLmu))
   cactus_sim_norm[,i] <- rnorm(n = nrow(CYIM),
                                mean = predict(CYIM_lmer_best),
-                               sd = exp(pars[[best_model]][1] + pars[[best_model]][2]*predict(CYIM_lmer_best)))
+                               sd = exp(pars[[best_model]][1] + pars[[best_model]][2]*predict(CYIM_lmer_best) + pars[[best_model]][3]*predict(CYIM_lmer_best)^2))
 }
 
 n_bins = 10
@@ -389,8 +364,8 @@ cactus_moments <- CYIM %>%
   group_by(size_bin) %>% 
   summarise(mean_t1 = mean(log(vol_t1)),
             sd_t1 = sd(log(vol_t1)),
-            skew_t1 = skewness(log(vol_t1)),
-            kurt_t1 = Lkurtosis(log(vol_t1)),
+            skew_t1 = NPskewness(log(vol_t1)),
+            kurt_t1 = NPkurtosis(log(vol_t1)),
             bin_mean = mean(log(vol_t)),
             bin_n = n()) 
 
@@ -414,7 +389,7 @@ matplot(cactus_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflower
 points(cactus_moments$bin_mean+0.2, cactus_moments$mean_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
 points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
 points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-legend("topleft",legend=c("Skewed t","Gaussian","Median","Data"),
+legend("topleft",legend=c("SHASH","Gaussian","Median","Data"),
 col=c(alpha("gray",0.5),alpha("cornflowerblue",0.5),alpha("black",alpha_scale), alpha("red",alpha_scale)),pch=1,lwd=2,bty="n"); 
 add_panel_label("a")
 
@@ -443,8 +418,8 @@ for(i in 1:n_sim){
     arrange(log(vol_t)) %>% 
     mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
     group_by(size_bin) %>% 
-    summarise(mean_t1 = skewness(sim),
-              mean_t1_norm = skewness(sim_norm),
+    summarise(mean_t1 = NPskewness(sim),
+              mean_t1_norm = NPskewness(sim_norm),
               bin_mean = mean(log(vol_t)))
 	sim_bin_means[,i]=sim_moments$bin_mean; 
 	sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;	  
@@ -462,8 +437,8 @@ for(i in 1:n_sim){
     arrange(log(vol_t)) %>% 
     mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
     group_by(size_bin) %>% 
-    summarise(mean_t1 = Lkurtosis(sim),
-              mean_t1_norm = Lkurtosis(sim_norm),
+    summarise(mean_t1 = NPkurtosis(sim),
+              mean_t1_norm = NPkurtosis(sim_norm),
               bin_mean = mean(log(vol_t)))
 	sim_bin_means[,i]=sim_moments$bin_mean; 
 	sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;	  
@@ -475,25 +450,19 @@ points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col
 points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
 add_panel_label("d")
 
-```
-
-Steve wrote this nifty function to do something similar but with quantiles. I have not added the Gaussian comparison but I can print this out separately. Here is the skewet $t$. 
-```{r quantile_diagnostics}
+# Steve wrote this nifty function to do something similar but with quantiles. 
+# I have not added the Gaussian comparison but I can print this out separately. Here is the skewet $t$. 
 quantileComparePlot(log(CYIM$vol_t),log(CYIM$vol_t1),cactus_sim,n_bins)
-```
 
-And here is the Gaussian. These look _really_ similar, except perhaps a mismatch at the smallest sizes. 
-```{r quantile_diagnostics_norm}
+#And here is the Gaussian. These look _really_ similar, except perhaps a mismatch at the smallest sizes. 
 quantileComparePlot(log(CYIM$vol_t),log(CYIM$vol_t1),cactus_sim_norm,n_bins)
-```
 
-***
-## IPM comparisons
-Finally, we can compare IPM predictions between the best Gaussian model and the skewed $t$ model. 
+# IPM comparisons ---------------------------------------------------------
+##Finally, we can compare IPM predictions between the best Gaussian model and the SHASH model. 
 
-Here are the size-dependent functions for survival, flowering, and flowerbud production, fit in lme4 with year and plot random effects.
+# Here are the size-dependent functions for survival, flowering, and flowerbud production, 
+# fit in lme4 with year and plot random effects.
 
-```{r vital_rate_fns,echo=F}
 surv_mod <- glmer(Survival_t1 ~ log(vol_t) + (1|year_t) + (1|plot), family="binomial", data=CYIM_full)
 flow_mod <- glmer(Goodbuds_t1>0 ~ log(vol_t1) + (1|year_t) + (1|plot), family="binomial", data=CYIM_full)
 fert_mod <- glmer(Goodbuds_t1 ~ log(vol_t1) + (1|year_t) + (1|plot), family="poisson", data=subset(CYIM_full,Goodbuds_t1>0))
@@ -504,15 +473,12 @@ lines(size_dum,invlogit(fixef(surv_mod)[1]+fixef(surv_mod)[2]*size_dum),lwd=3)
 plot(log(CYIM_full$vol_t),log(CYIM_full$vol_t1),xlab="log Size_t",ylab="log Size_t+1",col=alpha("gray",0.5))
 lines(size_dum,mean(coefs[c(years,plots)]) + coefs["log(vol_t)"] * size_dum,lwd=3)
 lines(size_dum,fixef(CYIM_lmer_best)[1]+fixef(CYIM_lmer_best)[2]*size_dum,col="red")
-legend("topleft",legend=c("ST location","lmer mean"),lwd=c(2,1),col=c("black","red"))
+legend("topleft",legend=c("SHASH location","lmer mean"),lwd=c(2,1),col=c("black","red"))
 plot(log(CYIM_full$vol_t),CYIM_full$Goodbuds_t1>0,xlab="log Size_t",ylab="Flowering",col=alpha("gray",0.5))
 lines(size_dum,invlogit(fixef(flow_mod)[1]+fixef(flow_mod)[2]*size_dum),lwd=3)
 plot(log(CYIM_full$vol_t[CYIM_full$Goodbuds_t1>0]),CYIM_full$Goodbuds_t1[CYIM_full$Goodbuds_t1>0],xlab="log Size_t",ylab="Fertility",col=alpha("gray",0.5))
 lines(size_dum,exp(fixef(fert_mod)[1]+fixef(fert_mod)[2]*size_dum),lwd=3)
-```
 
-
-```{r ipm,echo=F,message=F,warning=F}
 source("cactus_IPM_source_fns.R")
 
 seeds_per_fruit<-read.csv("JO_fruit_data_final_dropplant0.csv",T)  %>% drop_na() %>% 
@@ -537,19 +503,22 @@ cactus_params<-c()
 ## intecept is the mean across years and plots, corresponds to lme4 coefs for other vital rates
 cactus_params$grow.mu <- mean(coefs[c(years,plots)]) 
 cactus_params$grow.bsize <- coefs["log(vol_t)"]
+cactus_params$grow.bsize2 <- coefs["I(log(vol_t)^2)"]
 cactus_params$sigma_b0 <- coefs["sigma_b0"]
 cactus_params$sigma_b1 <- coefs["sigma_b1"]
 cactus_params$sigma_b2 <- coefs["sigma_b2"]
 cactus_params$nu_b0 <- coefs["nu_b0"]
 cactus_params$nu_b1 <- coefs["nu_b1"]
+cactus_params$nu_b2 <- coefs["nu_b2"]
 cactus_params$tau_b0 <- coefs["tau_b0"]
 cactus_params$tau_b1 <- coefs["tau_b1"]
-cactus_params$tau_b2 <- coefs["tau_b2"]
 ## Gaussian growth from best lme4 model
 cactus_params$grow.mu.norm <- fixef(CYIM_lmer_best)[1]
 cactus_params$grow.bsize.norm <- fixef(CYIM_lmer_best)[2]
+cactus_params$grow.bsize2.norm <- fixef(CYIM_lmer_best)[3]
 cactus_params$grow.sd.b0 <- pars[[best_model]][1]
 cactus_params$grow.sd.b1 <- pars[[best_model]][2]
+cactus_params$grow.sd.b2 <- pars[[best_model]][3]
 ## survival
 cactus_params$surv.mu <- fixef(surv_mod)[1]
 cactus_params$surv.bsize <- fixef(surv_mod)[2]
@@ -578,55 +547,45 @@ cactus_params$max.size <- log(max(CYIM$vol_t1))
 mat.size = 200
 lower.extension = -1
 upper.extension = 1.5
-kernel_ST <- bigmatrix(params = cactus_params,
+kernel_SHASH <- bigmatrix(params = cactus_params,
           lower.extension = lower.extension, 
           upper.extension = upper.extension,
           mat.size = mat.size,
-          dist="ST")
+          dist="SHASH")
 kernel_norm <- bigmatrix(params = cactus_params,
           lower.extension = lower.extension, 
           upper.extension = upper.extension,
           mat.size = mat.size,
           dist="norm")
-```
 
-And finally for IPM results. The mean model (averaging across years and plots) predicts very different growth rates:
-```{r lambda}
-tibble(Growth_Dist = c("Skewed t","Gaussian"),
-       lambda = c(round(lambda(kernel_ST$IPMmat),4),round(lambda(kernel_norm$IPMmat),4)))
-```
 
-Also, the SSD's are very different and the observed distribution is maybe in between the two of them (in the data plot, colored bars are years). The Gaussian ssd is bi-modal but the lower mode disappears with the skewed $t$ growth kernel, probably because the big reproductive plants are rare in the ssd so you lose the signal of recruitment. 
-```{r IPM_ssd}
-ssd_ST <- stable.stage(kernel_ST$IPMmat)[3:(mat.size+2)] / sum(stable.stage(kernel_ST$IPMmat)[3:(mat.size+2)])
+# And finally for IPM results. The mean model (averaging across years and plots) predicts very different growth rates:
+ tibble(Growth_Dist = c("SHASH","Gaussian"),
+       lambda = c(round(lambda(kernel_SHASH$IPMmat),4),round(lambda(kernel_norm$IPMmat),4)))
+
+#Also, the SSD's are very different and the observed distribution is maybe in between 
+# the two of them (in the data plot, colored bars are years). The Gaussian ssd is bi-modal but the 
+# lower mode disappears with the skewed $t$ growth kernel, probably because the big reproductive plants 
+# are rare in the ssd so you lose the signal of recruitment. 
+ssd_SHASH <- stable.stage(kernel_SHASH$IPMmat)[3:(mat.size+2)] / sum(stable.stage(kernel_SHASH$IPMmat)[3:(mat.size+2)])
 ssd_norm <- stable.stage(kernel_norm$IPMmat)[3:(mat.size+2)] / sum(stable.stage(kernel_norm$IPMmat)[3:(mat.size+2)])
-plot(kernel_ST$meshpts,ssd_norm,type="l",lty=2,lwd=3,xlab="log volume",ylab="Density")
-lines(kernel_norm$meshpts,ssd_ST,type="l",lwd=3)
-legend("topleft",c("Gaussian","skewed t"),lty=c(2,1),lwd=3,bty="n")
+empirical_sd <- density(log(CYIM$vol_t1),n=mat.size)
 
-CYIM %>% 
-  ggplot()+
-  geom_histogram(aes(x=log(vol_t),fill=as.factor(year_t)),position = "dodge")+
-  theme(legend.position = "none") +
-  xlab("log volume") + ylab("Observed frequency")
-```
+plot(kernel_norm$meshpts,ssd_norm,type="l",lty=2,lwd=3,xlab="log volume",ylab="Density")
+lines(kernel_SHASH$meshpts,ssd_SHASH,type="l",lwd=3)
+lines(empirical_sd$x,empirical_sd$y/sum(empirical_sd$y),col="red",lwd=3)
+legend("topleft",c("Gaussian SSD","SHASH SSD", "Empirical SD"),lty=c(2,1,1),col=c("black","black","red"),lwd=3,bty="n")
 
-The difference in ssd's is pretty striking, so I just wanted to have a closer look at the two growth kernels. The skewed $t$ is "peak-ier" than the Gaussian and this causes the Gaussian to allow for large increases in size that don't happen with the skewed $t$. I think that is where the big difference in SSD comes from. 
-```{r compare_growth}
+# The difference in ssd's is pretty striking, so I just wanted to have a closer look at the two 
+# growth kernels. The skewed $t$ is "peak-ier" than the Gaussian and this causes the Gaussian 
+# to allow for large increases in size that don't happen with the skewed $t$. I think that is 
+# where the big difference in SSD comes from. 
 x = c(-4,0,4,8,12)
 par(mfrow=c(2,3))
 for(i in 1:length(x)){
-plot(size_dum,gxy_ST(x=x[i],y=size_dum,params=cactus_params),type="l",main=paste("Size_t0 = ", x[i]),
+plot(size_dum,gxy_SHASH(x=x[i],y=size_dum,params=cactus_params),type="l",main=paste("Size_t0 = ", x[i]),
      xlab="Future size",ylab="Pr density")
 lines(size_dum,gxy_norm(x=x[i],y=size_dum,params=cactus_params),lty=2)
 }
-legend("topleft",legend=c("Skewed t","Gaussian"),lty=c(1,2),bty="n")
-```
+legend("topleft",legend=c("SHASH","Gaussian"),lty=c(1,2),bty="n")
 
-***
-## Conclusions
-* The cactus size transition data are not Gaussian, even though a Gaussian might pass the initial smell test, especially with non-constant variance
-* The skewed $t$ provides a better fit to the data, most noticeably in terms of kurtosis. There is a negative skew in the data that is reflected in the median estimates of the skewed $t$ simulations, but these simulations produced surprisingly wide variation in skewness. Choice of the skewed $t$ was a little arbitrary because other distributions were also in contention. This could (should?) have been an AIC model selection exercise. 
-* Fitting models with multiple random effects via shrinkage is tedious. The shrinkage variance estimates for plot is not exactly right because I could not figure out the SE of the reference plot estimate. There is probably a better way to do this. Still, I think showing an example with multiple RFX is worthwhile because this is a common thing that people deal with. 
-* IPM predictions are very different between the skewed $t$ and Gaussian growth kernels, with all else equal. The tails of the Gaussian allow for large increases in size that the skewed $t$ says are highly unlikely. As a result, they have very different SSD's, with the skewed $t$ SSD much smaller and therefore declining at a faster rate. 
-* The observed size distribution is not consistent with either SSD. However, all the evidence from this system suggests that the population is declining from previously high abundance (possibly driven by land use change), so it is plausible that it is not at SSD.
