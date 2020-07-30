@@ -67,9 +67,9 @@ LATR_lmer_models[[8]] <- lmer(log(vol_t1) ~ log(vol_t)*d.stand + I(log(vol_t)^2)
 ## this model will fit but the iterative re-weighting gets caught where the weights do not improve much, so skipping it
 #LATR_lmer_models[[9]] <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + d.stand + I(d.stand^2) + (1|unique.transect), data=LATR,REML=F,control=lmerControl(optimizer="bobyqa"))
 
-## for now making variance a simple linear function of fitted value
+## I am including a quadratic term here because I know that the final model will have a quadratic term for scale as a function of location
 varPars = function(pars) {
-  return(-sum(dnorm(resids, mean=0, sd=exp(pars[1] + pars[2]*fitted_vals),log=TRUE)))
+  return(-sum(dnorm(resids, mean=0, sd=exp(pars[1] + pars[2]*fitted_vals  + pars[3]*fitted_vals^2),log=TRUE)))
 }	
 ## iterative re-weighting
 pars<-list()
@@ -78,9 +78,9 @@ for(mod in 1:length(LATR_lmer_models)) {
   while(err > 0.000001) {
     rep=rep+1; model = LATR_lmer_models[[mod]];
     fitted_vals = fitted(model);resids = residuals(model); 
-    out=optim(c(sd(resids),0),varPars,control=list(maxit=5000)); 
+    out=optim(c(sd(resids),0,0),varPars,control=list(maxit=5000)); 
     pars[[mod]]=out$par; 
-    new_sigma = exp(pars[[mod]][1] + pars[[mod]][2]*fitted_vals); new_weights = 1/((new_sigma)^2)
+    new_sigma = exp(pars[[mod]][1] + pars[[mod]][2]*fitted_vals + pars[[mod]][3]*fitted_vals^2); new_weights = 1/((new_sigma)^2)
     new_weights = 0.5*(weights(model) + new_weights); # cautious update 
     new_model <- update(model,weights=new_weights); 
     err = weights(model)-weights(new_model); err=sqrt(mean(err^2)); 
@@ -103,7 +103,7 @@ best_weights = weights(LATR_lmer_best)
 LATR_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + d.stand + I(d.stand^2) + (1|unique.transect), data=LATR,REML=F,control=lmerControl(optimizer="bobyqa"))
 ##refit the residuals as a function of mean
 fitted_vals = fitted(LATR_lmer_best);resids = residuals(LATR_lmer_best)
-best_pars <- optim(c(sd(resids),0),varPars,control=list(maxit=5000))
+best_pars <- optim(c(sd(resids),0,0),varPars,control=list(maxit=5000))
 
 ##### Inspect scaled residuals
 scaledResids = residuals(LATR_lmer_best)*sqrt(weights(LATR_lmer_best))
@@ -145,7 +145,7 @@ levelplot(LATR_lmer_best_kernel_median_density,row.values = size_dum, column.val
 ## hmmm, this does not look like a great fit
 
 # Finding a better distribution -------------------------------------------
-n_bins <- 6
+n_bins <- 8
 select_dist <- tibble(fit_best = fitted(LATR_lmer_best),
                       scale_resid = residuals(LATR_lmer_best)*sqrt(weights(LATR_lmer_best))) %>% 
   mutate(bin = as.integer(cut_number(fit_best,n_bins)),
@@ -243,7 +243,7 @@ LogLik=function(pars,response,U){
   mu = U%*%pars1;  
   val = dLO(x = response, 
                mu=mu,
-               sigma = exp(pars2[1] + pars2[2]*mu + pars2[3]*mu^2), log=T) 
+               sigma = exp(pars2[1] + pars2[2]*mu + pars2[3]*mu^2),log=T) 
   return(val); 
 }
 
@@ -258,6 +258,7 @@ fixed_start = c(unlist(ranef(LATR_lmer_best)$unique.transect),fixef(LATR_lmer_be
 length(fixed_start);ncol(U);colnames(U) 
 
 fit_sigma = lm(log(sigma)~mu + I(mu^2), data=LATR_bin_fit)
+#fit_nu = lm(log(nu)~mu, data=LATR_bin_fit)
 p0=c(fixed_start, coef(fit_sigma))
 
 for(j in 1:paranoid_iter) {
@@ -281,7 +282,6 @@ out=maxLik(logLik=LogLik,start=coefs[[j]],response=log(LATR$vol_t1),U=U,
 # AIC improvement over gaussian
 (AIC_LO <- 2*length(coefs) - 2*out$maximum)
 (AIC_norm <- AIC(LATR_lmer_best) ) ## the logistic is quite an improvement
-
 ######### save results of ML fit.  
 names(out$estimate)<-c(colnames(U),"sigma_b0","sigma_b1","sigma_b2")
 coefs=out$estimate # parameters
@@ -309,4 +309,131 @@ shrinkRanIntercept = fixed.fx*sqrt(var.hat/(var.hat + diag(V1)));
 # lmer random effects for (1|year) 
 #transect_ran.fx = ranef(LATR_lmer_best)["unique.transect"]
 
+
+# visualize logistic model and moment diagnostics --------------------------------------
+LATR_LO_kernel_median_density <- matrix(NA,size_dim,size_dim)
+for(i in 1:size_dim){
+  mu_size <- mean(coefs[transects]) + coefs["log(vol_t)"]*size_dum[i] + coefs["d.stand"]*median(LATR$d.stand) + coefs["I(d.stand^2)"]*median(LATR$d.stand)^2
+  LATR_LO_kernel_median_density[i,] <- dNET(x = size_dum, 
+                                  mu=mu_size,
+                                  sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*mu_size + coefs["sigma_b2"]*mu_size^2)) 
+}
+
+
+levelplot(LATR_LO_kernel_median_density,row.values = size_dum, column.values = size_dum,cuts=30,
+          col.regions=rainbow(30),xlab="log Size t",ylab="log Size t+1",main="Logistic",
+          panel = function(...) {
+            panel.levelplot(...)
+            grid.points(log(LATR$vol_t), log(LATR$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
+          })
+
+# Simulate data from fitted LO model
+MLmu = U%*%coefs[1:ncol(U)] 
+n_sim <- 500
+LATR_sim_LO<-LATR_sim_NO<-matrix(NA,nrow=nrow(LATR),ncol=n_sim)
+for(i in 1:n_sim){
+  LATR_sim_LO[,i] <- rLO(n = nrow(LATR), 
+                           mu = MLmu, 
+                           sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*MLmu  + coefs["sigma_b2"]*MLmu^2))
+  LATR_sim_NO[,i] <- rnorm(n = nrow(LATR),
+                               mean = predict(LATR_lmer_best),
+                               sd = exp(pars[[best_model]][1] + pars[[best_model]][2]*predict(LATR_lmer_best) + pars[[best_model]][3]*predict(LATR_lmer_best)^2))
+}
+n_bins = 8
+alpha_scale = 0.9
+LATR_moments <- LATR %>% 
+  arrange(log(vol_t)) %>% 
+  mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+  group_by(size_bin) %>% 
+  summarise(mean_t1 = mean(log(vol_t1)),
+            sd_t1 = sd(log(vol_t1)),
+            skew_t1 = NPskewness(log(vol_t1)),
+            kurt_t1 = NPkurtosis(log(vol_t1)),
+            bin_mean = mean(log(vol_t)),
+            bin_n = n()) 
+
+## visualize how well final model describes real moments of the data
+par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2,1,0),bty="l"); 
+sim_bin_means=sim_moment_means_LO=sim_moment_means_NO = matrix(NA,n_bins,n_sim); 
+for(i in 1:n_sim){
+  sim_moments <- bind_cols(LATR,data.frame(sim_LO=LATR_sim_LO[,i],
+                                           sim_NO=LATR_sim_NO[,i])) %>% 
+    arrange(log(vol_t)) %>% 
+    mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_LO = mean(sim_LO),
+              mean_NO = mean(sim_NO),
+              bin_mean = mean(log(vol_t)))
+  sim_bin_means[,i]=sim_moments$bin_mean; 
+  sim_moment_means_LO[,i]=sim_moments$mean_LO; sim_moment_means_NO[,i]=sim_moments$mean_NO;		  
+}
+
+matplot(LATR_moments$bin_mean, sim_moment_means_LO,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="mean(Size t1)",cex=1.4)
+points(LATR_moments$bin_mean, apply(sim_moment_means_LO,1,median),pch=1,lwd=2,col="grey40",cex=1.4)
+matplot(LATR_moments$bin_mean+0.2, sim_moment_means_NO,col=alpha("cornflowerblue",0.5),pch=16,add=T)
+points(LATR_moments$bin_mean+0.2, apply(sim_moment_means_NO,1,median),pch=1,lwd=2,col="darkblue",cex=1.4)
+points(LATR_moments$bin_mean+0.1, LATR_moments$mean_t1,pch=16,lwd=2,col="red",cex=1.4)
+legend("topleft",legend=c("Logistic","Gaussian","Data"),
+       col=c(alpha("gray",alpha_scale),alpha("cornflowerblue",alpha_scale),alpha("red",alpha_scale)),pch=1,lwd=2,bty="n"); 
+add_panel_label("a")
+
+for(i in 1:n_sim){
+  sim_moments <- bind_cols(LATR,data.frame(sim_LO=LATR_sim_LO[,i],
+                                           sim_NO=LATR_sim_NO[,i])) %>% 
+    arrange(log(vol_t)) %>% 
+    mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_LO = sd(sim_LO),
+              mean_NO = sd(sim_NO),
+              bin_mean = mean(log(vol_t)))
+  sim_bin_means[,i]=sim_moments$bin_mean; 
+  sim_moment_means_LO[,i]=sim_moments$mean_LO; sim_moment_means_NO[,i]=sim_moments$mean_NO;		  
+}
+
+matplot(LATR_moments$bin_mean, sim_moment_means_LO,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="SD(Size t1)",cex=1.4)
+points(LATR_moments$bin_mean, apply(sim_moment_means_LO,1,median),pch=1,lwd=2,col="grey40",cex=1.4)
+matplot(LATR_moments$bin_mean+0.2, sim_moment_means_NO,col=alpha("cornflowerblue",0.5),pch=16,add=T)
+points(LATR_moments$bin_mean+0.2, apply(sim_moment_means_NO,1,median),pch=1,lwd=2,col="darkblue",cex=1.4)
+points(LATR_moments$bin_mean+0.1, LATR_moments$sd_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+add_panel_label("b")
+
+for(i in 1:n_sim){
+  sim_moments <- bind_cols(LATR,data.frame(sim_LO=LATR_sim_LO[,i],
+                                           sim_NO=LATR_sim_NO[,i])) %>% 
+    arrange(log(vol_t)) %>% 
+    mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_LO = NPskewness(sim_LO),
+              mean_NO = NPskewness(sim_NO),
+              bin_mean = mean(log(vol_t)))
+  sim_bin_means[,i]=sim_moments$bin_mean; 
+  sim_moment_means_LO[,i]=sim_moments$mean_LO; sim_moment_means_NO[,i]=sim_moments$mean_NO;		  
+}
+
+matplot(LATR_moments$bin_mean, sim_moment_means_LO,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Skew(Size t1)",cex=1.4)
+points(LATR_moments$bin_mean, apply(sim_moment_means_LO,1,median),pch=1,lwd=2,col="grey40",cex=1.4)
+matplot(LATR_moments$bin_mean+0.2, sim_moment_means_NO,col=alpha("cornflowerblue",0.5),pch=16,add=T)
+points(LATR_moments$bin_mean+0.2, apply(sim_moment_means_NO,1,median),pch=1,lwd=2,col="darkblue",cex=1.4)
+points(LATR_moments$bin_mean+0.1, LATR_moments$skew_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+add_panel_label("c")
+
+for(i in 1:n_sim){
+  sim_moments <- bind_cols(LATR,data.frame(sim_LO=LATR_sim_LO[,i],
+                                           sim_NO=LATR_sim_NO[,i])) %>% 
+    arrange(log(vol_t)) %>% 
+    mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(mean_LO = NPkurtosis(sim_LO),
+              mean_NO = NPkurtosis(sim_NO),
+              bin_mean = mean(log(vol_t)))
+  sim_bin_means[,i]=sim_moments$bin_mean; 
+  sim_moment_means_LO[,i]=sim_moments$mean_LO; sim_moment_means_NO[,i]=sim_moments$mean_NO;		  
+}
+
+matplot(LATR_moments$bin_mean, sim_moment_means_LO,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Kurtosis(Size t1)",cex=1.4)
+points(LATR_moments$bin_mean, apply(sim_moment_means_LO,1,median),pch=1,lwd=2,col="grey40",cex=1.4)
+matplot(LATR_moments$bin_mean+0.2, sim_moment_means_NO,col=alpha("cornflowerblue",0.5),pch=16,add=T)
+points(LATR_moments$bin_mean+0.2, apply(sim_moment_means_NO,1,median),pch=1,lwd=2,col="darkblue",cex=1.4)
+points(LATR_moments$bin_mean+0.1, LATR_moments$kurt_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+add_panel_label("d")
 
