@@ -165,13 +165,13 @@ select_dist %>%
             secondbest_dist = unique(secondbest_dist),
             aic_margin = unique(aic_margin))
 ## TF, LO,  NET show up a lot, and this makes sense because the roll moments plot showed that skewness is not bad but kurtosis is a problem
-## fit the TF by size bin (ignore density variation for now)
+## going with LO and we'll see if a 2-param distribution can do the job
 LATR_bin_fit <-LATR %>% 
   mutate(fitted = fitted(LATR_lmer_best),
          bin = as.integer(cut_number(fitted,n_bins))) %>% 
   mutate(mu=NA, sigma=NA,nu=NA,tau=NA)
 for(b in 1:n_bins){
-  bin_fit <- gamlssML(log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b]) ~ 1,family="TF")
+  bin_fit <- gamlssML(log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b]) ~ 1,family="LO")
   LATR_bin_fit$mu[LATR_bin_fit$bin==b] <- bin_fit$mu
   LATR_bin_fit$sigma[LATR_bin_fit$bin==b] <- bin_fit$sigma
   #LATR_bin_fit$nu[LATR_bin_fit$bin==b] <- bin_fit$nu
@@ -247,15 +247,13 @@ LogLik=function(pars,response,U){
   return(val); 
 }
 
-
-paranoid_iter <- 1
+paranoid_iter <- 3
 coefs = list(paranoid_iter); LL=numeric(paranoid_iter);  
 
 # Starting values from the pilot model are jittered to do multi-start optimization). 
 # Using good starting values really speeds up convergence in the ML fits  
 # Linear predictor coefficients extracted from the lmer model 
-fixed_start = c(unlist(ranef(LATR_lmer_best)$unique.transect),
-                fixef(LATR_lmer_best)[2],fixef(LATR_lmer_best)[3],fixef(LATR_lmer_best)[4])
+fixed_start = c(unlist(ranef(LATR_lmer_best)$unique.transect),fixef(LATR_lmer_best)[2:4])
 ## make sure the dimensions line up
 length(fixed_start);ncol(U);colnames(U) 
 
@@ -280,27 +278,35 @@ j = min(which(LL==max(LL))) ## they actually all land on the same likelihood-tha
 out=maxLik(logLik=LogLik,start=coefs[[j]],response=log(LATR$vol_t1),U=U,
            method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE) 
 
+# AIC improvement over gaussian
+(AIC_LO <- 2*length(coefs) - 2*out$maximum)
+(AIC_norm <- AIC(LATR_lmer_best) ) ## the logistic is quite an improvement
+
 ######### save results of ML fit.  
 names(out$estimate)<-c(colnames(U),"sigma_b0","sigma_b1","sigma_b2")
-coefs=out$estimate
-## these are the indices of plot and year effects, to make the next steps a little more intuitive
-transects=1:12
-SEs = sqrt(diag(vcov(out))) 
-AIC_LO <- 2*length(coefs) - 2*out$maximum
-AIC_norm <- AIC(LATR_lmer_best)
+coefs=out$estimate # parameters
+V = vcov(out); SEs = sqrt(diag(V)); # standard errors
 
-############# RFX shrinkage
-transect_fixed.fx = coefs[transects] - mean(coefs[transects])
-transect_fixed.se = SEs[transects]
-transect_sigma2.hat = mean(transect_fixed.fx^2)-mean(transect_fixed.se^2)
-transect_shrunk.fx = transect_fixed.fx*sqrt(transect_sigma2.hat/(transect_sigma2.hat + transect_fixed.se^2)) 
+############# RFX shrinkage -- NEW, following the theory and code in Steve's appendix
+n_transects <- length(unlist(ranef(LATR_lmer_best)$unique.transect))
+transects=1:n_transects ## these are the indices of transect estimates in the parameter estimate vector
+# Variance-covariance matrices for random intercepts
+V1 = V[transects,transects]; 
+# Extract year-specific intercepts, center them to zero
+fixed.fx = coefs[transects]; fixed.fx = fixed.fx-mean(fixed.fx);
+# Estimate sigma^2
+var.hat = mean(fixed.fx^2) - mean(diag(V1)) + (sum(V1)-sum(diag(V1)))/(2*n_transects*(n_transects-1)); ## still comes out negative
+# Shrink deviations from the mean
+shrinkRanIntercept = fixed.fx*sqrt(var.hat/(var.hat + diag(V1)));
+
+############# RFX shrinkage -- OLD, the shrunk variance is different, ask Steve why
+#transects=1:length(unlist(ranef(LATR_lmer_best)$unique.transect))
+#SEs = sqrt(diag(vcov(out))) 
+#transect_fixed.fx = coefs[transects] - mean(coefs[transects])
+#transect_fixed.se = SEs[transects]
+#transect_sigma2.hat = mean(transect_fixed.fx^2)-mean(transect_fixed.se^2)
+#transect_shrunk.fx = transect_fixed.fx*sqrt(transect_sigma2.hat/(transect_sigma2.hat + transect_fixed.se^2)) 
 # lmer random effects for (1|year) 
-transect_ran.fx = ranef(LATR_lmer_best)["unique.transect"]
+#transect_ran.fx = ranef(LATR_lmer_best)["unique.transect"]
 
-plot(year_ran.fx$year_t$`(Intercept)`,year_shrunk.fx,xlab="lmer year random effects",ylab="Shrunk year fixed effects",type="n")
-text(year_ran.fx$year_t$`(Intercept)`,year_shrunk.fx,labels=rownames(year_ran.fx$year_t))
-abline(0,1,col="blue",lty=2);
-
-tibble(sd_estimate = c(sd(year_fixed.fx),sd(year_shrunk.fx),sd(year_ran.fx$year_t$`(Intercept)`)),
-       method = c("fixed","shrunk","lme4"))
 
