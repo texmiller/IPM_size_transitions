@@ -114,15 +114,13 @@ jarque.test(scaledResids) # normality test: FAILS, P < 0.001
 anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.001 
 agostino.test(scaledResids) # skewness: FAILS, P<0.001 
 
-# One last look at the standardized residuals. They are roughly mean zero and unit variance -- 
-# so that checks out. But there is negative skew and excess kurtosis, especially at large sizes. 
 px = fitted(LATR_lmer_best); py=scaledResids; 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
 ##### Alternatively, use nonparametric measures of skew and excess kurtosis. 
 z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE) 
 ## there is still a size trend in the stdev of the residuals. hmm.
 plot(LATR$d.stand,scaledResids) #-- there is clearly greater variance at low density, which is what I would expect
-
+plot(log(LATR$vol_t),scaledResids) 
 
 # visualize kernel
 ##dummy variable for initial size
@@ -130,24 +128,24 @@ size_dim <- 100
 size_dum <- seq(min(log(LATR$vol_t)),max(log(LATR$vol_t)),length.out = size_dim)
 ##make a heatmap for the Gaussian kernel with non-constant variance -- updated with the quadratic terms for mean and variance
 ## Because there is density dependence, I will plot a low-density kernel
-LATR_lmer_best_kernel_mean_density <- matrix(NA,size_dim,size_dim)
+LATR_lmer_best_kernel_median_density <- matrix(NA,size_dim,size_dim)
 for(i in 1:size_dim){
   mu_size <- fixef(LATR_lmer_best)[1] + fixef(LATR_lmer_best)[2] * size_dum[i] + fixef(LATR_lmer_best)[3]*median(LATR$d.stand) + fixef(LATR_lmer_best)[4]*median(LATR$d.stand)^2
-  LATR_lmer_best_kernel_mean_density[,i] <- dnorm(size_dum,
+  LATR_lmer_best_kernel_median_density[i,] <- dnorm(size_dum,
                                      mean = mu_size,
                                      sd = exp(best_pars$par[1] + best_pars$par[2]*mu_size))
 }
 
-levelplot(LATR_lmer_best_kernel_mean_density,row.values = size_dum, column.values = size_dum,cuts=30,
+levelplot(LATR_lmer_best_kernel_median_density,row.values = size_dum, column.values = size_dum,cuts=30,
           col.regions=rainbow(30),xlab="log Size t",ylab="log Size t+1",main="Gaussian, non-constant variance",
           panel = function(...) {
             panel.levelplot(...)
             grid.points(log(LATR$vol_t), log(LATR$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
           }) 
-## This looks really bad!
+## hmmm, this does not look like a great fit
 
 # Finding a better distribution -------------------------------------------
-n_bins <- 9
+n_bins <- 6
 select_dist <- tibble(fit_best = fitted(LATR_lmer_best),
                       scale_resid = residuals(LATR_lmer_best)*sqrt(weights(LATR_lmer_best))) %>% 
   mutate(bin = as.integer(cut_number(fit_best,n_bins)),
@@ -166,15 +164,14 @@ select_dist %>%
             best_dist = unique(best_dist),
             secondbest_dist = unique(secondbest_dist),
             aic_margin = unique(aic_margin))
-## t family, LO,  NET show up a lot, and this makes sense because the roll moments plot showed that skewness is not bad but kurtosis is a problem
-
+## TF, LO,  NET show up a lot, and this makes sense because the roll moments plot showed that skewness is not bad but kurtosis is a problem
 ## fit the TF by size bin (ignore density variation for now)
 LATR_bin_fit <-LATR %>% 
   mutate(fitted = fitted(LATR_lmer_best),
          bin = as.integer(cut_number(fitted,n_bins))) %>% 
   mutate(mu=NA, sigma=NA,nu=NA,tau=NA)
 for(b in 1:n_bins){
-  bin_fit <- gamlssML(log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b]) ~ 1,family="LO")
+  bin_fit <- gamlssML(log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b]) ~ 1,family="TF")
   LATR_bin_fit$mu[LATR_bin_fit$bin==b] <- bin_fit$mu
   LATR_bin_fit$sigma[LATR_bin_fit$bin==b] <- bin_fit$sigma
   #LATR_bin_fit$nu[LATR_bin_fit$bin==b] <- bin_fit$nu
@@ -194,10 +191,46 @@ par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4)
 plot(LATR_bin_fit$mean_fitted,LATR_bin_fit$mu,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu )),type="b")
 plot(LATR_bin_fit$mu,LATR_bin_fit$sigma,xlab=expression(paste("Location parameter  ", mu )),
      ylab=expression(paste("Scale parameter  ", sigma)),type="b")
-plot(LATR_bin_fit$mu,LATR_bin_fit$nu,xlab=expression(paste("Location parameter  ", mu )),
-     ylab=expression(paste("Skewness parameter  ", nu )),type="b")
-plot(LATR_bin_fit$mu,LATR_bin_fit$tau,xlab=expression(paste("Location parameter  ", mu )),
-     ylab=expression(paste("Kurtosis parameter  ", tau)),type="b") 
+
+
+# -------------------------------------------------------------------------
+## as an alternative to fitDIst, try using Steve's improved fitDist
+source("../fitChosenDists.R")
+## these are gamlss' "realline" distributions
+tryDists <- c("NO", "GU", "RG" ,"LO", "NET", "TF", "TF2", "PE","PE2", "SN1", "SN2", "exGAUS", "SHASH", "SHASHo","SHASHo2", "EGB2", "JSU", "JSUo", "SEP1", "SEP2", "SEP3", "SEP4", "ST1", "ST2", "ST3", "ST4", "ST5", "SST", "GT")
+tryDensities <- paste("d",realline,sep="")
+tryDensities <- list(dNO,dGU)
+
+tryDists=c("EGB2","GT","JSU", "SHASHo","SEP1","SEP2","SEP3","SEP4"); 
+tryDensities=list(dEGB2, dGT, dJSU, dSHASHo, dSEP1, dSEP2, dSEP3, dSEP4); 
+
+bins = 1:n_bins
+maxVals = matrix(NA,n_bins,length(tryDists))
+for(j in 1:length(bins)){
+  for(k in 1:length(tryDists)) {
+    fitj = gamlssMaxlik(y=select_dist$scale_resid[select_dist$bin==j],
+                        DIST=tryDists[k],
+                        density=tryDensities[[k]]) 
+    maxVals[j,k] = fitj$maximum
+    cat("Finished ", tryDists[k]," ",j,k, fitj$maximum,"\n") 
+  }
+}
+
+## best two for each bin 
+for(j in 1:length(bins)){
+  e = order(-maxVals[j,]); 
+  cat(j, tryDists[e][1:2],"\n"); 
+}	
+
+# overall ranking 
+e = order(-colSums(maxVals)); 
+rbind(tryDists[e],round(colSums(maxVals)[e],digits=3)); 
+
+
+
+
+
+
 
 
 # Fitting the final model -------------------------------------------------
