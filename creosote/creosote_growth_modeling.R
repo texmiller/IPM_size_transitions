@@ -165,13 +165,13 @@ select_dist %>%
             secondbest_dist = unique(secondbest_dist),
             aic_margin = unique(aic_margin))
 ## TF, LO,  NET show up a lot, and this makes sense because the roll moments plot showed that skewness is not bad but kurtosis is a problem
-## I am trying the logistic, a simple 2-param distribution. Note that I am ignoring density variation in these size bins.
+## fit the TF by size bin (ignore density variation for now)
 LATR_bin_fit <-LATR %>% 
   mutate(fitted = fitted(LATR_lmer_best),
          bin = as.integer(cut_number(fitted,n_bins))) %>% 
   mutate(mu=NA, sigma=NA,nu=NA,tau=NA)
 for(b in 1:n_bins){
-  bin_fit <- gamlssML(log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b]) ~ 1,family="LO")
+  bin_fit <- gamlssML(log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b]) ~ 1,family="TF")
   LATR_bin_fit$mu[LATR_bin_fit$bin==b] <- bin_fit$mu
   LATR_bin_fit$sigma[LATR_bin_fit$bin==b] <- bin_fit$sigma
   #LATR_bin_fit$nu[LATR_bin_fit$bin==b] <- bin_fit$nu
@@ -192,6 +192,7 @@ plot(LATR_bin_fit$mean_fitted,LATR_bin_fit$mu,xlab="Fitted value",ylab=expressio
 plot(LATR_bin_fit$mu,LATR_bin_fit$sigma,xlab=expression(paste("Location parameter  ", mu )),
      ylab=expression(paste("Scale parameter  ", sigma)),type="b")
 ## maybe a quadratic term for sigma
+
 
 # -------------------------------------------------------------------------
 ## as an alternative to fitDIst, try using Steve's improved fitDist
