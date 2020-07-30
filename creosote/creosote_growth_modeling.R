@@ -165,13 +165,13 @@ select_dist %>%
             secondbest_dist = unique(secondbest_dist),
             aic_margin = unique(aic_margin))
 ## TF, LO,  NET show up a lot, and this makes sense because the roll moments plot showed that skewness is not bad but kurtosis is a problem
-## fit the TF by size bin (ignore density variation for now)
+## I am trying the logistic, a simple 2-param distribution. Note that I am ignoring density variation in these size bins.
 LATR_bin_fit <-LATR %>% 
   mutate(fitted = fitted(LATR_lmer_best),
          bin = as.integer(cut_number(fitted,n_bins))) %>% 
   mutate(mu=NA, sigma=NA,nu=NA,tau=NA)
 for(b in 1:n_bins){
-  bin_fit <- gamlssML(log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b]) ~ 1,family="TF")
+  bin_fit <- gamlssML(log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b]) ~ 1,family="LO")
   LATR_bin_fit$mu[LATR_bin_fit$bin==b] <- bin_fit$mu
   LATR_bin_fit$sigma[LATR_bin_fit$bin==b] <- bin_fit$sigma
   #LATR_bin_fit$nu[LATR_bin_fit$bin==b] <- bin_fit$nu
@@ -191,7 +191,7 @@ par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4)
 plot(LATR_bin_fit$mean_fitted,LATR_bin_fit$mu,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu )),type="b")
 plot(LATR_bin_fit$mu,LATR_bin_fit$sigma,xlab=expression(paste("Location parameter  ", mu )),
      ylab=expression(paste("Scale parameter  ", sigma)),type="b")
-
+## maybe a quadratic term for sigma
 
 # -------------------------------------------------------------------------
 ## as an alternative to fitDIst, try using Steve's improved fitDist
@@ -225,13 +225,6 @@ for(j in 1:length(bins)){
 # overall ranking 
 e = order(-colSums(maxVals)); 
 rbind(tryDists[e],round(colSums(maxVals)[e],digits=3)); 
-
-
-
-
-
-
-
 
 # Fitting the final model -------------------------------------------------
 # Now we can fit a custom model via maximum likelihood, matching the structure of the best lmer 
