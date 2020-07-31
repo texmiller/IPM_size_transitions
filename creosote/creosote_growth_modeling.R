@@ -118,9 +118,9 @@ agostino.test(scaledResids) # skewness: FAILS, P<0.001
 
 px = fitted(LATR_lmer_best); py=scaledResids; 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
-
 ##### Alternatively, use nonparametric measures of skew and excess kurtosis. 
 z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE) 
+
 ## there is still a size trend in the stdev of the residuals. hmm. ### Fixed! 
 plot(LATR$d.stand,scaledResids) #-- there is clearly greater variance at low density, which is what I would expect
 plot(log(LATR$vol_t),scaledResids) 
@@ -145,10 +145,9 @@ levelplot(LATR_lmer_best_kernel_median_density,row.values = size_dum, column.val
             panel.levelplot(...)
             grid.points(log(LATR$vol_t), log(LATR$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
           }) 
-## hmmm, this does not look like a great fit
 
 # Finding a better distribution -------------------------------------------
-n_bins <- 8
+n_bins <- 6
 select_dist <- tibble(fit_best = fitted(LATR_lmer_best),
                       scale_resid = residuals(LATR_lmer_best)*sqrt(weights(LATR_lmer_best))) %>% 
   mutate(bin = as.integer(cut_number(fit_best,n_bins)),
@@ -167,14 +166,17 @@ select_dist %>%
             best_dist = unique(best_dist),
             secondbest_dist = unique(secondbest_dist),
             aic_margin = unique(aic_margin))
-## TF, LO,  NET show up a lot, and this makes sense because the roll moments plot showed that skewness is not bad but kurtosis is a problem
-## going with LO and we'll see if a 2-param distribution can do the job
+## I've tried different bin numbers and there are lots of LOs and NETs - 2 param distributions
+## But the ST4 is consistently favored for the smallest bin, so I am thinking that we need more flexibility
+## in at least some of the size distribution. ST4 can have positive and negative skewness and strictly excess kurtosis.
+## Seems like a good choice from the residuals above.
+
 LATR_bin_fit <-LATR %>% 
   mutate(fitted = fitted(LATR_lmer_best),
          bin = as.integer(cut_number(fitted,n_bins))) %>% 
   mutate(mu=NA, sigma=NA,nu=NA,tau=NA)
 for(b in 1:n_bins){
-  bin_fit <- gamlssML(log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b]) ~ 1,family="LO")
+  bin_fit <- gamlssML(log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b]) ~ 1,family="LO") ## cannot get ST4 to work! ugh gamlss
   LATR_bin_fit$mu[LATR_bin_fit$bin==b] <- bin_fit$mu
   LATR_bin_fit$sigma[LATR_bin_fit$bin==b] <- bin_fit$sigma
   #LATR_bin_fit$nu[LATR_bin_fit$bin==b] <- bin_fit$nu
@@ -195,7 +197,10 @@ plot(LATR_bin_fit$mean_fitted,LATR_bin_fit$mu,xlab="Fitted value",ylab=expressio
 plot(LATR_bin_fit$mu,LATR_bin_fit$sigma,xlab=expression(paste("Location parameter  ", mu )),
      ylab=expression(paste("Scale parameter  ", sigma)),type="b")
 ## maybe a quadratic term for sigma
-
+#plot(LATR_bin_fit$mu,LATR_bin_fit$nu,xlab=expression(paste("Location parameter  ", mu )),
+#     ylab=expression(paste("Skewness parameter  ", nu )),type="b")
+#plot(LATR_bin_fit$mu,LATR_bin_fit$tau,xlab=expression(paste("Location parameter  ", mu )),
+#     ylab=expression(paste("Kurtosis parameter  ", tau)),type="b") 
 
 # -------------------------------------------------------------------------
 ## as an alternative to fitDIst, try using Steve's improved fitDist
@@ -246,7 +251,8 @@ LogLik=function(pars,response,U){
   mu = U%*%pars1;  
   val = dLO(x = response, 
                mu=mu,
-               sigma = exp(pars2[1] + pars2[2]*mu + pars2[3]*mu^2),log=T) 
+               sigma = exp(pars2[1] + pars2[2]*mu + pars2[3]*mu^2),
+             log=T) 
   return(val); 
 }
 
@@ -261,8 +267,10 @@ fixed_start = c(unlist(ranef(LATR_lmer_best)$unique.transect),fixef(LATR_lmer_be
 length(fixed_start);ncol(U);colnames(U) 
 
 fit_sigma = lm(log(sigma)~mu + I(mu^2), data=LATR_bin_fit)
-#fit_nu = lm(log(nu)~mu, data=LATR_bin_fit)
-p0=c(fixed_start, coef(fit_sigma))
+#fit_nu = lm(nu~mu + I(mu^2), data=LATR_bin_fit)
+#fit_tau = lm(log(tau)~1, data=LATR_bin_fit)
+
+p0=c(fixed_start,coef(fit_sigma)) 
 
 for(j in 1:paranoid_iter) {
   out=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=log(LATR$vol_t1),U=U,
