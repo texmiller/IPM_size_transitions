@@ -1,7 +1,7 @@
 rm(list=ls(all=TRUE));
 
 setwd("c:/repos/IPM_size_transitions/creosote"); #Steve
-setwd("C:/Users/tm9/Desktop/git local/IPM_size_transitions/creosote"); #Tom
+# setwd("C:/Users/tm9/Desktop/git local/IPM_size_transitions/creosote"); #Tom
 
 require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(gamlss.tr); require(AICcmodavg); 
@@ -100,13 +100,15 @@ AICtab(LATR_lmer_models)
 aics = unlist(lapply(LATR_lmer_models,AIC)); best_model=which(aics==min(aics));
 LATR_lmer_best = LATR_lmer_models[[best_model]] 
 best_weights = weights(LATR_lmer_best)
-LATR_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + d.stand + I(d.stand^2) + (1|unique.transect), data=LATR,REML=F,control=lmerControl(optimizer="bobyqa"))
+LATR_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + d.stand + I(d.stand^2) + (1|unique.transect), data=LATR, REML=T,
+		control=lmerControl(optimizer="bobyqa"), weights=best_weights)   ## here was a problem: no weights argument 
+
 ##refit the residuals as a function of mean
-fitted_vals = fitted(LATR_lmer_best);resids = residuals(LATR_lmer_best)
+fitted_vals = fitted(LATR_lmer_best); resids = residuals(LATR_lmer_best)
 best_pars <- optim(c(sd(resids),0,0),varPars,control=list(maxit=5000))
 
 ##### Inspect scaled residuals
-scaledResids = residuals(LATR_lmer_best)*sqrt(weights(LATR_lmer_best))
+scaledResids = residuals(LATR_lmer_best)*sqrt(best_weights) ## here was a problem: weights of LATR_lmer_best were all 1. 
 par(mfrow=c(1,2))
 plot(fitted(LATR_lmer_best), scaledResids) 
 qqPlot(scaledResids) # really bad in both tails
@@ -116,9 +118,10 @@ agostino.test(scaledResids) # skewness: FAILS, P<0.001
 
 px = fitted(LATR_lmer_best); py=scaledResids; 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
+
 ##### Alternatively, use nonparametric measures of skew and excess kurtosis. 
 z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE) 
-## there is still a size trend in the stdev of the residuals. hmm.
+## there is still a size trend in the stdev of the residuals. hmm. ### Fixed! 
 plot(LATR$d.stand,scaledResids) #-- there is clearly greater variance at low density, which is what I would expect
 plot(log(LATR$vol_t),scaledResids) 
 
