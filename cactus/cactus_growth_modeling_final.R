@@ -106,7 +106,7 @@ size_dum <- seq(min(log(CYIM$vol_t)),max(log(CYIM$vol_t)),length.out = size_dim)
 CYIM_lmer_best_kernel <- matrix(NA,size_dim,size_dim)
 for(i in 1:size_dim){
   mu_size <- fixef(CYIM_lmer_best)[1] + fixef(CYIM_lmer_best)[2] * size_dum[i] + fixef(CYIM_lmer_best)[3]*size_dum[i]^2
-  CYIM_lmer_best_kernel[,i] <- dnorm(size_dum,
+  CYIM_lmer_best_kernel[i,] <- dnorm(size_dum,
                                      mean = mu_size,
                                      sd = exp(best_pars$par[1] + best_pars$par[2]*mu_size + best_pars$par[3]*mu_size^2))
 }
@@ -320,7 +320,7 @@ tibble(sd_estimate = c(sd(plot_fixed.fx),sd(plot_shrunk.fx),sd(plot_ran.fx$plot$
 CYIM_SHASH_kernel <- matrix(NA,size_dim,size_dim)
 for(i in 1:size_dim){
   mu_size <- mean(coefs[c(years,plots)]) + coefs["log(vol_t)"] * size_dum[i] + coefs["I(log(vol_t)^2)"] * size_dum[i]^2
-  CYIM_SHASH_kernel[,i] <- dSHASH(x = size_dum, 
+  CYIM_SHASH_kernel[i,] <- dSHASH(x = size_dum, 
              mu=mu_size,
              sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*mu_size + coefs["sigma_b2"]*mu_size^2), 
              nu = exp(coefs["nu_b0"] + coefs["nu_b1"]*mu_size + coefs["nu_b2"]*mu_size^2), 
