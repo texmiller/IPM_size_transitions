@@ -9,7 +9,7 @@ add_panel_label <- function(ltype="a",cex=1) {
 ### show.quadratic adds a quadratic fit to the plot, for comparison 
 ###########################################################################
 spline.scatter.smooth=function(x,y,gamma=2,show.quadratic=FALSE,...) {
-  fit=gam(y~s(x),gamma=gamma,method="REML")
+  fit=gam(y~s(x,k=7),gamma=gamma,method="REML")
   plot(x,y,type="p",pch=16,cex=1.3,...);
   out=predict(fit,type="response"); 
   points(x,out,type="l",lwd=1)

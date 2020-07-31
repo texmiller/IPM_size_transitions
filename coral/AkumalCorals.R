@@ -1,54 +1,15 @@
 setwd("c:/repos/IPM_size_transitions/coral"); 
 
-require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
-require(gamlss); require(gamlss.tr); require(AICcmodavg); 
-require(lmerTest); require(tidyverse); require(maxLik); 
+require(car); require(zoo); require(moments); require(mgcv); 
+require(gamlss); require(AICcmodavg); 
+require(tidyverse); require(maxLik); 
 
 source("../Diagnostics.R"); 
 source("../fitChosenDists.R"); 
+source("AkumalCoralsSetup.R"); # load the data frame on healthy corals 
 
-#################################################################
-# Recruit size data
-#################################################################
-recruitSizes=c(16.7, 6.4, 10, 4.1, 4.7, 11.2, 6.3, 9.7, 5); #these are areas of known recruits  
-
-#xmin=min(log(recruitSizes)); xmax=max(log(recruitSizes));
-#mins=maxs=numeric(500); 
-#for(k in 1:500) {
-#	z=rnorm(length(recruitSizes),mean=mean(log(recruitSizes)),sd=sd(log(recruitSizes)));
-#	mins[k]=min(z); maxs[k]=max(z); 
-#}	
-# hist(mins); abline(v=xmin); hist(maxs); abline(v=xmax); 
-
-##########################################################
-# Setup the main data frame: do this before any analysis
-##########################################################
-X=read.csv("e:\\pubs\\mardis\\bruno\\data\\lesion_final_condensed2.csv",as.is=TRUE); 
-X$Area.T5=as.numeric(X$Area.T5)
-#### NOTE: the l_f_c2 file has correct NA's for state=I and areas not measured. 
-
-# Combine into one list of transitions with Year (=first year) as factor. 
-x23=subset(X,select=c(Site,Fan.number,State.T2,Area.T2,Infected.T2,Lesion.T2,State.T3,Area.T3,Infected.T3,Lesion.T3)); x23$Year="2002"; 
-x34=subset(X,select=c(Site,Fan.number,State.T3,Area.T3,Infected.T3,Lesion.T3,State.T4,Area.T4,Infected.T4,Lesion.T4)); x34$Year="2003";
-x45=subset(X,select=c(Site,Fan.number,State.T4,Area.T4,Infected.T4,Lesion.T4,State.T5,Area.T5,Infected.T5,Lesion.T5)); x45$Year="2004";
-
-newnames=c("Site","Fan.number","State1","Area1","Infected1","Lesion1","State2","Area2","Infected2","Lesion2","Year"); 
-names(x23)=newnames; names(x34)=newnames; names(x45)=newnames; 
-XC=rbind(x23,x34,x45);
-e=!is.na(XC$State1); XC=XC[e,];  
-
-XC$H1=XC$Area1-XC$Infected1; XC$H1[XC$H1<0]=0; 
-XC$H2=XC$Area2-XC$Infected2; XC$H2[XC$H2<0]=0; 
-XC$State1[XC$H1==0]="D"; 
-XC$State2[XC$H2==0]="D";
-
-XH = subset(XC, (State1=="H")&(State2=="H") ); 
-XH = subset(XH, select=c(Site,Fan.number,Year,Area1,Area2))
-XH = na.omit(XH); 
-
-XH$Site=factor(XH$Site); XH$Year=factor(XH$Year); 
-XH$logarea.t0 = log(XH$Area1); 
-XH$logarea.t1 = log(XH$Area2); 
+# names(XH); 
+#  "Site"  "Fan.number" "Year"  "Area1"  "Area2"  "logarea.t0" "logarea.t1"
 
 #####################################################################
 # Following the original model, use a cube-root transform.   
@@ -72,14 +33,15 @@ agostino.test(fitH3$residuals) # skewness: FAILS, P<0.001
 # Since cube-root transformation isn't the cure, use log 
 #########################################################################
 
+# pilot Gaussian model 
 fitGAU <- gam(list(logarea.t1~s(logarea.t0),~s(logarea.t0)), data=XH,family=gaulss())
 summary(fitGAU); 
 
-####  get values of the fitted splines to explore their properties 
+####  Extract values of the fitted splines to explore their properties 
 z_vals = seq(min(XH$logarea.t0),max(XH$logarea.t0),length=250); 
 fitted_vals = predict(fitGAU,type="response",newdata=data.frame(logarea.t0=z_vals)); 
 
-##### mean is fitted very well by a quadratic, slightly better by cubic (spline has df just above 3). 
+##### Mean is fitted very well by a quadratic, slightly better by cubic (spline has df just above 3). 
 mean_fit1 = lm(fitted_vals[,1]~z_vals); 
 mean_fit2 = lm(fitted_vals[,1]~z_vals+I(z_vals^2)); 
 mean_fit3 = lm(fitted_vals[,1]~z_vals+I(z_vals^2) + I(z_vals^3));  
@@ -89,7 +51,7 @@ sigma_hat = 1/fitted_vals[,2];
 sd_fit1 = lm(log(sigma_hat)~z_vals); # R^2 = 0.97 
 sd_fit2 = lm(log(sigma_hat)~z_vals+I(z_vals^2)); # R^2 = 0.999 
 
-###### Interrogate the scaled residuals 
+###### Interrogate the scaled residuals: not Gaussian!  
 fitted_all = predict(fitGAU,type="response"); 
 fitted_mean = fitted_all[,1];
 fitted_sd = 1/fitted_all[,2]; 
@@ -100,7 +62,7 @@ agostino.test(scaledResids) # skewness: marginal, p=0.044
 anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.01 
 
 #####################################################################
-#  Data display figure and pilot model 
+#  Graph: data and pilot model 
 #####################################################################
 graphics.off(); dev.new(width=9,height=7); 
 par(mfrow=c(2,2),mar=c(4,4,2,1), bty="l",cex.axis=1.3,cex.lab=1.3,mgp=c(2.2,1,0)); 
@@ -122,10 +84,12 @@ add_panel_label("d");
 
 # dev.copy2pdf(file="../manuscript/figures/AkumalPilot.pdf"); 
 
+#####################################################################
+# Graph: rolling moments diagnostic using NP skew, kurtosis
+#####################################################################
 z = rollMomentsNP(XH$logarea.t0,scaledResids,windows=10,smooth=TRUE,scaled=TRUE,xlab="Initial log area") 
 # dev.copy2pdf(file="../manuscript/figures/AkumalRollingResiduals.pdf");
 ## mean and SD look good, skew is variable and small except at small sizes, kurtosis on both sides of Gaussian! 
-
 
 ###########################################################################
 # Fit suitable distributions to binned data 
@@ -151,21 +115,115 @@ for(k in 1:length(tryDists)) {
 ## best two for each bin 
 for(j in 1:length(bins)){
 	e = order(-maxVals[j,]); 
-	cat(j, tryDists[e][1:2],"\n"); 
+	cat(j, tryDists[e][1:8],"\n"); 
 }	
 
 # overall ranking 
 e = order(-colSums(maxVals)); 
 rbind(tryDists[e],round(colSums(maxVals)[e],digits=3)); 
 
-# And the winner is: SEP2 
+# And the winner by a hair is: SEP2, just ahead of SEP1
+# SEP2 has poor inferential properties (McDonald and Xu) - parameters
+# are easily confounded - so we go with SEP1 for the sake of the
+# diagnostic. In the paper, maybe exclude SEP2 for that reason?  
 
-###########################################################################
-# Graphical diagnostics to choose the form of the fitted model
-# Estimate the parameters of SEP2 for a set of bins, and plot 
-###########################################################################
+##########################################################################
+# Graphical diagnostics to choose the form of the fitted model.
+# Estimate the parameters of SEP1 for a set of initial size bins, and plot 
+##########################################################################
+DIST = "SEP1"; density=dSEP1; simfun=rSEP1; 
 
+XH <- XH %>% mutate(size_bin = cut_number(logarea.t0,n=8))
+bins = levels(XH$size_bin); 
+mus = sigmas = nus = taus = bin_means = numeric(length(bins)-1); 
+for(j in 1:length(mus)){
+	Xj=subset(XH,size_bin%in%c(bins[j-1],bins[j]))
+	fitj = gamlssMaxlik(Xj$logarea.t1, DIST=DIST, density=density) 
+	pars = fitj$estimate; 
+	mus[j]=pars[1]; sigmas[j]=pars[2]; nus[j]=pars[3]; taus[j]=pars[4]; 
+	bin_means[j]=mean(Xj$logarea.t0); 
+}	
 
+graphics.off(); dev.new(width=8,height=6); 
+par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
+spline.scatter.smooth(bin_means,mus,xlab="Initial size",ylab=expression(paste("Location parameter  ", mu ))); #OK
+add_panel_label("a"); 
+spline.scatter.smooth(bin_means,sigmas,xlab="Initial size",
+			ylab=expression(paste("Scale parameter  ", sigma)));  
+add_panel_label("b"); 
+spline.scatter.smooth(bin_means,nus,xlab="Initial size",
+			ylab=expression(paste("Skewness parameter  ", nu ))); 
+add_panel_label("c"); 
+spline.scatter.smooth(bin_means,taus,xlab="Initial size",
+			ylab=expression(paste("Kurtosis parameter  ", tau)));  
+add_panel_label("d"); 
 
+## Based on the pilot Gaussian fit, we let the mean be cubic, log(sigma) quadratic,
+## even though we don't see it in the binned data diagnostics 
+## Based on the binned estimates, we let nu and log(tau) be linear 
 
+# sigma.link = "log", nu.link = "identity", tau.link = "log"
 
+LogLik=function(pars,y,x){
+	mu = pars[1]+ pars[2]*x + pars[3]*(x^2) + pars[4]*(x^3);   
+	sigma = exp(pars[5] + pars[6]*x + pars[7]*(x^2))
+	nu = pars[8] + pars[9]*x
+	tau = exp(pars[10]+pars[11]*x)
+	val = density(y, mu=mu,sigma=sigma,nu=nu,tau=tau,log=TRUE)
+	return(val); 
+}
+start=numeric(11);
+start[1:4]=coef(mean_fit3); # this is the pilot fit to the mean
+start[5:7]=coef(sd_fit2); 
+start[8:9]=c(median(nus),0);
+start[10:11]=c(median(log(taus),0))
+
+fit = maxLik(logLik=LogLik,start=start*exp(0.1*rnorm(11)), y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
+		control=list(iterlim=5000,printLevel=2),finalHessian=FALSE);  
+for(k in 1:5) {		
+fit = maxLik(logLik=LogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="NM",
+		control=list(iterlim=25000,printLevel=2),finalHessian=FALSE);  
+		
+fit = maxLik(logLik=LogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
+		control=list(iterlim=5000,printLevel=2),finalHessian=FALSE);
+}
+fit = maxLik(logLik=LogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
+		control=list(iterlim=5000,printLevel=2),finalHessian=TRUE);
+fit = maxLik(logLik=LogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="NM",
+		control=list(iterlim=25000,printLevel=2),finalHessian=TRUE);		
+		
+
+#######################################################################################
+#  Plot the fits 
+#######################################################################################
+graphics.off(); dev.new(width=8,height=6); 
+par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
+
+x = seq(min(XH$logarea.t0),max(XH$logarea.t0),length=100); pars=fit$estimate; 
+plot(x,pars[1]+ pars[2]*x + pars[3]*(x^2) + pars[4]*(x^3),xlab="Initial size", ylab="Location parameter mu",type="l"); 
+plot(x,exp(pars[5] + pars[6]*x + pars[7]*(x^2)), xlab="Initial size", ylab="Scale parameter sigma",type="l"); 
+plot(x,pars[8] + pars[9]*x, xlab="Initial size",ylab="Shape parameter nu",type="l");
+plot(x,	exp(pars[10]+pars[11]*x), xlab="Initial size",ylab="Shape parameter tau",type="l");
+		
+		
+############## Simulate data from fitted model
+pars = fit$estimate; x = XH$logarea.t0; 
+n_sim <- 500
+coral_sim<-matrix(NA,nrow=nrow(XH),ncol=n_sim)
+for(i in 1:n_sim){
+  if(i%%10==0) cat(i,"\n"); 
+  coral_sim[,i] <- simfun(n = nrow(XH), 
+                    mu =  pars[1]+ pars[2]*x + pars[3]*(x^2) + pars[4]*(x^3),
+					sigma = exp(pars[5] + pars[6]*x + pars[7]*(x^2)),
+					nu=pars[8] + pars[9]*x,
+					tau=exp(pars[10]+pars[11]*x) )
+}
+
+out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,nBins=8,alpha_scale = 0.7) 		
+dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
+		
+		
+		
+		
+		
+		
