@@ -44,75 +44,65 @@ LATR %>% filter(!(X %in% outliers)) -> LATR
 # first look at size transitions
 plot(log(LATR$vol_t),log(LATR$vol_t1))
 
-# Gaussian fits and fixed effect model selection --------------------------
-LATR_lmer_models <- list() 
-## simple model of size dependence
-LATR_lmer_models[[1]] <- lmer(log(vol_t1) ~ log(vol_t) + (1|unique.transect), data=LATR,REML=F,control=lmerControl(optimizer="bobyqa"))
+############################################################################
+# Gaussian fits and fixed effect model selection 
+############################################################################
+LATR_gam_models=list()
 
-## quadratic term for size
-LATR_lmer_models[[2]] <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|unique.transect), data=LATR,REML=F,control=lmerControl(optimizer="bobyqa"))
+LATR_gam_models[[1]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(unique.transect,bs="re"), ~s(log(vol_t))), 
+                data=LATR, family=gaulss())
+LATR_gam_models[[2]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + s(unique.transect,bs="re"), ~s(log(vol_t))), 
+                data=LATR, family=gaulss())                
+LATR_gam_models[[3]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + d.stand:log(vol_t) + s(unique.transect,bs="re"), ~s(log(vol_t))), 
+                data=LATR, family=gaulss())                
 
-## size and density
-LATR_lmer_models[[3]] <- lmer(log(vol_t1) ~ log(vol_t) + d.stand + (1|unique.transect), data=LATR,REML=F,control=lmerControl(optimizer="bobyqa"))
+for(mod in 1:3) {
+  fitGAU = LATR_gam_models[[mod]]
+  fitted_all = predict(fitGAU,type="response",data=LATR);                  
+  fitted_vals = new_fitted_vals = fitted_all[,1]; weights = fitted_all[,2]; 
 
-## size^2 and density
-LATR_lmer_models[[4]] <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + d.stand + (1|unique.transect), data=LATR,REML=F,control=lmerControl(optimizer="bobyqa"))
-
-## size-density interaction
-LATR_lmer_models[[5]] <- lmer(log(vol_t1) ~ log(vol_t) * d.stand + (1|unique.transect), data=LATR,REML=F,control=lmerControl(optimizer="bobyqa"))
-
-## size and density interaction plus size2 (convergence issues with size2*density)
-LATR_lmer_models[[6]] <- lmer(log(vol_t1) ~ log(vol_t) * d.stand + I(log(vol_t)^2) + (1|unique.transect), data=LATR,REML=F,control=lmerControl(optimizer="bobyqa"))
-
-## quadratic term for density
-LATR_lmer_models[[7]] <- lmer(log(vol_t1) ~ log(vol_t) + d.stand + I(d.stand^2) + (1|unique.transect), data=LATR,REML=F,control=lmerControl(optimizer="bobyqa"))
-
-## quadratic terms for density and size plus size-density interaction
-LATR_lmer_models[[8]] <- lmer(log(vol_t1) ~ log(vol_t)*d.stand + I(log(vol_t)^2) + I(d.stand^2) + (1|unique.transect), data=LATR,REML=F,control=lmerControl(optimizer="bobyqa"))
-
-## quadratic terms for density and size
-## this model will fit but the iterative re-weighting gets caught where the weights do not improve much, so skipping it
-#LATR_lmer_models[[9]] <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + d.stand + I(d.stand^2) + (1|unique.transect), data=LATR,REML=F,control=lmerControl(optimizer="bobyqa"))
-
-## I am including a quadratic term here because I know that the final model will have a quadratic term for scale as a function of location
-varPars = function(pars) {
-  return(-sum(dnorm(resids, mean=0, sd=exp(pars[1] + pars[2]*fitted_vals  + pars[3]*fitted_vals^2),log=TRUE)))
-}	
-## iterative re-weighting
-pars<-list()
-for(mod in 1:length(LATR_lmer_models)) {
-  err = 1; rep=0; 
-  while(err > 0.000001) {
-    rep=rep+1; model = LATR_lmer_models[[mod]];
-    fitted_vals = fitted(model); resids = residuals(model); 
-    out=optim(c(sd(resids),0,0),varPars,control=list(maxit=5000)); 
-    pars[[mod]]=out$par; 
-    new_sigma = exp(pars[[mod]][1] + pars[[mod]][2]*fitted_vals + pars[[mod]][3]*fitted_vals^2); new_weights = 1/((new_sigma)^2)
-    new_weights = 0.5*(weights(model) + new_weights); # cautious update 
-    new_model <- update(model,weights=new_weights); 
-    err = weights(model)-weights(new_model); err=sqrt(mean(err^2)); 
-    cat(mod,rep,err,"\n") # check on convergence of estimated weights 
-    LATR_lmer_models[[mod]]<-new_model; 
-  }}
-
-######### For a fair AIC comparison, fit all models with the same weights 
-aics = unlist(lapply(LATR_lmer_models,AIC)); best_model=which(aics==min(aics)); 
-best_weights=weights(LATR_lmer_models[[best_model]]); 
-for(mod in 1:length(LATR_lmer_models)) {
-  LATR_lmer_models[[mod]] <- update(LATR_lmer_models[[mod]],weights=best_weights)
+  err=100; k=0; 
+  while(err>0.000001) {
+    LATR$fitted_vals = new_fitted_vals; 
+    if(mod==1) fitGAU <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+                data=LATR, family=gaulss())
+    if(mod==2)  fitGAU <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+                data=LATR, family=gaulss())                   
+    if(mod==3) fitGAU <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + d.stand:log(vol_t) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+                data=LATR, family=gaulss())  
+    fitted_all = predict(fitGAU,type="response",data=LATR);   
+    new_fitted_vals = fitted_all[,1]; new_weights = fitted_all[,2];
+    matplot(new_fitted_vals,cbind(weights,new_weights),type="p"); 
+    err = weights - new_weights; err=sqrt(mean(err^2)); 
+    k=k+1; cat(k,err,"\n"); 
+    weights = new_weights; 
+  }   
+  LATR_gam_models[[mod]] =  fitGAU;
 }
-AICtab(LATR_lmer_models)
 
-# Model 7 is favored (density and density^2, no size*density). Last step is to re-fit with REML=T.
-aics = unlist(lapply(LATR_lmer_models,AIC)); best_model=which(aics==min(aics));
-LATR_lmer_best = LATR_lmer_models[[best_model]] 
-best_weights = weights(LATR_lmer_best)
-LATR_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + d.stand + I(d.stand^2) + (1|unique.transect), data=LATR, REML=T,
-		control=lmerControl(optimizer="bobyqa"), weights=best_weights)   ## here was a problem: no weights argument 
+AIC(LATR_gam_models[[1]]); AIC(LATR_gam_models[[2]]); AIC(LATR_gam_models[[3]]); # model 2. 
+LATR_gam_model <- LATR_gam_models[[2]]; 
+LATR$fitted_vals <- fitted(LATR_gam_model); 
 
-##refit the residuals as a function of mean
-fitted_vals = fitted(LATR_lmer_best); resids = residuals(LATR_lmer_best)
-best_pars <- optim(c(sd(resids),0,0),varPars,control=list(maxit=5000))
+plot(LATR_gam_model); 
+
+####  Extract values of the fitted splines to explore their properties 
+fitted_all = predict(LATR_gam_model,type="response");  
+
+##### Mean vs. initial size 
+logz = log(LATR$vol_t); 
+mean_fit1 = lm(fitted_all[,1]~logz); 
+
+
+#### log(sigma) is fitted well be a quadratic (spline has df just above 2) 
+sigma_hat = 1/fitted_vals[,2]; 
+sd_fit1 = lm(log(sigma_hat)~z_vals); # R^2 = 0.97 
+sd_fit2 = lm(log(sigma_hat)~z_vals+I(z_vals^2)); # R^2 = 0.999 
+
+
+
+
+
 
 ##### Inspect scaled residuals
 scaledResids = residuals(LATR_lmer_best)*sqrt(best_weights) ## here was a problem: weights of LATR_lmer_best were all 1. 

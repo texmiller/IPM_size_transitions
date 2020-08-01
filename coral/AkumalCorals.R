@@ -31,9 +31,8 @@ agostino.test(fitH3$residuals) # skewness: FAILS, P<0.001
 
 ######################################################################### 
 # Since cube-root transformation isn't the cure, use log 
+# First step is to fit a pilot Gaussian model. 
 #########################################################################
-
-# pilot Gaussian model 
 fitGAU <- gam(list(logarea.t1~s(logarea.t0),~s(logarea.t0)), data=XH,family=gaulss())
 summary(fitGAU); 
 
