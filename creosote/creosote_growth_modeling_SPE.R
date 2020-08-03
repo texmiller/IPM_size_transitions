@@ -93,16 +93,10 @@ fitted_all = predict(LATR_gam_model,type="response");
 logz = log(LATR$vol_t); 
 mean_fit1 = lm(fitted_all[,1]~logz); 
 
-
 #### log(sigma) is fitted well be a quadratic (spline has df just above 2) 
 sigma_hat = 1/fitted_vals[,2]; 
 sd_fit1 = lm(log(sigma_hat)~z_vals); # R^2 = 0.97 
 sd_fit2 = lm(log(sigma_hat)~z_vals+I(z_vals^2)); # R^2 = 0.999 
-
-
-
-
-
 
 ##### Inspect scaled residuals
 scaledResids = residuals(LATR_lmer_best)*sqrt(best_weights) ## here was a problem: weights of LATR_lmer_best were all 1. 

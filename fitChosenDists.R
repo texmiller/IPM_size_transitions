@@ -1,7 +1,7 @@
 ###########################################################################################
 # Fit a gamlss distribution family to a set of values by maximum likelihood using MaxLik.
 #    y is the set of values
-#    DIST is the name of the distribution family (e.g., DIST = "SEP2")
+#    DIST is the name of the distribution family (e.g., DIST = "JSU")
 #  
 # This function takes advantage of the structure of a gamlss family, to specify start
 # values for parameters based on the data, and to guarantee valid parameters through the
@@ -11,8 +11,8 @@
 # from the best of them. It's not entirely unreasonable to consider that it might 
 # be somewhat reliable, though 20 or 100 would be more reassuring. 
 #
-# The returned value is a maxLik fit, with parameters on the inverse-link scale (e.g,
-# typically log(sigma) rather than sigma). 
+# RETURNED VALUE is a maxLik() fit, with parameters on the family's link-transformed 
+# scale (e.g, typically log(sigma) rather than sigma). 
 #
 # The function can accommodate 2-, 3-, and 4-parameter gamlss distribution families
 # (this covers all of the continuous gamlss families except exponential)
@@ -54,7 +54,7 @@ gamlssMaxlik <- function(y,DIST) {
   #  return(val); 
   #}
   
-  LogLik=function(pars,response,n_par){
+  LogLik=function(pars,response){
     if(n_par==2) fun_args = list(x=response, mu=fam$mu.linkinv(pars[1]), sigma=fam$sigma.linkinv(pars[2]),log=TRUE)
     if(n_par==3) fun_args = list(x=response, mu=fam$mu.linkinv(pars[1]), 
                                    sigma=fam$sigma.linkinv(pars[2]), 
@@ -70,7 +70,7 @@ gamlssMaxlik <- function(y,DIST) {
   bestPars=numeric(n_par); bestMax=-10^16; 
   for(jrep in 1:10) {
     startj = start*exp(0.1*rnorm(n_par)); 
-    fit = maxLik(logLik=LogLik,start=startj, response=y, n_par=n_par, method="BHHH",control=list(iterlim=5000,printLevel=0),
+    fit = maxLik(logLik=LogLik,start=startj, response=y, method="BHHH",control=list(iterlim=5000,printLevel=0),
                 finalHessian=FALSE);  
     
     if(fit$maximum==0) fit$maximum = -10^16; 	# failed fit
@@ -79,7 +79,7 @@ gamlssMaxlik <- function(y,DIST) {
     cat(jrep,fit$maximum,"\n"); 
   }	
   
-  fit = maxLik(logLik=LogLik,start=bestPars, response=y,  n_par=n_par, method="BHHH",control=list(iterlim=5000,printLevel=0),
+  fit = maxLik(logLik=LogLik,start=bestPars, response=y, method="BHHH",control=list(iterlim=5000,printLevel=0),
                 finalHessian=FALSE); 
   fit$AIC = 2*n_par - 2*fit$maximum
   return(fit); 

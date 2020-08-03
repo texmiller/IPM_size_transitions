@@ -121,15 +121,17 @@ e = order(-colSums(maxVals));
 rbind(tryDists[e],round(colSums(maxVals)[e],digits=3)); 
 
 # And the winner by a hair is: SEP2, just ahead of SEP1
-# SEP2 has poor inferential properties (McDonald and Xu) - parameters
-# are easily confounded - so we go with SEP1 for the sake of the
+# SEP2 has poor inferential properties (DiCiccio TJ and Monti AC 2004) 
+# parameters are easily confounded - so we go with SEP1 for the sake of the
 # diagnostic. In the paper, maybe exclude SEP2 for that reason?  
 
 ##########################################################################
 # Graphical diagnostics to choose the form of the fitted model.
-# Estimate the parameters of SEP1 for a set of initial size bins, and plot 
+# Estimate the parameters of SEP1 for a set of initial size bins, and plot.
+# Values returned by gamlssMaxlik are on the family's link-transformed scale, 
+# e.g. log(sigma) rather than sigma. 
 ##########################################################################
-DIST = "SEP1"; density=dSEP1; simfun=rSEP1; 
+DIST = "SHASHo"; density=dSHASHo; simfun=rSHASHo; 
 
 XH <- XH %>% mutate(size_bin = cut_number(logarea.t0,n=8))
 bins = levels(XH$size_bin); 
@@ -153,7 +155,7 @@ spline.scatter.smooth(bin_means,nus,xlab="Initial size",
 			ylab=expression(paste("Skewness parameter  ", nu ))); 
 add_panel_label("c"); 
 spline.scatter.smooth(bin_means,taus,xlab="Initial size",
-			ylab=expression(paste("Kurtosis parameter  ", tau)));  
+			ylab=expression(paste("log Kurtosis parameter  ", tau)));  
 add_panel_label("d"); 
 
 ## Based on the pilot Gaussian fit, we let the mean be cubic,
@@ -163,7 +165,7 @@ add_panel_label("d");
 
 # sigma.link = "log", nu.link = "identity", tau.link = "log"
 
-LogLik=function(pars,y,x){
+KernelLogLik=function(pars,y,x){
 	mu = pars[1]+ pars[2]*x + pars[3]*(x^2) + pars[4]*(x^3);   
 	sigma = exp(pars[5] + pars[6]*x)
 	nu = pars[7] + pars[8]*x
@@ -171,24 +173,28 @@ LogLik=function(pars,y,x){
 	val = density(y, mu=mu,sigma=sigma,nu=nu,tau=tau,log=TRUE)
 	return(val); 
 }
-start=numeric(11);
-start[1:4]=coef(mean_fit3); # this is the pilot fit to the mean
-start[5:6]=coef(sd_fit1); # pilot fit to sd 
-start[7:8]=c(median(nus),0); # from binned data diagnostic
-start[9:10]=c(median(log(taus),0)) # from binned data diagnostic 
 
-fit = maxLik(logLik=LogLik,start=start*exp(0.1*rnorm(10)), y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
+## These should be on the link-transformed scale (e.g., log sigma)
+## because the inverse-link is applied in KernelLoglik(), so as to 
+## guarantee that the parameters are valid in the distribution family. 
+start=numeric(10);
+start[1:4]=coef(mean_fit3); # this is the pilot fit to the mean (link=identity) 
+start[5:6]=coef(sd_fit1); # pilot fit to log (sigma)
+start[7:8]=c(median(nus),0); # from binned data diagnostic
+start[9:10]=c(median(taus),0) # from binned data diagnostic 
+
+fit = maxLik(logLik=KernelLogLik,start=start*exp(0.1*rnorm(10)), y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
 		control=list(iterlim=5000,printLevel=2),finalHessian=FALSE);  
 for(k in 1:5) {		
-fit = maxLik(logLik=LogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="NM",
+fit = maxLik(logLik=KernelLogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="NM",
 		control=list(iterlim=25000,printLevel=2),finalHessian=FALSE);  
 		
-fit = maxLik(logLik=LogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
+fit = maxLik(logLik=KernelLogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
 		control=list(iterlim=5000,printLevel=2),finalHessian=FALSE);
 }
-fit = maxLik(logLik=LogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
+fit = maxLik(logLik=KernelLogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
 		control=list(iterlim=5000,printLevel=2),finalHessian=TRUE);
-fit = maxLik(logLik=LogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="NM",
+fit = maxLik(logLik=KernelLogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="NM",
 		control=list(iterlim=25000,printLevel=2),finalHessian=TRUE);		
 		
 #######################################################################################
@@ -218,7 +224,8 @@ for(i in 1:n_sim){
 }
 
 out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,nBins=10,alpha_scale = 0.7) 		
-dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
+
+# dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
 		
 		
 		
