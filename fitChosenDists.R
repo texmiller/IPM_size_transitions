@@ -38,18 +38,31 @@ gamlssMaxlik <- function(y,DIST) {
     start=c(start,eta.nu=fam$nu.linkfun(nu),eta.tau=fam$tau.linkfun(tau))
   }
   
-  LogLik=function(pars,response){
-    fun_args <- ifelse(n_par==2,
-                       list(x=response, mu=fam$mu.linkinv(pars[1]), 
-                            sigma=fam$sigma.linkinv(pars[2]),log=TRUE),
-                       ifelse(n_par==3,
-                              list(x=response, mu=fam$mu.linkinv(pars[1]), 
+  #LogLik=function(pars,response,n_par){
+  #  fun_args <- ifelse(n_par==2,
+  #                     list(x=response, mu=fam$mu.linkinv(pars[1]), 
+  #                          sigma=fam$sigma.linkinv(pars[2]),log=TRUE),
+  #                     ifelse(n_par==3,
+  #                            list(x=response, mu=fam$mu.linkinv(pars[1]), 
+  #                                 sigma=fam$sigma.linkinv(pars[2]), 
+  #                                 nu=fam$nu.linkinv(pars[3]),log=TRUE),
+  #                            list(x=response, mu=fam$mu.linkinv(pars[1]), 
+  #                                 sigma=fam$sigma.linkinv(pars[2]), 
+  #                                 nu=fam$nu.linkinv(pars[3]),
+  #                                 tau=fam$tau.linkinv(pars[4]),log=TRUE)))
+  #  val = do.call(paste("d",DIST,sep=""),fun_args)
+  #  return(val); 
+  #}
+  
+  LogLik=function(pars,response,n_par){
+    if(n_par==2) fun_args = list(x=response, mu=fam$mu.linkinv(pars[1]), sigma=fam$sigma.linkinv(pars[2]),log=TRUE)
+    if(n_par==3) fun_args = list(x=response, mu=fam$mu.linkinv(pars[1]), 
                                    sigma=fam$sigma.linkinv(pars[2]), 
-                                   nu=fam$nu.linkinv(pars[3]),log=TRUE),
-                              list(x=response, mu=fam$mu.linkinv(pars[1]), 
+                                   nu=fam$nu.linkinv(pars[3]),log=TRUE)
+    if(n_par==4) fun_args = list(x=response, mu=fam$mu.linkinv(pars[1]), 
                                    sigma=fam$sigma.linkinv(pars[2]), 
                                    nu=fam$nu.linkinv(pars[3]),
-                                   tau=fam$tau.linkinv(pars[4]),log=TRUE)))
+                                   tau=fam$tau.linkinv(pars[4]),log=TRUE)
     val = do.call(paste("d",DIST,sep=""),fun_args)
     return(val); 
   }
@@ -57,8 +70,8 @@ gamlssMaxlik <- function(y,DIST) {
   bestPars=numeric(n_par); bestMax=-10^16; 
   for(jrep in 1:10) {
     startj = start*exp(0.1*rnorm(n_par)); 
-    fit = maxLik(logLik=LogLik,start=startj, response=y, method="BHHH",control=list(iterlim=5000,printLevel=0),
-                 finalHessian=FALSE);  
+    fit = maxLik(logLik=LogLik,start=startj, response=y, n_par=n_par, method="BHHH",control=list(iterlim=5000,printLevel=0),
+                finalHessian=FALSE);  
     
     if(fit$maximum==0) fit$maximum = -10^16; 	# failed fit
     if(fit$code>2) fit$maximum = -10^16; 		# failed fit
@@ -66,19 +79,21 @@ gamlssMaxlik <- function(y,DIST) {
     cat(jrep,fit$maximum,"\n"); 
   }	
   
-  fit = maxLik(logLik=LogLik,start=bestPars, response=y, method="BHHH",control=list(iterlim=5000,printLevel=0),
-               finalHessian=FALSE); 
+  fit = maxLik(logLik=LogLik,start=bestPars, response=y,  n_par=n_par, method="BHHH",control=list(iterlim=5000,printLevel=0),
+                finalHessian=FALSE); 
   fit$AIC = 2*n_par - 2*fit$maximum
   return(fit); 
 }
 
+if(FALSE) {
 ## can I recover parameters of a normal distribution?
-#y = rNO(5000,mu=1,sigma=1)
-#out.NO = gamlssMaxlik(y=y, DIST="NO")
-#out.NO$estimate[1];exp(out.NO$estimate[2])
-## yes. does it favor a normal over other candidates? -- picking a few favorites
-#out.JSU = gamlssMaxlik(y=y, DIST="JSU")
-#out.SHASH = gamlssMaxlik(y=y, DIST="SHASH")
-#out.ST1 = gamlssMaxlik(y=y, DIST="ST1")
-## yes, normal is selected
-#out.NO$AIC;out.JSU$AIC;out.SHASH$AIC;out.ST1$AIC
+y = rNO(5000,mu=1,sigma=1)
+out.NO = gamlssMaxlik(y=y, DIST="NO")
+out.NO$estimate[1];exp(out.NO$estimate[2])
+# yes. does it favor a normal over other candidates? -- picking a few favorites
+out.JSU = gamlssMaxlik(y=y, DIST="JSU")
+out.SHASH = gamlssMaxlik(y=y, DIST="SHASH")
+out.ST1 = gamlssMaxlik(y=y, DIST="ST1")
+# yes, normal is selected
+out.NO$AIC;out.JSU$AIC;out.SHASH$AIC;out.ST1$AIC
+}

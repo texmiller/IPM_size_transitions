@@ -45,7 +45,7 @@ mean_fit1 = lm(fitted_vals[,1]~z_vals);
 mean_fit2 = lm(fitted_vals[,1]~z_vals+I(z_vals^2)); 
 mean_fit3 = lm(fitted_vals[,1]~z_vals+I(z_vals^2) + I(z_vals^3));  
 
-#### log(sigma) is fitted well be a quadratic (spline has df just above 2) 
+#### log(sigma) is fitted well by linear, perfectly by quadratic (spline has df just above 2) 
 sigma_hat = 1/fitted_vals[,2]; 
 sd_fit1 = lm(log(sigma_hat)~z_vals); # R^2 = 0.97 
 sd_fit2 = lm(log(sigma_hat)~z_vals+I(z_vals^2)); # R^2 = 0.999 
@@ -99,13 +99,12 @@ logResids <- logResids %>% mutate(size_bin = cut_number(init,n=5))
 source("../fitChosenDists.R"); 
 
 tryDists=c("EGB2","GT","JSU", "SHASHo","SEP1","SEP2","SEP3","SEP4"); 
-tryDensities=list(dEGB2, dGT, dJSU, dSHASHo, dSEP1, dSEP2, dSEP3, dSEP4); 
 
 bins = levels(logResids$size_bin); maxVals = matrix(NA,length(bins),length(tryDists)); 
 for(j in 1:length(bins)){
 for(k in 1:length(tryDists)) {
 	Xj=subset(logResids,size_bin==bins[j])
-	fitj = gamlssMaxlik(y=Xj$resids,DIST=tryDists[k],density=tryDensities[[k]]); 
+	fitj = gamlssMaxlik(y=Xj$resids,DIST=tryDists[k]); 
 	maxVals[j,k] = fitj$maximum;
 	cat("Finished ", tryDists[k]," ",j,k, fitj$maximum,"\n"); 
 }
@@ -137,7 +136,7 @@ bins = levels(XH$size_bin);
 mus = sigmas = nus = taus = bin_means = numeric(length(bins)-1); 
 for(j in 1:length(mus)){
 	Xj=subset(XH,size_bin%in%c(bins[j-1],bins[j]))
-	fitj = gamlssMaxlik(Xj$logarea.t1, DIST=DIST, density=density) 
+	fitj = gamlssMaxlik(Xj$logarea.t1, DIST=DIST) 
 	pars = fitj$estimate; 
 	mus[j]=pars[1]; sigmas[j]=pars[2]; nus[j]=pars[3]; taus[j]=pars[4]; 
 	bin_means[j]=mean(Xj$logarea.t0); 
@@ -148,7 +147,7 @@ par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4)
 spline.scatter.smooth(bin_means,mus,xlab="Initial size",ylab=expression(paste("Location parameter  ", mu ))); #OK
 add_panel_label("a"); 
 spline.scatter.smooth(bin_means,sigmas,xlab="Initial size",
-			ylab=expression(paste("Scale parameter  ", sigma)));  
+			ylab=expression(paste("log Scale parameter  ", sigma)));  
 add_panel_label("b"); 
 spline.scatter.smooth(bin_means,nus,xlab="Initial size",
 			ylab=expression(paste("Skewness parameter  ", nu ))); 
@@ -157,27 +156,28 @@ spline.scatter.smooth(bin_means,taus,xlab="Initial size",
 			ylab=expression(paste("Kurtosis parameter  ", tau)));  
 add_panel_label("d"); 
 
-## Based on the pilot Gaussian fit, we let the mean be cubic, log(sigma) quadratic,
+## Based on the pilot Gaussian fit, we let the mean be cubic,
 ## even though we don't see it in the binned data diagnostics 
-## Based on the binned estimates, we let nu and log(tau) be linear 
+## Based on the binned data parameter estimates, we let 
+## log(sigma), nu and log(tau) be linear 
 
 # sigma.link = "log", nu.link = "identity", tau.link = "log"
 
 LogLik=function(pars,y,x){
 	mu = pars[1]+ pars[2]*x + pars[3]*(x^2) + pars[4]*(x^3);   
-	sigma = exp(pars[5] + pars[6]*x + pars[7]*(x^2))
-	nu = pars[8] + pars[9]*x
-	tau = exp(pars[10]+pars[11]*x)
+	sigma = exp(pars[5] + pars[6]*x)
+	nu = pars[7] + pars[8]*x
+	tau = exp(pars[9]+pars[10]*x)
 	val = density(y, mu=mu,sigma=sigma,nu=nu,tau=tau,log=TRUE)
 	return(val); 
 }
 start=numeric(11);
 start[1:4]=coef(mean_fit3); # this is the pilot fit to the mean
-start[5:7]=coef(sd_fit2); 
-start[8:9]=c(median(nus),0);
-start[10:11]=c(median(log(taus),0))
+start[5:6]=coef(sd_fit1); # pilot fit to sd 
+start[7:8]=c(median(nus),0); # from binned data diagnostic
+start[9:10]=c(median(log(taus),0)) # from binned data diagnostic 
 
-fit = maxLik(logLik=LogLik,start=start*exp(0.1*rnorm(11)), y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
+fit = maxLik(logLik=LogLik,start=start*exp(0.1*rnorm(10)), y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
 		control=list(iterlim=5000,printLevel=2),finalHessian=FALSE);  
 for(k in 1:5) {		
 fit = maxLik(logLik=LogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="NM",
@@ -191,7 +191,6 @@ fit = maxLik(logLik=LogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,
 fit = maxLik(logLik=LogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="NM",
 		control=list(iterlim=25000,printLevel=2),finalHessian=TRUE);		
 		
-
 #######################################################################################
 #  Plot the fits 
 #######################################################################################
@@ -200,9 +199,9 @@ par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4)
 
 x = seq(min(XH$logarea.t0),max(XH$logarea.t0),length=100); pars=fit$estimate; 
 plot(x,pars[1]+ pars[2]*x + pars[3]*(x^2) + pars[4]*(x^3),xlab="Initial size", ylab="Location parameter mu",type="l"); 
-plot(x,exp(pars[5] + pars[6]*x + pars[7]*(x^2)), xlab="Initial size", ylab="Scale parameter sigma",type="l"); 
-plot(x,pars[8] + pars[9]*x, xlab="Initial size",ylab="Shape parameter nu",type="l");
-plot(x,	exp(pars[10]+pars[11]*x), xlab="Initial size",ylab="Shape parameter tau",type="l");
+plot(x,exp(pars[5] + pars[6]*x), xlab="Initial size", ylab="Scale parameter sigma",type="l"); 
+plot(x,pars[7] + pars[8]*x, xlab="Initial size",ylab="Shape parameter nu",type="l");
+plot(x,	exp(pars[9]+pars[10]*x), xlab="Initial size",ylab="Shape parameter tau",type="l");
 		
 		
 ############## Simulate data from fitted model
@@ -213,12 +212,12 @@ for(i in 1:n_sim){
   if(i%%10==0) cat(i,"\n"); 
   coral_sim[,i] <- simfun(n = nrow(XH), 
                     mu =  pars[1]+ pars[2]*x + pars[3]*(x^2) + pars[4]*(x^3),
-					sigma = exp(pars[5] + pars[6]*x + pars[7]*(x^2)),
-					nu=pars[8] + pars[9]*x,
-					tau=exp(pars[10]+pars[11]*x) )
+					sigma = exp(pars[5] + pars[6]*x),
+					nu=pars[7] + pars[8]*x,
+					tau=exp(pars[9]+pars[10]*x) )
 }
 
-out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,nBins=8,alpha_scale = 0.7) 		
+out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,nBins=10,alpha_scale = 0.7) 		
 dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
 		
 		
