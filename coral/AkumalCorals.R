@@ -12,7 +12,7 @@ source("AkumalCoralsSetup.R"); # load the data frame on healthy corals
 #  "Site"  "Fan.number" "Year"  "Area1"  "Area2"  "logarea.t0" "logarea.t1"
 
 #####################################################################
-# Following the original model, use a cube-root transform.   
+# Re-fit the Bruno et al. (2011) model that used a cube-root transform.  
 # We fit all healthy fans, and look for effects of fate, site, year
 #####################################################################
 nlog=function(x) x^(1/3)
@@ -33,17 +33,16 @@ agostino.test(fitH3$residuals) # skewness: FAILS, P<0.001
 # Since cube-root transformation isn't the cure, use log 
 # First step is to fit a pilot Gaussian model. 
 #########################################################################
-fitGAU <- gam(list(logarea.t1~s(logarea.t0),~s(logarea.t0)), data=XH,family=gaulss())
+fitGAU <- gam(list(logarea.t1~s(logarea.t0),~s(logarea.t0)), data=XH, gamma=1.4,family=gaulss())
 summary(fitGAU); 
 
 ####  Extract values of the fitted splines to explore their properties 
 z_vals = seq(min(XH$logarea.t0),max(XH$logarea.t0),length=250); 
 fitted_vals = predict(fitGAU,type="response",newdata=data.frame(logarea.t0=z_vals)); 
 
-##### Mean is fitted very well by a quadratic, slightly better by cubic (spline has df just above 3). 
+##### Mean is fitted almost exactly by linear, exactly by quadratic (spline has df just below 3). 
 mean_fit1 = lm(fitted_vals[,1]~z_vals); 
 mean_fit2 = lm(fitted_vals[,1]~z_vals+I(z_vals^2)); 
-mean_fit3 = lm(fitted_vals[,1]~z_vals+I(z_vals^2) + I(z_vals^3));  
 
 #### log(sigma) is fitted well by linear, perfectly by quadratic (spline has df just above 2) 
 sigma_hat = 1/fitted_vals[,2]; 
@@ -56,9 +55,10 @@ fitted_mean = fitted_all[,1];
 fitted_sd = 1/fitted_all[,2]; 
 scaledResids=residuals(fitGAU,type="response")/fitted_sd;  
  
-jarque.test(scaledResids) # normality test: FAILS, P < 0.001 
-agostino.test(scaledResids) # skewness: marginal, p=0.044 
-anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.01 
+jarque.test(scaledResids) # normality test: FAILS, P =.04 
+agostino.test(scaledResids) # skewness: passes, p=0.6 
+anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.03 
+
 
 #####################################################################
 #  Graph: data and pilot model 
@@ -81,13 +81,13 @@ add_panel_label("c");
 qqPlot(scaledResids,xlab="Normal quantiles",ylab="Scaled residuals"); 
 add_panel_label("d");
 
-# dev.copy2pdf(file="../manuscript/figures/AkumalPilot.pdf"); 
+dev.copy2pdf(file="../manuscript/figures/AkumalPilot.pdf"); 
 
 #####################################################################
 # Graph: rolling moments diagnostic using NP skew, kurtosis
 #####################################################################
 z = rollMomentsNP(XH$logarea.t0,scaledResids,windows=10,smooth=TRUE,scaled=TRUE,xlab="Initial log area") 
-# dev.copy2pdf(file="../manuscript/figures/AkumalRollingResiduals.pdf");
+dev.copy2pdf(file="../manuscript/figures/AkumalRollingResiduals.pdf");
 ## mean and SD look good, skew is variable and small except at small sizes, kurtosis on both sides of Gaussian! 
 
 ###########################################################################
@@ -128,10 +128,14 @@ rbind(tryDists[e],round(colSums(maxVals)[e],digits=3));
 ##########################################################################
 # Graphical diagnostics to choose the form of the fitted model.
 # Estimate the parameters of SEP1 for a set of initial size bins, and plot.
-# Values returned by gamlssMaxlik are on the family's link-transformed scale, 
-# e.g. log(sigma) rather than sigma. 
-##########################################################################
-DIST = "SHASHo"; density=dSHASHo; simfun=rSHASHo; 
+#
+# ALERT: parameter estimates returned by our gamlssMaxlik() function are on 
+# the family's link-transformed scale, e.g. log(sigma) rather than sigma. 
+# Before usine the estimates in a distribution function (e.g., to simulate values 
+# or compute a likelihood) the inverse link function needs to be
+# applied to the parameter estimates. 
+###########################################################################
+DIST = "SEP1"; density=dSEP1; simfun=rSEP1; fam = as.gamlss.family(DIST);
 
 XH <- XH %>% mutate(size_bin = cut_number(logarea.t0,n=8))
 bins = levels(XH$size_bin); 
@@ -159,7 +163,7 @@ spline.scatter.smooth(bin_means,taus,xlab="Initial size",
 add_panel_label("d"); 
 
 ## Based on the pilot Gaussian fit, we let the mean be cubic,
-## even though we don't see it in the binned data diagnostics 
+## even though we don't see it in the binned data diagnostics.  
 ## Based on the binned data parameter estimates, we let 
 ## log(sigma), nu and log(tau) be linear 
 
