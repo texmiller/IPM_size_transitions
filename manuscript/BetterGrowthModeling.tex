@@ -191,7 +191,7 @@ better growth model that is no harder to use in practice.
 The remainder of this article is structured as follows:
 \begin{itemize}
 \item First, we outline the logic, key elements, and general workflow of our growth modeling approach.
-\item Next, we apply this workflow to real data sets that come from our demographic studies of desert plants.
+\item Next, we apply this workflow to real data sets, all of which featured in our own previous modeling. 
 \item Then, we develop full IPMs for our desert plant case studies to evaluate how ``improved'' growth modeling affects IPM predictions\tom{}{I am still interested in possibly doing a simulation study to ask if there are particular types of life histories where getting the tails of size transitions right matters more or less. But punting that for now.}. 
 \item Finally, we discuss things...
 \end{itemize}
@@ -309,8 +309,8 @@ size transitions. Script \text{AkumalCorals.R} contains the analysis.
 \includegraphics[width=\textwidth]{figures/AkumalPilot.pdf}
 \caption{Pilot Gaussian model for growth of sea fan corals, \emph{Gorgonia ventalina}. \textbf{A)} Untransformed
 data on size transitions. \textbf{B)} Size transitions on the cube-root scale used by \citet{bruno-etal-2011}. 
-\textbf{C)} Size transitions on log scale, showing the mean (dotted red line) and mean$\pm 2$ standard deviations
-for the pilot Gaussian model with non-constant variance. \textbf{C)} Normal quantile-quantile plot of scaled residuals
+\textbf{C)} Size transitions on log scale, showing the mean (solid red curve) and mean$\pm 2$ standard deviations (blue dashed
+curves) for the pilot Gaussian model with non-constant variance. \textbf{D)} Normal quantile-quantile plot of scaled residuals
 from the pilot Gaussian model. Figure made by script \texttt{AkumalCorals.R}.}
 \label{fig:AkumalPilot}
 \end{figure} 
@@ -346,11 +346,12 @@ Fig. \ref{fig:AkumalPilot}C) shows the log-transformed data and Gaussian model. 
 but the scaled residuals are non-Gaussian (fig. \ref{fig:AkumalPilot}D; $p<0.03$ Jarque-Bera test for Normality).
 There is little skew (skewness=0.06, $p=0.64$ D'Agostino test), but significant kurtosis (excess kurtosis 0.67, $p=0.03$ Anscome-Glynn test). 
 
-We now need to find a better fitting distribution. If the shape of the growth distribution depends on initial size, 
-overall properties of the scaled residuals may be misleading. For example, with positive skew at small initial sizes 
-and negative skew at large sizes, the overall distribution could have zero skew but positive excess kurtosis. 
-A distribution family with those properties (e.g., a $t$ distribution) would be a bad fit to the conditional distribution 
-of growth at any initial size. 
+We now need to find a better fitting distribution. The overall properties of the scaled residuals (as in the preceding
+paragraph) may be misleading if the growth distribution changes as a function of initial size. 
+For example, is skew is positive at small initial sizes and negative at large sizes, the overall distribution 
+could have zero skew but positive excess kurtosis. A distribution family with those properties (e.g., a $t$ distribution) 
+would be a bad fit to the conditional distribution of growth at any initial size. Thus, a pilot Gaussian model should not
+be accepted just because the set of all scaled residuals is approximately Gaussian. 
 
 \begin{figure}[tbp]
 \centering
@@ -360,9 +361,10 @@ Figure made by scripts \texttt{AkumalCorals.R} and \texttt{Diagnostics.R}.}
 \label{fig:AkumalRollingResiduals}
 \end{figure} 
 
-Distribution choice should therefore be guided by properties of conditional distributions. Rarely will data include many instances of multiple
-observations with identical initial sizes, but we can approximate conditional distribution by grouping similar initial sizes. 
-In fig \ref{fig:AkumalRollingResiduals}, summary statistics (mean, standard deviation, NP skewness, NP excess kurtosis) 
+Instead, distribution choice should be guided by properties of distributions conditional on initial size. 
+Rarely will data include many instances of multiple observations with identical initial sizes, but we can 
+approximate conditional distribution by grouping similar initial sizes. 
+In fig. \ref{fig:AkumalRollingResiduals}, summary statistics (mean, standard deviation, NP skewness, NP excess kurtosis) 
 are plotted (solid points) for a set of sliding windows, each containing 10\% of the scaled residuals sorted according to initial size. 
 The red dashed lines are what we would see if the pilot model were exactly right: zero mean, skewness and excess kurtosis, and standard deviation of one. 
 Black curves are spline regressions through the points using \texttt{gam}. Panels A) and B) are a ``sanity check'' to verify
@@ -370,11 +372,60 @@ that the pilot model was adequate to capture the mean and variance of growth. Pa
 skew at small sizes and positive skew at larger sizes. Similarly, panel D), reveals that NP kurtosis varies with initial size, 
 negative for small fans (thin tails), positive at large sizes (fat tails). 
 
-Fitting those distribution properties requires a four-parameter distribution family that allows nonzero skew, allows both 
+Fitting those properties requires a four-parameter distribution that allows nonzero skew, allows both 
 positive and negative excess kurtosis, and whose range of possible values is $(-\infty, \infty)$. That narrows the options considerably. 
-Of the more than 50 distributions available in the \textbf{gamlss.dist} package, the only options are
-\texttt{EGB2, JSU, GT, SHASH, SEP} 
+Of the more than 50 distributions available in the \textbf{gamlss.dist} package, the options are 
+\texttt{EGB2, JSU, GT, SHASH} and four \texttt{SEP} distributions (four different ways of adding skew to the
+exponential power distribution). We omit \texttt{SEP2} because it is known to have poorly identified parameters
+\citep{diciccio-monti-2004}, which is problematic for diagnostics that we use in model selection. 
 
+To choose among the candidate distributions, we sorted the scaled residuals based on initial size into 5 equal-size bins, 
+and fitted all candidate distributions to each of the five resulting data sets by 
+maximum likelihood\footnote{Our function \texttt{gamlssMaxlik} in online script \texttt{fitChosenDists.R} is
+patterns after the \texttt{gamlss} function \texttt{gamlssML}, but uses the \texttt{maxLik} function from the \textbf{maxLik}
+package \citep{maxLik-package}, and repeated optimization from different starting values, to increase the reliability of the results.} 
+As all distributions have the same number of parameters, comparison of maximized likelihoods is equivalent to comparing AIC values. 
+With the exception of \texttt{EGB2} all distributions had very similar maximized likelihoods for all bins; the best overall (summed
+likelihood) was \texttt{SEP1}, so we proceeded with \texttt{SEP1}. 
+
+Most four-parameter distributions have the inconvenient property that their parameters are \emph{not} the mean, standard deviation, skew,
+and kurtosis of the distribution. This happens because (for example) introducing nonzero skew changes the mean and the kurtosis. 
+So to see how distribution parameters vary as a function of initial size, instead of inspecting fig. \ref{fig:AkumalRollingResiduals}, we need
+to look directly at how parameters vary as a function of initial size. As before, we did this by binning the data based on initial sizee, 
+and fitting an \texttt{SEP1} distribution to the subsequent size values in each data subset. Note, 
+in fig. \ref{fig:AkumalRollingResiduals} we used scaled residuals as the response variable, 
+to minimize how variation in mean and standard deviation within a bin would affect the skew and kurtosis. 
+Here, because all four distribution parameters interact to determine the distribution, we need to fit all 
+four simultaneously to the data on subsequent size in each bin. 
+
+As expected from the pilot Gaussian fit, the location parameter $\mu$ and the log of the scale parameters $\sigma$ appear to
+vary linearly with initial size. The skewness parameter $\nu$ and log of the kurtosis parameter $\tau$ also appear to
+vary linearly (note: log is the default link function for $\sigma$ and $\tau$ in \texttt{SEP1} because both must be positive).  
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=0.8\textwidth]{figures/RollingSEP1parsCorals.png}
+\caption{Binned data SEP1 parameter estimates for growth distributions of sea fan corals, \emph{Gorgonia ventalina}. 
+Figure made by scripts \texttt{AkumalCorals.R} and \texttt{Diagnostics.R}.}
+\label{fig:AkumalRollingSEP1pars}
+\end{figure} 
+
+Our candidate model for the overall growth kernel is thus an \texttt{SEP1} distribution in which $\mu, \log \sigma, \nu$ and $\log \tau$
+are all linear functions of initial size. This is easily fitted by maximum likelihood, using the pilot Gaussian fit and 
+the values plotted in fig. \ref{fig:AkumalRollingSEP1pars} to inform the starting parameter values. 
+
+The ``acid test'' of a growth model is that simulations from the fitted model should look like the real data. 
+To implement that criterion, we compared simulated and actual data with respect to quantiles of the distribution
+of subsequent size, again using a series of bins defined by initial size to account for how those quantiles vary
+with initial size. The candidate model described was not an unequivocal success -- there were
+discrepancies in the smaller bins, for several of the quantiles, mostly in the same direction. This suggests that
+the predicted mean is the source of the problem, so we modified the candidate model by adding a quadratic term
+for the location parameter. This resulted in a near-exact correspondence between model simulations and the
+data at all quantiles for all bins; moreover, the added quadratic terms was highly significant in the maximum
+likelihood fit ($p<0.001$). 
+
+
+ 
 
 \clearpage   
 

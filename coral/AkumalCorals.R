@@ -55,10 +55,9 @@ fitted_mean = fitted_all[,1];
 fitted_sd = 1/fitted_all[,2]; 
 scaledResids=residuals(fitGAU,type="response")/fitted_sd;  
  
-jarque.test(scaledResids) # normality test: FAILS, P =.04 
+jarque.test(scaledResids) # normality test: FAILS, P =.03 
 agostino.test(scaledResids) # skewness: passes, p=0.6 
 anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.03 
-
 
 #####################################################################
 #  Graph: data and pilot model 
@@ -73,7 +72,8 @@ plot(I(Area2^0.3333)~I(Area1^0.3333),data=XH,xlab="(Initial size)^1/3",ylab="(Su
 add_panel_label("b"); 
 
 plot(log(Area2)~log(Area1),data=XH,xlab="log(Initial size)",ylab="log(Subsequent size)",ylim=c(1,8.3)) 
-points(z_vals,fitted_vals[,1],type="l",lty=3,col="blue",lwd=3); 
+points(z_vals,fitted_vals[,1],type="l",lty=1,col="red",lwd=2); 
+points(log(XH$Area1), log(XH$Area2)) 
 points(z_vals,fitted_vals[,1]+2/fitted_vals[,2],type="l",lty=2,col="blue",lwd=2); 
 points(z_vals,fitted_vals[,1]-2/fitted_vals[,2],type="l",lty=2,col="blue",lwd=2); 
 add_panel_label("c");
@@ -98,7 +98,7 @@ logResids <- logResids %>% mutate(size_bin = cut_number(init,n=5))
 
 source("../fitChosenDists.R"); 
 
-tryDists=c("EGB2","GT","JSU", "SHASHo","SEP1","SEP2","SEP3","SEP4"); 
+tryDists=c("EGB2","GT","JSU", "SHASHo","SEP1","SEP3","SEP4"); 
 
 bins = levels(logResids$size_bin); maxVals = matrix(NA,length(bins),length(tryDists)); 
 for(j in 1:length(bins)){
@@ -120,10 +120,10 @@ for(j in 1:length(bins)){
 e = order(-colSums(maxVals)); 
 rbind(tryDists[e],round(colSums(maxVals)[e],digits=3)); 
 
-# And the winner by a hair is: SEP2, just ahead of SEP1
+# And the winner by a hair is: SEP2, just ahead of SEP1 and SEP3. 
 # SEP2 has poor inferential properties (DiCiccio TJ and Monti AC 2004) 
 # parameters are easily confounded - so we go with SEP1 for the sake of the
-# diagnostic. In the paper, maybe exclude SEP2 for that reason?  
+# diagnostic. In the paper, we exclude SEP2 for that reason.   
 
 ##########################################################################
 # Graphical diagnostics to choose the form of the fitted model.
@@ -135,7 +135,7 @@ rbind(tryDists[e],round(colSums(maxVals)[e],digits=3));
 # or compute a likelihood) the inverse link function needs to be
 # applied to the parameter estimates. 
 ###########################################################################
-DIST = "SEP1"; density=dSEP1; simfun=rSEP1; fam = as.gamlss.family(DIST);
+DIST = "SEP1"; simfun=rSEP1; fam = as.gamlss.family(DIST);
 
 XH <- XH %>% mutate(size_bin = cut_number(logarea.t0,n=8))
 bins = levels(XH$size_bin); 
@@ -162,32 +162,36 @@ spline.scatter.smooth(bin_means,taus,xlab="Initial size",
 			ylab=expression(paste("log Kurtosis parameter  ", tau)));  
 add_panel_label("d"); 
 
-## Based on the pilot Gaussian fit, we let the mean be cubic,
-## even though we don't see it in the binned data diagnostics.  
+savePlot(file="../manuscript/figures/RollingSEP1parsCorals.png", type="png"); 
+
+
+## Based on the pilot Gaussian fit and the binned parameter estimates
+## we let the mean be linear, and log sigma be linear. 
 ## Based on the binned data parameter estimates, we let 
-## log(sigma), nu and log(tau) be linear 
+## nu and log(tau) be linear 
 
 # sigma.link = "log", nu.link = "identity", tau.link = "log"
 
+density=dSEP1; 
 KernelLogLik=function(pars,y,x){
-	mu = pars[1]+ pars[2]*x + pars[3]*(x^2) + pars[4]*(x^3);   
-	sigma = exp(pars[5] + pars[6]*x)
-	nu = pars[7] + pars[8]*x
-	tau = exp(pars[9]+pars[10]*x)
+	mu = pars[1]+ pars[2]*x + pars[3]*x^2  
+	sigma = exp(pars[4] + pars[5]*x)
+	nu = pars[6] + pars[7]*x
+	tau = exp(pars[8]+pars[9]*x)
 	val = density(y, mu=mu,sigma=sigma,nu=nu,tau=tau,log=TRUE)
 	return(val); 
 }
 
-## These should be on the link-transformed scale (e.g., log sigma)
+## The start values should be on the link-transformed scale (e.g., log sigma)
 ## because the inverse-link is applied in KernelLoglik(), so as to 
 ## guarantee that the parameters are valid in the distribution family. 
-start=numeric(10);
-start[1:4]=coef(mean_fit3); # this is the pilot fit to the mean (link=identity) 
-start[5:6]=coef(sd_fit1); # pilot fit to log (sigma)
-start[7:8]=c(median(nus),0); # from binned data diagnostic
-start[9:10]=c(median(taus),0) # from binned data diagnostic 
+start=numeric(9);
+start[1:3]=coef(mean_fit2); # this is the pilot fit to the mean (link=identity) 
+start[4:5]=coef(sd_fit1); # pilot fit to log (sigma)
+start[6:7]=c(median(nus),0); # from binned data diagnostic
+start[8:9]=c(median(taus),0) # from binned data diagnostic 
 
-fit = maxLik(logLik=KernelLogLik,start=start*exp(0.1*rnorm(10)), y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
+fit = maxLik(logLik=KernelLogLik,start=start*exp(0.1*rnorm(8)), y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
 		control=list(iterlim=5000,printLevel=2),finalHessian=FALSE);  
 for(k in 1:5) {		
 fit = maxLik(logLik=KernelLogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="NM",
@@ -199,7 +203,9 @@ fit = maxLik(logLik=KernelLogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logar
 fit = maxLik(logLik=KernelLogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
 		control=list(iterlim=5000,printLevel=2),finalHessian=TRUE);
 fit = maxLik(logLik=KernelLogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="NM",
-		control=list(iterlim=25000,printLevel=2),finalHessian=TRUE);		
+		control=list(iterlim=25000,printLevel=2),finalHessian=TRUE);	
+fit = maxLik(logLik=KernelLogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logarea.t0,method="BHHH",
+		control=list(iterlim=5000,printLevel=2),finalHessian=TRUE);	
 		
 #######################################################################################
 #  Plot the fits 
@@ -208,10 +214,10 @@ graphics.off(); dev.new(width=8,height=6);
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
 
 x = seq(min(XH$logarea.t0),max(XH$logarea.t0),length=100); pars=fit$estimate; 
-plot(x,pars[1]+ pars[2]*x + pars[3]*(x^2) + pars[4]*(x^3),xlab="Initial size", ylab="Location parameter mu",type="l"); 
-plot(x,exp(pars[5] + pars[6]*x), xlab="Initial size", ylab="Scale parameter sigma",type="l"); 
-plot(x,pars[7] + pars[8]*x, xlab="Initial size",ylab="Shape parameter nu",type="l");
-plot(x,	exp(pars[9]+pars[10]*x), xlab="Initial size",ylab="Shape parameter tau",type="l");
+plot(x,pars[1]+ pars[2]*x+ pars[3]*x^2 ,xlab="Initial size", ylab="Location parameter mu",type="l"); 
+plot(x,exp(pars[4] + pars[5]*x), xlab="Initial size", ylab="Scale parameter sigma",type="l"); 
+plot(x,pars[6] + pars[7]*x, xlab="Initial size",ylab="Shape parameter nu",type="l");
+plot(x,	exp(pars[8]+pars[9]*x), xlab="Initial size",ylab="Shape parameter tau",type="l");
 		
 		
 ############## Simulate data from fitted model
@@ -221,15 +227,15 @@ coral_sim<-matrix(NA,nrow=nrow(XH),ncol=n_sim)
 for(i in 1:n_sim){
   if(i%%10==0) cat(i,"\n"); 
   coral_sim[,i] <- simfun(n = nrow(XH), 
-                    mu =  pars[1]+ pars[2]*x + pars[3]*(x^2) + pars[4]*(x^3),
-					sigma = exp(pars[5] + pars[6]*x),
-					nu=pars[7] + pars[8]*x,
-					tau=exp(pars[9]+pars[10]*x) )
+                    mu =  pars[1]+ pars[2]*x + pars[3]*x^2,  
+					sigma = exp(pars[4] + pars[5]*x),
+					nu=pars[6] + pars[7]*x,
+					tau=exp(pars[8]+pars[9]*x) )
 }
 
 out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,nBins=10,alpha_scale = 0.7) 		
 
-# dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
+dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
 		
 		
 		
