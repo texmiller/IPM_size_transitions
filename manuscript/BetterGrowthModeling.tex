@@ -342,9 +342,14 @@ fitted_all = predict(fitGAU,type="response");
 fitted_sd = 1/fitted_all[,2]; 
 scaledResids = residuals(fitGAU,type=''response'')/fitted_sd;  
 \end{lstlisting}
-Fig. \ref{fig:AkumalPilot}C) shows the log-transformed data and Gaussian model. There are no visual signs of trouble,
-but the scaled residuals are non-Gaussian (fig. \ref{fig:AkumalPilot}D; $p<0.03$ Jarque-Bera test for Normality).
-There is little skew (skewness=0.06, $p=0.64$ D'Agostino test), but significant kurtosis (excess kurtosis 0.67, $p=0.03$ Anscome-Glynn test). 
+Fig. \ref{fig:AkumalPilot}C) shows the log-transformed data and Gaussian model. The mean function (solid blue curve) 
+is visually nearly linear, but the fitted nonlinear spline is favored over a linear model for the mean ($\Delta AIC \approx 9$). 
+Evidence for nonlinearity in $\log \sigma$ versus initial size is weak ($\Delta AIC <2$). 
+
+There are no visual signs of trouble in the pilot Gaussian model,but the scaled residuals are 
+significantly non-Gaussian with deviations in both tails (fig. \ref{fig:AkumalPilot}D; $p<0.03$ Jarque-Bera test for Normality).
+There is little skew (skewness=0.06, $p=0.64$ D'Agostino test), but significant kurtosis (excess kurtosis 0.67, $p=0.03$ 
+Anscome-Glynn test). 
 
 We now need to find a better fitting distribution. The overall properties of the scaled residuals (as in the preceding
 paragraph) may be misleading if the growth distribution changes as a function of initial size. 
@@ -398,10 +403,6 @@ to minimize how variation in mean and standard deviation within a bin would affe
 Here, because all four distribution parameters interact to determine the distribution, we need to fit all 
 four simultaneously to the data on subsequent size in each bin. 
 
-As expected from the pilot Gaussian fit, the location parameter $\mu$ and the log of the scale parameters $\sigma$ appear to
-vary linearly with initial size. The skewness parameter $\nu$ and log of the kurtosis parameter $\tau$ also appear to
-vary linearly (note: log is the default link function for $\sigma$ and $\tau$ in \texttt{SEP1} because both must be positive).  
-
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=0.8\textwidth]{figures/RollingSEP1parsCorals.png}
@@ -410,22 +411,37 @@ Figure made by scripts \texttt{AkumalCorals.R} and \texttt{Diagnostics.R}.}
 \label{fig:AkumalRollingSEP1pars}
 \end{figure} 
 
-Our candidate model for the overall growth kernel is thus an \texttt{SEP1} distribution in which $\mu, \log \sigma, \nu$ and $\log \tau$
-are all linear functions of initial size. This is easily fitted by maximum likelihood, using the pilot Gaussian fit and 
-the values plotted in fig. \ref{fig:AkumalRollingSEP1pars} to inform the starting parameter values. 
+As expected from the pilot Gaussian fit, the location parameter $\mu$, the log of the scale parameters $\sigma$, the s
+kewness parameter $\nu$ and log of the kurtosis parameter $\tau$ all appear to vary linearly with initial size 
+(note: log is the default link function for $\sigma$ and $\tau$ in \texttt{SEP1} because both must be positive).
+The corresponding candidate model for the overall growth kernel is an \texttt{SEP1} distribution in 
+which $\mu, \log \sigma, \nu$ and $\log \tau$ are all linear functions of initial size.
+However, following our suggested workflow, we specify $\mu$ as a quadratic function of initial size because that relationship
+was found to be nonlinear in the pilot Gaussian model. This model is easily fitted by maximum likelihood, 
+using the pilot Gaussian fit and the values plotted in fig. \ref{fig:AkumalRollingSEP1pars} to 
+inform the starting parameter values. The quadratic term in $\mu$ proved to be highly significant
+($p<0.001$ based on the asymptotic standard error from the inverse Hessian). 
 
 The ``acid test'' of a growth model is that simulations from the fitted model should look like the real data. 
 To implement that criterion, we compared simulated and actual data with respect to quantiles of the distribution
 of subsequent size, again using a series of bins defined by initial size to account for how those quantiles vary
-with initial size. The candidate model described was not an unequivocal success -- there were
-discrepancies in the smaller bins, for several of the quantiles, mostly in the same direction. This suggests that
-the predicted mean is the source of the problem, so we modified the candidate model by adding a quadratic term
-for the location parameter. This resulted in a near-exact correspondence between model simulations and the
-data at all quantiles for all bins; moreover, the added quadratic terms was highly significant in the maximum
-likelihood fit ($p<0.001$). 
-
-
+with initial size. We find a very close correspondence between model simulations and the data, at all quantiles for all bins
+(fig. ) and therefore accept this candidate model. 
  
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=.95\textwidth]{figures/CoralQuantileComparePlot.pdf}
+\caption{Binned data comparison of distribution quantiles between 500 simulations of the fitted SEP1 model (grey, black circles) and the 
+actual data (red diamonds) for sea fan corals \emph{G. ventalina}. Grey circles show the quantile for each of 500 replicate simulations,
+in which the fitted growth model was applied to all initial sizes in the empirical data sets, and black circles are the mean
+quantile across replicates. Red diamonds are quantiles for observed subsequent sizes. Bins are defined by initial size. }
+\label{fig:CoralQuantileCompare}
+\end{figure} 
+ 
+Had the candidate model failed, there would be two directions of possible improvement suggested by our analyses. First,
+the spline for mean subsequent size in the pilot Gaussian fit was not exactly quadratic, so we could have tried a cubic
+for $\mu$ in the final model. Similarly, the spline for $\log \sigma$ in the pilot Gaussian fit was not exactly linear,
+so we could have tried a quadratic for $\log \sigma$ in the final model. 
 
 \clearpage   
 

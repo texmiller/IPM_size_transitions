@@ -34,11 +34,20 @@ agostino.test(fitH3$residuals) # skewness: FAILS, P<0.001
 # First step is to fit a pilot Gaussian model. 
 #########################################################################
 fitGAU <- gam(list(logarea.t1~s(logarea.t0),~s(logarea.t0)), data=XH, gamma=1.4,family=gaulss())
-summary(fitGAU); 
+summary(fitGAU); plot(fitGAU); 
 
-####  Extract values of the fitted splines to explore their properties 
-z_vals = seq(min(XH$logarea.t0),max(XH$logarea.t0),length=250); 
-fitted_vals = predict(fitGAU,type="response",newdata=data.frame(logarea.t0=z_vals)); 
+## the mean looks almost linear; is there evidence against this? 
+fitGAU0 <- gam(list(logarea.t1~logarea.t0,~s(logarea.t0)), data=XH, gamma=1.4,family=gaulss())
+AIC(fitGAU); AIC(fitGAU0); # yes, Delta AIC of about 9 in favor of the spline 
+
+## the log(sigma) fit looks almost linear; is there evidence against this? 
+fitGAU00 <- gam(list(logarea.t1~s(logarea.t0),~logarea.t0), data=XH, gamma=1.4,family=gaulss())
+AIC(fitGAU); AIC(fitGAU00);  # Delta AIC < 2, so perhaps weak evidence 
+
+####  Extract values of the fitted splines to get polynomial approximations
+####  to use as start values in fitting the final non-Gaussian model 
+z_vals = XH$logarea.t0; 
+fitted_vals = predict(fitGAU,type="response"); 
 
 ##### Mean is fitted almost exactly by linear, exactly by quadratic (spline has df just below 3). 
 mean_fit1 = lm(fitted_vals[,1]~z_vals); 
@@ -165,10 +174,10 @@ add_panel_label("d");
 savePlot(file="../manuscript/figures/RollingSEP1parsCorals.png", type="png"); 
 
 
-## Based on the pilot Gaussian fit and the binned parameter estimates
-## we let the mean be linear, and log sigma be linear. 
-## Based on the binned data parameter estimates, we let 
-## nu and log(tau) be linear 
+## Based on the pilot Gaussian fit we let the mu be quadratic 
+## and we try letting log sigma be linear (but will consider 
+## quadratic if this model does not pass muster). Based on the binned data 
+# parameter estimates, we let nu and log(tau) be linear 
 
 # sigma.link = "log", nu.link = "identity", tau.link = "log"
 
