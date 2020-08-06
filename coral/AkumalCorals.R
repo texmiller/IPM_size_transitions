@@ -80,11 +80,13 @@ add_panel_label("a");
 plot(I(Area2^0.3333)~I(Area1^0.3333),data=XH,xlab="(Initial size)^1/3",ylab="(Subsequent size)^(1/3)") 
 add_panel_label("b"); 
 
+
+e = order(z_vals); 
 plot(log(Area2)~log(Area1),data=XH,xlab="log(Initial size)",ylab="log(Subsequent size)",ylim=c(1,8.3)) 
-points(z_vals,fitted_vals[,1],type="l",lty=1,col="red",lwd=2); 
+points(z_vals[e],fitted_vals[e,1],type="l",lty=1,col="red",lwd=2); 
 points(log(XH$Area1), log(XH$Area2)) 
-points(z_vals,fitted_vals[,1]+2/fitted_vals[,2],type="l",lty=2,col="blue",lwd=2); 
-points(z_vals,fitted_vals[,1]-2/fitted_vals[,2],type="l",lty=2,col="blue",lwd=2); 
+points(z_vals[e],fitted_vals[e,1]+2/fitted_vals[e,2],type="l",lty=2,col="blue",lwd=2); 
+points(z_vals[e],fitted_vals[e,1]-2/fitted_vals[e,2],type="l",lty=2,col="blue",lwd=2); 
 add_panel_label("c");
 
 qqPlot(scaledResids,xlab="Normal quantiles",ylab="Scaled residuals"); 
@@ -173,7 +175,6 @@ add_panel_label("d");
 
 savePlot(file="../manuscript/figures/RollingSEP1parsCorals.png", type="png"); 
 
-
 ## Based on the pilot Gaussian fit we let the mu be quadratic 
 ## and we try letting log sigma be linear (but will consider 
 ## quadratic if this model does not pass muster). Based on the binned data 
@@ -181,19 +182,18 @@ savePlot(file="../manuscript/figures/RollingSEP1parsCorals.png", type="png");
 
 # sigma.link = "log", nu.link = "identity", tau.link = "log"
 
-density=dSEP1; 
 KernelLogLik=function(pars,y,x){
 	mu = pars[1]+ pars[2]*x + pars[3]*x^2  
 	sigma = exp(pars[4] + pars[5]*x)
 	nu = pars[6] + pars[7]*x
 	tau = exp(pars[8]+pars[9]*x)
-	val = density(y, mu=mu,sigma=sigma,nu=nu,tau=tau,log=TRUE)
+	val = dSEP1(y, mu=mu,sigma=sigma,nu=nu,tau=tau,log=TRUE)
 	return(val); 
 }
 
 ## The start values should be on the link-transformed scale (e.g., log sigma)
 ## because the inverse-link is applied in KernelLoglik(), so as to 
-## guarantee that the parameters are valid in the distribution family. 
+## guarantee that the parameters are valid in the distribution. 
 start=numeric(9);
 start[1:3]=coef(mean_fit2); # this is the pilot fit to the mean (link=identity) 
 start[4:5]=coef(sd_fit1); # pilot fit to log (sigma)
@@ -244,7 +244,7 @@ for(i in 1:n_sim){
 
 out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,nBins=10,alpha_scale = 0.7) 		
 
-dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
+# dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
 		
 		
 		

@@ -422,27 +422,52 @@ using the pilot Gaussian fit and the values plotted in fig. \ref{fig:AkumalRolli
 inform the starting parameter values. The quadratic term in $\mu$ proved to be highly significant
 ($p<0.001$ based on the asymptotic standard error from the inverse Hessian). 
 
-The ``acid test'' of a growth model is that simulations from the fitted model should look like the real data. 
-To implement that criterion, we compared simulated and actual data with respect to quantiles of the distribution
-of subsequent size, again using a series of bins defined by initial size to account for how those quantiles vary
-with initial size. We find a very close correspondence between model simulations and the data, at all quantiles for all bins
-(fig. ) and therefore accept this candidate model. 
- 
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=.95\textwidth]{figures/CoralQuantileComparePlot.pdf}
 \caption{Binned data comparison of distribution quantiles between 500 simulations of the fitted SEP1 model (grey, black circles) and the 
 actual data (red diamonds) for sea fan corals \emph{G. ventalina}. Grey circles show the quantile for each of 500 replicate simulations,
 in which the fitted growth model was applied to all initial sizes in the empirical data sets, and black circles are the mean
-quantile across replicates. Red diamonds are quantiles for observed subsequent sizes. Bins are defined by initial size. }
+quantile across replicates. Red diamonds are quantiles for observed subsequent sizes. Bins are defined by initial size. Figure
+made by scripts \texttt{Akumal Corals.R} and \texttt{Diagnostics.R}.}
 \label{fig:CoralQuantileCompare}
 \end{figure} 
- 
-Had the candidate model failed, there would be two directions of possible improvement suggested by our analyses. First,
-the spline for mean subsequent size in the pilot Gaussian fit was not exactly quadratic, so we could have tried a cubic
-for $\mu$ in the final model. Similarly, the spline for $\log \sigma$ in the pilot Gaussian fit was not exactly linear,
-so we could have tried a quadratic for $\log \sigma$ in the final model. 
 
+
+The ``acid test'' of a growth model is that simulations from the fitted model should look like the real data. 
+To implement that criterion, we compared simulated and actual data with respect to quantiles of the distribution
+of subsequent size, again using a series of bins defined by initial size to account for how those quantiles vary
+with initial size. We find a very close correspondence between model simulations and the data, at all quantiles for all bins
+(fig. ) and therefore accept this candidate model. 
+ 
+
+Finally, how much have we gained from the effort of fitting a better growth model? Fig. \ref{CoralKernelCompare}A
+compares the predicted distributions of subsequent size in the fitted model and Gaussian pilot models, for the median size of a new recruit 
+(leftmost pair of curves), the median initial size (central curves), and the 95th percentile of initial size in the data (rightmost
+curves). Differences are most pronounced for recruits, which have better odds of growing (leading to earlier reproduction and higher
+survival) in the fitted model, small at intermediate sizes where the skew and excess kurtosis are both small (fig. \ref{fig:AkumalRollingResiduals}CD),
+and larger again at high sizes where the fitted model is leptokurtic. Fig. \ref{CoralKernelCompare}B shows the predicted steady-state size
+distributions resulting from a constant unit input of recruits. The main difference is that the pilot model projects fewer individuals at
+or near the modal size; overall, the fitted model predicts a 7\% higher number of individuals at steady-state. Equivalently, the fitted
+model predicts a 7\% higher mean lifespan,  19.0 years vs. 17.7 in the pilot Gaussian model. 
+ 
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=.9\textwidth]{figures/CoralKernelCompare.pdf}
+\caption{Comparisons between the fitted \texttt{SEP1} growth model (solid black curves) and the Gaussian pilot model (dashed red curves)
+for sea fans \emph{G. ventalina}. A) Predicted frequency distributions of size in year $t+1$ for three different values of size in 
+year $t$. The leftmost pair of curves are for initial size equal to the median size of a new recruit (data from \citep{bruno-etal-2011}); 
+central pair is for the median initial size of uninfected individuals; rightmost pair are for the 95th percentile initial size for uninfected
+individuals. B) Steady-state size distributions resulting from a constant unit input of new recruits. As in \citet{bruno-etal-2011} we
+assume that larvae are very widely dispersed, so that the number of recruits arriving at any one location is independent of the local population
+abundance or structure. Size distribution of recruits was described by a kernel density estimate based on the (sadly, only $n=9$) measured sizes
+of known new recruits. Figure made by script \texttt{AkumalCoralsIPMs.R}.}
+\label{fig:CoralKernelCompare}
+\end{figure}  
+ 
+ 
+ 
 \clearpage   
 
 \section{Case study: bunchgrass, \emph{Pseudoroegneria spicata}}
