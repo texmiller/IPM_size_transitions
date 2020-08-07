@@ -58,8 +58,8 @@ allD = rbind(D1,D2);
 allD$year[allD$year<2000] <- allD$year[allD$year<2000] + 1900
 
 ## eliminate likely recording errors: large plants that became tiny in one year. 
-#tmp <- which((allD$area.t0>100)&(allD$area.t1 < 0.26)); 
-#allD <- allD[-tmp,]; 
+tmp <- which((allD$area.t0>100)&(allD$area.t1 < 0.505)); 
+allD <- allD[-tmp,]; 
 
 ## get rid of seedlings 
 allD <- trimQuadrats(allD)$data;

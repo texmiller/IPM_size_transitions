@@ -4,16 +4,19 @@
 # Historical and modern data from by Adler et al. removals experiments paper.
 # Modern data are just the Control and Grass-removal treaments.  
 #
+# In this script, gam with family=gaulss is used for the pilot model 
+#
 # Original: SPE April 2020
+# Last update, August 2020 
 #
 ##############################################################################
 
 rm(list=ls(all=TRUE));
 setwd("c:/repos/IPM_size_transitions/idaho"); 
 
-require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
+require(car); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(gamlss.tr); require(AICcmodavg); 
-require(lmerTest); require(tidyverse); require(maxLik); 
+require(tidyverse); require(maxLik); 
 
 source("Utilities.R");
 source("../Diagnostics.R"); 
@@ -42,89 +45,133 @@ dropD$Treatment[e] = "Control";
 dropD = droplevels(dropD);  
 
 ########################################################################## 
-## Pilot Gaussian fits with log transformation, constant variance 
+## Pilot Gaussian fits with log transformation, nonconstant variance
+## depending on initial size 
 ########################################################################## 
 log_models <- list()
-log_models[[1]] <- lmer(logarea.t1~ logarea.t0 + I(logarea.t0^2) + W.ARTR + W.HECO + W.POSE + W.PSSP+  W.allcov + W.allpts + Treatment + 
-             Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F); 
+dropD$sigma_covar = dropD$logarea.t0; # for iterative fitting, later 
+log_models[[1]] <- gam(list(logarea.t1~ s(logarea.t0) + W.ARTR + W.HECO + W.POSE + W.PSSP+  W.allcov + W.allpts + Treatment + 
+             Group + s(year,bs="re") + s(logarea.t0,year,bs="re"), ~s(sigma_covar)), family=gaulss,gamma=1.4,data=dropD);  
 
 ## coefficients on HECO and POSE are nearly identical, so group them: deltaAIC = 2, i.e. no change at all in logLik.   
-log_models[[2]] <- lmer(logarea.t1~ logarea.t0 + I(logarea.t0^2) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allcov + W.allpts + Treatment + 
-             Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F); 
+log_models[[2]] <- gam(list(logarea.t1~ s(logarea.t0) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allcov + W.allpts + Treatment + 
+             Group + s(year,bs="re") + s(logarea.t0,year,bs="re"), ~s(sigma_covar)), family=gaulss,gamma=1.4,data=dropD);  
 
 ## W.allpts is non-significant. Consider two options: drop, group with all other cover 
-log_models[[3]] <- lmer(logarea.t1~ logarea.t0 + I(logarea.t0^2) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allcov + Treatment + 
-             Group+(logarea.t0|year),control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F);  			 
+log_models[[3]] <- 	gam(list(logarea.t1~ s(logarea.t0) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allpts + Treatment + 
+             Group + s(year,bs="re") + s(logarea.t0,year,bs="re"), ~s(sigma_covar)), family=gaulss,gamma=1.4,data=dropD);  	 
 
 ## Based on AIC, the winner by a hair is to group all heterospecific grasses, and group all cover besides the 'big 4'
-log_models[[4]] <- lmer(logarea.t1~ logarea.t0 + I(logarea.t0^2) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
-             Group + (logarea.t0|year), control=lmerControl(optimizer="bobyqa"),data=dropD,REML=F); 	
+log_models[[4]] <- gam(list(logarea.t1~ s(logarea.t0) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
+             Group + s(year,bs="re") + s(logarea.t0,year,bs="re"), ~s(sigma_covar)), family=gaulss,gamma=1.4,data=dropD);  
 
-########################################################################## 
-## Use iterative re-weighting to fit with nonconstant variance,  
-## then AIC for model selection.  
-##########################################################################
+for(j in 1:4) cat(j, AIC(log_models[[j]]), "\n"); # model 4, by a hair 
+init_models <- log_models; 
 
-## NegLogLik function to fit variance model for residuals 
-varPars = function(pars) {
-    return(-sum(dnorm(resids, mean=0, sd=exp(pars[1] + pars[2]*fitted_vals),log=TRUE)))
-}	
+fitted_all = predict(init_models[[4]],type="response",data=dropD); 
+plot(dropD$logarea.t0,fitted_all[,2]); 
 
+########################################################################################## 
+## iterate to fit a model where sigma depends on fitted value, not on initial size 
+##########################################################################################
 for(mod in 1:4) {
-err = 1; rep=0; 
-while(err > 0.000001) {
-	rep=rep+1; log_model = log_models[[mod]];
-	fitted_vals = fitted(log_model);resids = residuals(log_model); 
-	out=optim(c(sd(resids),0),varPars,control=list(maxit=5000)); 
-	pars=out$par; 
-	new_sigma = exp(pars[1] + pars[2]*fitted_vals); new_weights = 1/((new_sigma)^2)
-	new_weights = 0.5*(weights(log_model) + new_weights); # cautious update 
-	new_model <- update(log_model,weights=new_weights); 
-	err = weights(log_model)-weights(new_model); err=sqrt(mean(err^2)); 
-	cat(mod,rep,err,"\n") # check on convergence of estimated weights 
-	log_models[[mod]]<-new_model; 
-}}
-aictab(log_models); # model 4 is the winner, by a hair 
+  fitGAU = log_models[[mod]]
+  fitted_all = predict(fitGAU,type="response",data=dropD);                  
+  fitted_vals = new_fitted_vals = fitted_all[,1]; 
+  weights = fitted_all[,2]; # what I call "weights" here are 1/sigma values; see ?gaulss for details. 
 
-######### For a fair AIC comparison, fit all models with the same weights 
-aics = unlist(lapply(log_models,AIC)); best_model=which(aics==min(aics)); 
-best_weights=weights(log_models[[best_model]]); 
-for(mod in 1:4) {log_models[[mod]] <- update(log_models[[mod]],weights=best_weights)}
-aictab(log_models); # still model 4, by a hair 
+  err=100; k=0; 
+  while(err>10^(-6)) {
+    dropD$sigma_covar = new_fitted_vals; 
+    fitGAU <- update(fitGAU); 
+    fitted_all = predict(fitGAU,type="response",data=dropD);   
+    new_fitted_vals = fitted_all[,1]; new_weights = fitted_all[,2];
+    err = weights - new_weights; err=sqrt(mean(err^2)); 
+    weights = new_weights; 
+    k=k+1; cat(k,err,"\n"); 
+  }   
+  log_models[[mod]] =  fitGAU;
+}
+
+for(j in 1:4) cat(j, AIC(log_models[[j]]), "\n"); 
+for(j in 1:4) cat(j, AIC(init_models[[j]]), "\n"); 
+## Models based on fitted value are strongly preferred (Delta AIC \approx 50)
+## so we will go with those 
 
 ######### Here's the best Gaussian model ########################################
 aics = unlist(lapply(log_models,AIC)); best_model=which(aics==min(aics)); 
 log_model = log_models[[best_model]]; 
 summary(log_model); 
 
-### refit with REML, as recommended for estimating random effects 
-best_weights = weights(log_models[[4]]); 
-log_model <- lmer(logarea.t1~ logarea.t0 +I(logarea.t0^2) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
-             Group + (logarea.t0|year), control=lmerControl(optimizer="bobyqa"),data=dropD,weights=best_weights,REML=TRUE); 
-log_models[[4]] = log_model; 			 
-
 ######################################################################
 # Interrogate the scaled residuals - Gaussian? NO. 
 ###################################################################### 
-plot(fitted(log_model), 1/sqrt(weights(log_model)),xlab="Fitted",ylab="Estimated residual Std Dev"); 
-log_scaledResids = residuals(log_model)*sqrt(weights(log_model))
-plot(fitted(log_model), log_scaledResids); 
+fitted_all = predict(log_model,type="response",data=dropD); 
+plot(fitted_all[,1], 1/fitted_all[,2],xlab="Fitted",ylab="Estimated residual Std Dev"); 
+
+scaledResids = residuals(log_model,type="response")*fitted_all[,2]
+plot(fitted_all[,1], scaledResids); 
 
 qqPlot(log_scaledResids); # really bad in lower tail, not too bad in upper 
 
-jarque.test(log_scaledResids) # normality test: FAILS, P < 0.001 
-anscombe.test(log_scaledResids) # kurtosis: FAILS, P < 0.001 
-agostino.test(log_scaledResids) # skewness: FAILS, P<0.001 
+jarque.test(scaledResids) # normality test: FAILS, P < 0.001 
+anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.001 
+agostino.test(scaledResids) # skewness: FAILS, P<0.001 
 
 ########################################################################
 ## Rollapply diagnostics on the scaled residuals 
 ########################################################################
-px = fitted(log_model); py=log_scaledResids; 
+px = fitted_all[,1]; py=scaledResids; 
 
 graphics.off(); dev.new(width=8,height=6); 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
-z = rollMoments(px,py,windows=10,smooth=TRUE,scaled=TRUE) 
-dev.copy2pdf(file="../manuscript/figures/RollingMomentsPSSP.pdf") 
+z = rollMomentsNP(px,py,windows=10,smooth=TRUE,scaled=TRUE) 
+# mean and SD look OK; skew changes sign, kurtosis is always positive but close to 0 
+
+
+dev.copy2pdf(file="../manuscript/figures/RollingNPMomentsPSSP.pdf") 
+
+####################################
+#  OKAY DOWN TO HERE 
+####################################
+
+###########################################################################
+# Fit suitable distributions to binned data 
+###########################################################################
+logResids <- data.frame(init=dropD$logarea.t0,resids=scaledResids); 
+logResids <- logResids %>% mutate(size_bin = cut_number(init,n=10))
+
+source("../fitChosenDists.R"); 
+
+tryDists=c("EGB2","GT","JSU", "SHASHo","SEP1","SEP3","SEP4"); 
+
+bins = levels(logResids$size_bin); maxVals = matrix(NA,length(bins),length(tryDists)); 
+for(j in 1:length(bins)){
+for(k in 1:length(tryDists)) {
+	Xj=subset(logResids,size_bin==bins[j])
+	fitj = gamlssMaxlik(y=Xj$resids,DIST=tryDists[k]); 
+	maxVals[j,k] = fitj$maximum;
+	cat("Finished ", tryDists[k]," ",j,k, fitj$maximum,"\n"); 
+}
+}
+
+## best two for each bin 
+for(j in 1:length(bins)){
+	e = order(-maxVals[j,]); 
+	cat(j, tryDists[e][1:8],"\n"); 
+}	
+
+# overall ranking 
+e = order(-colSums(maxVals)); 
+rbind(tryDists[e],round(colSums(maxVals)[e],digits=3)); 
+
+
+
+
+
+
+
+
 
 
 ###########################################################################
