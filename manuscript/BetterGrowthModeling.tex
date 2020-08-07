@@ -183,26 +183,44 @@ Our goal here is to develop a general `recipe' for growth modeling that moves th
 Like any recipe, users may need to make substitutions or add flourishes to suit their situation. 
 In our view, modeling growth in IPMs is \emph{modeling}, informed by statistical tools and tests but not dictated by their outcome. 
 Rather than proposing a process centered on statistical model selection, we emphasize graphical diagnostics in developing and 
-evaluating a growth model. Through a set of empirical case studies we demonstrate how a simple workflow, using tools 
+evaluating a growth model. 
+Through a set of empirical case studies we demonstrate how a simple workflow, using tools 
 that were nonexistent or not readily available when IPMs came into use, makes it straightforward and relatively 
 easy to identify when the default model is a poor fit to the data, and to then choose and fit a substantially 
 better growth model that is no harder to use in practice. 
+We illustrate our approach by revisiting four of our own, mostly published IPM analyses that assumed Gaussian growth. 
+In every case study that we re-visited, this assumption did not stand up to close scrutiny. 
+We illustrate with pubicly available data and code how we could have done better, and the consequences of ``doing better'' for our ecological inferences. 
 
 The remainder of this article is structured as follows:
 \begin{itemize}
 \item First, we outline the logic, key elements, and general workflow of our growth modeling approach.
-\item Next, we apply this workflow to real data sets, all of which featured in our own previous modeling. 
-\item Then, we develop full IPMs for our desert plant case studies to evaluate how ``improved'' growth modeling affects IPM predictions\tom{}{I am still interested in possibly doing a simulation study to ask if there are particular types of life histories where getting the tails of size transitions right matters more or less. But punting that for now.}. 
+\item Next, we apply this workflow to real data sets, all of which featured in our own previous modeling, and evaluate how ``improved'' growth modeling changes key IPM results.
+%\item Then, we develop full IPMs for our desert plant case studies to evaluate how ``improved'' growth modeling affects IPM predictions\tom{}{I am still interested in possibly doing a simulation study to ask if there are particular types of life histories where getting the tails of size transitions right matters more or less. But punting that for now.}. 
 \item Finally, we discuss things...
 \end{itemize}
 All of the code and data from this article are publicly available at \url{https://github.com/texmiller/IPM_size_transitions}.
 
 \section{A general workflow for better growth modeling}
 
-The modeling workflow that we suggest runs as follows:
+The modeling workflow that we suggest runs as follows (Fig. \ref{fig:workflow}):
 \begin{enumerate}
-\item Fit a ``pilot'' model with a Gaussian distribution of future size conditional on current size and any other covariates, 
-having fitted non-constant variance. 
+\item \textit{Fit a ``pilot'' model or models assuming a Gaussian distribution and allowing for non-constant variance.}
+\\ 
+This step should be familiar to most IPM users, as it is the starting and stopping point of the traditional workflow. 
+Models are fit that define future size conditional on current size and any other fixed covariates and / or random effects. 
+This step may include model selection to arbitrate among competing hypotheses related to experimental treatments or environmental drivers for the expected value of future size, and possibly its variance.
+Historically, non-constant variance has been fit \textit{post hoc}, with an additional regression relating the squared residuals of the growth function to an explanatory covariate, typically iniital size. 
+Here we emphasize the value of fitting functions for mean and variance \tom{simultaneously}{In the cactus example, getting the variance right changes the rank of model selection for the mean. Not sure this is worth getting into.}, and we provide examples for doing so. 
+
+Accommodating non-constant variance in the pilot model means that it is not necessary to transform the data 
+in a way that stabilizes the growth variance. 
+Transformation remains an option when it does not create new problems (\tom{which we discuss later}{I think we will need to talk about the beta regression approach in the Discussion, and that could be a place to give an example of `new problems'.}), and it may be advantageous for reasons besides variance stabilization.
+The natural log, in particular, is often an appropriate transformation of size data (because growth is commonly an exponential process) and helps avoid eviction at small sizes. 
+% This can go below?
+%Non-constant variance, like other shape parameters, has to be fitted as a function of size and other covariates. However, we recommend that formal statistical model selection should not be the basis for specifying the final regression model. 
+%Rather, its form should be chosen to match observable properties of the scaled residuals, and at most slightly modified based on final diagnostic and statistical tests. 
+
 \item Use the fitted variance function to compute standardized residuals. If the Gaussian pilot model is valid, the set of standardized
 residuals should be Gaussian with constant variance. 
 \item Use statistical and graphical diagnostics, which we detail below, to identify if and how the standardized residuals deviate
@@ -219,14 +237,14 @@ includes random effects.
 \item Test the final model through graphical diagnostics comparing simulated growth increments with the data. 
 A good model will generate simulated data that look like the real data.  
 \end{enumerate}
-The assumption of non-constant variance in the pilot model means that it is not necessary to transform the data 
-in a way that stabilizes the growth variance. Transformation remains an option when it does not create new problems,   
-and it may be advantageous for reasons besides variance stabilization -- for example log transformation helps avoid
-eviction at small sizes, or some other transformation may simply the form of demographic rate models. 
-Non-constant variance, like other shape parameters, has to be fitted as a function of size and other covariates. However, 
-we recommend that formal statistical model selection should not be the basis for specifying the final regression model. 
-Rather, its form should be chosen to match observable properties of the scaled residuals, and at most slightly modified 
-based on final diagnostic and statistical tests. 
+
+
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/workflow}
+\caption{}
+\label{fig:workflow}
+\end{figure} 
 
 \section{How should skewness and kurtosis be measured?}
 The standard measures of skewness (asymmetry) and excess kurtosis (tail thickness, relative 
