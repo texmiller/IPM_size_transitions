@@ -112,7 +112,7 @@ plot(fitted_all[,1], 1/fitted_all[,2],xlab="Fitted",ylab="Estimated residual Std
 scaledResids = residuals(log_model,type="response")*fitted_all[,2]
 plot(fitted_all[,1], scaledResids); 
 
-qqPlot(log_scaledResids); # really bad in lower tail, not too bad in upper 
+qqPlot(scaledResids); # really bad in lower tail, not too bad in upper 
 
 jarque.test(scaledResids) # normality test: FAILS, P < 0.001 
 anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.001 
@@ -125,25 +125,23 @@ px = fitted_all[,1]; py=scaledResids;
 
 graphics.off(); dev.new(width=8,height=6); 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
-z = rollMomentsNP(px,py,windows=10,smooth=TRUE,scaled=TRUE) 
+z = rollMomentsNP(px,py,windows=20,smooth=TRUE,scaled=TRUE) 
 # mean and SD look OK; skew changes sign, kurtosis is always positive but close to 0 
-
 
 dev.copy2pdf(file="../manuscript/figures/RollingNPMomentsPSSP.pdf") 
 
-####################################
-#  OKAY DOWN TO HERE 
-####################################
-
 ###########################################################################
-# Fit suitable distributions to binned data 
+# Fit suitable distributions to binned data
+# NOTE: bin with respect to fitted values of the pilot Gaussian model
+# because that is going to be the form of the final model  
 ###########################################################################
-logResids <- data.frame(init=dropD$logarea.t0,resids=scaledResids); 
-logResids <- logResids %>% mutate(size_bin = cut_number(init,n=10))
+logResids <- data.frame(init=fitted_all[,1],resids=scaledResids); 
+logResids <- logResids %>% mutate(size_bin = cut_number(init,n=20))
 
 source("../fitChosenDists.R"); 
 
-tryDists=c("EGB2","GT","JSU", "SHASHo","SEP1","SEP3","SEP4"); 
+tryDists=c("GT","JSU", "SHASHo","SEP1","SEP3","SEP4"); 
+## this was also tried with 10 bins, EGB2 could not be fitted to several and was very slow
 
 bins = levels(logResids$size_bin); maxVals = matrix(NA,length(bins),length(tryDists)); 
 for(j in 1:length(bins)){
@@ -151,74 +149,55 @@ for(k in 1:length(tryDists)) {
 	Xj=subset(logResids,size_bin==bins[j])
 	fitj = gamlssMaxlik(y=Xj$resids,DIST=tryDists[k]); 
 	maxVals[j,k] = fitj$maximum;
-	cat("Finished ", tryDists[k]," ",j,k, fitj$maximum,"\n"); 
+	cat("Finished ", tryDists[k]," bin ",j, fitj$maximum,"\n"); 
 }
 }
 
-## best two for each bin 
+## best 3 for each bin 
 for(j in 1:length(bins)){
 	e = order(-maxVals[j,]); 
-	cat(j, tryDists[e][1:8],"\n"); 
+	cat(j, tryDists[e][1:3],"\n"); 
 }	
 
-# overall ranking 
+# Overall ranking: SEP4 is the winner by a hair, JSU VERY close 
+# Because JSU can't do platykurtic, try SEP4 first 
 e = order(-colSums(maxVals)); 
 rbind(tryDists[e],round(colSums(maxVals)[e],digits=3)); 
+[1,] "SEP4"      "JSU"       "SHASHo"    "SEP3"      "SEP1"      "GT"       
+[2,] "-6491.345" "-6491.366" "-6494.701" "-6497.499" "-6501.981" "-6576.994"
 
-
-
-
-
-
-
-
-
-
-###########################################################################
-# Try fitDist on binned data, various ways (only the last version remains)
-###########################################################################
-logResids<- data.frame(fitted=fitted(log_model),resids=dropD$logarea.t1); 
-logResids <- logResids %>% mutate(size_bin = cut_number(fitted,n=12))
-
-bins = levels(logResids$size_bin); dists=list(length(bins)); 
-for(j in 1:length(bins)){
-	Xj=subset(logResids,size_bin==bins[j])
-	dists[[j]]=fitDist(resids,data=Xj,type="realline"); 
-	cat(j,"\n"); 
-}
-### Results are not consistent, lots of convergence errors, 
-### and best for a bin often has skew but no kurtosis  
+save.image(file="PSSPdistFits.Rdata");   
 
 ########################################################################
-## Binned data SHASH parameter estimates on subsequent size 
+## Binned-data JSU parameter estimates on subsequent size 
 ########################################################################
-dropD$fitted <- fitted(log_model); 
-dropD <- dropD %>% mutate(size_bin = cut_number(fitted,n=12))
-bins = levels(dropD$size_bin); 
-mus = sigmas = nus = taus = bin_means = numeric(length(bins)); 
-for(j in 1:length(bins)){
-	Xj=subset(dropD,size_bin==bins[j])
-	fitj = gamlssML(Xj$logarea.t1 ~ 1,family="SHASHo") # lazy, but OK for now 
-	mus[j]=fitj$mu; sigmas[j]=fitj$sigma; nus[j]=fitj$nu; taus[j]=fitj$tau; 
-	bin_means[j]=mean(Xj$fitted); 
-}	
+source("../Diagnostics.R"); 
+binPars = binnedPars(y=dropD$logarea.t1,sortVar = fitted_all[,1],nBins=20,DIST="SEP4",rolling=FALSE) 
 
 graphics.off(); dev.new(width=8,height=6); 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
-spline.scatter.smooth(bin_means,mus,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu ))); #OK
+
+with(binPars,{
+spline.scatter.smooth(bin_means,mus,gamma=1.4,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu ))); #OK
 add_panel_label("a"); 
-spline.scatter.smooth(mus,log(sigmas),xlab=expression(paste("Location parameter  ", mu )),
-			ylab=expression(paste("log Scale parameter  ", sigma))); #linear 
+spline.scatter.smooth(mus,sigmas,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
+			ylab=expression(paste("log scale parameter  ", sigma))); #linear 
 add_panel_label("b"); 
-spline.scatter.smooth(mus,nus,xlab=expression(paste("Location parameter  ", mu )),
-			ylab=expression(paste("Skewness parameter  ", nu ))); #quadratic
+spline.scatter.smooth(mus,nus,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
+			ylab=expression(paste("log shape parameter  ", nu ))); #quadratic
 add_panel_label("c"); 
-spline.scatter.smooth(mus,log(taus),xlab=expression(paste("Location parameter  ", mu )),
-			ylab=expression(paste("log Kurtosis parameter  ", tau))); #linear 
+spline.scatter.smooth(mus,taus,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
+			ylab=expression(paste("log shape parameter  ", tau))); #linear 
 add_panel_label("d"); 
+})
   
-dev.copy2pdf(file="../manuscript/figures/RollingSHASHparsPSSP.pdf") 
-savePlot(file="../manuscript/figures/RollingSHASHparsPSSP.png",type="png"); 
+dev.copy2pdf(file="../manuscript/figures/RollingSEP4parsPSSP.pdf") 
+savePlot(file="../manuscript/figures/RollingSEP4parsPSSP.png",type="png"); 
+
+save.image(file="PSSPdistFits.Rdata");   
+#######################
+# OK Down to Here 
+#######################
 
 
  

@@ -125,10 +125,9 @@ rollMomentsNP=function(px,py,windows=10,smooth=TRUE,scaled=TRUE,xlab=NULL) {
 return(list(rollx=rollx,rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollskew=rollskew))
 }
 
-###########################################################################################
-## Tom copied the quantile comparison function here
 #########################################################################################
-
+## Comparison of conditional quantiles between simulated at actual data 
+#########################################################################################
 quantileComparePlot = function(sortVariable,trueData,simData,nBins,alpha_scale = 0.7) {
   xTrue = data.frame(x=sortVariable,y=trueData)
   qTrue <- xTrue %>% arrange(x) %>% 
@@ -182,6 +181,32 @@ quantileComparePlot = function(sortVariable,trueData,simData,nBins,alpha_scale =
   add_panel_label("f"); 
 }	
 
+#########################################################################################
+## Fitting parameters of a chosen distribution for a set of data bins  
+##     y is the set of values to be fitted (unbinned)
+##     sortVar is the variable used for sorting and binning 
+##     DIST is the name of the distribution family (e.g., DIST = "JSU")
+##
+##     if rolling==TRUE, fitting is done on sliding pairs of bins (not yet implemented)  
+##
+##     For the moment this assumes a 4-parameter family. Will fix? 
+##  
+#########################################################################################
+binnedPars <- function(y,sortVar,nBins,DIST,rolling=FALSE) {
+    X = data.frame(sortVar=sortVar,response=y)
+    X <- X %>% mutate(size_bin = cut_number(sortVar,n=nBins))
+    bins = levels(X$size_bin); 
+    mus = sigmas = nus = taus = bin_means = numeric(length(bins)); 
+    for(j in 1:length(bins)){
+        Xj=subset(X,size_bin==bins[j])
+        fitj = gamlssMaxlik(Xj$response,DIST)
+        pars=fitj$estimate; 
+        mus[j]=pars[1]; sigmas[j]=pars[2]; nus[j]=pars[3]; taus[j]=pars[4]; 
+        bin_means[j]=mean(Xj$sortVar); 
+    }	
+
+    return(list(mus=mus,sigmas=sigmas,nus=nus,taus=taus,bin_means=bin_means)); 
+}
 
 
 
