@@ -210,24 +210,31 @@ The modeling workflow that we suggest runs as follows (Fig. \ref{fig:workflow}):
 This step should be familiar to most IPM users, as it is the starting and stopping point of the traditional workflow. 
 Models are fit that define future size conditional on current size and any other fixed covariates and / or random effects. 
 This step may include model selection to arbitrate among competing hypotheses related to experimental treatments or environmental drivers for the expected value of future size, and possibly its variance.
-Historically, non-constant variance has been fit \textit{post hoc}, with an additional regression relating the squared residuals of the growth function to an explanatory covariate, typically iniital size. 
+Historically, non-constant variance has typically been fit \textit{post hoc}, with an additional regression step relating the squared residuals of the growth function to an explanatory covariate, typically iniital size. 
 Here we emphasize the value of fitting functions for mean and variance \tom{simultaneously}{In the cactus example, getting the variance right changes the rank of model selection for the mean. Not sure this is worth getting into.}, and we provide examples for doing so. 
 
 Accommodating non-constant variance in the pilot model means that it is not necessary to transform the data 
 in a way that stabilizes the growth variance. 
-Transformation remains an option when it does not create new problems (\tom{which we discuss later}{I think we will need to talk about the beta regression approach in the Discussion, and that could be a place to give an example of `new problems'.}), and it may be advantageous for reasons besides variance stabilization.
-The natural log, in particular, is often an appropriate transformation of size data (because growth is commonly an exponential process) and helps avoid eviction at small sizes. 
+Transformation remains an option when it does not create new problems (\tom{discussed later}{I think we will need to talk about the beta regression approach in the Discussion, and that could be a place to give an example of `new problems'.}), and it may be advantageous for reasons besides variance stabilization.
+The natural log, in particular, is often an appropriate transformation of size data, because growth is commonly an exponential process, and helps avoid eviction at small sizes. 
 % This can go below?
 %Non-constant variance, like other shape parameters, has to be fitted as a function of size and other covariates. However, we recommend that formal statistical model selection should not be the basis for specifying the final regression model. 
 %Rather, its form should be chosen to match observable properties of the scaled residuals, and at most slightly modified based on final diagnostic and statistical tests. 
 
-\item Use the fitted variance function to compute standardized residuals. If the Gaussian pilot model is valid, the set of standardized
-residuals should be Gaussian with constant variance. 
-\item Use statistical and graphical diagnostics, which we detail below, to identify if and how the standardized residuals deviate
-from Gaussian: are there skew and kurtosis, and if so, how do those vary across the size distribution? If the standardized residuals
-are as expected under the pilot model, skip to the last step. 
-\item Otherwise, identify a distribution with nonzero skew and/or kurtosis that can fit the observed properties of the 
-standardized residuals. 
+\item \textit{Use the fitted variance function to compute standardized residuals.}
+\\
+If the Gaussian pilot model is valid, the set of standardized
+residuals should be Gaussian with mean zero and unit variance, with no skew or excess kurtosis in the future size distribution for any initial size.
+This step provides a straightforward litmus test for whether to proceed with a Gaussian growth kernel or explore alternatives.
+
+\item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate from Gaussian, and to identify a more appropriate distribution.}
+\\
+There are many ways that growth data may deviate from Gaussian. 
+Visualizing these deviations, particularly patterns of size-dependence in skew and kurtosis, should guide the choice of an alternative distribution. 
+For example, a change in the direction of skewness from small to large sizes would require a distribution flexible enough to accommodate both positive and negative skew, such as the skewed normal or Johnson S_{U} distributions). 
+Alternatively, growth data may not be meaningfully skewed but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
+In  Fig. \ref{fig:workflow}, we provide guidance on how visual assesment of skew and kurtosis of the standardized residuals can lead to the selection of an appropriate growth distribution.
+
 \item \new{If skew and/or kurtosis are not constant as functions of initial size and other covariates, use graphical diagnostics
 to identify how the parameters of the chosen distribution vary as a function of initial size or, 
 when there are other covariates or random effects, as a function of the predicted final size from the pilot Gaussian model.}   
