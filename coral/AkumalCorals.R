@@ -80,7 +80,6 @@ add_panel_label("a");
 plot(I(Area2^0.3333)~I(Area1^0.3333),data=XH,xlab="(Initial size)^1/3",ylab="(Subsequent size)^(1/3)") 
 add_panel_label("b"); 
 
-
 e = order(z_vals); 
 plot(log(Area2)~log(Area1),data=XH,xlab="log(Initial size)",ylab="log(Subsequent size)",ylim=c(1,8.3)) 
 points(z_vals[e],fitted_vals[e,1],type="l",lty=1,col="red",lwd=2); 
