@@ -259,8 +259,8 @@ Rather, its form should be chosen to match observable properties of the scaled r
 \begin{figure}
 \centering
 \includegraphics[width=\textwidth]{figures/workflow}
-\caption{General workflow of recommendations for IPM growth modeling (left) and guide to common non-Gaussian distributions of size $x$ for $x \in \mathbb{R}$ that can accommodate different combinations of skewness and kurtosis. 
-All of these distributions (often including multiple versions of parameterizations of each) are available in the package \textbf{gamlss.dist}, except for the skewed generalized $t$, which is available in the package \textbf{actuar} \citep{dutang2008actuar}.}
+\caption{General workflow of recommendations for IPM growth modeling (left) and guide to common non-Gaussian distributions of size $x$ for $x \in \mathbb{R}$ that can accommodate different combinations of skewness and kurtosis (right). 
+All of these distributions (often including multiple versions or parameterizations of each) are available in the package \textbf{gamlss.dist}, except for the skewed generalized $t$, which is available in the package \textbf{actuar} \citep{dutang2008actuar}.}
 \label{fig:workflow}
 \end{figure} 
 
@@ -423,7 +423,7 @@ exponential power distribution). We omit \texttt{SEP2} because it is known to ha
 To choose among the candidate distributions, we sorted the scaled residuals based on initial size into 5 equal-size bins, 
 and fitted all candidate distributions to each of the five resulting data sets by 
 maximum likelihood\footnote{Our function \texttt{gamlssMaxlik} in online script \texttt{fitChosenDists.R} is
-patterns after the \texttt{gamlss} function \texttt{gamlssML}, but uses the \texttt{maxLik} function from the \textbf{maxLik}
+patterned after the \texttt{gamlss} function \texttt{gamlssML}, but uses the \texttt{maxLik} function from the \textbf{maxLik}
 package \citep{maxLik-package}, and repeated optimization from different starting values, to increase the reliability of the results.} 
 As all distributions have the same number of parameters, comparison of maximized likelihoods is equivalent to comparing AIC values. 
 With the exception of \texttt{EGB2} all distributions had very similar maximized likelihoods for all bins; the best overall (summed
