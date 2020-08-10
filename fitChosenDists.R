@@ -69,6 +69,8 @@ gamlssMaxlik <- function(y,DIST) {
   
   fit = maxLik(logLik=LogLik1,start=bestPars, response=y, method="BHHH",control=list(iterlim=5000,printLevel=0),
                 finalHessian=FALSE); 
+  if(fit$maximum==0) fit$maximum = -10^16; 	# failed fit
+  if(fit$code>2) fit$maximum = -10^16; 		# failed fit                
   fit$AIC = 2*n_par - 2*fit$maximum
   return(fit); 
 }
