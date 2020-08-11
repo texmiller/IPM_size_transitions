@@ -202,7 +202,6 @@ The remainder of this article is structured as follows:
 All of the code and data from this article are publicly available at \url{https://github.com/texmiller/IPM_size_transitions}.
 
 \section{A general workflow for better growth modeling}
-
 The modeling workflow that we suggest runs as follows (Fig. \ref{fig:workflow}):
 \begin{enumerate}
 \item \textit{Fit a ``pilot'' model or models assuming a Gaussian distribution and allowing for non-constant variance.}
@@ -233,9 +232,10 @@ If the standardized residuals are satisfactorily Gaussian, skip to the final ste
 There are many ways that growth data may deviate from Gaussian and visualizing these deviations should guide the choice of an alternative distribution. 
 The marginal distribution of standardized residuals may be misleading when there is size-dependence in skew and kurtosis. 
 It is therefore valuable to visualize trends in the higher moments with respect to initial size. 
-For example, a change in the direction of skewness from small to large sizes would require a distribution flexible enough to accommodate both positive and negative skew, such as the skewed normal or Johnson S_{U} distributions. 
+For example, a change in the direction of skewness from small to large sizes would require a distribution flexible enough to accommodate both positive and negative skew, such as the skewed normal or Johnson $S_{U}$ distributions. 
 Alternatively, growth data may not be meaningfully skewed but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
 In  Fig. \ref{fig:workflow}, we provide guidance on how visual assesment of skew and kurtosis of the standardized residuals can lead to the selection of an appropriate growth distribution.
+We highlight use of the \textbf{gamlss} package \citep{stasinopoulos2007generalized}, which conveniently provides density functions for over \# continuous distributions. 
 
 \item \textit{Refit the growth model using the chosen distribution.}
 \\
@@ -256,11 +256,11 @@ Rather, its form should be chosen to match observable properties of the scaled r
 
 \end{enumerate}
 
-
 \begin{figure}
 \centering
 \includegraphics[width=\textwidth]{figures/workflow}
-\caption{}
+\caption{General workflow of recommendations for IPM growth modeling (left) and guide to common non-Gaussian distributions of size $x$ for $x \in \mathbb{R}$ that can accommodate different combinations of skewness and kurtosis (right). 
+All of these distributions (often including multiple versions or parameterizations of each) are available in the package \textbf{gamlss.dist}, except for the skewed generalized $t$, which is available in the package \textbf{actuar} \citep{dutang2008actuar}.}
 \label{fig:workflow}
 \end{figure} 
 
@@ -385,14 +385,14 @@ Evidence for nonlinearity in $\log \sigma$ versus initial size is weak ($\Delta 
 There are no visual signs of trouble in the pilot Gaussian model,but the scaled residuals are 
 significantly non-Gaussian with deviations in both tails (fig. \ref{fig:AkumalPilot}D; $p<0.03$ Jarque-Bera test for Normality).
 There is little skew (skewness=0.06, $p=0.64$ D'Agostino test), but significant kurtosis (excess kurtosis 0.67, $p=0.03$ 
-Anscome-Glynn test). 
+Anscome-Glynn test).\tom{}{I wonder about advocating for use of these normality tests. It deviates a bit from the messaging to not rely too much on statistical tests, and also it is testing the normality of the marginal distribution of residuals, which for reasons we've discussed is not exactly what we want.} 
 
 We now need to find a better fitting distribution. The overall properties of the scaled residuals (as in the preceding
 paragraph) may be misleading if the growth distribution changes as a function of initial size. 
 For example, is skew is positive at small initial sizes and negative at large sizes, the overall distribution 
 could have zero skew but positive excess kurtosis. A distribution family with those properties (e.g., a $t$ distribution) 
 would be a bad fit to the conditional distribution of growth at any initial size. Thus, a pilot Gaussian model should not
-be accepted just because the set of all scaled residuals is approximately Gaussian. 
+be accepted just because the set of all scaled residuals is approximately Gaussian. \tom{}{OK, as long as we have this qualifier than probably fine to include the tests. But it's also possible that stacking up many Gaussians can give a marginal distribution that is non-Gaussian.}
 
 \begin{figure}[tbp]
 \centering
@@ -423,7 +423,7 @@ exponential power distribution). We omit \texttt{SEP2} because it is known to ha
 To choose among the candidate distributions, we sorted the scaled residuals based on initial size into 5 equal-size bins, 
 and fitted all candidate distributions to each of the five resulting data sets by 
 maximum likelihood\footnote{Our function \texttt{gamlssMaxlik} in online script \texttt{fitChosenDists.R} is
-patterns after the \texttt{gamlss} function \texttt{gamlssML}, but uses the \texttt{maxLik} function from the \textbf{maxLik}
+patterned after the \texttt{gamlss} function \texttt{gamlssML}, but uses the \texttt{maxLik} function from the \textbf{maxLik}
 package \citep{maxLik-package}, and repeated optimization from different starting values, to increase the reliability of the results.} 
 As all distributions have the same number of parameters, comparison of maximized likelihoods is equivalent to comparing AIC values. 
 With the exception of \texttt{EGB2} all distributions had very similar maximized likelihoods for all bins; the best overall (summed
@@ -501,8 +501,7 @@ abundance or structure. Size distribution of recruits was described by a kernel 
 of known new recruits. Figure made by script \texttt{AkumalCoralsIPMs.R}.}
 \label{fig:CoralKernelCompare}
 \end{figure}  
- 
- 
+
  
 \clearpage   
 
