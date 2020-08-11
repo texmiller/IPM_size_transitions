@@ -175,7 +175,8 @@ save.image(file="PSSPdistFits.Rdata");
 ## Binned-data SEP4 parameter estimates on subsequent size 
 ########################################################################
 source("../Diagnostics.R"); 
-binPars = binnedPars(y=dropD$logarea.t1,sortVar = fitted_all[,1],nBins=20,DIST="SEP4",rolling=FALSE) 
+source("../fitChosenDists.R"); 
+binPars = binnedPars(y=dropD$logarea.t1,sortVar = fitted_all[,1],nBins=20,DIST="SHASHo",rolling=FALSE) 
 
 graphics.off(); dev.new(width=8,height=6); 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
@@ -184,13 +185,13 @@ with(binPars,{
 spline.scatter.smooth(bin_means,mus,gamma=1.4,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu ))); #OK
 add_panel_label("a"); 
 spline.scatter.smooth(mus,sigmas,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
-			ylab=expression(paste("log scale parameter  ", sigma))); #linear 
+			ylab=expression(paste("log Scale parameter  ", sigma))); #linear 
 add_panel_label("b"); 
 spline.scatter.smooth(mus,nus,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
-			ylab=expression(paste("log shape parameter  ", nu ))); #quadratic
+			ylab=expression(paste("Shape parameter  ", nu ))); #quadratic
 add_panel_label("c"); 
 spline.scatter.smooth(mus,taus,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
-			ylab=expression(paste("log shape parameter  ", tau))); #linear 
+			ylab=expression(paste("log Shape parameter  ", tau))); #linear 
 add_panel_label("d"); 
 })
   
@@ -279,28 +280,46 @@ for(j in 1:5) {
 }
 
 j = min(which(LL==max(LL)));
-out=maxLik(logLik=LogLik,start=coefs[[j]],response=dropD$logarea.t1,U=U,
+MLfit=maxLik(logLik=LogLik,start=coefs[[j]],response=dropD$logarea.t1,U=U,
 		method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE); 
 
-######### save results of ML fit.  
-names(out$estimate)<-colnames(U); coefs=out$estimate; SEs = sqrt(diag(vcov(out))); 
+######### save results of SEP4 ML fit. 
+names(MLfit$estimate)<-colnames(U); coefs=MLfit$estimate; SEs = sqrt(diag(vcov(MLfit))); 
 
 save.image(file="PSSPdistFits.Rdata");  
 
+#######################################################################################
+#  Plot the fits 
+#######################################################################################
+graphics.off(); dev.new(width=8,height=6); 
+par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
+
+pars1 = coefs[1:ncol(U)]; pars2=coefs[-(1:ncol(U))];
+mu = U%*%pars1; 
+x = seq(min(mu),max(mu),length=100); 
+sigma = pars2[1]+ pars2[2]*x + pars2[3]*x^2 + pars2[4]*x^3
+nu = pars2[5] + pars2[6]*x + pars2[7]*x^2
+tau =pars2[8] + pars2[9]*x + pars2[10]*x^2
+
+plot(x,sigma, xlab="Fitted value", ylab="log Scale parameter sigma",type="l"); 
+plot(x,nu, xlab="Fitted value",ylab="log Shape parameter nu",type="l");
+plot(x,	tau, xlab="Fitted value",ylab="log Shape parameter tau",type="l");
+
+
 #############################################################################
-#  Binned data diagnostics applied to the model fitted via Shrinkage. 
+#  Binned quantiles diagnostic applied to the model fitted by ML 
 #############################################################################
-# Simulate data from fitted SHASH model
+# Simulate data from fitted SEP4 model
 pars1 = coefs[1:ncol(U)]; 
 pars2 = coefs[-(1:ncol(U))];
 MLmu = U%*%pars1;  
 
-n_sim <- 500
+n_sim <- 1000
 idaho_sim<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
 for(i in 1:n_sim){
   idaho_sim[,i] <- rSEP4(n = nrow(dropD), 
                     mu = MLmu, 
-                    sigma = exp(pars2[1]+ pars2[2]*MLmu + pars2[3]*MLmu^2 + pars2[4]*MLmu^3 ),
+                    sigma = exp(pars2[1]+ pars2[2]*MLmu + pars2[3]*MLmu^2 + pars2[4]*MLmu^3),
                     nu = exp(pars2[5] + pars2[6]*MLmu + pars2[7]*MLmu^2),
                     tau = exp(pars2[8] + pars2[9]*MLmu + pars2[10]*MLmu^2))
    if(i%%10==0) cat(i,"\n");                  
@@ -315,13 +334,36 @@ dev.new(width=7,height=9);
 out=quantileComparePlot(dropD$logarea.t0,dropD$logarea.t1,idaho_sim,12);
 
 dev.copy2pdf(file="../manuscript/figures/QuantileComparePlotPSSP.pdf")
+save.image(file="PSSPdistFits.Rdata"); 
+
+
+#############################################################################
+#  Do the same for the pilot Gaussian fit 
+#############################################################################
+n_sim <- 1000
+idaho_Gsim<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
+fitted_all = predict(log_model,type="response"); # you remember log_model... 
+yhat = fitted_all[,1]l; sigma_hat = 1/fitted_all[,2]; 
+for(i in 1:n_sim){
+  idaho_Gsim[,i] <- rnorm(n = nrow(dropD), mean=yhat, sd=sigma_hat); 
+  if(i%%50==0) cat(i,"\n");                  
+}
+
+# Round the output to approximate the rounding in the data recording 
+e = idaho_Gsim < log(0.6); idaho_Gsim[e]  = log(0.5); 
+e = (idaho_Gsim > log(0.65))&(idaho_Gsim < log(0.85)); idaho_Gsim[e] <- log(0.75); 
+e = (idaho_Gsim > log(0.9))&(idaho_Gsim < log(1.1)); idaho_Gsim[e] <- log(1); 
+
+dev.new(width=7,height=9); 
+out=quantileComparePlot(dropD$logarea.t0,dropD$logarea.t1,idaho_Gsim,12);
+
+dev.copy2pdf(file="../manuscript/figures/QuantileComparePlotPSSP-pilot.pdf")
 
 save.image(file="PSSPdistFits.Rdata"); 
 
 #######################################
 #  OK down to here! 
 #######################################
-
 
 ########################################################################################
 #   Simulation: how well do we recover known random effects? 
@@ -335,7 +377,7 @@ pars1 = coefs[1:ncol(U)]; pars2 = coefs[-(1:ncol(U))]; MLmu = U%*%pars1;
 n_sim <- 250 
 idaho_sim2<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
 for(i in 1:n_sim){
-  idaho_sim2[,i] <- rSHASHo(n = nrow(dropD), 
+  idaho_sim2[,i] <- rSEP4(n = nrow(dropD), 
                     mu = MLmu, 
 					sigma = exp(pars2[1]+pars2[2]*MLmu), 
 					nu=pars2[3]+pars2[4]*MLmu + pars2[5]*MLmu^2,
