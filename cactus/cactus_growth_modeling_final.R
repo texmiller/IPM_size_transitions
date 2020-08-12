@@ -47,8 +47,11 @@ CYIM_full %>%
   ## drop rows with NAs
   drop_na() -> CYIM
 
-table(CYIM$plot,CYIM$year_t)
-
+table(CYIM$plot,CYIM$year_t) ## note that plots 7 and 8 started in 2011
+## how many unique individuals?
+CYIM_full %>% select(ID) %>% unique() %>% summarise(n())
+## how many observation-years?
+CYIM_full %>% nrow()
 
 # Gaussian fits -----------------------------------------------------------
 CYIM_lmer_models <- list() 
@@ -118,7 +121,6 @@ levelplot(CYIM_lmer_best_kernel,row.values = size_dum, column.values = size_dum,
             grid.points(log(CYIM$vol_t), log(CYIM$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
           }) 
 
-
 scaledResids = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))
 par(mfrow=c(1,2))
 plot(fitted(CYIM_lmer_best), scaledResids) 
@@ -130,18 +132,20 @@ agostino.test(scaledResids) # skewness: FAILS, P<0.001
 # One last look at the standardized residuals. They are roughly mean zero and unit variance -- 
 # so that checks out. But there is negative skew and excess kurtosis, especially at large sizes. 
 px = fitted(CYIM_lmer_best); py=scaledResids; 
-par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
-z = rollMoments(px,py,windows=8,smooth=TRUE,scaled=TRUE) 
 
-##### Alternatively, use nonparametric measures of skew and excess kurtosis. 
+# print rolling moments figure
+pdf("../manuscript/figures/cactus_rolling_moments.pdf",height = 8,width = 8,useDingbats = F)
+par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
 z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE) 
+dev.off()
 
 # Finding a better distribution -------------------------------------------
 # We now know the Gaussian provides a poor fit to the residual variance. We would like to know which 
 # distribution provides a better - ideally _good_ - fit. Because there is size-dependence in skew and 
 # kurtosis, we cannot marginalize over the entire distribution of residuals (this may point 
 # us in the wrong direction). Instead, we can slice up the data into bins of expected 
-# value and find the best distribution for each bin using gamlss' fitDist(). 
+# value and find the best distribution for each bin using gamlss' fitDist().
+# UPDATE: use our own gamlssMaxlik() instead
 n_bins <- 8
 select_dist <- tibble(fit_best = fitted(CYIM_lmer_best),
                       scale_resid = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))) %>% 
