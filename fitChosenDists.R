@@ -23,6 +23,8 @@
 ###########################################################################################
 
 gamlssMaxlik <- function(y,DIST) {
+  out <- list()
+  for(d in 1:length(DIST)){
   fam = as.gamlss.family(DIST)
   n_par <-   fam$nopar
   
@@ -51,7 +53,7 @@ gamlssMaxlik <- function(y,DIST) {
                                    sigma=fam$sigma.linkinv(pars[2]), 
                                    nu=fam$nu.linkinv(pars[3]),
                                    tau=fam$tau.linkinv(pars[4]),log=TRUE)
-    val = do.call(paste("d",DIST,sep=""),fun_args)
+    val = do.call(paste("d",DIST[d],sep=""),fun_args)
     return(val); 
   }
   
@@ -64,7 +66,7 @@ gamlssMaxlik <- function(y,DIST) {
     if(fit$maximum==0) fit$maximum = -10^16; 	# failed fit
     if(fit$code>2) fit$maximum = -10^16; 		# failed fit
     if(fit$maximum > bestMax)	{bestPars=fit$estimate; bestMax=fit$maximum; bestFit=fit;}
-    cat(jrep,fit$maximum,"\n"); 
+    cat(DIST[d],jrep,fit$maximum,"\n"); 
   }	
   
   #fit = maxLik(logLik=LogLik1,start=bestPars, response=y, method="BHHH",control=list(iterlim=5000,printLevel=0),
@@ -72,8 +74,11 @@ gamlssMaxlik <- function(y,DIST) {
   #if(fit$maximum==0) fit$maximum = -10^16; 	# failed fit
   #if(fit$code>2) fit$maximum = -10^16; 		# failed fit                
   fit=bestFit; 
-  fit$AIC = 2*n_par - 2*fit$maximum
-  return(fit); 
+  aics[d] <- 2*n_par - 2*fit$maximum
+  out[[d]] <- fit
+  }
+
+  return(list(out=out,aics=aics)); 
 }
 
 if(FALSE) {
