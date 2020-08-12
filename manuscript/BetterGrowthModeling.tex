@@ -501,7 +501,49 @@ abundance or structure. Size distribution of recruits was described by a kernel 
 of known new recruits. Figure made by script \texttt{AkumalCoralsIPMs.R}.}
 \label{fig:CoralKernelCompare}
 \end{figure}  
+ 
+ \clearpage   
 
+\section{Case study: cactus, \emph{Cylindriopuntia imbricata}}
+The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta LTER, builds in complexity from a simple size-dependent regression in the previous study to size-dependence plus random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 
+This long-term study of cactus demography was initiated in 2004 and different subsets of the data have been analyzed in various IPM studies, all using Gaussian growth kernels and often in a Bayesian framework \citep{miller2009impacts,czachurademographic,compagnoni2016effect,ohm2014balancing,elderd2016quantifying}.
+In fact, \citep{elderd2016quantifying} presented a Gaussian growth model fit to the cactus data as an example of a well fit growth function, based on a marginal distribution of residuals that appeared approximately Gaussian and posterior predictive checks (PPCs) of a Bayesian model that suggested consistency between the real data and data simulated from the fitted model (Fig. 4 in \citep{elderd2016quantifying}). 
+While PPCs and the associated ``Bayesian P-value'' are popular diagnostic tools, they are widely considered to be too conservative \citep{conn2018guide,zhang2014comparative}, meaning that they may fail to reject models that are marginally bad even as they are very effective in rejecting models that are terrible.
+The choice of discrepancy function (the statistic used to describe real and simulated data) can also be limiting: in our previous work, we used a discrepancy function (the sum of the squared residuals) focused on variance, so we had a built-in blind-spot for detecting mismatches in higher moments of the data.
+In the clarity of hindsight, the PPC gave a false sense of security; the Gaussian was a poor choice all along -- and consequentially so.
+
+The data for this new analysis include $5203$ size transition observations from $924$ unique individuals spanning nine transition years (2009--2017) and eight $30m x 30m$ plots (we excluded earlier years of data corresponding to a different cohort of plants from a different set of locations). 
+Following previous studies, we quantified size as the natural logarithm of plant volume ($cm^3$), derived from heighth and width measurements. 
+
+We begin the growth modeling workflow with a simple mixed model for size in year $t+1$ as a function of size in year $t$, with random intercepts for year and plot and assuming normally distributed residuals. 
+We considered two candidate models with and without a quadratic term in the linear predictor for the mean.
+We allowed for non-constant variance by iterively re-fitting the models with weights based on a \tom{third-order polynomial}{We came to a third-order only after working through the rest of the steps and finding some extra curvature in the sigma parameter -- not sure how much to go there. Of course, gam() would circumvent the issue entirely.} that related the $SD$ of the residuals to the model's fitted values, thus relaxing the assumption that residual variance is constant with respect to expected values. 
+We iterated until there was effectively no change in the model weights, indicating convergence on maximum likelihood parameter estimates for the coefficients of the mean and $SD$ linear predictors. 
+
+The resulting best-fit model (including the quadratic term for the mean is favored) provides a superficially good fit to the data (Fig. \ref{fig:cactus_kernel_gaussian}). 
+However, while the standardized residuals from this model are approximatley mean zero and unit variance (as they should be), there are clear deviations from normality in the higher moments: negative skew (decreases in size were more common than increases, visible in the raw data [Fig. \ref{fig:cactus_kernel_gaussian}]) and excess kurtosis, both greater at smaller sizes and minimal at larger sizes (Fig. \ref{fig:cactus_rolling_moments}). 
+
+\begin{figure}
+\centering
+\includegraphics[width=0.75\textwidth]{figures/cactus_kernel_gaussian}
+\caption{Bets-fit Gaussian kernel with non-constant variance (colored contours) and raw data on cactus size transitions (points).}
+\label{fig:cactus_kernel_gaussian}
+\end{figure} 
+
+\begin{figure}
+\centering
+\includegraphics[width=0.75\textwidth]{figures/cactus_rolling_moments}
+\caption{Rolling-moment analysis of standardized residual from a Gaussian fit to the cactus growth data. Red dashed lines indicate the Gaussian expectation. These data show skewness and kurtosis that deviate from Gaussian.}
+\label{fig:cactus_rolling_moments}
+\end{figure} 
+
+To better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, but both of which may be negligible at some sizes. 
+
+
+
+
+
+ 
  
 \clearpage   
 
