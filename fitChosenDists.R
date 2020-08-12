@@ -55,22 +55,23 @@ gamlssMaxlik <- function(y,DIST) {
     return(val); 
   }
   
-  bestPars=numeric(n_par); bestMax=-10^16; 
-  for(jrep in 1:10) {
+  bestPars=numeric(n_par); bestMax=-10^17; 
+  for(jrep in 1:20) {
     startj = start*exp(0.1*rnorm(n_par)); 
     fit = maxLik(logLik=LogLik1,start=startj, response=y, method="BHHH",control=list(iterlim=5000,printLevel=0),
                 finalHessian=FALSE);  
     
     if(fit$maximum==0) fit$maximum = -10^16; 	# failed fit
     if(fit$code>2) fit$maximum = -10^16; 		# failed fit
-    if(fit$maximum > bestMax)	{bestPars=fit$estimate; bestMax=fit$maximum}
+    if(fit$maximum > bestMax)	{bestPars=fit$estimate; bestMax=fit$maximum; bestFit=fit;}
     cat(jrep,fit$maximum,"\n"); 
   }	
   
-  fit = maxLik(logLik=LogLik1,start=bestPars, response=y, method="BHHH",control=list(iterlim=5000,printLevel=0),
-                finalHessian=FALSE); 
-  if(fit$maximum==0) fit$maximum = -10^16; 	# failed fit
-  if(fit$code>2) fit$maximum = -10^16; 		# failed fit                
+  #fit = maxLik(logLik=LogLik1,start=bestPars, response=y, method="BHHH",control=list(iterlim=5000,printLevel=0),
+  #              finalHessian=FALSE); 
+  #if(fit$maximum==0) fit$maximum = -10^16; 	# failed fit
+  #if(fit$code>2) fit$maximum = -10^16; 		# failed fit                
+  fit=bestFit; 
   fit$AIC = 2*n_par - 2*fit$maximum
   return(fit); 
 }

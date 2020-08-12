@@ -143,8 +143,7 @@ logResids <- logResids %>% mutate(size_bin = cut_number(init,n=20))
 
 source("../fitChosenDists.R"); 
 
-tryDists=c("GT","JSU", "SHASHo","SEP1","SEP3","SEP4"); 
-## this was also tried with 10 bins, EGB2 could not be fitted to several and was very slow
+tryDists=c("JSU","SHASHo2","SHASH","SEP1","SEP3","SEP4","ST1","ST4"); 
 
 bins = levels(logResids$size_bin); maxVals = matrix(NA,length(bins),length(tryDists)); 
 for(j in 1:length(bins)){
@@ -156,18 +155,19 @@ for(k in 1:length(tryDists)) {
 }
 }
 
-## best 3 for each bin 
+## ranking 3 for each bin 
 for(j in 1:length(bins)){
 	e = order(-maxVals[j,]); 
-	cat(j, tryDists[e][1:3],"\n"); 
+	cat(j, tryDists[e][1:6],"\n"); 
 }	
 
 # Overall ranking: SEP4 is the winner by a hair, JSU very close.  
 # Because JSU can't do platykurtic, try SEP4 first 
+# SEP4 did poorly in ML fits (negative Hessian diagonal elements); tray SHASH 
 e = order(-colSums(maxVals)); 
 rbind(tryDists[e],round(colSums(maxVals)[e],digits=3)); 
-[1,] "SEP4"      "JSU"       "SHASHo"    "SEP3"      "SEP1"      "GT"       
-[2,] "-6491.345" "-6491.366" "-6494.701" "-6497.499" "-6501.981" "-6576.994"
+# [1,] "SEP4"      "JSU"       "SHASHo"    "SEP3"      "SEP1"      "GT"       
+# [2,] "-6491.345" "-6491.366" "-6494.701" "-6497.499" "-6501.981" "-6576.994"
 
 save.image(file="PSSPdistFits.Rdata");   
 
@@ -176,7 +176,7 @@ save.image(file="PSSPdistFits.Rdata");
 ########################################################################
 source("../Diagnostics.R"); 
 source("../fitChosenDists.R"); 
-binPars = binnedPars(y=dropD$logarea.t1,sortVar = fitted_all[,1],nBins=20,DIST="SHASHo",rolling=FALSE) 
+binPars = binnedPars(y=dropD$logarea.t1,sortVar = fitted_all[,1],nBins=20,DIST="SHASH",rolling=FALSE) 
 
 graphics.off(); dev.new(width=8,height=6); 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
@@ -188,21 +188,21 @@ spline.scatter.smooth(mus,sigmas,gamma=1.4,xlab=expression(paste("Location param
 			ylab=expression(paste("log Scale parameter  ", sigma))); #linear 
 add_panel_label("b"); 
 spline.scatter.smooth(mus,nus,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
-			ylab=expression(paste("Shape parameter  ", nu ))); #quadratic
+			ylab=expression(paste("log Shape parameter  ", nu ))); #quadratic
 add_panel_label("c"); 
 spline.scatter.smooth(mus,taus,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
 			ylab=expression(paste("log Shape parameter  ", tau))); #linear 
 add_panel_label("d"); 
 })
   
-dev.copy2pdf(file="../manuscript/figures/RollingSEP4parsPSSP.pdf") 
-savePlot(file="../manuscript/figures/RollingSEP4parsPSSP.png",type="png"); 
+dev.copy2pdf(file="../manuscript/figures/RollingSHASHparsPSSP.pdf") 
+savePlot(file="../manuscript/figures/RollingSHASHparsPSSP.png",type="png"); 
 
 save.image(file="PSSPdistFits.Rdata");   
 
 ##############################################################################################
-# We want to fit an SEP4 growth model, using the model structure of the pilot Gaussian model. 
-# We can't use splines in our SEP4 model, so we interrogate the fitted gam model to choose
+# We want to fit an SHASH growth model, based on the pilot Gaussian model. 
+# We can't use splines in this model, so we interrogate the fitted gam model to choose
 # functional forms that can accomplish the same shapes. 
 ##############################################################################################
 
@@ -245,10 +245,10 @@ U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) +
 LogLik=function(pars,response,U){
 	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
 	mu = U%*%pars1;  # "fitted values" -- actually, the linear predictor. 
-	val = dSEP4(response, mu=mu,
-	sigma = exp(pars2[1]+ pars2[2]*mu + pars2[3]*mu^2 + pars2[4]*mu^3 ),
+	val = dSHASH(response, mu=mu,
+	sigma = exp(pars2[1]+ pars2[2]*mu + pars2[3]*mu^2 + pars2[4]*mu^3),
 	nu = exp(pars2[5] + pars2[6]*mu + pars2[7]*mu^2),
-	tau = exp(pars2[8] + pars2[9]*mu + pars2[10]*mu^2), log=TRUE)
+	tau = exp(pars2[8] + pars2[9]*mu), log=TRUE)
 	return(val); 
 }
 
@@ -262,7 +262,7 @@ fixed_start = as.numeric(coef(pfit));
 
 # shape coefficients from the rolling parameters plot 
 fit_nu = with(binPars,lm(nus ~ mus + I(mus^2)));
-fit_tau = with(binPars,lm(taus~ mus + I(mus^2))); 
+fit_tau = with(binPars,lm(taus~ mus)); 
 p0=c(fixed_start, coef(sd_fit3), coef(fit_nu), coef(fit_tau));
 
 for(j in 1:5) {
@@ -283,8 +283,9 @@ j = min(which(LL==max(LL)));
 MLfit=maxLik(logLik=LogLik,start=coefs[[j]],response=dropD$logarea.t1,U=U,
 		method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE); 
 
-######### save results of SEP4 ML fit. 
-names(MLfit$estimate)<-colnames(U); coefs=MLfit$estimate; SEs = sqrt(diag(vcov(MLfit))); 
+######### save results of SHASHo ML fit. 
+names(MLfit$estimate)<-c(colnames(U),c("sigma.0","sigma.1","sigma.2","sigma.3","nu.0","nu.1","nu.2","tau.0","tau.1"));  
+coefs=MLfit$estimate; SEs = sqrt(diag(vcov(MLfit))); 
 
 save.image(file="PSSPdistFits.Rdata");  
 
@@ -299,11 +300,11 @@ mu = U%*%pars1;
 x = seq(min(mu),max(mu),length=100); 
 sigma = pars2[1]+ pars2[2]*x + pars2[3]*x^2 + pars2[4]*x^3
 nu = pars2[5] + pars2[6]*x + pars2[7]*x^2
-tau =pars2[8] + pars2[9]*x + pars2[10]*x^2
+tau = pars2[8] + pars2[9]*x
 
-plot(x,sigma, xlab="Fitted value", ylab="log Scale parameter sigma",type="l"); 
-plot(x,nu, xlab="Fitted value",ylab="log Shape parameter nu",type="l");
-plot(x,	tau, xlab="Fitted value",ylab="log Shape parameter tau",type="l");
+plot(x,exp(sigma), xlab="Fitted value", ylab="Scale parameter sigma",type="l"); 
+plot(x,exp(nu), xlab="Fitted value",ylab="Shape parameter nu",type="l");
+plot(x,	exp(tau), xlab="Fitted value",ylab="Shape parameter tau",type="l");
 
 
 #############################################################################
@@ -314,14 +315,14 @@ pars1 = coefs[1:ncol(U)];
 pars2 = coefs[-(1:ncol(U))];
 MLmu = U%*%pars1;  
 
-n_sim <- 1000
+n_sim <- 500
 idaho_sim<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
 for(i in 1:n_sim){
-  idaho_sim[,i] <- rSEP4(n = nrow(dropD), 
+  idaho_sim[,i] <- rSHASH(n = nrow(dropD), 
                     mu = MLmu, 
                     sigma = exp(pars2[1]+ pars2[2]*MLmu + pars2[3]*MLmu^2 + pars2[4]*MLmu^3),
                     nu = exp(pars2[5] + pars2[6]*MLmu + pars2[7]*MLmu^2),
-                    tau = exp(pars2[8] + pars2[9]*MLmu + pars2[10]*MLmu^2))
+                    tau = exp(pars2[8] + pars2[9]*MLmu))
    if(i%%10==0) cat(i,"\n");                  
 }
 
