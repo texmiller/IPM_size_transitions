@@ -508,7 +508,7 @@ of known new recruits. Figure made by script \texttt{AkumalCoralsIPMs.R}.}
 The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta LTER, builds in complexity from a simple size-dependent regression in the previous study to size-dependence plus random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 
 This long-term study of cactus demography was initiated in 2004 and different subsets of the data have been analyzed in various IPM studies, all using Gaussian growth kernels and often in a Bayesian framework \citep{miller2009impacts,czachurademographic,compagnoni2016effect,ohm2014balancing,elderd2016quantifying}.
 In fact, \citep{elderd2016quantifying} presented a Gaussian growth model fit to the cactus data as an example of a well fit growth function, based on a marginal distribution of residuals that appeared approximately Gaussian and posterior predictive checks (PPCs) of a Bayesian model that suggested consistency between the real data and data simulated from the fitted model (Fig. 4 in \citep{elderd2016quantifying}). 
-While PPCs and the associated ``Bayesian P-value'' are popular diagnostic tools, they are widely considered to be too conservative \citep{conn2018guide,zhang2014comparative}, meaning that they may fail to reject models that are marginally bad even as they are very effective in rejecting models that are terrible.
+While PPCs and the associated ``Bayesian P-value'' are popular diagnostic tools, they are considered to be too conservative \citep{conn2018guide,zhang2014comparative}, meaning that they may fail to reject models that are marginally bad even as they are very effective in rejecting models that are terrible.
 The choice of discrepancy function (the statistic used to describe real and simulated data) can also be limiting: in our previous work, we used a discrepancy function (the sum of the squared residuals) focused on variance, so we had a built-in blind-spot for detecting mismatches in higher moments of the data.
 In the clarity of hindsight, the PPC gave a false sense of security; the Gaussian was a poor choice all along -- and consequentially so.
 
@@ -526,7 +526,7 @@ However, while the standardized residuals from this model are approximatley mean
 \begin{figure}
 \centering
 \includegraphics[width=0.75\textwidth]{figures/cactus_kernel_gaussian}
-\caption{Bets-fit Gaussian kernel with non-constant variance (colored contours) and raw data on cactus size transitions (points).}
+\caption{Bets-fit Gaussian kernel with non-constant variance (colored contours) and raw observations of cactus size transitions (points).}
 \label{fig:cactus_kernel_gaussian}
 \end{figure} 
 
@@ -538,6 +538,39 @@ However, while the standardized residuals from this model are approximatley mean
 \end{figure} 
 
 To better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, but both of which may be negligible at some sizes. 
+Appropriate candidates include Johnson's $S_{U}$ distribution, which is limited to positive excess kurtosis, and the sinh-arcsinh (SHASH) and skewed power exponential distributions, which can vary from leptokurtic to platykurtic (Fig. \ref{fig:workflow}). 
+As above, we divided the standardized residuals into discrete bins of initial size and fit competing distributions to each data subset using the function \texttt{gamlssMaxlik()}.
+We found that Johnson's $S_{U}$ distribution (\texttt{JSU} in \textbf{gamlss}) was strongly favored over most of the size distribution, and we proceeded with this distribution for our final model. 
+
+The \texttt{JSU} is a $4$-parameter distribution and we needed some guidance on how to model the parameters that control the higher moments. 
+We could visualize these parameter estimates with respect to initial size, using the binned fits, but because the model includes random effects as well as a quadratic effect of size, it is more convenient to relate the parameter estimates to the expected value of the model.
+More generally, whenever there are random effects and/or covariates besides initial size, it may be preferable to model the higher moments as functions of the expected value. 
+We visualized these parameter relationships in Fig. \ref{fig:cactus_binned_JSU} and used them to guide specification of the likelihood function:
+\begin{figure}
+\centering
+\includegraphics[width=0.75\textwidth]{figures/cactus_binned_JSU}
+\caption{Parameter estimates of the \texttt{JSU} distributions fit to discrete bins of cactus growth data.}
+\label{fig:cactus_binned_JSU}
+\end{figure} 
+
+\begin{lstlisting}
+LogLik=function(pars,response,U){
+  pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
+  mu = U\%*\%pars1;  
+  val = dJSU(x = response, 
+             mu=mu,
+             sigma = exp(pars2[1] + pars2[2]*mu + pars2[3]*mu^2), 
+             nu = pars2[4] + pars2[5]*mu, 
+             tau = exp(pars2[6] + pars2[7]*mu + pars2[8]*mu^2), log=T) 
+  return(val)
+} 
+\end{lstlisting}
+
+Here, \texttt{response} is future size and \texttt{U} is the model matrix for the location parameter of the JSU, derived from the mean of the best-fit Gaussian model, but now converting random effects of years and plots to fixed effects:
+\begin{lstlisting}
+U=model.matrix(~  0 + year_t + plot + log(vol_t)+ I(log(vol_t)^2), data=CYIM)
+\end{lstlisting}
+
 
 
 
