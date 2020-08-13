@@ -544,8 +544,8 @@ We found that Johnson's $S_{U}$ distribution (\texttt{JSU} in \textbf{gamlss}) w
 
 The \texttt{JSU} is a $4$-parameter distribution and we needed some guidance on how to model the parameters that control the higher moments. 
 We could visualize these parameter estimates with respect to initial size, using the binned fits, but because the model includes random effects as well as a quadratic effect of size, it is more convenient to relate the parameter estimates to the expected value of the model.
-More generally, whenever there are random effects and/or covariates besides initial size, it may be preferable to model the higher moments as functions of the expected value. 
-We visualized these parameter relationships in Fig. \ref{fig:cactus_binned_JSU} and used them to guide specification of the likelihood function:
+More generally, whenever there are random effects and/or covariates besides initial size, it may be preferable to model the higher moments as functions of the expected value or \tom{location}{Steve has introduced the `$\mu$ is not the mean' idea in the previous section so maybe I don't need to say much about it here.} (for distributions where the location is not the expected value). 
+We visualized these parameter relationships in Fig. \ref{fig:cactus_binned_JSU} and used them to guide specification of the likelihood function, with quadratic terms for \texttt{sigma} and \texttt{tau} corresponding to the apparent non-monotonicity with respect to size:
 \begin{figure}
 \centering
 \includegraphics[width=0.75\textwidth]{figures/cactus_binned_JSU}
@@ -556,7 +556,7 @@ We visualized these parameter relationships in Fig. \ref{fig:cactus_binned_JSU} 
 \begin{lstlisting}
 LogLik=function(pars,response,U){
   pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
-  mu = U\%*\%pars1;  
+  mu = U%*%pars1;  
   val = dJSU(x = response, 
              mu=mu,
              sigma = exp(pars2[1] + pars2[2]*mu + pars2[3]*mu^2), 
@@ -565,11 +565,18 @@ LogLik=function(pars,response,U){
   return(val)
 } 
 \end{lstlisting}
-
 Here, \texttt{response} is future size and \texttt{U} is the model matrix for the location parameter of the JSU, derived from the mean of the best-fit Gaussian model, but now converting random effects of years and plots to fixed effects:
 \begin{lstlisting}
 U=model.matrix(~  0 + year_t + plot + log(vol_t)+ I(log(vol_t)^2), data=CYIM)
 \end{lstlisting}
+
+We can use the `shrinkage' methods described in Appendix S.1 to estimate the variance terms associated with year and plot effects, even though they are fit here as fixed effects.
+There is a tedious but not insurmountable complication that arises in models with multiple random effects, as in this one.
+By supressing the intercept in the model matrix (the zero after the tilde), we get parameter estimates for each year rather than offsets relative to a baseline year.
+However, because there is the additional effect of plot, all of the year effects are conditioned on the first level of the plot factor variable (plot 1) and the remaining plot coefficients are offsets of plot 1.
+The parameter estimate for plot 1 is therefore the mean of the year estimates, but there is no way to calculate its standard error. 
+
+
 
 
 
