@@ -25,103 +25,58 @@ objfun.min=function(p,qfun,target.skew) {
     out=NPshapes(nu,tau,qfun)
     val = out$excess.kurtosis
     err = abs(out$sq - target.skew)
-    val = ifelse(err<0.01, val, (10^12)*(err+abs(val)))
+    val = ifelse(err<0.01, val, (10^7)*err)
     return(val)
 }    
 
+objfun.max=function(p,qfun,target.skew) {
+    nu=exp(p[1]); tau=exp(p[2])
+    out=NPshapes(nu,tau,qfun)
+    val = out$excess.kurtosis
+    if(val>1) val = 1 - 0.5*(val-1)/(1 + (val-1)); 
+    val = -val; 
+    err = abs(out$sq - target.skew)
+    val = ifelse(err<0.01, val, (10^7)*err)
+    return(val)
+}    
 
-out=optim(par=c(0,0),fn=objfun.min,qfun=qSHASH,target.skew=0.1,
-            control=list(maxit=20000,trace=4)); 
-for(j in 1:5) {
-    out=optim(par=out$par,fn=objfun.min,qfun=qSHASH,target.skew=0.1, 
-           control=list(maxit=20000,trace=4));             
+minKurtNP=function(qfun,target.skew) {
+    out=optim(par=c(0,0),fn=objfun.min,qfun=qfun,target.skew=target.skew,
+            control=list(maxit=20000,trace=0)); 
+    for(j in 1:3) {
+        out=optim(par=out$par,fn=objfun.min,qfun=qfun,target.skew=target.skew, 
+           control=list(maxit=20000,trace=0));             
+    }
+    return(out$val); 
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-doPlotNP=function(qfun,nu,tau,ylim=c(-0.5,4)) { 
-SkewMat = KurtMat = matrix(NA,length(nu),length(tau));
-for(i in 1:length(nu)){
-cat(i,"\n"); 
-for(j in 1:length(tau)){
-    out=NPshapes(nu[i],tau[j],qfun);
-    SkewMat[i,j]=out$sq;
-    KurtMat[i,j]=out$excess.kurtosis
-}}    
-    e = which(SkewMat>=0); 
-    plot(SkewMat[e],KurtMat[e],xlab="NP Skewness",ylab="NP Excess Kurtosis",ylim=ylim); 
+maxKurtNP=function(qfun,target.skew) { 
+    out=optim(par=c(0,0),fn=objfun.min,qfun=qfun,target.skew=target.skew,
+            control=list(maxit=20000,trace=0)); 
+    for(j in 1:3) {
+        out=optim(par=out$par,fn=objfun.min,qfun=qfun,target.skew=target.skew, 
+           control=list(maxit=20000,trace=0));             
+    }
+    return(out$val); 
 }
 
-graphics.off(); 
-par(mfrow=c(3,4),bty="l",cex.axis=1.3,cex.lab=1.3,mar=c(4,4,2,1),mgp=c(2.2,1,0),yaxs="i"); 
+funs=list(12);
+funs[[1]]=qJSU; funs[[2]]=qSHASH; funs[[3]]=qSHASHo2;
+funs[[4]]=qSEP1; funs[[5]]=qSEP2; funs[[6]]=qSEP3; funs[[7]]=qSEP4; 
+funs[[8]]=qST1; funs[[9]]=qST2; funs[[10]]=qST3; funs[[11]]=qST4; funs[[12]]=qST5; 
 
-nu=exp(seq(log(0.3),log(35),length=31))
-tau=exp(seq(log(0.3),log(35),length=32))
+theMins = theMaxs = matrix(NA,6,12);
+target.skews=c(0.01,0.05,seq(0.1,0.7,by=0.2)); 
 
-## EGB2 
-#nu=seq(.5,20,length=31); tau=seq(.5,20,length=32); 
-doPlotNP(qEGB2,nu,tau,ylim=c(0,0.5));  title(main="EGB2"); 
+for(k in 1:12) {
+  qfun = funs[[k]]
+  for(j in 1:6) { 
+    theMins[j,k] = tryCatch(minKurtNP(qfun,target.skews[j]), error=function(e) NA); 
+    theMaxs[j,k] = tryCatch(maxKurtNP(qfun,target.skews[j]), error=function(e) NA); 
+    cat(j,k,"\n"); 
+  }
+}    
 
-## JSU 
-#nu=seq(.5,20,length=31); tau=seq(.5,20,length=32); 
-doPlotNP(qJSU,nu,tau);  title(main="JSU"); 
-
-### SHASH 
-#nu=seq(.5,20,length=31); tau=seq(.5,20,length=32); 
-doPlotNP(qSHASH,nu,tau);  title(main="SHASH"); 
-
-### SHASHo 
-#nu=seq(.5,20,length=31); tau=seq(.5,20,length=32); 
-doPlotNP(qSHASHo,nu,tau);   title(main="SHASHo"); 
-
-### SEP1 
-#nu=seq(.5,20,length=31); tau=seq(.5,20,length=32); 
-doPlotNP(qSEP1,nu,tau);  title(main="SEP1"); 
-
-## SEP2 
-#nu=seq(.5,20,length=31); tau=seq(.5,20,length=32); 
-doPlotNP(qSEP2,nu,tau);  title(main="SEP2"); 
-
-## SEP3
-doPlotNP(qSEP3,nu,tau);  title(main="SEP3"); 
-
-## SEP4 
-#nu=seq(.5,20,length=31); tau=seq(.5,20,length=32); 
-doPlotNP(qSEP4,nu,tau);  title(main="SEP4"); 
-
-## ST1 
-#nu=seq(.5,20,length=31); tau=seq(.5,20,length=32); 
-doPlotNP(qST1,nu,tau);  title(main="ST1"); 
-
-## ST2 
-#nu=seq(.5,20,length=31); tau=seq(.5,20,length=32); 
-doPlotNP(qST2,nu,tau);  title(main="ST2"); 
-
-## ST3 
-#nu=seq(.5,20,length=31); tau=seq(.5,20,length=32); 
-doPlotNP(qST3C,nu,tau);  title(main="ST3"); 
-
-## ST4 
-#nu=seq(.5,20,length=31); tau=seq(.5,20,length=32); 
-nu=exp(seq(log(.1),log(1.2),length=31))
-tau=exp(seq(log(.1),log(25),length=32))
-doPlotNP(qST4,nu,tau);  title(main="ST4");   
-
-## ST5 
-nu=exp(seq(log(.1),log(1.2),length=31))
-tau=exp(seq(log(.1),log(25),length=32))
-doPlotNP(qST5,nu,tau,ylim=c(0,5));  title(main="ST5"); 
 
 
 
