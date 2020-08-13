@@ -41,7 +41,7 @@ objfun.max=function(p,qfun,target.skew) {
 }    
 
 minKurtNP=function(qfun,target.skew) {
-    out=optim(par=c(0,0),fn=objfun.min,qfun=qfun,target.skew=target.skew,
+    out=optim(par=runif(2),fn=objfun.min,qfun=qfun,target.skew=target.skew,
             control=list(maxit=20000,trace=0)); 
     for(j in 1:3) {
         out=optim(par=out$par,fn=objfun.min,qfun=qfun,target.skew=target.skew, 
@@ -51,13 +51,13 @@ minKurtNP=function(qfun,target.skew) {
 }
 
 maxKurtNP=function(qfun,target.skew) { 
-    out=optim(par=c(0,0),fn=objfun.min,qfun=qfun,target.skew=target.skew,
+    out=optim(par=runif(2),fn=objfun.max,qfun=qfun,target.skew=target.skew,
             control=list(maxit=20000,trace=0)); 
     for(j in 1:3) {
-        out=optim(par=out$par,fn=objfun.min,qfun=qfun,target.skew=target.skew, 
+        out=optim(par=out$par,fn=objfun.max,qfun=qfun,target.skew=target.skew, 
            control=list(maxit=20000,trace=0));             
     }
-    return(out$val); 
+    return(-out$val); 
 }
 
 funs=list(12);
@@ -77,6 +77,36 @@ for(k in 1:12) {
   }
 }    
 
+
+graphics.off(); 
+dev.new(width=9,height=7); 
+par(mfrow=c(2,3),bty="l",mgp=c(2.2,1,0),mar=c(4,4,1,1),cex.axis=1.3,cex.lab=1.3); 
+
+ylim1=c(min(theMins,na.rm=TRUE),1.5); 
+
+matplot(target.skews,theMins[,1:3],ylim=ylim1, type="o",lty=1,col=1:4,lwd=2,pch=1:4,xlab="NP Skew",
+ylab = "Minimum NP Kurtosis",cex=1.3);
+legend("topleft",legend=c("JSU","SHASH","SHASHo"),lty=1,col=1:4,lwd=2,pch=1:4,bty="n");
+
+matplot(target.skews,theMins[,4:7],ylim=ylim1, type="o",lty=1,col=1:4,lwd=2,pch=1:4,xlab="NP Skew",
+ylab = "Minimum NP Kurtosis",cex=1.3);
+legend("topleft",legend=c("SEP1","SEP2","SEP3","SEP4"),lty=1,col=1:4,lwd=2,pch=1:4,bty="n");
+
+matplot(target.skews,theMins[,8:12],ylim=ylim1, type="o",lty=1,col=1:5,lwd=2,pch=1:5,xlab="NP Skew",
+ylab = "Minimum NP Kurtosis",cex=1.3);
+legend("topleft",legend=c("ST1","ST2","ST3","ST4","ST5"),lty=1,col=1:5,lwd=2,pch=1:5,bty="n");
+
+
+ylim1=c(min(theMaxs,na.rm=TRUE),1); 
+
+matplot(target.skews,theMaxs[,1:3],ylim=ylim1, type="o",lty=1,col=1:4,lwd=2,pch=1:4,xlab="NP Skew",
+ylab = "Maximum NP Kurtosis",cex=1.3);
+
+matplot(target.skews,theMaxs[,4:7],ylim=ylim1, type="o",lty=1,col=1:4,lwd=2,pch=1:4,xlab="NP Skew",
+ylab = "Maximum NP Kurtosis",cex=1.3);
+
+matplot(target.skews,theMaxs[,8:12],ylim=ylim1, type="o",lty=1,col=1:5,lwd=2,pch=1:5,xlab="NP Skew",
+ylab = "Maximum NP Kurtosis",cex=1.3);
 
 
 
