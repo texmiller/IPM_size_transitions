@@ -508,13 +508,14 @@ of known new recruits. Figure made by script \texttt{AkumalCoralsIPMs.R}.}
 The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta LTER, builds in complexity from a simple size-dependent regression in the previous study to size-dependence plus random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 
 This long-term study of cactus demography was initiated in 2004 and different subsets of the data have been analyzed in various IPM studies, all using Gaussian growth kernels and often in a Bayesian framework \citep{miller2009impacts,czachurademographic,compagnoni2016effect,ohm2014balancing,elderd2016quantifying}.
 In fact, \citep{elderd2016quantifying} presented a Gaussian growth model fit to the cactus data as an example of a well fit growth function, based on a marginal distribution of residuals that appeared approximately Gaussian and posterior predictive checks (PPCs) of a Bayesian model that suggested consistency between the real data and data simulated from the fitted model (Fig. 4 in \citep{elderd2016quantifying}). 
-While PPCs and the associated ``Bayesian P-value'' are popular diagnostic tools, they are considered to be too conservative \citep{conn2018guide,zhang2014comparative}, meaning that they may fail to reject models that are marginally bad even as they are very effective in rejecting models that are terrible.
+While PPCs and the associated ``Bayesian P-value'' are popular diagnostic tools, they are often considered to be too conservative \citep{conn2018guide,zhang2014comparative}, meaning that they may fail to reject models that are marginally bad even as they are very effective in rejecting models that are terrible.
 The choice of discrepancy function (the statistic used to describe real and simulated data) can also be limiting: in our previous work, we used a discrepancy function (the sum of the squared residuals) focused on variance, so we had a built-in blind-spot for detecting mismatches in higher moments of the data.
 In the clarity of hindsight, the PPC gave a false sense of security; the Gaussian was a poor choice all along -- and consequentially so.
 
-The data for this new analysis include $5203$ size transition observations from $924$ unique individuals spanning nine transition years (2009--2017) and eight $30m x 30m$ plots (we excluded earlier years of data corresponding to a different cohort of plants from a different set of locations). 
+The data for this new analysis include $5203$ size transition observations from $924$ unique individuals spanning nine transition years (2009--2017) and eight $30m$-by-$30m$ plots (we excluded earlier years of data corresponding to a different cohort of plants from a different set of locations). 
 Following previous studies, we quantified size as the natural logarithm of plant volume ($cm^3$), derived from heighth and width measurements. 
 
+\subsection{A pilot Gaussian model}
 We begin the growth modeling workflow with a simple mixed model for size in year $t+1$ as a function of size in year $t$, with random intercepts for year and plot and assuming normally distributed residuals. 
 We considered two candidate models with and without a quadratic term in the linear predictor for the mean.
 We allowed for non-constant variance by iterively re-fitting the models with weights based on a \tom{third-order polynomial}{We came to a third-order only after working through the rest of the steps and finding some extra curvature in the sigma parameter -- not sure how much to go there. Of course, gam() would circumvent the issue entirely.} that related the $SD$ of the residuals to the model's fitted values, thus relaxing the assumption that residual variance is constant with respect to expected values. 
@@ -537,15 +538,16 @@ However, while the standardized residuals from this model are approximatley mean
 \label{fig:cactus_rolling_moments}
 \end{figure} 
 
+\subsection{An improved growth model}
 To better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, but both of which may be negligible at some sizes. 
 Appropriate candidates include Johnson's $S_{U}$ distribution, which is limited to positive excess kurtosis, and the sinh-arcsinh (SHASH) and skewed power exponential distributions, which can vary from leptokurtic to platykurtic (Fig. \ref{fig:workflow}). 
-As above, we divided the standardized residuals into discrete bins of initial size and fit competing distributions to each data subset using the function \texttt{gamlssMaxlik()}.
+As above, we divided the standardized residuals into discrete bins of initial size and fit competing distributions to each data subset using our function \texttt{gamlssMaxlik()}.
 We found that Johnson's $S_{U}$ distribution (\texttt{JSU} in \textbf{gamlss}) was strongly favored over most of the size distribution, and we proceeded with this distribution for our final model. 
 
 The \texttt{JSU} is a $4$-parameter distribution and we needed some guidance on how to model the parameters that control the higher moments. 
-We could visualize these parameter estimates with respect to initial size, using the binned fits, but because the model includes random effects as well as a quadratic effect of size, it is more convenient to relate the parameter estimates to the expected value of the model.
+We could visualize these parameter estimates with respect to initial size, using the binned fits, but because the model includes random effects as well as a quadratic effect of size, it is more convenient to relate the parameter estimates to the expected value of the model, which encompasses all possible covariates.
 More generally, whenever there are random effects and/or covariates besides initial size, it may be preferable to model the higher moments as functions of the expected value or \tom{location}{Steve has introduced the `$\mu$ is not the mean' idea in the previous section so maybe I don't need to say much about it here.} (for distributions where the location is not the expected value). 
-We visualized these parameter relationships in Fig. \ref{fig:cactus_binned_JSU} and used them to guide specification of the likelihood function, with quadratic terms for \texttt{sigma} and \texttt{tau} corresponding to the apparent non-monotonicity with respect to size:
+We visualized these parameter relationships in Fig. \ref{fig:cactus_binned_JSU} and used them to guide specification of the likelihood function, which includes quadratic terms for \texttt{sigma} and \texttt{tau} corresponding to their apparent non-monotonicity with respect to location:
 \begin{figure}
 \centering
 \includegraphics[width=0.75\textwidth]{figures/cactus_binned_JSU}
@@ -575,16 +577,55 @@ There is a tedious but not insurmountable complication that arises in models wit
 By supressing the intercept in the model matrix (the zero after the tilde), we get parameter estimates for each year rather than offsets relative to a baseline year.
 However, because there is the additional effect of plot, all of the year effects are conditioned on the first level of the plot factor variable (plot 1) and the remaining plot coefficients are offsets of plot 1.
 The parameter estimate for plot 1 is therefore the mean of the year estimates, but there is no way to calculate its standard error. 
+We estimate the plot variance \tom{excluding plot 1}{A very unsatisfying feature of this analysis. I've tried flipping the order so that plots are conditioned on year 1, but when I do it this way \texttt{sigma2.hat} for plot is negative. Not totally unreasonable because the plot effects are small relative to year effects, but still annoying. Steve has mentioned that we might get around this by abandoning the model.matrix function but I don't see how. We cannot get unconditional estimates of plot and year effects without adding a parameter to the model, and that parameter is unidentifiable.}, a possible source of bias the variance estimate. 
+The random effects estimated via the shrinkage method correspond well with those from the original Gaussian mixed model, particularly for year effects (Fig. \ref{fig:cactus_rfx_compare}A). 
+Plot effects were less tightly correlated but there was also less variance across plots than there was across years (Fig. \ref{fig:cactus_rfx_compare}B). 
 
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/cactus_rfx_compare}
+\caption{Comparison of year (A) and plot (B) random effects from `shrinking' fixed-effect estimates (y-axes) vs. \textbf{lme4} mixed models (x-axes) for cactus data set.}
+\label{fig:cactus_rfx_compare}
+\end{figure} 
 
+Simulations of the final JSU model -- the final step of the workflow -- indicate that it describes the cactus growth data well (Fig. \ref{fig:cactus_sim_moments}\tom{}{Thoughts about moments versus quantiles?}). 
+The JSU model did not provide a noticeable improvement over the Gaussian model in terms of mean and variance of size transitions (Fig. \ref{fig:cactus_sim_moments}A,B).
+This is expected, since an appropriately specified Gaussian model with non-constant variance should be able to accommodate this type of complexity.
+It is in skewness and kurtosis that the JSU really shines (Fig. \ref{fig:cactus_sim_moments}C,D), capturing size-dependence in these features of size transitions \tom{that the Gaussian model misses}{Not sure if this is too much of a straw-man type comparison. We knew from the outset that the data are not Gaussian. Still, it's nice to see the improvement.}. 
 
+\begin{figure}
+\centering
+\includegraphics[width=\textwidth]{figures/cactus_sim_moments}
+\caption{Simulated data from JSU and Gaussian growth kernels compared to cactus growth data to which the models were fit.}
+\label{fig:cactus_sim_moments}
+\end{figure} 
 
-
-
-
-
+\subsection{Consequences of improved growth modeling for IPM predictions}
+Finally, we can ask how the improvements we have made to modeling cactus growth affect inferences from the full IPM.
+Details of IPM construction and analysis are provided in Appendix \tom{\#}{Need to do. Maybe we can have one appendix for all the IPMs.}.
+Our previous IPM analyses of this system have consistently shown asymptotic population growth rates below replacement-level ($\lambda < 1$).
+Our new results with the improved JSU growth kernel are qualitatively consistent with these results.
+However the JSU growth kernel predicts a much faster rate of decline -- a $7\%$ difference in annual change -- than the Gaussian, holding all else equal ($\lambda_{JSU} = 0.923$ vs. $\lambda_{Gaussian} = 0.994$).
+The JSU also predicts a very different and much smaller stable size distribution (SSD) than does the Gaussian (Fig. \ref{fig:cactus_ssd}). 
+The observed size distribution falls in between the two predictions, suggesting that, either way, this population is not at its stable distribution. 
+The difference in predictions of the two IPMs is driven by contrasting size transitions of large plants (Fig. \ref{fig:cactus_growth_compare}).
+This contrast is driven by skew and kurtosis, since the mean and variance of the JSU and Gaussian models were nearly identical for large sizes (Fig. \ref{fig:cactus_sim_moments}). 
+The Gaussian growth kernel over-predicts size transitions at large sizes, and this leads to the larger median size at SSD and also the smaller peak corresponding to new recruits, since reproductive output is strongly size-dependent. 
+This peak disappears from the JSU SSD because reproductive output is strongly size dependent, and the JSU growth kernel predicts that transitions to the largest sizes are less likely. 
+\begin{figure}
+\centering
+\includegraphics[width=0.75\textwidth]{figures/cactus_ssd}
+\caption{Predicted and observed size distributions of tree cholla cactus.}
+\label{fig:cactus_ssd}
+\end{figure} 
  
- 
+ \begin{figure}
+\centering
+\includegraphics[width=0.75\textwidth]{figures/cactus_growth_compare}
+\caption{Predicted probability of future size given three initial sizes indicated by vertical lines.}
+\label{fig:cactus_growth_compare}
+\end{figure} 
+
 \clearpage   
 
 \section{Case study: bunchgrass, \emph{Pseudoroegneria spicata}}

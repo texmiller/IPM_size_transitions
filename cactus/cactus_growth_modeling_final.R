@@ -305,10 +305,6 @@ year_shrunk.fx = year_fixed.fx*sqrt(year_sigma2.hat/(year_sigma2.hat + year_fixe
 # lmer random effects for (1|year) 
 year_ran.fx = ranef(CYIM_lmer_best)["year_t"]
 
-plot(year_ran.fx$year_t$`(Intercept)`,year_shrunk.fx,xlab="lmer year random effects",ylab="Shrunk year fixed effects",type="n")
-text(year_ran.fx$year_t$`(Intercept)`,year_shrunk.fx,labels=rownames(year_ran.fx$year_t))
-abline(0,1,col="blue",lty=2);
-
 tibble(sd_estimate = c(sd(year_fixed.fx),sd(year_shrunk.fx),sd(year_ran.fx$year_t$`(Intercept)`)),
        method = c("fixed","shrunk","lme4"))
 
@@ -327,14 +323,64 @@ plot_shrunk.fx = plot_fixed.fx*sqrt(plot_sigma2.hat/(plot_sigma2.hat + plot_fixe
 # lmer random effects for (1|plot) 
 plot_ran.fx = ranef(CYIM_lmer_best)["plot"]
 
-plot(plot_ran.fx$plot$`(Intercept)`,c(NA,plot_shrunk.fx),xlab="lmer year random effects",ylab="Shrunk year fixed effects",type="n")
-text(plot_ran.fx$plot$`(Intercept)`,c(NA,plot_shrunk.fx),labels=rownames(plot_ran.fx$plot))
-abline(0,1,col="blue",lty=2);
-
 tibble(sd_estimate = c(sd(plot_fixed.fx),sd(plot_shrunk.fx),sd(plot_ran.fx$plot$`(Intercept)`)),
        method = c("fixed","shrunk","lme4"))
 
+pdf("../manuscript/figures/cactus_rfx_compare.pdf",height = 5,width = 10,useDingbats = F)
+par(mfrow=c(1,2))
+plot(year_ran.fx$year_t$`(Intercept)`,year_shrunk.fx,xlab="lmer year random effects",ylab="Shrunk year fixed effects",type="n")
+text(year_ran.fx$year_t$`(Intercept)`,year_shrunk.fx,labels=rownames(year_ran.fx$year_t))
+abline(0,1,col="blue",lty=2);
+add_panel_label("a")
+plot(plot_ran.fx$plot$`(Intercept)`,c(NA,plot_shrunk.fx),xlab="lmer year random effects",ylab="Shrunk year fixed effects",type="n")
+text(plot_ran.fx$plot$`(Intercept)`,c(NA,plot_shrunk.fx),labels=rownames(plot_ran.fx$plot))
+abline(0,1,col="blue",lty=2);
+add_panel_label("b")
+dev.off()
+
+# U_flip ------------------------------------------------------------------
 ## Try re-fitting with plot and year switched, to see if I can do better with plot effects
+U_flip=model.matrix(~  0 + plot + year_t + log(vol_t)+ I(log(vol_t)^2), data=CYIM)
+
+fixed_start_flip = c(unlist(ranef(CYIM_lmer_best)$plot) + unlist(ranef(CYIM_lmer_best)$year_t)[1], #plot estimates, conditioned on year 1
+                unlist(ranef(CYIM_lmer_best)$year_t)[-1],
+                fixef(CYIM_lmer_best)[2],fixef(CYIM_lmer_best)[3])
+## make sure the dimensions line up
+length(fixed_start_flip);ncol(U_flip);colnames(U_flip) 
+p0=c(fixed_start_flip, coef(fit_sigma), coef(fit_nu),coef(fit_tau))
+coefs_flip = list(paranoid_iter); LL_flip=numeric(paranoid_iter);  
+for(j in 1:paranoid_iter) {
+  out_flip=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=log(CYIM$vol_t1),U=U_flip,
+             method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
+  
+  out_flip=maxLik(logLik=LogLik,start=out$estimate,response=log(CYIM$vol_t1),U=U_flip,
+             method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+  
+  out_flip=maxLik(logLik=LogLik,start=out$estimate,response=log(CYIM$vol_t1),U=U_flip,
+             method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
+  
+  coefs_flip[[j]] = out_flip$estimate; LL_flip[j] = out_flip$maximum;
+  cat(j, "#--------------------------------------#",out$maximum,"\n"); 
+}
+
+j = min(which(LL_flip==max(LL_flip))) 
+out_flip=maxLik(logLik=LogLik,start=coefs_flip[[j]],response=log(CYIM$vol_t1),U=U_flip,
+           method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE) 
+names(out_flip$estimate)<-c(colnames(U_flip),"sigma_b0","sigma_b1","sigma_b2","nu_b0","nu_b1","tau_b0","tau_b1","tau_b2")
+coefs_flip=out_flip$estimate
+## these are the indices of plot and year effects, to make the next steps a little more intuitive
+plots=1:8
+years=9:16
+SEs = sqrt(diag(vcov(out))) 
+## shrinkage:plot
+plot_fixed.fx = coefs[plots] - mean(coefs[plots])
+plot_fixed.se = SEs[plots]
+plot_sigma2.hat = mean(plot_fixed.fx^2)-mean(plot_fixed.se^2)
+plot_shrunk.fx = plot_fixed.fx*sqrt(plot_sigma2.hat/(plot_sigma2.hat + plot_fixed.se^2)) 
+## dead end, negative shrunk variance
+
+# JSU visualization and diagnostics ---------------------------------------
+
 
 ## Visual diagnostics of model fit via shrinkage
 ## Here is the top-level view of the skewed t kernel. This will be the mean kernel, averaged over years and plots.
@@ -361,7 +407,6 @@ levelplot(CYIM_JSU_kernel,row.values = size_dum, column.values = size_dum,cuts=3
 
 # Simulate data from fitted SHASH model
 MLmu = U%*%coefs[1:ncol(U)] 
-
 n_sim <- 500
 cactus_sim<-cactus_sim_norm<-matrix(NA,nrow=nrow(CYIM),ncol=n_sim)
 for(i in 1:n_sim){
@@ -388,6 +433,7 @@ cactus_moments <- CYIM %>%
             bin_mean = mean(log(vol_t)),
             bin_n = n()) 
 
+pdf("../manuscript/figures/cactus_sim_moments.pdf",height = 8,width = 8,useDingbats = F)
 par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2,1,0),bty="l"); 
 sim_bin_means=sim_moment_means=sim_moment_means_norm = matrix(NA,n_bins,n_sim); 
 for(i in 1:n_sim){
@@ -402,14 +448,14 @@ for(i in 1:n_sim){
 	sim_bin_means[,i]=sim_moments$bin_mean; 
 	sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;		  
 }
-
-matplot(cactus_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="mean(Size t1)",cex=1.4)
+matplot(cactus_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Mean(Size t1)",cex=1,
+        xlim=c(min(cactus_moments$bin_mean),max(cactus_moments$bin_mean)+0.4))
 matplot(cactus_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.5),pch=16,add=T)
-points(cactus_moments$bin_mean+0.2, cactus_moments$mean_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-legend("topleft",legend=c("SHASH","Gaussian","Median","Data"),
-col=c(alpha("gray",0.5),alpha("cornflowerblue",0.5),alpha("black",alpha_scale), alpha("red",alpha_scale)),pch=1,lwd=2,bty="n"); 
+points(cactus_moments$bin_mean+0.2, cactus_moments$mean_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.6)
+points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
+points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
+legend("topleft",legend=c("JSU model","Gaussian model","Data"),
+col=c("gray","cornflowerblue","red"),pch=16,bty="n",cex=1.4,pt.lwd=2,pt.cex = 1.6) 
 add_panel_label("a")
 
 for(i in 1:n_sim){
@@ -424,11 +470,12 @@ for(i in 1:n_sim){
 	sim_bin_means[,i]=sim_moments$bin_mean; 
 	sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;		  
 }
-matplot(cactus_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="SD(Size t1)",cex=1.4) 
+matplot(cactus_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="SD(Size t1)",cex=1,
+        xlim=c(min(cactus_moments$bin_mean),max(cactus_moments$bin_mean)+0.4)) 
 matplot(cactus_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.5),pch=16,add=T)
-points(cactus_moments$bin_mean+0.2, cactus_moments$sd_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+points(cactus_moments$bin_mean+0.2, cactus_moments$sd_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.6)
+points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
+points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
 add_panel_label("b")
 
 for(i in 1:n_sim){
@@ -443,11 +490,12 @@ for(i in 1:n_sim){
 	sim_bin_means[,i]=sim_moments$bin_mean; 
 	sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;	  
 }
-matplot(cactus_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Skew(Size t1)",cex=1.4)
+matplot(cactus_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Skew(Size t1)",cex=1,
+        xlim=c(min(cactus_moments$bin_mean),max(cactus_moments$bin_mean)+0.4))
 matplot(cactus_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.5),pch=16,add=T)
-points(cactus_moments$bin_mean+0.2, cactus_moments$skew_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+points(cactus_moments$bin_mean+0.2, cactus_moments$skew_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.6)
+points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
+points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
 add_panel_label("c")
 
 for(i in 1:n_sim){
@@ -462,12 +510,14 @@ for(i in 1:n_sim){
 	sim_bin_means[,i]=sim_moments$bin_mean; 
 	sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;	  
 }
-matplot(cactus_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Log kurtosis(Size t1)",cex=1.4)
+matplot(cactus_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Kurtosis(Size t1)",cex=1,
+        xlim=c(min(cactus_moments$bin_mean),max(cactus_moments$bin_mean)+0.4))
 matplot(cactus_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.5),pch=16,add=T)
-points(cactus_moments$bin_mean+0.2, cactus_moments$kurt_t1,pch=1,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
-points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
-points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)
+points(cactus_moments$bin_mean+0.2, cactus_moments$kurt_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.6)
+points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
+points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
 add_panel_label("d")
+dev.off()
 
 # Steve wrote this nifty function to do something similar but with quantiles. 
 # I have not added the Gaussian comparison but I can print this out separately. Here is the skewet $t$. 
@@ -590,21 +640,30 @@ ssd_JSU <- stable.stage(kernel_JSU$IPMmat)[3:(mat.size+2)] / sum(stable.stage(ke
 ssd_norm <- stable.stage(kernel_norm$IPMmat)[3:(mat.size+2)] / sum(stable.stage(kernel_norm$IPMmat)[3:(mat.size+2)])
 empirical_sd <- density(log(CYIM$vol_t1),n=mat.size)
 
+pdf("../manuscript/figures/cactus_ssd.pdf",height = 6,width = 6,useDingbats = F)
 plot(kernel_norm$meshpts,ssd_norm,type="l",lty=2,lwd=3,xlab="log volume",ylab="Density")
 lines(kernel_JSU$meshpts,ssd_JSU,type="l",lwd=3)
 lines(empirical_sd$x,empirical_sd$y/sum(empirical_sd$y),col="red",lwd=3)
 legend("topleft",c("Gaussian SSD","JSU SSD", "Empirical SD"),lty=c(2,1,1),col=c("black","black","red"),lwd=3,bty="n")
+dev.off()
 
 # The difference in ssd's is pretty striking, so I just wanted to have a closer look at the two 
 # growth kernels. The skewed $t$ is "peak-ier" than the Gaussian and this causes the Gaussian 
 # to allow for large increases in size that don't happen with the skewed $t$. I think that is 
 # where the big difference in SSD comes from. 
-x = c(-4,0,4,8,12)
-par(mfrow=c(2,3))
-for(i in 1:length(x)){
-plot(size_dum,gxy_JSU(x=x[i],y=size_dum,params=cactus_params),type="l",main=paste("Size_t0 = ", x[i]),
-     xlab="Future size",ylab="Pr density")
-lines(size_dum,gxy_norm(x=x[i],y=size_dum,params=cactus_params),lty=2)
-}
+x = c(-2,5,12)
+pdf("../manuscript/figures/cactus_growth_compare.pdf",height = 5,width = 5,useDingbats = F)
+plot(size_dum,gxy_JSU(x=5,y=size_dum,params=cactus_params),
+     xlab="Future size",ylab="Density",type="n",ylim=c(0,1.6))
+lines(size_dum,gxy_JSU(x=x[1],y=size_dum,params=cactus_params),lwd=2,col="tomato")
+lines(size_dum,gxy_norm(x=x[1],y=size_dum,params=cactus_params),lty=2,lwd=2,col="tomato")
+abline(v=x[1],lty=3,col="tomato")
+lines(size_dum,gxy_JSU(x=x[2],y=size_dum,params=cactus_params),lwd=2,col="darkgrey")
+lines(size_dum,gxy_norm(x=x[2],y=size_dum,params=cactus_params),lty=2,lwd=2,col="darkgrey")
+abline(v=x[2],lty=3,col="darkgrey")
+lines(size_dum,gxy_JSU(x=x[3],y=size_dum,params=cactus_params),lwd=2,col="dodgerblue")
+lines(size_dum,gxy_norm(x=x[3],y=size_dum,params=cactus_params),lty=2,lwd=2,col="dodgerblue")
+abline(v=x[3],lty=3,col="dodgerblue")
 legend("topleft",legend=c("JSU","Gaussian"),lty=c(1,2),bty="n")
+dev.off()
 
