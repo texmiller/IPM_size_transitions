@@ -77,7 +77,6 @@ for(k in 1:12) {
   }
 }    
 
-
 graphics.off(); 
 dev.new(width=9,height=7); 
 par(mfrow=c(2,3),bty="l",mgp=c(2.2,1,0),mar=c(4,4,1,1),cex.axis=1.3,cex.lab=1.3); 
@@ -108,5 +107,5 @@ ylab = "Maximum NP Kurtosis",cex=1.3);
 matplot(target.skews,theMaxs[,8:12],ylim=ylim1, type="o",lty=1,col=1:5,lwd=2,pch=1:5,xlab="NP Skew",
 ylab = "Maximum NP Kurtosis",cex=1.3);
 
-
+save.image(file="NPSkewKurtosisRanges.Rdata");
 
