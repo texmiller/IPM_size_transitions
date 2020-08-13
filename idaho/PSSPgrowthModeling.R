@@ -143,8 +143,11 @@ logResids <- logResids %>% mutate(size_bin = cut_number(init,n=20))
 
 source("../fitChosenDists.R"); 
 
-tryDists=c("GT","JSU", "SHASHo","SEP1","SEP3","SEP4"); 
-## this was also tried with 10 bins, EGB2 could not be fitted to several and was very slow
+tryDists=c("JSU","SHASH","SHASHo2","SEP1","SEP3","SEP4","ST1","ST4","ST5"); 
+# ST2, ST3 removed because optimization generated 'illegal' parameters. This should
+# be prevented by the family's link functions - but evidently not. 
+# EGB2 removed as it was slow and failed to converge for many bins; the  
+# gamlss book notes that it is only good for mildly leptokurtosis and low skewness. 
 
 bins = levels(logResids$size_bin); maxVals = matrix(NA,length(bins),length(tryDists)); 
 for(j in 1:length(bins)){
@@ -156,27 +159,36 @@ for(k in 1:length(tryDists)) {
 }
 }
 
-## best 3 for each bin 
+## ranking top 6 for each bin 
 for(j in 1:length(bins)){
 	e = order(-maxVals[j,]); 
-	cat(j, tryDists[e][1:3],"\n"); 
+	cat(j, tryDists[e][1:6],"\n"); 
 }	
 
-# Overall ranking: SEP4 is the winner by a hair, JSU very close.  
-# Because JSU can't do platykurtic, try SEP4 first 
+# Overall ranking: ST5 is the winner 
+# on how many bins are used. 
 e = order(-colSums(maxVals)); 
 rbind(tryDists[e],round(colSums(maxVals)[e],digits=3)); 
-[1,] "SEP4"      "JSU"       "SHASHo"    "SEP3"      "SEP1"      "GT"       
-[2,] "-6491.345" "-6491.366" "-6494.701" "-6497.499" "-6501.981" "-6576.994"
 
-save.image(file="PSSPdistFits.Rdata");   
+# Results with 20 bins          
+# [1,] "ST5"       "SHASH"     "SEP4"      "JSU"       "ST1"       "SHASHo2"   "SEP3"      "SEP1"      "ST4"      
+# [2,] "-6469.144" "-6489.268" "-6491.345" "-6491.366" "-6491.916" "-6494.701" "-6497.499" "-6501.982" "-6517.688"
+
+## However: attempts to fit ST5 to binned data (as below) were a total failure. Parameter estimates were very erratic, 
+## even for the location parameter. Those lower bins have excess kurtosis near 0, and ST5 is restricted 
+## to positive excess kurtosis. So we give up on ST5, even though it is the overall winner. 
+
+
+# Results with 25 bins     
+#[1,] "SHASH"     "SEP1"      "SEP4"      "ST1"       "JSU"       "SEP3"      "SHASHo2"   "ST4"      
+#[2,] "-6477.462" "-6477.806" "-6478.314" "-6480.983" "-6481.036" "-6482.432" "-6482.462" "-6506.146"
 
 ########################################################################
-## Binned-data SEP4 parameter estimates on subsequent size 
+## Binned-data SHASH parameter estimates on subsequent size 
 ########################################################################
 source("../Diagnostics.R"); 
 source("../fitChosenDists.R"); 
-binPars = binnedPars(y=dropD$logarea.t1,sortVar = fitted_all[,1],nBins=20,DIST="SHASHo",rolling=FALSE) 
+binPars = binnedPars(y=dropD$logarea.t1,sortVar = fitted_all[,1],nBins=20,DIST="SHASH",rolling=FALSE) 
 
 graphics.off(); dev.new(width=8,height=6); 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
@@ -188,21 +200,21 @@ spline.scatter.smooth(mus,sigmas,gamma=1.4,xlab=expression(paste("Location param
 			ylab=expression(paste("log Scale parameter  ", sigma))); #linear 
 add_panel_label("b"); 
 spline.scatter.smooth(mus,nus,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
-			ylab=expression(paste("Shape parameter  ", nu ))); #quadratic
+			ylab=expression(paste("log Shape parameter  ", nu ))); #quadratic
 add_panel_label("c"); 
 spline.scatter.smooth(mus,taus,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
 			ylab=expression(paste("log Shape parameter  ", tau))); #linear 
 add_panel_label("d"); 
 })
   
-dev.copy2pdf(file="../manuscript/figures/RollingSEP4parsPSSP.pdf") 
-savePlot(file="../manuscript/figures/RollingSEP4parsPSSP.png",type="png"); 
+dev.copy2pdf(file="../manuscript/figures/RollingSHASHparsPSSP.pdf") 
+savePlot(file="../manuscript/figures/RollingSHASHparsPSSP.png",type="png"); 
 
-save.image(file="PSSPdistFits.Rdata");   
+save.image(file="PSSPdistFits-Aug12.Rdata");   
 
 ##############################################################################################
-# We want to fit an SEP4 growth model, using the model structure of the pilot Gaussian model. 
-# We can't use splines in our SEP4 model, so we interrogate the fitted gam model to choose
+# We want to fit an SHASH growth model, based on the pilot Gaussian model. 
+# We can't use splines in this model, so we interrogate the fitted gam model to choose
 # functional forms that can accomplish the same shapes. 
 ##############################################################################################
 
@@ -240,15 +252,19 @@ mu_fit3 = lm(mu_hat ~ zvals + I(zvals^2) + I(zvals^3)); # nearly identical to qu
 U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) +  
 	W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Group + Treatment - 1, data=dropD);
 
+## funtional forms of the distribution parameters vs. linear predictor 
+f.sigma=function(p,x) exp(p[1] + p[2]*x +p[3]*x^2 + p[4]*x^3)
+f.nu = function(p,x) exp(p[5] + p[6]*x + p[7]*x^2)
+f.tau = function(p,x) exp(p[8] + p[9]*x)
+
+
 ## Log-likelihood for the model. sigma is cubic in linear predictor,
 ## nu and tau are quadratic. 
 LogLik=function(pars,response,U){
 	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
 	mu = U%*%pars1;  # "fitted values" -- actually, the linear predictor. 
-	val = dSEP4(response, mu=mu,
-	sigma = exp(pars2[1]+ pars2[2]*mu + pars2[3]*mu^2 + pars2[4]*mu^3 ),
-	nu = exp(pars2[5] + pars2[6]*mu + pars2[7]*mu^2),
-	tau = exp(pars2[8] + pars2[9]*mu + pars2[10]*mu^2), log=TRUE)
+	val = dSHASH(response, mu=mu, sigma = f.sigma(pars2,mu), 
+                nu = f.nu(pars2,mu), tau = f.tau(pars2,mu), log=TRUE)
 	return(val); 
 }
 
@@ -262,7 +278,7 @@ fixed_start = as.numeric(coef(pfit));
 
 # shape coefficients from the rolling parameters plot 
 fit_nu = with(binPars,lm(nus ~ mus + I(mus^2)));
-fit_tau = with(binPars,lm(taus~ mus + I(mus^2))); 
+fit_tau = with(binPars,lm(taus~ mus)); 
 p0=c(fixed_start, coef(sd_fit3), coef(fit_nu), coef(fit_tau));
 
 for(j in 1:5) {
@@ -283,10 +299,10 @@ j = min(which(LL==max(LL)));
 MLfit=maxLik(logLik=LogLik,start=coefs[[j]],response=dropD$logarea.t1,U=U,
 		method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE); 
 
-######### save results of SEP4 ML fit. 
-names(MLfit$estimate)<-colnames(U); coefs=MLfit$estimate; SEs = sqrt(diag(vcov(MLfit))); 
+######### save results of SHASH ML fit. 
+names(MLfit$estimate)<-c(colnames(U),c("sigma.0","sigma.1","sigma.2","sigma.3","nu.0","nu.1","nu.2","tau.0","tau.1"));  
+coefs=MLfit$estimate; SEs = sqrt(diag(vcov(MLfit))); 
 
-save.image(file="PSSPdistFits.Rdata");  
 
 #######################################################################################
 #  Plot the fits 
@@ -297,13 +313,9 @@ par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4)
 pars1 = coefs[1:ncol(U)]; pars2=coefs[-(1:ncol(U))];
 mu = U%*%pars1; 
 x = seq(min(mu),max(mu),length=100); 
-sigma = pars2[1]+ pars2[2]*x + pars2[3]*x^2 + pars2[4]*x^3
-nu = pars2[5] + pars2[6]*x + pars2[7]*x^2
-tau =pars2[8] + pars2[9]*x + pars2[10]*x^2
-
-plot(x,sigma, xlab="Fitted value", ylab="log Scale parameter sigma",type="l"); 
-plot(x,nu, xlab="Fitted value",ylab="log Shape parameter nu",type="l");
-plot(x,	tau, xlab="Fitted value",ylab="log Shape parameter tau",type="l");
+plot(x,f.sigma(pars2,x), xlab="Fitted value", ylab="Scale parameter sigma",type="l"); 
+plot(x, f.nu(pars2,x), xlab="Fitted value",ylab="Shape parameter nu",type="l");
+plot(x,	f.tau(pars2,x), xlab="Fitted value",ylab="Shape parameter tau",type="l");
 
 
 #############################################################################
@@ -314,14 +326,13 @@ pars1 = coefs[1:ncol(U)];
 pars2 = coefs[-(1:ncol(U))];
 MLmu = U%*%pars1;  
 
-n_sim <- 1000
+n_sim <- 500
 idaho_sim<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
 for(i in 1:n_sim){
-  idaho_sim[,i] <- rSEP4(n = nrow(dropD), 
-                    mu = MLmu, 
-                    sigma = exp(pars2[1]+ pars2[2]*MLmu + pars2[3]*MLmu^2 + pars2[4]*MLmu^3),
-                    nu = exp(pars2[5] + pars2[6]*MLmu + pars2[7]*MLmu^2),
-                    tau = exp(pars2[8] + pars2[9]*MLmu + pars2[10]*MLmu^2))
+  idaho_sim[,i] <- rSHASH(n = nrow(dropD), mu = MLmu, 
+                    sigma = f.sigma(pars2,MLmu),
+                    nu = f.nu(pars2,MLmu),
+                    tau = f.tau(pars2,MLmu))
    if(i%%10==0) cat(i,"\n");                  
 }
 
@@ -332,15 +343,16 @@ e = (idaho_sim > log(0.9))&(idaho_sim < log(1.1)); idaho_sim[e] <- log(1);
 
 dev.new(width=7,height=9); 
 out=quantileComparePlot(dropD$logarea.t0,dropD$logarea.t1,idaho_sim,12);
+title(main="SHASH model"); 
 
 dev.copy2pdf(file="../manuscript/figures/QuantileComparePlotPSSP.pdf")
-save.image(file="PSSPdistFits.Rdata"); 
+save.image(file="PSSPdistFits-Aug12.Rdata"); 
 
 
 #############################################################################
 #  Do the same for the pilot Gaussian fit 
 #############################################################################
-n_sim <- 1000
+n_sim <- 500
 idaho_Gsim<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
 fitted_all = predict(log_model,type="response"); # you remember log_model... 
 yhat = fitted_all[,1]l; sigma_hat = 1/fitted_all[,2]; 
@@ -356,14 +368,16 @@ e = (idaho_Gsim > log(0.9))&(idaho_Gsim < log(1.1)); idaho_Gsim[e] <- log(1);
 
 dev.new(width=7,height=9); 
 out=quantileComparePlot(dropD$logarea.t0,dropD$logarea.t1,idaho_Gsim,12);
+title(main="Gaussian pilot model"); 
 
 dev.copy2pdf(file="../manuscript/figures/QuantileComparePlotPSSP-pilot.pdf")
 
-save.image(file="PSSPdistFits.Rdata"); 
+save.image(file="PSSPdistFits-Aug12.Rdata"); 
 
 #######################################
 #  OK down to here! 
 #######################################
+
 
 ########################################################################################
 #   Simulation: how well do we recover known random effects? 
@@ -371,26 +385,26 @@ save.image(file="PSSPdistFits.Rdata");
 #   Use simulated replicates as "data" and compare shrinkage estimates with the "truth". 
 #   Key question: how well does shrinkage do at getting the variance right? 
 #########################################################################################
+U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) +  
+	W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Group + Treatment - 1, data=dropD);
 
 ##### Re-do simulations, so there is no rounding of small values 
 pars1 = coefs[1:ncol(U)]; pars2 = coefs[-(1:ncol(U))]; MLmu = U%*%pars1;  
 n_sim <- 250 
 idaho_sim2<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
 for(i in 1:n_sim){
-  idaho_sim2[,i] <- rSEP4(n = nrow(dropD), 
-                    mu = MLmu, 
-					sigma = exp(pars2[1]+pars2[2]*MLmu), 
-					nu=pars2[3]+pars2[4]*MLmu + pars2[5]*MLmu^2,
-					tau=exp(pars2[6]+pars2[7]*MLmu))
+  idaho_sim2[,i] <- rSHASH(n = nrow(dropD), 
+                    mu = MLmu, sigma = f.sigma(pars2,MLmu),
+                    nu = f.nu(pars2,MLmu),tau = f.tau(pars2,MLmu))
+   if(i%%10==0) cat(i,"\n");                  
 }
 
 LogLik=function(pars,response,U){
 	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
 	mu = U%*%pars1;  
-	val = dSHASHo(response, mu=mu,
-	sigma=exp(pars2[1]+pars2[2]*mu),
-	nu = pars2[3]+pars2[4]*mu + pars2[5]*mu^2,
-	tau = exp(pars2[6]+pars2[7]*mu), log=TRUE)
+	val = dSHASH(response, mu=mu,
+	sigma=f.sigma(pars2,mu), nu = f.nu(pars2,mu),
+	tau = f.tau(pars2,mu), log=TRUE)
 	return(val); 
 }
 
@@ -400,13 +414,9 @@ shrinkRanIntercept2 = shrinkRanSlope2 = matrix(NA,30,250);
 fixRanIntercept = fixRanSlope = matrix(NA,30,250); 
 lmerRanIntercept = lmerRanSlope = matrix(NA,30,250); 
 
-# Model matrix for ML fits 
-U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) +  
-	W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Group + Treatment - 1, data=dropD);
-
-# Use the correct weights for lmer fits 
+# Use the same weights for lmer fits 
 pars1 = coefs[1:ncol(U)]; pars2 = coefs[-(1:ncol(U))];
-MLmu = U%*%pars1; MLsigma = exp(pars2[1]+pars2[2]*MLmu); 
+MLmu = U%*%pars1; MLsigma = f.sigma(pars2,MLmu); 
 MLweights = 1/MLsigma^2
 
 T = length(unique(dropD$year)); 
@@ -465,7 +475,7 @@ matplot(trueRanIntercept,shrinkRanIntercept,type="p",pch=1,col="black");abline(0
 add_panel_label("c"); 
 matplot(trueRanIntercept,lmerRanIntercept,type="p",pch=1,col="black");abline(0,1,col="blue"); 
 add_panel_label("d"); 
-dev.copy2pdf(file="../manuscript/figures/ShrinkageTest.pdf"); 
+dev.copy2pdf(file="../manuscript/figures/PSSPShrinkageTest.pdf"); 
 
 
 # compare estimates of the between-year mixing sigma, averaging over reps 
@@ -509,7 +519,7 @@ save(file="ShrinkageTest.Rdata",list=c("idaho_sim2","trueRanIntercept","fixRanIn
 "trueRanSlope","fixRanSlope","shrinkRanSlope","shrinkRanSlope2","lmerRanSlope","dropD")); 
 
 
-
+}
 
 
 
