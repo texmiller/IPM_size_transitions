@@ -114,11 +114,11 @@ rollMomentsNP=function(px,py,windows=10,smooth=TRUE,scaled=TRUE,xlab=NULL) {
   if(scaled) abline(h=1,col="red",lty=2,lwd=2) 
     add_panel_label("b"); 
 
-  spline.scatter.smooth(rollx,rollskew,gamma=2.8,xlab=xlab,ylab="NP Skew"); 
+  spline.scatter.smooth(rollx,rollskew,gamma=2.8,xlab=xlab,ylab="NP Skew", ylim=c(-1,1)); 
   if(scaled) abline(h=0,col="red",lty=2,lwd=2) 
   add_panel_label("c"); 
 
-  spline.scatter.smooth(rollx,rollkurt,gamma=2.8,xlab=xlab,ylab="NP Kurtosis"); 
+  spline.scatter.smooth(rollx,rollkurt,gamma=2.8,xlab=xlab,ylab="NP Kurtosis", ylim=c(-1,1)); 
   if(scaled) abline(h=0,col="red",lty=2,lwd=2)
   add_panel_label("d"); 
 }
