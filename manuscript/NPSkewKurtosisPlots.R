@@ -48,7 +48,7 @@ doPlotNP(qEGB2,nu,tau,ylim=c(0,0.5));  title(main="EGB2");
 doPlotNP(qJSU,nu,tau);  title(main="JSU"); 
 
 ### SHASH 
-#nu=seq(.5,20,length=31); tau=seq(.5,20,length=32); 
+nu=seq(.2,50,length=201); tau=seq(.2,50,length=202); 
 doPlotNP(qSHASH,nu,tau);  title(main="SHASH"); 
 
 ### SHASHo 
