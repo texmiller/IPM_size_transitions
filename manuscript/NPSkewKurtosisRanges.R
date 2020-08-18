@@ -4,6 +4,7 @@
 rm(list=ls(all=TRUE))
 setwd("c:/repos/IPM_size_transitions/manuscript"); #edit as needed 
 source("../Diagnostics.R"); 
+source("../QuantileFunctions.R"); 
 
 require(gamlss); 
 
@@ -29,6 +30,7 @@ objfun.min=function(p,qfun,target.skew) {
     return(val)
 }    
 
+
 objfun.max=function(p,qfun,target.skew) {
     nu=exp(p[1]); tau=exp(p[2])
     out=NPshapes(nu,tau,qfun)
@@ -41,36 +43,50 @@ objfun.max=function(p,qfun,target.skew) {
 }    
 
 minKurtNP=function(qfun,target.skew) {
-    out=optim(par=runif(2),fn=objfun.min,qfun=qfun,target.skew=target.skew,
+    vals=numeric(3); 
+    for(k in 1:3){
+    out=optim(par=rnorm(2),fn=objfun.min,qfun=qfun,target.skew=target.skew,
             control=list(maxit=20000,trace=0)); 
-    for(j in 1:3) {
+    for(j in 1:2) {
         out=optim(par=out$par,fn=objfun.min,qfun=qfun,target.skew=target.skew, 
            control=list(maxit=20000,trace=0));             
     }
-    return(out$val); 
+    vals[k]=out$val; 
+    }
+    return(min(vals)); 
 }
 
-maxKurtNP=function(qfun,target.skew) { 
-    out=optim(par=runif(2),fn=objfun.max,qfun=qfun,target.skew=target.skew,
+maxKurtNP=function(qfun,target.skew) {
+    vals=numeric(3); 
+    for(k in 1:3) {
+    out=optim(par=rnorm(2),fn=objfun.max,qfun=qfun,target.skew=target.skew,
             control=list(maxit=20000,trace=0)); 
-    for(j in 1:3) {
+    for(j in 1:2) {
         out=optim(par=out$par,fn=objfun.max,qfun=qfun,target.skew=target.skew, 
            control=list(maxit=20000,trace=0));             
     }
-    return(-out$val); 
+    vals[k]=out$val; 
+    }
+    val = min(vals); 
+    return(-val); 
 }
 
 funs=list(12);
 funs[[1]]=qJSU; funs[[2]]=qSHASH; funs[[3]]=qSHASHo2;
-funs[[4]]=qSEP1; funs[[5]]=qSEP2; funs[[6]]=qSEP3; funs[[7]]=qSEP4; 
-funs[[8]]=qST1; funs[[9]]=qST2; funs[[10]]=qST3; funs[[11]]=qST4; funs[[12]]=qST5; 
+funs[[4]]=qrSEP1; funs[[5]]=qrSEP2; funs[[6]]=qSEP3; funs[[7]]=qSEP4; 
+funs[[8]]=qrST1; funs[[9]]=qrST2; funs[[10]]=qrST3; funs[[11]]=qrST4; funs[[12]]=qrST5; 
 
 theMins = theMaxs = matrix(NA,6,12);
 target.skews=c(0.01,0.05,seq(0.1,0.7,by=0.2)); 
 
+
+theNames = c("JSU","SHASH","SHASHo","SEP1","SEP2","SEP3","SEP4","ST1","ST2","ST3","ST4","ST5")
+colnames(theMins) = colnames(theMaxs) = theNames 
+
 for(k in 1:12) {
-  qfun = funs[[k]]
+  cat("Starting ", theNames[k],"\n"); 
   for(j in 1:6) { 
+    qfun = funs[[k]]
     theMins[j,k] = tryCatch(minKurtNP(qfun,target.skews[j]), error=function(e) NA); 
     theMaxs[j,k] = tryCatch(maxKurtNP(qfun,target.skews[j]), error=function(e) NA); 
     cat(j,k,"\n"); 
