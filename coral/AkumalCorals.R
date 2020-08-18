@@ -37,7 +37,7 @@ fitGAU <- gam(list(logarea.t1~s(logarea.t0),~s(logarea.t0)), data=XH, gamma=1.4,
 summary(fitGAU); plot(fitGAU); 
 
 ## the mean looks almost linear; is there evidence against this? 
-fitGAU0 <- gam(list(logarea.t1~logarea.t0,~s(logarea.t0)), data=XH, gamma=1.4,family=gaulss())
+fitGAU0 <- gam(list(logarea.t1~logarea.t0,~s(logarea.t0)), data=XH, gamma=1.4, family=gaulss())
 AIC(fitGAU); AIC(fitGAU0); # yes, Delta AIC of about 9 in favor of the spline 
 
 ## the log(sigma) fit looks almost linear; is there evidence against this? 
@@ -104,18 +104,18 @@ dev.copy2pdf(file="../manuscript/figures/AkumalRollingResiduals.pdf");
 # Fit suitable distributions to binned data 
 ###########################################################################
 logResids <- data.frame(init=XH$logarea.t0,resids=scaledResids); 
-logResids <- logResids %>% mutate(size_bin = cut_number(init,n=5))
+logResids <- logResids %>% mutate(size_bin = cut_number(init,n=8))
 
 source("../fitChosenDists.R"); 
 
-tryDists=c("EGB2","GT","JSU", "SHASHo","SEP1","SEP3","SEP4"); 
+tryDists=c("GT","JSU", "SHASHo","SEP1","SEP3","SEP4"); 
 
 bins = levels(logResids$size_bin); maxVals = matrix(NA,length(bins),length(tryDists)); 
 for(j in 1:length(bins)){
 for(k in 1:length(tryDists)) {
 	Xj=subset(logResids,size_bin==bins[j])
 	fitj = gamlssMaxlik(y=Xj$resids,DIST=tryDists[k]); 
-	maxVals[j,k] = fitj$maximum;
+	maxVals[j,k] = fitj$out[[1]]$maximum;
 	cat("Finished ", tryDists[k]," ",j,k, fitj$maximum,"\n"); 
 }
 }

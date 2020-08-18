@@ -337,7 +337,7 @@ disregarded, because they are both scaled so that a value of 1 indicates extreme
 
 \section{Case study: Sea fan corals, \emph{Gorgonia ventalina}}
 We begin with a simple example where current size is the only predictor of future size. \cite{bruno-etal-2011} developed
-an IPM to understand the rise and fall of the \emph{Aspergillus sydowii} outbreak in Caribbean sea fan corals 
+an IPM to understand the rise and fall of a fungal pathogen \emph{Aspergillus sydowii} in Caribbean sea fan corals 
 \emph{G. ventalina}. The model was based on repeated observations of marked corals in permanent transects at several sites 
 near Akumal, Mexico, recording disease status (infected/uninfected) and the area of uninfected tissue. 
 The epidemic peak had passed and disease incidence was already low, so infected fans were relatively infrequent. 
@@ -349,8 +349,9 @@ size transitions. Script \text{AkumalCorals.R} contains the analysis.
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=\textwidth]{figures/AkumalPilot.pdf}
-\caption{Pilot Gaussian model for growth of sea fan corals, \emph{Gorgonia ventalina}. \textbf{A)} Untransformed
-data on size transitions. \textbf{B)} Size transitions on the cube-root scale used by \citet{bruno-etal-2011}. 
+\caption{Pilot Gaussian model for growth of uninfected sea fan corals, \emph{Gorgonia ventalina}. \textbf{A)} Untransformed
+data on size transitions, 358 observations of initial and subsequent total area. 
+\textbf{B)} Size transitions on the cube-root scale used by \citet{bruno-etal-2011}. 
 \textbf{C)} Size transitions on log scale, showing the mean (solid red curve) and mean$\pm 2$ standard deviations (blue dashed
 curves) for the pilot Gaussian model with non-constant variance. \textbf{D)} Normal quantile-quantile plot of scaled residuals
 from the pilot Gaussian model. Figure made by script \texttt{AkumalCorals.R}.}
@@ -360,16 +361,14 @@ from the pilot Gaussian model. Figure made by script \texttt{AkumalCorals.R}.}
 The data clearly exhibit size-dependent growth variance (fig. \ref{fig:AkumalPilot}A). 
 \citet{bruno-etal-2011} chose to stabilize the variance by transforming size,
 using the cube-root of total fan area as the size measure (fig. \ref{fig:AkumalPilot}B), and then fitting the standard 
-model with Gaussian growth increments. But transformation only solves the one problem of size-dependent variance: residuals from 
-the default model are non-Gaussian, and still exhibit significant skew and kurtosis ($p<0.01$ in Jarque-Bera Normality test, D'Agostino skewness test, 
+model with Gaussian growth increments. But transformation is not a complete solution: residuals from 
+the default model are non-Gaussian, with significant skew and kurtosis ($p<0.01$ in Jarque-Bera Normality test, D'Agostino skewness test, 
 and Anscombe-Glynn kurtosis test using R functions \texttt{jarque.test,agostino.test,anscombe.test} in the 
 in the \textbf{moments} package \citep{komsta-2015}). This remains true in a model with site and year effects and 
-site:year interaction. 
+site-year interaction. 
 
-We therefore develop a model using log-transformation, which has two advantages. First, eviction at the lower size limit is
-easily prevented by choosing a large negative value for minimum log area. Second, the distribution of recruit sizes is closer to Gaussian
-on log scale than on cube-root scale (because the sample size is small both log- and cube root-transformed sizes are not significantly
-non-Gaussian, but log-transformed data have smaller Jarque-Bera and Kolmogorov-Smirnov test statistics for non-normality). 
+We therefore develop a model using log transformation. The main benefit of log transformation is that 
+eviction at small sizes is easily prevented by using a large negative value for minimum log area. 
 
 With initial size as the only predictor, the simplest way to fit a Gaussian model with nonconstant variance is the
 \texttt{gam} function in \textbf{mgcv} library \citep{wood-2017} using the \texttt{gaulss} family. The mean and 
@@ -379,26 +378,20 @@ returns the fitted mean and also the inverse of the fitted standard deviations w
 # XH is a data frame holding the data
 # logarea.t0, .t1 denote initial and final values of log-transformed area   
 fitGAU <- gam(list(logarea.t1~s(logarea.t0),~s(logarea.t0)),
-              data=XH,family=gaulss())
+              data=XH, gamma=1.4, family=gaulss())
 fitted_all = predict(fitGAU,type="response"); 
 fitted_sd = 1/fitted_all[,2]; 
 scaledResids = residuals(fitGAU,type=''response'')/fitted_sd;  
 \end{lstlisting}
 Fig. \ref{fig:AkumalPilot}C) shows the log-transformed data and Gaussian model. The mean function (solid blue curve) 
-is visually nearly linear, but the fitted nonlinear spline is favored over a linear model for the mean ($\Delta AIC \approx 9$). 
-Evidence for nonlinearity in $\log \sigma$ versus initial size is weak ($\Delta AIC <2$). 
+is visually nearly linear, but the fitted nonlinear spline is strongly favored over a linear model for the mean ($\Delta AIC \approx 9$). 
+The spline for $\log sigma$ versus initial size (not shown) is also nearly linear, and evidence for nonlinearity is present but 
+weak ($\Delta AIC <2$). 
 
-There are no visual signs of trouble in the pilot Gaussian model,but the scaled residuals are 
+There are no blatant signs of trouble in the pilot Gaussian model, but the scaled residuals are 
 significantly non-Gaussian with deviations in both tails (fig. \ref{fig:AkumalPilot}D; $p<0.03$ Jarque-Bera test for Normality).
-There is little skew (skewness=0.06, $p=0.64$ D'Agostino test), but significant kurtosis (excess kurtosis 0.67, $p=0.03$ 
-Anscome-Glynn test).\tom{}{I wonder about advocating for use of these normality tests. It deviates a bit from the messaging to not rely too much on statistical tests, and also it is testing the normality of the marginal distribution of residuals, which for reasons we've discussed is not exactly what we want.} 
-
-We now need to find a better fitting distribution. The overall properties of the scaled residuals (as in the preceding
-paragraph) may be misleading if the growth distribution changes as a function of initial size. 
-For example, is skew is positive at small initial sizes and negative at large sizes, the overall distribution 
-could have zero skew but positive excess kurtosis. A distribution family with those properties (e.g., a $t$ distribution) 
-would be a bad fit to the conditional distribution of growth at any initial size. Thus, a pilot Gaussian model should not
-be accepted just because the set of all scaled residuals is approximately Gaussian. \tom{}{OK, as long as we have this qualifier than probably fine to include the tests. But it's also possible that stacking up many Gaussians can give a marginal distribution that is non-Gaussian.}
+%There is little skew (skewness=0.06, $p=0.64$ D'Agostino test), but significant kurtosis (excess kurtosis 0.67, $p=0.03$ 
+%Anscome-Glynn test).\tom{}{I wonder about advocating for use of these normality tests. It deviates a bit from the messaging to not rely too much on statistical tests, and also it is testing the normality of the marginal distribution of residuals, which for reasons we've discussed is not exactly what we want.} 
 
 \begin{figure}[tbp]
 \centering
@@ -408,32 +401,34 @@ Figure made by scripts \texttt{AkumalCorals.R} and \texttt{Diagnostics.R}.}
 \label{fig:AkumalRollingResiduals}
 \end{figure} 
 
+Consequently, we want to find a better fitting distribution. As noted in the \emph{Introduction} the overall properties of the scaled 
+residuals may be misleading if the growth distribution changes as a function of initial size. 
 Instead, distribution choice should be guided by properties of distributions conditional on initial size. 
-Rarely will data include many instances of multiple observations with identical initial sizes, but we can 
-approximate conditional distribution by grouping similar initial sizes. 
+Multiple observations with identical initial sizes will be rare, but we can 
+approximate conditional distributions by grouping size transitions with similar initial sizes. 
 In fig. \ref{fig:AkumalRollingResiduals}, summary statistics (mean, standard deviation, NP skewness, NP excess kurtosis) 
-are plotted (solid points) for a set of sliding windows, each containing 10\% of the scaled residuals sorted according to initial size. 
-The red dashed lines are what we would see if the pilot model were exactly right: zero mean, skewness and excess kurtosis, and standard deviation of one. 
-Black curves are spline regressions through the points using \texttt{gam}. Panels A) and B) are a ``sanity check'' to verify
-that the pilot model was adequate to capture the mean and variance of growth. Panel C) indicates that the overall low skew results from negative
-skew at small sizes and positive skew at larger sizes. Similarly, panel D), reveals that NP kurtosis varies with initial size, 
-negative for small fans (thin tails), positive at large sizes (fat tails). 
+are plotted (solid points) for a set of overlapping sliding windows, each containing 10\% of the scaled residuals sorted according to initial size. 
+The red dashed lines are what we would see if the pilot model were exactly right: zero mean, skewness and excess kurtosis, and 
+standard deviation equal to one. Black curves are spline regressions through the points using \texttt{gam}. Panels A) and B) are a ``sanity check'' to verify
+that the pilot model was adequate to capture the mean and variance of growth. Panel C) indicates a shift from negative
+skew at small sizes to positive skew at larger sizes. Similarly, panel D), reveals that NP kurtosis varies with initial size, 
+negative for small fans and positive at large sizes. 
 
-Fitting those properties requires a four-parameter distribution that allows nonzero skew, allows both 
-positive and negative excess kurtosis, and whose range of possible values is $(-\infty, \infty)$. That narrows the options considerably. 
-Of the more than 50 distributions available in the \textbf{gamlss.dist} package, the options are 
+Fitting those properties requires a four-parameter distribution on $(-\infty, \infty)$ that allows nonzero skew and both 
+positive and negative excess kurtosis. That narrows the options considerably. 
+Of the more than 50 distributions provided in the \textbf{gamlss.dist} package, the options are 
 \texttt{EGB2, JSU, GT, SHASH} and four \texttt{SEP} distributions (four different ways of adding skew to the
 exponential power distribution). We omit \texttt{SEP2} because it is known to have poorly identified parameters
-\citep{diciccio-monti-2004}, which is problematic for diagnostics that we use in model selection. 
+\citep{diciccio-monti-2004}, which is problematic for choosing the non-Gaussian model structure in the way we propose.   
 
-To choose among the candidate distributions, we sorted the scaled residuals based on initial size into 5 equal-size bins, 
-and fitted all candidate distributions to each of the five resulting data sets by 
-maximum likelihood\footnote{Our function \texttt{gamlssMaxlik} in online script \texttt{fitChosenDists.R} is
+To choose among the candidate distributions, we sorted the scaled residuals based on initial size into 8 equal-size bins, 
+and used maximum likelihood to fit all candidate distributions to each bin.\footnote{Our function \texttt{gamlssMaxlik} 
+in online script \texttt{fitChosenDists.R} is
 patterned after the \texttt{gamlss} function \texttt{gamlssML}, but uses the \texttt{maxLik} function from the \textbf{maxLik}
 package \citep{maxLik-package}, and repeated optimization from different starting values, to increase the reliability of the results.} 
 As all distributions have the same number of parameters, comparison of maximized likelihoods is equivalent to comparing AIC values. 
 With the exception of \texttt{EGB2} all distributions had very similar maximized likelihoods for all bins; the best overall (summed
-likelihood) was \texttt{SEP1}, so we proceeded with \texttt{SEP1}. 
+likelihood) was \texttt{SEP1}, so we proceeded with \texttt{SEP1}. With 5 bins instead of 8 the outcome was the same. 
 
 Most four-parameter distributions have the inconvenient property that their parameters are \emph{not} the mean, standard deviation, skew,
 and kurtosis of the distribution. This happens because (for example) introducing nonzero skew changes the mean and the kurtosis. 
@@ -442,8 +437,8 @@ to look directly at how parameters vary as a function of initial size. As before
 and fitting an \texttt{SEP1} distribution to the subsequent size values in each data subset. Note, 
 in fig. \ref{fig:AkumalRollingResiduals} we used scaled residuals as the response variable, 
 to minimize how variation in mean and standard deviation within a bin would affect the skew and kurtosis. 
-Here, because all four distribution parameters interact to determine the distribution, we need to fit all 
-four simultaneously to the data on subsequent size in each bin. 
+Now, because all four distribution parameters interact to determine the distribution, we need to fit all 
+four simultaneously to the data in each bin. 
 
 \begin{figure}[tbp]
 \centering
@@ -453,15 +448,15 @@ Figure made by scripts \texttt{AkumalCorals.R} and \texttt{Diagnostics.R}.}
 \label{fig:AkumalRollingSEP1pars}
 \end{figure} 
 
-As expected from the pilot Gaussian fit, the location parameter $\mu$, the log of the scale parameters $\sigma$, the s
-kewness parameter $\nu$ and log of the kurtosis parameter $\tau$ all appear to vary linearly with initial size 
-(note: log is the default link function for $\sigma$ and $\tau$ in \texttt{SEP1} because both must be positive).
-The corresponding candidate model for the overall growth kernel is an \texttt{SEP1} distribution in 
+As expected from the pilot Gaussian fit, the location parameter $\mu$, the log of the scale parameters $\sigma$, the 
+skewness parameter $\nu$ and log of the kurtosis parameter $\tau$ all appear to vary linearly with initial size 
+(log is the default link function for $\sigma$ and $\tau$ in \texttt{SEP1} because both must be positive).
+The corresponding overall growth model is an \texttt{SEP1} distribution in 
 which $\mu, \log \sigma, \nu$ and $\log \tau$ are all linear functions of initial size.
 However, following our suggested workflow, we specify $\mu$ as a quadratic function of initial size because that relationship
 was found to be nonlinear in the pilot Gaussian model. This model is easily fitted by maximum likelihood, 
 using the pilot Gaussian fit and the values plotted in fig. \ref{fig:AkumalRollingSEP1pars} to 
-inform the starting parameter values. The quadratic term in $\mu$ proved to be highly significant
+inform the starting parameter values. The quadratic term for $\mu$ proved to be highly significant
 ($p<0.001$ based on the asymptotic standard error from the inverse Hessian). 
 
 \begin{figure}[tbp]
@@ -475,24 +470,21 @@ made by scripts \texttt{Akumal Corals.R} and \texttt{Diagnostics.R}.}
 \label{fig:CoralQuantileCompare}
 \end{figure} 
 
-
 The ``acid test'' of a growth model is that simulations from the fitted model should look like the real data. 
 To implement that criterion, we compared simulated and actual data with respect to quantiles of the distribution
 of subsequent size, again using a series of bins defined by initial size to account for how those quantiles vary
 with initial size. We find a very close correspondence between model simulations and the data, at all quantiles for all bins
 (fig. ) and therefore accept this candidate model. 
  
-
-Finally, how much have we gained from the effort of fitting a better growth model? Fig. \ref{CoralKernelCompare}A
+Finally, how much have we gained by fitting a better growth model? Fig. \ref{CoralKernelCompare}A
 compares the predicted distributions of subsequent size in the fitted model and Gaussian pilot models, for the median size of a new recruit 
 (leftmost pair of curves), the median initial size (central curves), and the 95th percentile of initial size in the data (rightmost
 curves). Differences are most pronounced for recruits, which have better odds of growing (leading to earlier reproduction and higher
 survival) in the fitted model, small at intermediate sizes where the skew and excess kurtosis are both small (fig. \ref{fig:AkumalRollingResiduals}CD),
 and larger again at high sizes where the fitted model is leptokurtic. Fig. \ref{CoralKernelCompare}B shows the predicted steady-state size
 distributions resulting from a constant unit input of recruits. The main difference is that the pilot model projects fewer individuals at
-or near the modal size; overall, the fitted model predicts a 7\% higher number of individuals at steady-state. Equivalently, the fitted
-model predicts a 7\% higher mean lifespan,  19.0 years vs. 17.7 in the pilot Gaussian model. 
- 
+or near the modal size; overall, the fitted model predicts 7\% more individuals at steady-state. Equivalently, the fitted
+model predicts a 7\% higher mean lifespan, 19.0 years vs. 17.7 in the pilot Gaussian model. 
 
 \begin{figure}[tbp]
 \centering
@@ -507,15 +499,25 @@ abundance or structure. Size distribution of recruits was described by a kernel 
 of known new recruits. Figure made by script \texttt{AkumalCoralsIPMs.R}.}
 \label{fig:CoralKernelCompare}
 \end{figure}  
- 
- \clearpage   
+
+\new{We chose to fit the pilot Gaussian model with \texttt{gam} because that obviated model selection on the mean and variance functions.
+However, \texttt{gam} should be used with caution. Nonparametric regression models notoriously ``wag their tails'' -- the ends of the fitted curve
+are often pulled towards the outermost data points. This is especially problematic for growth modeling, because data are typically 
+sparse near the top and bottom of the size range. Here, to minimize the risk of such overfitting we used \texttt{gamma=1.4} to overweight
+model degrees of freedom, as suggested by Gu (CITATION NEEDED). But it is always important to 
+plot the fitted splines and make sure they are not wagging unrealistically. If they are, the pilot model 
+can be fitted instead with parametric regression, as we illustrate in our cactus and creosote bush case studies.}
+
+
+\clearpage   
 
 \section{Case study: cactus, \emph{Cylindriopuntia imbricata}}
-The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta LTER, builds in complexity from a simple size-dependent regression in the previous study to size-dependence plus random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 
+The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta LTER, adds an important new
+feature on top of the simple size-dependent regressions in the previous study: random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 
 This long-term study of cactus demography was initiated in 2004 and different subsets of the data have been analyzed in various IPM studies, all using Gaussian growth kernels and often in a Bayesian framework \citep{miller2009impacts,czachurademographic,compagnoni2016effect,ohm2014balancing,elderd2016quantifying}.
 In fact, \citep{elderd2016quantifying} presented a Gaussian growth model fit to the cactus data as an example of a well fit growth function, based on a marginal distribution of residuals that appeared approximately Gaussian and posterior predictive checks (PPCs) of a Bayesian model that suggested consistency between the real data and data simulated from the fitted model (Fig. 4 in \citep{elderd2016quantifying}). 
-While PPCs and the associated ``Bayesian P-value'' are popular diagnostic tools, they are often considered to be too conservative \citep{conn2018guide,zhang2014comparative}, meaning that they may fail to reject models that are marginally bad even as they are very effective in rejecting models that are terrible.
-The choice of discrepancy function (the statistic used to describe real and simulated data) can also be limiting: in our previous work, we used a discrepancy function (the sum of the squared residuals) focused on variance, so we had a built-in blind-spot for detecting mismatches in higher moments of the data.
+While PPCs and the associated ``Bayesian P-value'' are popular diagnostic tools, they are often considered to be too conservative \citep{conn2018guide,zhang2014comparative}, failing to reject marginally bad models even though they are very effective in rejecting models that are terrible.
+The choice of discrepancy function (the statistic used to describe real and simulated data) can also be limiting: in our previous work, we used a discrepancy function focused on variance (the sum of the squared residuals), so we had a built-in blind-spot for mismatches in higher moments.
 In the clarity of hindsight, the PPC gave a false sense of security; the Gaussian was a poor choice all along -- and consequentially so.
 
 The data for this new analysis include $5203$ size transition observations from $924$ unique individuals spanning nine transition years (2009--2017) and eight $30m$-by-$30m$ plots (we excluded earlier years of data corresponding to a different cohort of plants from a different set of locations). 
@@ -523,17 +525,17 @@ Following previous studies, we quantified size as the natural logarithm of plant
 
 \subsection{A pilot Gaussian model}
 We begin the growth modeling workflow with a simple mixed model for size in year $t+1$ as a function of size in year $t$, with random intercepts for year and plot and assuming normally distributed residuals. 
-We considered two candidate models with and without a quadratic term in the linear predictor for the mean.
+We considered two candidate models, with and without a quadratic term in the predictor for the mean.
 We allowed for non-constant variance by iterively re-fitting the models with weights based on a \tom{third-order polynomial}{We came to a third-order only after working through the rest of the steps and finding some extra curvature in the sigma parameter -- not sure how much to go there. Of course, gam() would circumvent the issue entirely.} that related the $SD$ of the residuals to the model's fitted values, thus relaxing the assumption that residual variance is constant with respect to expected values. 
 We iterated until there was effectively no change in the model weights, indicating convergence on maximum likelihood parameter estimates for the coefficients of the mean and $SD$ linear predictors. 
 
 The resulting best-fit model (including the quadratic term for the mean is favored) provides a superficially good fit to the data (Fig. \ref{fig:cactus_kernel_gaussian}). 
-However, while the standardized residuals from this model are approximatley mean zero and unit variance (as they should be), there are clear deviations from normality in the higher moments: negative skew (decreases in size were more common than increases, visible in the raw data [Fig. \ref{fig:cactus_kernel_gaussian}]) and excess kurtosis, both greater at smaller sizes and minimal at larger sizes (Fig. \ref{fig:cactus_rolling_moments}). 
+However, while the standardized residuals from this model are approximatley mean zero and unit variance (as they should be), there are clear deviations from normality in the higher moments: negative skew (decreases in size were more common than increases, visible in the raw data [Fig. \ref{fig:cactus_kernel_gaussian}]) and positive excess kurtosis, both greater at smaller sizes and minimal at larger sizes (Fig. \ref{fig:cactus_rolling_moments}). 
 
 \begin{figure}
 \centering
 \includegraphics[width=0.75\textwidth]{figures/cactus_kernel_gaussian}
-\caption{Bets-fit Gaussian kernel with non-constant variance (colored contours) and raw observations of cactus size transitions (points).}
+\caption{Best-fit Gaussian kernel with non-constant variance (colored contours) and raw observations of cactus size transitions (points).}
 \label{fig:cactus_kernel_gaussian}
 \end{figure} 
 
@@ -579,7 +581,7 @@ U=model.matrix(~  0 + year_t + plot + log(vol_t)+ I(log(vol_t)^2), data=CYIM)
 \end{lstlisting}
 
 We can use the `shrinkage' methods described in Appendix S.1 to estimate the variance terms associated with year and plot effects, even though they are fit here as fixed effects.
-There is a tedious but not insurmountable complication that arises in models with multiple random effects, as in this one.
+There is a tedious but not insurmountable complication that can arise in models with multiple random effects, as in this one.
 By supressing the intercept in the model matrix (the zero after the tilde), we get parameter estimates for each year rather than offsets relative to a baseline year.
 However, because there is the additional effect of plot, all of the year effects are conditioned on the first level of the plot factor variable (plot 1) and the remaining plot coefficients are offsets of plot 1.
 The parameter estimate for plot 1 is therefore the mean of the year estimates, but there is no way to calculate its standard error. 
@@ -638,15 +640,14 @@ This peak disappears from the JSU SSD because reproductive output is strongly si
 
 We again consider a species where one of us is the offender -- initially using the default model because 
 it was hard to do better at the time \citep{adler-etal-2010}, but sticking with it 
-\citep[e.g.,][]{Tredennick2018, Adler-2018} when it would have been easy to do better.   
-
-NOTE: for now, this is just an outline of methods and results. 
+\citep[e.g.,][]{Tredennick2018, Adler-2018} when it would have been easy to do better. 
 
 We used the most recently curated version of the data \citep[][at doi.org/10.5061/dryad.96dn293]{Adler-2018},
 both legacy (22 annual transitions between 1926 and 1957) and modern (8 annual transitions from
 2008 to 2016, excluding moisture manipulation treatments). We excluded seedlings, which require separate models
 \citep{Chu-2014a, Chu-2015, snyder-ellner-2018}, and individuals mapped as ``too small to measure'' that should be modeled separately
 as a discrete size category (though in the past we have not done that). The measure of plant size was log basal cover. 
+
 Based on past analyses, (1) we did not distinguish between historical and 
 modern Control treatments \citep{Adler-2018} (2) we included size by year interactions with year-specific slope and intercept
 for a linear relationship between current and future size (log basal cover); (3) Quadrat group (labeling sets of spatially
@@ -654,55 +655,51 @@ nearby quadrats), Treatment (Control or Shrub removal) and competition with othe
 As in past models, competition was measured by distance-weighted cover of competing species, using nonparametric competition
 kernels estimated from the data \citep{Teller-2016}. 
 
-The ``pilot'' model (Gaussian) was constructed using \texttt{lmer} with annual slope and intercept specified 
-as random effects, using iterative re-weighting to fit a model with non-constant variance (exponential function of fitted value). 
-It also included a quadratic term in initial size, based on residual diagnostics of a model without the quadratic term. 
-
 Results: \begin{enumerate}
 
-\item Model selection for the ``pilot'' model was limited to the competition effects,  
-using AIC values as reported by \texttt{lmer}). The selected model had  
-three competition covariates: (1) the shrub \emph{Artemisia tripartita}, (2) the other two dominant 
-bunchgrasses combined, and (3) all other species combined. 
+\item The Gaussian pilot model as constructed using \texttt{gam}, with splines for the effect of initial size on the
+mean subsequent size, and for the standard deviation. Random effects for the intercept and a linear size by year interaction were
+included. 
+
+\item Model selection for the pilot Gaussian model was limited to the competition effects, and to choosing between
+two options for the variance: dependence on initial size, or on the predicted mean subsequent size (the ``linear
+predictor'' in GLM terminology). The latter option is not directly available in \texttt{gam}, but can be done 
+through iterative re-fitting. Model selection was based on AIC values reported by \texttt{gam}). Variance depending on
+the linear predictor was strongly favored ($\Delta$ AIC $\approx 50$). The selected competition model had  
+three competition covariates: (1) cover of the shrub \emph{Artemisia tripartita}, (2) cover of the other two dominant 
+bunchgrasses combined, and (3) cover of all other species combined. 
 
 \item The set of all scaled residuals was non-Gaussian, based on quantile-quantile plot, mostly in the lower tail. Statistical tests
-confirmed that the distribution was non-Gaussian, skewed and fat-tailed (all $P<0.001$). 
+confirmed that the standardized residuals are non-Gaussian (all $P<0.001$). 
 
-\item Rolling moments diagnostics applied to the scaled residuals (Fig. \ref{fig:rollingMomentsPSSP}) show that the mean 
-and Std Dev are nearly constant as a function of the fitted value (conditional mean), as they should be. The small trend in 
-the mean shows that the regression coefficients are slightly biased, which is not unexpected because the Gaussian assumption is violated. 
-In contrast, there are large trends in the skew and kurtosis. 
+\item Rolling moments diagnostics applied to the scaled residuals (Fig. \ref{fig:rollingMomentsPSSP}) confirm that the mean 
+and SD are nearly constant as a function of the fitted value, as they should be. The small trend in the mean shows that the 
+regression coefficients are slightly biased, which is not unexpected because the Gaussian assumption is violated. 
+The trends in skew and kurtosis are too big to ignore.  
 
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=.9\textwidth]{figures/RollingNPMomentsPSSP.pdf}
 \caption{Rolling moments of scaled residuals from the pilot model, as a function of fitted
-values, for \emph{P. spicata}. The dashed red line is the value expected if the pilot model fits the
-data, in particular skew=0 and kurtosis=3.}
+values, for \emph{P. spicata}. The dashed red lines are the value expected if the pilot model fits the
+data.}
 \label{fig:rollingMomentsPSSP}
 \end{figure} 
 
-\item Because the skew and kurtosis are variable, it is not informative to find a distribution that fits
-the entire set of scaled residuals. For example: a mixture of distributions, some with positive skew and some
-with negative, is likely to have very high kurtosis even if none of the component distributions does. So selecting
-a distribution family can't just be turned over to \texttt{fitDist}. 
+\item What distribution families can accomodate the features in Fig. \ref{fig:rollingMomentsPSSP}?
+We need at least 4 parameters (to allow skew and excess kurtosis), and both postive and zero excess kurtosis must be 
+possible. In JSU and skew $t$ and that makes fitting problematic, because zero excess kurtosis only occurs as a limit, not at 
+any actually possible parameter values ($df \to \infty$ for $t$, and $\tau \to 0$ for JSU). Comparison was therefore limited
+to \texttt{SHASH,SHASHo,SEP1,SEP3,SEP4} -- not \texttt{SEP2} for the reasons noted above. The winner was SHASH. 
 
-Instead, we have to ask: what families are flexible enough to accomodate the features in Fig. \ref{fig:rollingMomentsPSSP}?
-We need at least 4 parameters (mean, variance, skew, kurtosis) -- JSU, SHASH the various skew $t$ distributions 
-are convenient options. Moreover,the family must allow both positive and exactly zero excess kurtosis relative to a Gaussian. 
-In JSU and skew $t$ that makes fitting problematic, because exactly zero excess kurtosis only occurs as a limit, not at 
-any actually possible parameter values ($df \to \infty$ for $t$, and $\tau \to 0$ for JSU). So let's try SHASH, which covers most
-of the mathematically possible set of (skew, kurtosis) combinations (see Jones \& Pusey 2009).  
 
-\item SHASH has the problem that the location parameter $\mu$ is not the ``fitted value'' (distribution mean), $\sigma$ is not actually
-the standard deviation, $\nu$ is not actually the skew, and $\tau$ is not actually the kurtosis. We can't figure out how to model 
-the variation in those parameters by looking at variation in moments of the pilot residuals, or of anything else for that matter. 
-
-So instead, I broke the data into even-size bins based on fitted values of the pilot model, and fitted a SHASH distribution to
-the set of final sizes, Fig. \ref{fig:rollingSHASHparsPSSP}. Panel A), $\mu$ as a function of the fitted values, doesn't really inform
-modeling, but it shows that $\mu$ can be regarded as a ``fitted value''. The other plots tell us how the other distribution parameters
-should be modeled as a function of $\mu$, which is what we need to write down the growth model likelihood: $\sigma$ and $\tau$ are linear,
-$\nu$ is quadratic. 
+\item Now we need to model the size-dependence of the SHASH distribution parameters. In the pilot model, $\sigma$ as a function
+of fitted value was strongly favored or $\sigma$ as a function of initial size. We retain that structure in the SHASH model. 
+The data were therefore binned based on fitted values of the pilot model, and a SHASH distribution was fitted to each bin. 
+fig. \ref{fig:rollingSHASHparsPSSP}. Panel A), $\mu$ as a function of the fitted values, doesn't really inform the 
+modeling, but it shows that it is safe to regard $\mu$ as equivalent to the ``fitted value'' in the pilot model. 
+The other plots tell us how the other distribution parameters should be modeled as a function of $\mu$. $\log \tau$ is quadratic,
+and $log \nu$ is linear. 
  
 \begin{figure}[tbp]
 \centering
@@ -711,55 +708,55 @@ $\nu$ is quadratic.
 \label{fig:rollingSHASHparsPSSP}
 \end{figure} 
 
-\item The model is easy to fit by ML. Used \texttt{maxLik}, which allows the \texttt{BHHH} optimization method that seems to be faster 
-than anything \texttt{mle} or \texttt{bbmle} can use. Now, does it do a good job of fitting the data? 
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=.9\textwidth]{figures/BinnedConditionalMoments.pdf}
-\caption{Binned data comparison of moments between simulations of the fitted SHASH model (grey, black) and the actual data (red) for 
-{P. spicata}. Individuals were binned based on their initial size. }
-\label{fig:BinnedConditionalMoments}
-\end{figure} 
-
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=.9\textwidth]{figures/BinnedConditionalQuantiles.pdf}
+\includegraphics[width=.9\textwidth]{figures/QuantileComparePlotPSSP.pdf}
 \caption{Binned data comparison of distribution quantiles between simulations of the fitted SHASH model (grey, black) and the actual data (red) for 
 {P. spicata}. Individuals were binned based on their initial size. }
 \label{fig:BinnedConditionalQuantiles}
 \end{figure} 
 
-Figures \ref{fig:BinnedConditionalMoments}  and \ref{fig:BinnedConditionalQuantiles} show two comparisons between the actual data and simulations
-of the fitted SHASH model (i.e., repeated draws of subsequent size for all individuals in the data set), for a series of bins defined by initial
-size. The comparison based on quantiles (fig. \ref{fig:BinnedConditionalQuantiles}) looks really good. The one based on moments is less good. 
 
-The real-data moments exhibit some ``random'' variability -- e.g., not a steady trend in skew and kurtosis -- so perhaps they are being
-dominated by a few outliers? Maybe that plot is unduly pessimistic, and to really ask if the model is consistent with the data we should 
-ad bootstrap samples from the data as multiple pink dots analogous to the multiple grey dots for the model simulations. 
+\item The model is easy to fit by ML. Does it do a good job of fitting the data? The comparison based on binned quantiles 
+(fig. \ref{fig:BinnedConditionalQuantiles} looks pretty good except that the variation in the 5th percentile of the data
+is more wiggly than the 5th percentile of the model. To eliminate this imperfection, we could try higher-order polynomials
+for $\nu$ or $\tau$. 
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=.9\textwidth]{figures/ShrinkageTest.pdf}
+\includegraphics[width=.9\textwidth]{figures/PSSPShrinkageTest.pdf}
 \caption{Comparison of ``true'' and estimated intercept year effects for {P. spicata}. }
 \label{fig:ShrinkageTest}
 \end{figure} 
 
-
 \item Finally, a simulation study was done to see how well the shrinkage approach recovers known year effects. Fig. \ref{fig:ShrinkageTest}
 illustrates the results for the intercept coefficient. Panels A,B,C,D are the fixed-effects estimates, recommended shrunk estimates,
-more strongly shrunk estimate, and estimates from \texttt{lmer}. Except for \texttt{lmer} they all look pretty similar, and they are,
-but the recommended shrunk estimates had the lowest mean-square error for both slope and intercept (averaged across all years),
-and their sample variance was closest to the across-year variance in the data-generating model. So shrinkage is barely worth doing, but
-it's easy and it does make a small improvement. 
+more strongly shrunk estimates, and estimates from \texttt{lmer} using the fitted standard deviation from the pilot Gaussian model. 
+Except for \texttt{lmer} they all look very similar, and they are. The recommended shrunk estimates had the lowest 
+mean-square error for both slope and intercept (averaged across all years), and their sample variance was closest to the across-year 
+variance in the data-generating model, but the improvement over the fixed-effects estimates was small: 
+
+Intercept: true SD =  0.497, fixed SD =  0.516, shrunk SD = 0.468, lmer SD =  0.418 \\
+Slope: True SD =  0.129, fixed SD = 0.137, shrunk SD = 0.126,  lmer SD = 0.106
+ 
+Note that for both slope and intercept, the \texttt{lmer} estimates were over-smoothed (they under-estimated the
+actual between-year variance). 
+
+This study aligns with our earlier finding for IPMs with temporal random effects (Metcalf et al. 2015): shrinkage is barely worth
+doing. In that study it was not helpful, except that the fixed-effects and shrunk estimates were biased in opposite directions and
+therefore were useful as bounds on the truth. Here, shrinkage makes a small improvment. However, the biggest improvement comes
+from using a better model for the growth distribution.   
 
 \end{enumerate} 
 
 
-
+\clearpage 
 
 \section*{Acknowledgements} 
 This research was supported by US NSF grants DEB-1933497 (SPE) and .... 
+
+\newpage 
 
 %\bibliographystyle{EcologyLetters}
 \bibliographystyle{apalike}

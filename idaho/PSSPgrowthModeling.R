@@ -139,14 +139,13 @@ dev.copy2pdf(file="../manuscript/figures/RollingNPMomentsPSSP.pdf")
 # because that is going to be the form of the final model. 
 ###########################################################################
 logResids <- data.frame(init=fitted_all[,1],resids=scaledResids); 
-logResids <- logResids %>% mutate(size_bin = cut_number(init,n=20))
+logResids <- logResids %>% mutate(size_bin = cut_number(init,n=25))
 
 source("../fitChosenDists.R"); 
 
-tryDists=c("JSU","SHASH","SHASHo2","SEP1","SEP3","SEP4","ST1","ST4","ST5"); 
-# ST2, ST3 removed because optimization generated 'illegal' parameters. This should
-# be prevented by the family's link functions - but evidently not. 
-# EGB2 removed as it was slow and failed to converge for many bins; the  
+tryDists=c("SHASH","SHASHo2","SEP1","SEP3","SEP4"); 
+# JSU and ST distributions removed because they can't do exactly zero kurtosis. 
+# EGB2 was initially included, but removed as it was slow and failed to converge for many bins; the  
 # gamlss book notes that it is only good for mildly leptokurtosis and low skewness. 
 
 bins = levels(logResids$size_bin); maxVals = matrix(NA,length(bins),length(tryDists)); 
@@ -154,34 +153,29 @@ for(j in 1:length(bins)){
 for(k in 1:length(tryDists)) {
 	Xj=subset(logResids,size_bin==bins[j])
 	fitj = gamlssMaxlik(y=Xj$resids,DIST=tryDists[k]); 
-	maxVals[j,k] = fitj$maximum;
+	maxVals[j,k] = fitj$out[[1]]$maximum;
 	cat("Finished ", tryDists[k]," bin ",j, fitj$maximum,"\n"); 
 }
 }
 
-## ranking top 6 for each bin 
+## ranking top 3 for each bin 
 for(j in 1:length(bins)){
 	e = order(-maxVals[j,]); 
-	cat(j, tryDists[e][1:6],"\n"); 
+	cat(j, tryDists[e][1:3],"\n"); 
 }	
 
-# Overall ranking: ST5 is the winner 
-# on how many bins are used. 
+# Overall ranking: SHASH is the winner 
 e = order(-colSums(maxVals)); 
 rbind(tryDists[e],round(colSums(maxVals)[e],digits=3)); 
 
-# Results with 20 bins          
-# [1,] "ST5"       "SHASH"     "SEP4"      "JSU"       "ST1"       "SHASHo2"   "SEP3"      "SEP1"      "ST4"      
-# [2,] "-6469.144" "-6489.268" "-6491.345" "-6491.366" "-6491.916" "-6494.701" "-6497.499" "-6501.982" "-6517.688"
+Results with 20 bins 
+# [1,] "SHASH"     "SEP4"      "SEP1"      "SHASHo2"   "SEP3"     
+# [2,] "-6489.268" "-6491.345" "-6493.011" "-6494.701" "-6497.499"
 
-## However: attempts to fit ST5 to binned data (as below) were a total failure. Parameter estimates were very erratic, 
-## even for the location parameter. Those lower bins have excess kurtosis near 0, and ST5 is restricted 
-## to positive excess kurtosis. So we give up on ST5, even though it is the overall winner. 
-
-
-# Results with 25 bins     
-#[1,] "SHASH"     "SEP1"      "SEP4"      "ST1"       "JSU"       "SEP3"      "SHASHo2"   "ST4"      
-#[2,] "-6477.462" "-6477.806" "-6478.314" "-6480.983" "-6481.036" "-6482.432" "-6482.462" "-6506.146"
+Results with 25 bins       
+#[1,] "SHASH"     "SEP1"      "SEP4"      "SEP3"      "SHASHo2"  
+#[2,] "-6477.462" "-6477.806" "-6478.314" "-6482.432" "-6482.462"
+ 
 
 ########################################################################
 ## Binned-data SHASH parameter estimates on subsequent size 
@@ -210,7 +204,7 @@ add_panel_label("d");
 dev.copy2pdf(file="../manuscript/figures/RollingSHASHparsPSSP.pdf") 
 savePlot(file="../manuscript/figures/RollingSHASHparsPSSP.png",type="png"); 
 
-save.image(file="PSSPdistFits-Aug12.Rdata");   
+save.image(file="PSSPmodeling.Rdata");   
 
 ##############################################################################################
 # We want to fit an SHASH growth model, based on the pilot Gaussian model. 
@@ -218,7 +212,7 @@ save.image(file="PSSPdistFits-Aug12.Rdata");
 # functional forms that can accomplish the same shapes. 
 ##############################################################################################
 
-plot(log_model,scale=0); # remind ourselves what the splines look like 
+plot(log_model,scale=0); # remind ourselves what the splines look like. No wagging tails! 
 
 ### sigma as a function of fitted values 
 fitted_all = predict(log_model,type="response",data=dropD); 
@@ -238,7 +232,7 @@ mu_fit3 = lm(mu_hat ~ zvals + I(zvals^2) + I(zvals^3)); # nearly identical to qu
 
 
 ##################################################################################################
-# Fitting is done by maximum likelihood using maxLik 
+# Final model fitting is done by maximum likelihood using maxLik 
 # 
 # The random effects terms are fitted here as fixed effects, then adjusted by shrinkage.  
 # After fitting (1|year) and (0 + logarea.t0|year) as fixed effects by ML, we have year-specific 
@@ -253,13 +247,12 @@ U=model.matrix(~year + logarea.t0:year + I(logarea.t0^2) +
 	W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Group + Treatment - 1, data=dropD);
 
 ## funtional forms of the distribution parameters vs. linear predictor 
-f.sigma=function(p,x) exp(p[1] + p[2]*x +p[3]*x^2 + p[4]*x^3)
-f.nu = function(p,x) exp(p[5] + p[6]*x + p[7]*x^2)
-f.tau = function(p,x) exp(p[8] + p[9]*x)
+f.sigma=function(p,x) exp(p[1] + p[2]*x +p[3]*x^2 + p[4]*x^3)  # from lm fits
+f.nu = function(p,x) exp(p[5] + p[6]*x + p[7]*x^2)  # from the rolling pars plot 
+f.tau = function(p,x) exp(p[8] + p[9]*x)  # from the rolling pars plot 
 
 
-## Log-likelihood for the model. sigma is cubic in linear predictor,
-## nu and tau are quadratic. 
+## Log-likelihood for the model. 
 LogLik=function(pars,response,U){
 	pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
 	mu = U%*%pars1;  # "fitted values" -- actually, the linear predictor. 
@@ -303,6 +296,7 @@ MLfit=maxLik(logLik=LogLik,start=coefs[[j]],response=dropD$logarea.t1,U=U,
 names(MLfit$estimate)<-c(colnames(U),c("sigma.0","sigma.1","sigma.2","sigma.3","nu.0","nu.1","nu.2","tau.0","tau.1"));  
 coefs=MLfit$estimate; SEs = sqrt(diag(vcov(MLfit))); 
 
+save.image(file="PSSPmodeling.Rdata");   
 
 #######################################################################################
 #  Plot the fits 
@@ -346,7 +340,7 @@ out=quantileComparePlot(dropD$logarea.t0,dropD$logarea.t1,idaho_sim,12);
 title(main="SHASH model"); 
 
 dev.copy2pdf(file="../manuscript/figures/QuantileComparePlotPSSP.pdf")
-save.image(file="PSSPdistFits-Aug12.Rdata"); 
+save.image(file="PSSPmodeling.Rdata"); 
 
 
 #############################################################################
@@ -371,12 +365,6 @@ out=quantileComparePlot(dropD$logarea.t0,dropD$logarea.t1,idaho_Gsim,12);
 title(main="Gaussian pilot model"); 
 
 dev.copy2pdf(file="../manuscript/figures/QuantileComparePlotPSSP-pilot.pdf")
-
-save.image(file="PSSPdistFits-Aug12.Rdata"); 
-
-#######################################
-#  OK down to here! 
-#######################################
 
 
 ########################################################################################
@@ -415,9 +403,7 @@ fixRanIntercept = fixRanSlope = matrix(NA,30,250);
 lmerRanIntercept = lmerRanSlope = matrix(NA,30,250); 
 
 # Use the same weights for lmer fits 
-pars1 = coefs[1:ncol(U)]; pars2 = coefs[-(1:ncol(U))];
-MLmu = U%*%pars1; MLsigma = f.sigma(pars2,MLmu); 
-MLweights = 1/MLsigma^2
+MLweights =  fitted_all[,2];
 
 T = length(unique(dropD$year)); 
 
@@ -518,8 +504,6 @@ RMSE(trueRanSlope,lmerRanSlope);
 save(file="ShrinkageTest.Rdata",list=c("idaho_sim2","trueRanIntercept","fixRanIntercept","shrinkRanIntercept","shrinkRanIntercept2","lmerRanIntercept",
 "trueRanSlope","fixRanSlope","shrinkRanSlope","shrinkRanSlope2","lmerRanSlope","dropD")); 
 
-
-}
-
+save.image(file="PSSPmodeling.Rdata"); 
 
 

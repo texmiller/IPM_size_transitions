@@ -200,7 +200,7 @@ binnedPars <- function(y,sortVar,nBins,DIST,rolling=FALSE) {
     for(j in 1:length(bins)){
         Xj=subset(X,size_bin==bins[j])
         fitj = gamlssMaxlik(Xj$response,DIST)
-        pars=fitj$estimate; 
+        pars=fitj$out[[1]]$estimate; 
         mus[j]=pars[1]; sigmas[j]=pars[2]; nus[j]=pars[3]; taus[j]=pars[4]; 
         bin_means[j]=mean(Xj$sortVar); 
     }	

@@ -75,7 +75,7 @@ sgtMins = sgtMaxs = matrix(NA,6,1);
 target.skews=c(0.02,0.05,seq(0.1,0.7,by=0.2)); 
 
 
-for(j in 5:6) { 
+for(j in 1:6) { 
     sgtMins[j,1] = minKurtNP(target.skews[j])
     sgtMaxs[j,1] = maxKurtNP(target.skews[j]); 
     cat(j,"\n"); 
