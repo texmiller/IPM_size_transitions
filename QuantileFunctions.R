@@ -7,12 +7,21 @@ my.qsn = function(p,xi,omega,alpha) {
     return(F(p))
 }    
 
+
 qrSEP1 = function(p,mu,sigma,nu,tau) {
-    px = seq(mu-8*sigma,mu+8*sigma,length=150); 
+    L = qSEP1(0.25,mu,sigma,nu,tau);
+    M = qSEP1(0.5,mu,sigma,nu,tau); 
+    U = qSEP1(0.75,mu,sigma,nu,tau); 
+    dx = max(U-M,M-L)
+    px = seq(M-20*dx,M+20*dx,length=21); 
     py = pSEP1(px,mu=mu,sigma=sigma,nu=nu,tau=tau);
-    F = splinefun(py,px,method="monoH.FC"); 
+    i=which.min(abs(py-p)); 
+    px2=seq(px[i-1],px[i+1],length=25); 
+    py2 = pSEP1(px2,mu=mu,sigma=sigma,nu=nu,tau=tau);
+    F = splinefun(py2,px2,method="monoH.FC"); 
     return(F(p))
 }    
+qrSEP1 = Vectorize(qrSEP1,"p"); 
 
 
 qrSEP2 = function(p,mu,sigma,nu,tau) {
