@@ -142,105 +142,109 @@ at the end of the article.
 \section{Introduction}
 
 Structured demographic models -- matrix and integral projection models (MPMs and IPMs) -- are powerful tools for data-driven modeling of population dynamics and viability that are widely used in basic and applied settings. 
-In contrast to long-standing MPMs for populations with discrete structure (life stage, age class, etc.), IPMs are a relatively recent development \citep{easterling2000size} introduced to readily accomodate populations structured by continuous variables, most commonly size. 
-A related \tom{innovation}{This `innovation' is not unique to IPMs but it was rare in MPMs before IPMs.} of the IPM framework is its emphasis on regression-based modeling of size-dependent vital rates as sub-models of the larger projection model. 
+In contrast to long-standing MPMs for populations with discrete structure (life stage, age class, etc.), IPMs \citep{easterling2000size} readily accomodate populations structured by continuous variables, most commonly size. 
+A related \tom{innovation}{This `innovation' is not unique to IPMs but it was rare in MPMs before IPMs.} of the IPM framework is its emphasis on regression-based modeling of how each demographic rate depends on individual size.  
 
-The standard workflow allows ecologists to assemble an IPM from data using familiar regression tools to statistically describe growth, survival, reprduction, and other demographic transitions as functions of size. 
-The relative ease and flexibility of the regression-based approach, potentially rich with covariates (like experimental treatment effects) and hierarchical variance structures (i.e., random effects), has facilitated a growing body of IPM literature that examines how biotic or abiotic factors affect population dynamics \citep[e.g.,][]{schultz2017native,ozgul2010coupled} and explores the consequences of demographic heterogeneity associated with spatio-temporal variation \citep[e.g.,][]{crone2016contrasting,compagnoni2016effect}. 
+A standard workflow allows ecologists to assemble an IPM from data using familiar regression tools to statistically describe growth, survival, reprduction, and other demographic transitions as functions of size \citep{ellner-etal-2016}. 
+The relative ease of the regression-based approach, accomodating multiple covariates (like experimental treatment effects) and hierarchical variance structures (i.e., random effects), has facilitated a growing body of IPM literature that examines how biotic or abiotic factors affect population dynamics \citep[e.g.,][]{schultz2017native,ozgul2010coupled} and explores the consequences of demographic heterogeneity associated with spatio-temporal variation \citep[e.g.,][]{crone2016contrasting,compagnoni2016effect}. 
 The vital rate regressions are the bridge between the individual-level data and the population-level model and predictions; it is important to get them right.
 
 Compared to other vital rates, growth is special. 
-The regression sub-models for survival and reproduction provide the expected values of these vital rates as functions of size (we will use ``size'' as the name
+The regression sub-models for survival and reproduction provide the expected values of those rates as functions of size (we use ``size'' as the name
 for whatever continuous variable defines the population structure, which could instead be immune competence, mother's weight, etc.).   
-However, modeling growth for an IPM is about more than the expected value: the full probability distribution of future size, conditioned on previous size, must be defined. 
-This distribution is used to populate a growth `kernel' $G(z',z)$ that gives the probability of transitioning from any current size $z$ at time $t$ to any future size $z'$ at time $t+1$, and thus incorporates an element of luck: some individuals grow more than average and others less.
-As long as survival and reproductive rates are size-dependent then the distribution of size transitions around their expected values should strongly influence IPM predictions. 
+However, for modeling growth, the full probability distribution of subsequent size, conditioned on initial size, must be defined. 
+This distribution defines the growth `kernel' $G(z',z)$ that gives the probability density of future size $z'$ at time $t+1$ conditional on current
+size $z$ at time $t$. Whenever survival and reproduction are size-dependent, the entire distribution of size transitions can strongly influence IPM predictions. 
 
-The original template for modeling size transitions in an IPM framework was provided by Easterling et al. \citeyear{easterling2000size}, who first used simple linear regression and thus assumed that growth residuals were normally distributed with constant variance. 
-Problems with this quickly appeared: in their empirical case
-study Easterling et al. detected non-constant variance of residualsas a function of
-fitted values, and so used a two-step approach that fit size-dependence in the residuals
-from the initial fit (better options soon became available, such as the \texttt{lme} function
-in R). However, even after accounting for heteroscedasticity, growth data may still deviate from the assumption of normally distributed residuals. 
-Size transitions are often skewed such that large decreases in size are more common than increases \citep{peterson2019improving,salguero2010keeping} or vice versa \citep{stubberud2019effects}.
+The original template for modeling size transitions in IPMs was provided by Easterling et al. \citeyear{easterling2000size}. They first 
+tried simple linear regression, assuming normally distributed size changes with constant variance. Because the residuals from this
+regression exhibited non-constant variance, they used a two-step approach that estimated the size-dependence in the growth variance 
+(better options soon became available, such as the \texttt{lme} function in R). However, even after accounting for non-constant variance,  
+growth data may still deviate from the assumption that size transitions are normally distributed.  
+Size transitions are often skewed such that large decreases are more common than large increases \citep{peterson2019improving,salguero2010keeping}, or vice versa \citep{stubberud2019effects}.
 Size transitions may also exhibit excess kurtosis (`fat tails'), where extreme growth or shrinkage is more common than predicted by the tails of the normal distribution. 
 
-The observation that the normal distribution may poorly describe how real organisms change in size has been made before. 
-Several studies have emphasized that fits of the data to alternative distributions should be explored \citep{easterling2000size,peterson2019improving,rees2014building,williams2012avoiding}. 
-Yet, default use of Gaussian growth kernels (often with non-constant variance) remains the standard practice. 
+The observation that the normal distribution may poorly describe size transitions in real organisms has been made before,  
+and several studies have emphasized that alternative distributions should be explored \citep{easterling2000size,peterson2019improving,rees2014building,williams2012avoiding}. 
+Yet, default use of Gaussian growth distributions (often with non-constant variance) remains the standard practice. 
 An ISI Web of Knowledge search on the terms `integral projection model ecology' (DATE) returned \# IPM studies published in the past decade (2010--2020), \# of which assumed a Gaussian growth kernel\tom{}{Not sure if this is worth the trouble of doing, so I am just writing in placeholders for now. I think I know what I would find.}.
-The general state-of-the-art in the literature appears to be stuck where it was 15 or so years ago, using the default model without pausing to examine critically whether or not it actually provides a good description of the data. 
+The general state-of-the-art in the literature appears to remain where it was 15 or so years ago, using the default model without pausing to examine critically whether or not it actually provides a good description of the data. 
 We are guilty of this, ourselves. 
 
 The persistence of Gaussian growth modeling is understandable. 
-There is a long tradition of statistical modeling built around the assumption of normally distributed residuals with constant variance (e.g., ANOVA).
-Popular software pacakges such as lme4 \citep{bates2007lme4} and MCMCglmm \citep{hadfield2010mcmc} make it easy to fit growth models with potentially complex fixed- and random-effect structures, but the families of continuous response distributions they can accommodate are limited and default to Gaussian.
-Abandoning these convenient and widely accesible tools for the sake of a more `exotic' growth kernel also means, it may seem, sacrificing the flexibility to rigorously model diverse and potentially complex sources of variation in growth, some of which may be the driving motivation for conducting the study in the first place.
-The question, then, is how can ecologists break the apparent trade-off between realistically capturing the variance, skew, and kurtosis of size transition data on the one hand, and flexibly modeling the covariates and random effects that we know or suspect to be important on the other. 
+There is a long tradition of statistical modeling built on the assumption of normally distributed residuals with constant variance (e.g., ANOVA).
+Popular software pacakges such as lme4 \citep{bates2007lme4} and MCMCglmm \citep{hadfield2010mcmc} make it easy to fit growth models with potentially complex fixed- and random-effect structures, but the possible distributions of continuous responses are limited, and default to Gaussian.
+Abandoning these convenient tools for the sake of more flexible growth modeling means, it may seem, sacrificing the flexibility to rigorously model diverse and potentially complex sources of variation in growth, some of which may be the motivation driving the study in the first place.
+
+The question we address here is: how can ecologists escape the apparent trade-off between realistically capturing the 
+variance, skew, and kurtosis of size transition data on the one hand, and flexibly including the multiple covariates and random effects 
+that often have substantial impacts on demographic rates.  
 In this article, we offer an answer. 
 
-Our goal here is to develop a general `recipe' for growth modeling that moves the field beyond the standards set over 20 years ago.
+Our goal here is to present and illutrate a general `recipe' that moves growth modeling past the standards set over 20 years ago.
 Like any recipe, users may need to make substitutions or add flourishes to suit their situation. 
-In our view, modeling growth in IPMs is \emph{modeling}, informed by statistical tools and tests but not dictated by their outcome. 
-Rather than proposing a process centered on statistical model selection, we emphasize graphical diagnostics in developing and 
-evaluating a growth model. 
+Our approach emphasizes graphical diagnostics for developing and evaluating growth models, rather than a process 
+centered on statistical model selection. 
 Through a set of empirical case studies we demonstrate how a simple workflow, using tools 
-that were nonexistent or not readily available when IPMs came into use, makes it straightforward and relatively 
+that were nonexistent or not readily available when IPMs first came into use, makes it straightforward and relatively 
 easy to identify when the default model is a poor fit to the data, and to then choose and fit a substantially 
 better growth model that is no harder to use in practice. 
 We illustrate our approach by revisiting four of our own, mostly published IPM analyses that assumed Gaussian growth. 
-In every case study that we re-visited, this assumption did not stand up to close scrutiny. 
-We illustrate with pubicly available data and code how we could have done better, and the consequences of ``doing better'' for our ecological inferences. 
+In each case, the Gaussian assumption does not stand up to close scrutiny. 
+We illustrate how we could have done better, and the consequences of ``doing better'' 
+for our ecological inferences. 
 
-The remainder of this article is structured as follows:
-\begin{itemize}
-\item First, we outline the logic, key elements, and general workflow of our growth modeling approach.
-\item Next, we apply this workflow to real data sets, all of which featured in our own previous modeling, and evaluate how ``improved'' growth modeling changes key IPM results.
-%\item Then, we develop full IPMs for our desert plant case studies to evaluate how ``improved'' growth modeling affects IPM predictions\tom{}{I am still interested in possibly doing a simulation study to ask if there are particular types of life histories where getting the tails of size transitions right matters more or less. But punting that for now.}. 
-\item Finally, we discuss things...
-\end{itemize}
 All of the code and data from this article are publicly available at \url{https://github.com/texmiller/IPM_size_transitions}.
+
+%The remainder of this article is structured as follows:
+%\begin{itemize}
+%\item First, we outline the logic, key elements, and general workflow of our growth modeling approach.
+%\item Next, we apply this workflow to real data sets, all of which featured in our own previous modeling, and evaluate how ``improved'' growth modeling %changes key IPM results.
+%% \item Then, we develop full IPMs for our desert plant case studies to evaluate how ``improved'' growth modeling affects IPM predictions\tom{}{I am still interested in possibly doing a simulation study to ask if there are particular types of life histories where getting the tails of size transitions right matters more or less. But punting that for now.}. 
+%\item Finally, we discuss things...
+%\end{itemize}
+%All of the code and data from this article are publicly available at \url{https://github.com/texmiller/IPM_size_transitions}.
 
 \section{A general workflow for better growth modeling}
 The modeling workflow that we suggest runs as follows (Fig. \ref{fig:workflow}):
 \begin{enumerate}
-\item \textit{Fit a ``pilot'' model or models assuming a Gaussian distribution and allowing for non-constant variance.}
+\item \textit{Fit a ``pilot'' model or models assuming a Gaussian distribution but allowing for non-constant variance.}
 \\ 
-This step should be familiar to most IPM users, as it is the starting and stopping point of the traditional workflow. 
-Models are fit that define future size conditional on current size and any other fixed covariates and / or random effects. 
-This step may include model selection to arbitrate among competing hypotheses related to experimental treatments or environmental drivers for the expected value of future size, and possibly its variance.
-Historically, non-constant variance has typically been fit \textit{post hoc}, with an additional regression step relating the squared residuals of the growth function to an explanatory covariate, typically iniital size. 
-Here we emphasize the value of fitting functions for mean and variance \tom{simultaneously}{In the cactus example, getting the variance right changes the rank of model selection for the mean. Not sure this is worth getting into.}, and we provide examples for doing so. 
+This step is familiar to most IPM users, as it is the starting and stopping point of the traditional workflow. 
+Models are fitted to describe the distribution of future size conditional on current size and on any other measured covariates and/or random effects. 
+This step may include model selection among competing hypotheses related to effects of experimental treatments or environmental drivers on the mean and
+possibly the variance of future size. 
+Non-constant variance has often (but not always) been fitted in a two-stage process, first fitting a model with constant variance, 
+followed by a regression relating the squared residuals from the initial fit to an explanatory covariate, typically iniital size. 
+However, it is better to fit the mean and variance functions simultaneously (as we do here), for the sake of statistical efficiency and
+because it can effect the outcome of model selection for the mean.  
 
-Accommodating non-constant variance in the pilot model means that it is not necessary to transform the data 
+Allowing non-constant variance means that it is not necessary to transform the data 
 in a way that stabilizes the growth variance. 
-Transformation remains an option when it does not create new problems (\tom{discussed later}{I think we will need to talk about the beta regression approach in the Discussion, and that could be a place to give an example of `new problems'.}), and it may be advantageous for reasons besides variance stabilization.
-The natural log, in particular, is often an appropriate transformation of size data, because growth is commonly an exponential process, and helps avoid eviction at small sizes. 
-% This can go below?
-%Non-constant variance, like other shape parameters, has to be fitted as a function of size and other covariates. However, we recommend that formal statistical model selection should not be the basis for specifying the final regression model. 
-%Rather, its form should be chosen to match observable properties of the scaled residuals, and at most slightly modified based on final diagnostic and statistical tests. 
+Transformation remains an option when it does not create new problems (\tom{discussed later}{I think we will need to talk about the beta regression approach in the Discussion, and that could be a place to give an example of `new problems'.}), and it may have advantages besides variance stabilization.
+In particular log-transformation is often appropriate for size data \citep{ellner-etal-2016}, and it helps avoid eviction at small sizes. 
 
 \item \textit{Use the fitted variance function to compute standardized residuals.}
 \\
-If the Gaussian pilot model is valid, the set of standardized
-residuals (standardized by the SD, which may be non-constant) should be Gaussian with mean zero and unit variance, with no skew or excess kurtosis in the future size distribution for any initial size.
-This step provides a straightforward litmus test for whether to proceed with a Gaussian growth kernel or explore alternatives. 
+If the Gaussian pilot model is valid, the set of standardized residuals (standardized by the size-dependent standard deviation) should be Gaussian with mean zero and unit variance, with no skew or excess kurtosis. 
+This criterion provides a straightforward litmus test for whether to proceed with a Gaussian growth model or explore alternatives. 
 If the standardized residuals are satisfactorily Gaussian, skip to the final step of the workflow. 
 
 \item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate from Gaussian, and to identify a more appropriate distribution.}
 \\
 There are many ways that growth data may deviate from Gaussian and visualizing these deviations should guide the choice of an alternative distribution. 
-The marginal distribution of standardized residuals may be misleading when there is size-dependence in skew and kurtosis. 
-It is therefore valuable to visualize trends in the higher moments with respect to initial size. 
+The distribution of all standardized residuals may be misleading when there is size-dependence in skew and kurtosis. 
+It is therefore essential to visualize trends in distribution properties with respect to initial size. 
 For example, a change in the direction of skewness from small to large sizes would require a distribution flexible enough to accommodate both positive and negative skew, such as the skewed normal or Johnson $S_{U}$ distributions. 
-Alternatively, growth data may not be meaningfully skewed but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
-In  Fig. \ref{fig:workflow}, we provide guidance on how visual assesment of skew and kurtosis of the standardized residuals can lead to the selection of an appropriate growth distribution.
-We highlight use of the \textbf{gamlss} package \citep{stasinopoulos2007generalized}, which conveniently provides density functions for over \# continuous distributions. 
+Alternatively, growth data may lack skew but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
+Fig. \ref{fig:workflow} includes guidance on how the skew and kurtosis properties of the standardized residuals suggest options for 
+an appropriate growth distribution. In our case studies we take advantage of the many distributions provided in the \textbf{gamlss} R package \citep{stasinopoulos2007generalized}, but any other distribution with the necessary properties can be used.  
 
 \item \textit{Refit the growth model using the chosen distribution.}
 \\
-The mean (or location) of this `improved' model should be based on the pilot Gaussian fit. 
-Other parameters should be modeled according to graphical diagnostics regarding how they vary as a function of initial size or, when there are other covariates or random effects, as a function of the mean or location.
+How the mean and standard deviation (or location and scale parameters) depend on present size and other covariates in the improved
+model should be based, at first, on the pilot Gaussian fit. 
+Other parameters can be modeled based on graphical diagnostics regarding how they vary as a function of initial size or, when there are other covariates or random effects, as a function of the location parameter. 
 How fitting is accomplished depends on features of the model, in particular whether or not it
 includes random effects. 
 %\new{If skew and/or kurtosis are not constant as functions of initial size and other covariates, use graphical diagnostics to identify how the parameters of the chosen distribution vary as a function of initial size or, when there are other covariates or random effects, as a function of the predicted final size from the pilot Gaussian model.}
@@ -248,11 +252,14 @@ includes random effects.
 \item \textit{Test the final model through graphical diagnostics comparing simulated and real growth data.} 
 \\
 A good model will generate simulated data that look like the real data.  
-Again, it is important to inspect the properties of simulated data with respect to initial size rather than marginalize over the size distribution, which might conceal areas of disagreement. 
-We provide examples below of informative comparisons between simulated and real data based on moments and quantiles. 
-If the simulated data do not correspond well with real data, an alternative (possibly more flexible) distribution should be explored. 
-While it is possible to compute model selection statistics associated with competing distributions and functional forms for higher-moment parameters, formal  model selection should not be the basis for specifying the final growth model in our opinion. 
-Rather, its form should be chosen to match observable properties of the scaled residuals (the preceding steps in this workflow), and at most slightly modified based on final diagnostic and statistical tests.
+Again, it is important to inspect the properties of simulated data conditional on present size, rather than examining the entire distribution, which can  be misleading (positive SKEW here plus negative skew THERE can produce zero skew overall, but high kurtosis).  
+We provide examples below of informative comparisons between simulated and real data, based mainly on quantiles. 
+If the simulated data do not correspond well with real data, alternative (possibly more flexible) distributions should be explored, or more complex
+functions relating distribution parameters to current size and other covariates. 
+While it is possible to do formal model selection on competing distributions and functional forms for distribution parameters, the number of
+possible options is usually enormous. We therefore argue that the form of the final model should be based on observable properties of
+size transitions seen in the graphical diagnostics that we present, and at most slightly modified based on 
+final diagnostic and statistical tests.
 
 \end{enumerate}
 
@@ -265,17 +272,16 @@ All of these distributions (often including multiple versions or parameterizatio
 \end{figure} 
 
 \section{How should skewness and kurtosis be measured?}
-The standard measures of skewness (asymmetry) and excess kurtosis (tail thickness, relative 
-to a Gaussian distribution) are based on the third and fourth central moments, respectively, of the distribution: 
+The standard measures of skewness and kurtosis (tail thickness) are based on the third and fourth central moments, respectively, of the distribution: 
 \be
 \mbox{Skewness} = \frac{m_3}{\sigma^3}, \quad \mbox{Excess kurtosis} = \frac{m_4}{\sigma^4}-3
 \ee
 where $m_k = \mathbb{E}(X - \bar{X})^k$ is the $k^{th}$ central moment of a random quantity $X$ 
-and $\sigma^2$ is the variance (second central moment). A Gaussian distribution has zero skewness 
+and $\sigma^2$ is the variance (second central moment). A Gaussian distribution has zero skewness, 
 and zero excess kurtosis. 
 
-The standard measures are easy to calculate but their use for choosing and evaluating growth models is hindered by their
-poor sampling properties. Empirical estimates involve high powers of data values, and as a result, it only takes a 
+The standard measures are easy to calculate but their use for choosing and evaluating growth models is hindered by theirB
+poor sampling properties. Because empirical estimates involve high powers of data values, it only takes a 
 a few outliers to produce a very inaccurate estimate. Figure \ref{fig:NPmoments} shows a simulated example, where the
 underlying ``data'' are a sample of size 200 from a $t$ distribution with 8 degrees of freedom; the true skew is 0, and the 
 true excess kurtosis is 1.5. The distance between the largest and smallest estimates (indicated by the dotted red
@@ -293,7 +299,7 @@ Figure drawn by script \texttt{NPmoments.R}}
 \label{fig:NPmoments}
 \end{figure} 
 
-We therefore use ``nonparametric'' (NP) measures of skew and kurtosis that are based on quantiles and therefore are 
+We therefore use ``nonparametric'' (NP) measures of skew and kurtosis that are based on quantiles and thus  
 less sensitive to a few extreme data values. Let $q_\alpha$ denote the $\alpha$ quantile of a distribution or sample (e.g., $q_{0.05}$ 
 is the 5th percentile. For any $0 < \alpha < 0.5$ a quantile-based measure of skewness is given by \citep{mcgillivray-1986}
 \be
