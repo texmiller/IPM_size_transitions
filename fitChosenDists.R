@@ -26,7 +26,7 @@ gamlssMaxlik <- function(y,DIST) {
   out <- list()
   aics <- numeric(length=length(DIST))
   for(d in 1:length(DIST)){
-  fam = as.gamlss.family(DIST)
+  fam = as.gamlss.family(DIST[d])
   n_par <-   fam$nopar
   
   ## assume at least two parameters  
