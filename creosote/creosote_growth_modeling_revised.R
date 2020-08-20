@@ -48,25 +48,26 @@ plot(log(LATR$vol_t),log(LATR$vol_t1))
 # Gaussian fits and model selection using mgcv 
 ############################################################################
 LATR_gam_models=list()
-
-## Pilot fits, where sigma depends on two original covariates: intial size and density
+## Pilot fits, where sigma depends on initial size only
 LATR$fitted_vals = log(LATR$vol_t); 
 LATR_gam_models[[1]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
-                data=LATR, gamma=1.4, family=gaulss())
-LATR_gam_models[[1]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(unique.transect,bs="re"), ~s(log(vol_t)) + s(d.stand)), 
                             data=LATR, gamma=1.4, family=gaulss())
-
 LATR_gam_models[[2]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
-                data=LATR, gamma=1.4, family=gaulss())                
+                            data=LATR, gamma=1.4, family=gaulss())                
 LATR_gam_models[[3]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + d.stand:log(vol_t) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
-                data=LATR, gamma=1.4, family=gaulss())                
-
-## iterate to fit a model where sigma depends on fitted value, not on initial size 
-for(mod in 1:3) {
+                            data=LATR, gamma=1.4, family=gaulss())   
+## these models will be iterated to fit sigma as f(fitted value)
+LATR_gam_models[[4]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+                            data=LATR, gamma=1.4, family=gaulss())
+LATR_gam_models[[5]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+                            data=LATR, gamma=1.4, family=gaulss())                
+LATR_gam_models[[6]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + d.stand:log(vol_t) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+                            data=LATR, gamma=1.4, family=gaulss())  
+for(mod in 4:6) {
   fitGAU = LATR_gam_models[[mod]]
   fitted_all = predict(fitGAU,type="response",data=LATR);                  
   fitted_vals = new_fitted_vals = fitted_all[,1]; 
-  weights = fitted_all[,2]; # what I call "weights" here are 1/sigma values; see ?gaulss for details. 
+  weights = fitted_all[,2]; # what I call "weights" here are 1/sigma values; see ?gaulss for details.
 
   err=100; k=0; 
   while(err>10^(-6)) {
@@ -81,11 +82,15 @@ for(mod in 1:3) {
   LATR_gam_models[[mod]] =  fitGAU;
 }
 
-AIC(LATR_gam_models[[1]]); AIC(LATR_gam_models[[2]]); AIC(LATR_gam_models[[3]]); # model 2. 
+AIC(LATR_gam_models[[1]]); AIC(LATR_gam_models[[2]]); AIC(LATR_gam_models[[3]]); 
+AIC(LATR_gam_models[[4]]); AIC(LATR_gam_models[[5]]); AIC(LATR_gam_models[[6]]); 
+## Models 2 and 3 are top and basically equivalent. I''ll proceed with 2, the simpler one
+## It surprises me that initial size was the better covariated than initial value, because I expected the
+## additional effect of density to affect sigma. But maybe size and density are correlated.
+plot(LATR$d.stand,log(LATR$vol_t)) ## yes, they are - onward
 LATR_gam_model <- LATR_gam_models[[2]]; 
 LATR$fitted_vals = new_fitted_vals; 
 
-plot(LATR_gam_model,scale=0); 
 
 ##################################################################  
 # Extract values of the fitted splines to explore their properties 
