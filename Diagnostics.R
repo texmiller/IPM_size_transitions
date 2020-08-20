@@ -127,6 +127,18 @@ return(list(rollx=rollx,rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollsk
 
 #########################################################################################
 ## Comparison of conditional quantiles between simulated at actual data 
+##
+## The real data are a set of paired scalar observations (sortVariable_i, trueData_i) 
+## Typically trueData_i is the i^th observation of future size, and sortVariable_i is
+## the i^th observation of current size or fitted value. 
+##
+## simData is a matrix with nrow(simData)=length(trueData). Each column of simData is
+## a simulated "data set" of the trueData variable (e.g., a simulated set of future sizes).
+##
+## nBins is the number of equal-size bins to use for the plotting  
+## alpha_scale affects the colors used in plotting
+##
+## The tidyverse is required so that pipes and various other bits work. 
 #########################################################################################
 quantileComparePlot = function(sortVariable,trueData,simData,nBins,alpha_scale = 0.7) {
   xTrue = data.frame(x=sortVariable,y=trueData)
@@ -179,6 +191,104 @@ quantileComparePlot = function(sortVariable,trueData,simData,nBins,alpha_scale =
   matplot(qTrue$bin_mean,cbind(trueBinQ,simBinQ), col=Qcolors, pch=c(rep(5,5),rep(1,5)),lty=2, lwd=2, cex=1.4,type="o",
           xlab="Bin mean", ylab="All percentiles"); 
   add_panel_label("f"); 
+}	
+
+#########################################################################################
+## Comparison of conditional moments between simulated at actual data 
+##
+## The real data are a set of paired scalar observations (sortVariable_i, trueData_i) 
+## Typically trueData_i is the i^th observation of future size, and sortVariable_i is
+## the i^th observation of current size or fitted value. 
+##
+## simData is a matrix with nrow(simData)=length(trueData). Each column of simData is
+## a simulated "data set" of the trueData variable (e.g., a simulated set of future sizes).
+##
+## nBins is the number of equal-size bins to use for the plotting  
+## alpha_scale affects the colors used in plotting
+##
+## The tidyverse is required so that pipes and various other bits work. 
+#########################################################################################
+momentsComparePlot = function(sortVariable,trueData,simData,normData=NULL,nBins,alpha_scale = 0.7) {
+  xTrue = data.frame(x=sortVariable,y=trueData)
+
+  qTrue <- xTrue %>% arrange(x) %>% 
+    mutate(size_bin = cut_number(x,n=nBins)) %>% 
+    group_by(size_bin) %>% 
+    summarise(q1 = mean(y),
+              q2 = sd(y),
+              q3 = NPskewness(y),
+              q4 = NPkurtosis(y),
+              bin_mean = mean(x),
+              bin_n = n()) 
+              
+       
+  qSim = array(NA,dim=c(nBins,ncol(simData),4))
+  qnames=c("q1","q2","q3","q4"); 
+  for(i in 1:ncol(simData)){
+    xSim_i = data.frame(x=sortVariable,y=simData[,i])
+    qSim_i <- xSim_i %>% arrange(x) %>% 
+      mutate(size_bin = cut_number(x,n=nBins)) %>% 
+      group_by(size_bin) %>% 
+      summarise(q1 = mean(y),
+                q2 = sd(y),
+                q3 = NPskewness(y),
+                q4 = NPkurtosis(y),
+                bin_mean = mean(x),
+                bin_n = n()) 
+    for(j in 1:4) qSim[1:nBins,i,j]=unlist(qSim_i[1:nBins,qnames[j]])	
+  }
+  
+  if(!is.null(normData)) {   # optional: compare with Gaussian model 
+  
+  qNorm = array(NA,dim=c(nBins,ncol(normData),4))
+  qnames=c("q1","q2","q3","q4"); 
+  for(i in 1:ncol(simData)){
+    xNorm_i = data.frame(x=sortVariable,y=normData[,i])
+    qNorm_i <- xNorm_i %>% arrange(x) %>% 
+      mutate(size_bin = cut_number(x,n=nBins)) %>% 
+      group_by(size_bin) %>% 
+      summarise(q1 = mean(y),
+                q2 = sd(y),
+                q3 = NPskewness(y),
+                q4 = NPkurtosis(y),
+                bin_mean = mean(x),
+                bin_n = n()) 
+    for(j in 1:4) qNorm[1:nBins,i,j]=unlist(qNorm_i[1:nBins,qnames[j]])	
+  }
+  
+  } ## end of optional Gaussian 
+  
+  ylabs=c("Mean","Std. Deviation","NP skew","NP excess kurtosis");
+  trueBinQ = simBinQ = matrix(NA,nBins,5); 
+  par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2,1,0),bty="l");
+  
+  h = min(diff(qTrue$bin_mean)); 
+  xlim = c(min(qTrue$bin_mean)-0.25*h, max(qTrue$bin_mean)+0.25*h); 
+  
+  for(j in 1:4) {
+    qSim_j = qSim[,,j]; qNorm_j = qNorm[,,j]; 
+    matplot(qTrue$bin_mean-0.2*h, qSim_j,col=alpha("gray",0.5),pch=16,xlab="Bin mean",
+            ylab=ylabs[j],cex=1.4,xlim=xlim); 
+    points(qTrue$bin_mean-0.2*h, apply(qSim_j,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.4)        
+
+    if(!is.null(normData)) {
+    
+    matpoints(qTrue$bin_mean+0.2*h, qNorm_j,col=alpha("cornflowerblue",0.5),pch=16,xlab="Bin mean",
+            ylab=ylabs[j],cex=1.4,xlim=xlim); 
+    points(qTrue$bin_mean+0.2*h, apply(qNorm_j,1,median),pch=1,lwd=2,col=alpha("blue",alpha_scale),cex=1.4)  
+    
+    }
+    
+    points(qTrue$bin_mean, unlist(qTrue[,qnames[j]]),pch=5,lwd=2,col=alpha("red",alpha_scale),cex=1.4)
+
+    trueBinQ[,j] = unlist(qTrue[,qnames[j]]);
+    simBinQ[,j] = apply(qSim_j,1,median);
+    if(j==1) legend("topleft",legend=c("Model simulations","Median of simulations","Data"),
+                    col=c(alpha("gray",0.5),alpha("black",alpha_scale), alpha("red",alpha_scale)),
+                    pch=c(1,1,5),lwd=2,cex=1.1,bty="n"); 
+    add_panel_label(letters[j])
+  }	
+  
 }	
 
 #########################################################################################

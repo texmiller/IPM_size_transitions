@@ -1,3 +1,12 @@
+#############################################################
+# The corals case study, based on Bruno et al. (2011)
+#
+# Original code by Steve Ellner (using Tom's diagnostic plots)
+#
+# Last modified by Steve Ellner August 20, 2020 
+#############################################################
+
+rm(list=ls(all=TRUE); 
 setwd("c:/repos/IPM_size_transitions/coral"); 
 
 require(car); require(zoo); require(moments); require(mgcv); 
@@ -153,7 +162,7 @@ mus = sigmas = nus = taus = bin_means = numeric(length(bins)-1);
 for(j in 1:length(mus)){
 	Xj=subset(XH,size_bin%in%c(bins[j-1],bins[j]))
 	fitj = gamlssMaxlik(Xj$logarea.t1, DIST=DIST) 
-	pars = fitj$estimate; 
+	pars = fitj$out[[1]]$estimate; 
 	mus[j]=pars[1]; sigmas[j]=pars[2]; nus[j]=pars[3]; taus[j]=pars[4]; 
 	bin_means[j]=mean(Xj$logarea.t0); 
 }	
@@ -172,7 +181,7 @@ spline.scatter.smooth(bin_means,taus,xlab="Initial size",
 			ylab=expression(paste("log Kurtosis parameter  ", tau)));  
 add_panel_label("d"); 
 
-savePlot(file="../manuscript/figures/RollingSEP1parsCorals.png", type="png"); 
+savePlot(file="../manuscript/figures/AkumalRollingSEP1pars.png", type="png"); 
 
 ## Based on the pilot Gaussian fit we let the mu be quadratic 
 ## and we try letting log sigma be linear (but will consider 
@@ -229,9 +238,13 @@ plot(x,	exp(pars[8]+pars[9]*x), xlab="Initial size",ylab="Shape parameter tau",t
 		
 		
 ############## Simulate data from fitted model
+
+fitted_vals = predict(fitGAU,type="response"); 
+sigma_hat = 1/fitted_vals[,2];
+
 pars = fit$estimate; x = XH$logarea.t0; 
 n_sim <- 500
-coral_sim<-matrix(NA,nrow=nrow(XH),ncol=n_sim)
+coral_sim <- normal_sim = matrix(NA,nrow=nrow(XH),ncol=n_sim)
 for(i in 1:n_sim){
   if(i%%10==0) cat(i,"\n"); 
   coral_sim[,i] <- simfun(n = nrow(XH), 
@@ -239,14 +252,18 @@ for(i in 1:n_sim){
 					sigma = exp(pars[4] + pars[5]*x),
 					nu=pars[6] + pars[7]*x,
 					tau=exp(pars[8]+pars[9]*x) )
+  normal_sim[,i] =  rnorm(n=nrow(XH), mean=fitted_vals[,1], sd=sigma_hat)                 
 }
 
-out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,nBins=10,alpha_scale = 0.7) 		
+save.image(file="AkumalCoralsModeling.Rdata");
 
-# dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
+#out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,nBins=8,alpha_scale = 0.7) 		
+#dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
+
+source("../Diagnostics.R"); 
+out = momentsComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,normData=normal_sim,
+            nBins=10,alpha_scale = 0.7) 	
+dev.copy2pdf(file="../manuscript/figures/CoralMomentsComparePlot.pdf")
 		
-		
-		
-		
-		
+
 		
