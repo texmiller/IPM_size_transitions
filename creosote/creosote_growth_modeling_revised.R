@@ -135,33 +135,26 @@ z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE)
 #################################################################################
 source("../fitChosenDists.R")
 
-# tryDists=c("EGB2","GT","JSU", "LO", "SEP1","SEP3","SEP4", "SHASHo"); 
-# omitting EGB2 because results are bad and it takes a long time to fit 
-# omitting SEP2 because it parameters are not well identified 
-tryDists=c("GT","JSU", "LO", "SEP1","SEP3","SEP4", "SHASHo"); 
-
-logResids <- data.frame(init=LATR$vol_t,resids=scaledResids); 
-logResids <- logResids %>% mutate(size_bin = cut_number(init,n=8))
-
-bins = levels(logResids$size_bin); maxVals = matrix(NA,length(bins),length(tryDists)); 
-for(j in 1:length(bins)){
-for(k in 1:length(tryDists)) {
-	Xj=subset(logResids,size_bin==bins[j])
-	fitj = gamlssMaxlik(y=Xj$resids,DIST=tryDists[k]); 
-	maxVals[j,k] = fitj$maximum;
-	cat("Finished ", tryDists[k]," ",j,k, fitj$maximum,"\n"); 
+cand_dist=c("GT","JSU","LO","SEP3","SEP4", "SHASHo", "TF") ##NET not behaving, SEP1 takes too long and appears unstable
+n_bins <- 8
+select_dist <- tibble(fit_best = log(LATR$vol_t),
+                      scale_resid = scaledResids) %>% 
+  mutate(bin = as.integer(cut_number(fit_best,n_bins)),
+         best_dist = NA,
+         secondbest_dist = NA,
+         aic_margin = NA) 
+for(b in 1:n_bins){
+  bin_fit <- gamlssMaxlik(y=select_dist$scale_resid[select_dist$bin==b],DIST=cand_dist)
+  select_dist$best_dist[select_dist$bin==b] <- cand_dist[which(bin_fit$aics==sort(bin_fit$aics)[1])]#names(bin_fit$fits[1])
+  select_dist$secondbest_dist[select_dist$bin==b] <- cand_dist[which(bin_fit$aics==sort(bin_fit$aics)[2])]#names(bin_fit$fits[2])
+  select_dist$aic_margin[select_dist$bin==b] <- sort(bin_fit$aics)[2] - sort(bin_fit$aics)[1]
 }
-}
+select_dist %>% 
+  group_by(bin) %>% 
+  summarise(n_bin = n(),
+            best_dist = unique(best_dist),
+            secondbest_dist = unique(secondbest_dist),
+            aic_margin = unique(aic_margin))
+## t family is best or second best for almost every bin
 
-## best two for each bin 
-for(j in 1:length(bins)){
-	e = order(-maxVals[j,]); 
-	cat(j, tryDists[e][1:8],"\n"); 
-}	
 
-# overall ranking 
-e = order(-colSums(maxVals)); 
-rbind(tryDists[e],round(colSums(maxVals)[e],digits=3)); 
-## JSU and GT are the two contenders, everything else is much worse 
-
-########## Stopping here ################# 
