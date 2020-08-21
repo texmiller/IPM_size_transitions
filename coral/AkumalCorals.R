@@ -244,7 +244,7 @@ sigma_hat = 1/fitted_vals[,2];
 
 pars = fit$estimate; x = XH$logarea.t0; 
 n_sim <- 500
-coral_sim <- normal_sim = matrix(NA,nrow=nrow(XH),ncol=n_sim)
+coral_sim = normal_sim = matrix(NA,nrow=nrow(XH),ncol=n_sim)
 for(i in 1:n_sim){
   if(i%%10==0) cat(i,"\n"); 
   coral_sim[,i] <- simfun(n = nrow(XH), 
@@ -257,8 +257,15 @@ for(i in 1:n_sim){
 
 save.image(file="AkumalCoralsModeling.Rdata");
 
-#out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,nBins=8,alpha_scale = 0.7) 		
-#dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
+
+out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,
+                        nBins=8,alpha_scale = 0.7) 		
+                        
+dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
+
+out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=normal_sim,
+                        nBins=8,alpha_scale = 0.7)                      
+   
 
 source("../Diagnostics.R"); 
 out = momentsComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,normData=normal_sim,

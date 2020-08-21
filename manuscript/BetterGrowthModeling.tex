@@ -699,6 +699,12 @@ possible. In JSU and skew $t$ and that makes fitting problematic, because zero e
 any actually possible parameter values ($df \to \infty$ for $t$, and $\tau \to 0$ for JSU). Comparison was therefore limited
 to \texttt{SHASH,SHASHo,SEP1,SEP3,SEP4} -- not \texttt{SEP2} for the reasons noted above. The winner was SHASH. 
 
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=.9\textwidth]{figures/RollingSHASHparsPSSP.png}
+\caption{Binned data SHASH parameters plot for \emph{P. spicata}. }
+\label{fig:rollingSHASHparsPSSP}
+\end{figure} 
 
 \item Now we need to model the size-dependence of the SHASH distribution parameters. In the pilot model, $\sigma$ as a function
 of fitted value was strongly favored or $\sigma$ as a function of initial size. We retain that structure in the SHASH model. 
@@ -708,13 +714,6 @@ modeling, but it shows that it is safe to regard $\mu$ as equivalent to the ``fi
 The other plots tell us how the other distribution parameters should be modeled as a function of $\mu$. $\log \tau$ is quadratic,
 and $log \nu$ is linear. 
  
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=.9\textwidth]{figures/RollingSHASHparsPSSP.png}
-\caption{Binned data SHASH parameters plot for \emph{P. spicata}. }
-\label{fig:rollingSHASHparsPSSP}
-\end{figure} 
-
 
 \begin{figure}[tbp]
 \centering
@@ -725,10 +724,22 @@ and $log \nu$ is linear.
 \end{figure} 
 
 
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=.9\textwidth]{figures/MomentsComparePlotPSSP.pdf}
+\caption{Binned data comparison of moments between simulations of the fitted SHASH model (grey, black) and the actual data (red) for 
+{P. spicata}. Individuals were binned based on their initial size. }
+\label{fig:BinnedConditionalMoments}
+\end{figure} 
+
 \item The model is easy to fit by ML. Does it do a good job of fitting the data? The comparison based on binned quantiles 
 (fig. \ref{fig:BinnedConditionalQuantiles} looks pretty good except that the variation in the 5th percentile of the data
-is more wiggly than the 5th percentile of the model. To eliminate this imperfection, we could try higher-order polynomials
+is more wiggly than the 5th percentile of the model. To eliminate this imperfection, we could perhaps try higher-order polynomials
 for $\nu$ or $\tau$. 
+
+\item More importantly, the SHASH model is a substantial improvement over the pilot Gaussian model, as seen in the
+binned moments diagnostic plot, fig.  \ref{fig:BinnedConditionalMoments}. The fits to mean and standard deviation are
+about as good, but only the SHASH model captures the skew and kurtosis and how they vary with size. 
 
 \begin{figure}[tbp]
 \centering
