@@ -315,7 +315,7 @@ plot(x,	f.tau(pars2,x), xlab="Fitted value",ylab="Shape parameter tau",type="l")
 #############################################################################
 #  Binned quantiles diagnostic applied to the model fitted by ML 
 #############################################################################
-# Simulate data from fitted SEP4 model
+# Simulate data from fitted SHASH model
 pars1 = coefs[1:ncol(U)]; 
 pars2 = coefs[-(1:ncol(U))];
 MLmu = U%*%pars1;  
@@ -337,11 +337,9 @@ e = (idaho_sim > log(0.9))&(idaho_sim < log(1.1)); idaho_sim[e] <- log(1);
 
 dev.new(width=7,height=9); 
 out=quantileComparePlot(dropD$logarea.t0,dropD$logarea.t1,idaho_sim,12);
-title(main="SHASH model"); 
 
 dev.copy2pdf(file="../manuscript/figures/QuantileComparePlotPSSP.pdf")
 save.image(file="PSSPmodeling.Rdata"); 
-
 
 #############################################################################
 #  Do the same for the pilot Gaussian fit 
@@ -349,7 +347,7 @@ save.image(file="PSSPmodeling.Rdata");
 n_sim <- 500
 idaho_Gsim<-matrix(NA,nrow=nrow(dropD),ncol=n_sim)
 fitted_all = predict(log_model,type="response"); # you remember log_model... 
-yhat = fitted_all[,1]l; sigma_hat = 1/fitted_all[,2]; 
+yhat = fitted_all[,1]; sigma_hat = 1/fitted_all[,2]; 
 for(i in 1:n_sim){
   idaho_Gsim[,i] <- rnorm(n = nrow(dropD), mean=yhat, sd=sigma_hat); 
   if(i%%50==0) cat(i,"\n");                  
@@ -361,11 +359,18 @@ e = (idaho_Gsim > log(0.65))&(idaho_Gsim < log(0.85)); idaho_Gsim[e] <- log(0.75
 e = (idaho_Gsim > log(0.9))&(idaho_Gsim < log(1.1)); idaho_Gsim[e] <- log(1); 
 
 dev.new(width=7,height=9); 
-out=quantileComparePlot(dropD$logarea.t0,dropD$logarea.t1,idaho_Gsim,12);
+out=quantileComparePlot(dropD$logarea.t0,dropD$logarea.t1,idaho_Gsim,nBins=12);
 title(main="Gaussian pilot model"); 
 
 dev.copy2pdf(file="../manuscript/figures/QuantileComparePlotPSSP-pilot.pdf")
 
+
+#############################################################################
+#  Binned moments comparison plot 
+#############################################################################
+out=momentsComparePlot(dropD$logarea.t0,dropD$logarea.t1,idaho_sim,
+            idaho_Gsim,nBins=12);
+dev.copy2pdf(file="../manuscript/figures/MomentsComparePlotPSSP.pdf")
 
 ########################################################################################
 #   Simulation: how well do we recover known random effects? 

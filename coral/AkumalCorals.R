@@ -1,3 +1,12 @@
+#############################################################
+# The corals case study, based on Bruno et al. (2011)
+#
+# Original code by Steve Ellner (using Tom's diagnostic plots)
+#
+# Last modified by Steve Ellner August 20, 2020 
+#############################################################
+
+rm(list=ls(all=TRUE); 
 setwd("c:/repos/IPM_size_transitions/coral"); 
 
 require(car); require(zoo); require(moments); require(mgcv); 
@@ -28,6 +37,8 @@ agostino.test(fitH1$residuals) # skewness: FAILS, P<0.001
 jarque.test(fitH3$residuals) # normality test: FAILS, P < 0.001 
 anscombe.test(fitH3$residuals) # kurtosis: FAILS, P < 0.01 
 agostino.test(fitH3$residuals) # skewness: FAILS, P<0.001 
+
+qqPlot(fitH3$residuals,xlab="Normal quantiles",ylab="Bruno et al (2011) residuals"); 
 
 ######################################################################### 
 # Since cube-root transformation isn't the cure, use log 
@@ -84,9 +95,27 @@ e = order(z_vals);
 plot(log(Area2)~log(Area1),data=XH,xlab="log(Initial size)",ylab="log(Subsequent size)",ylim=c(1,8.3)) 
 points(z_vals[e],fitted_vals[e,1],type="l",lty=1,col="red",lwd=2); 
 points(log(XH$Area1), log(XH$Area2)) 
-points(z_vals[e],fitted_vals[e,1]+2/fitted_vals[e,2],type="l",lty=2,col="blue",lwd=2); 
-points(z_vals[e],fitted_vals[e,1]-2/fitted_vals[e,2],type="l",lty=2,col="blue",lwd=2); 
+points(z_vals[e],fitted_vals[e,1]+1.96/fitted_vals[e,2],type="l",lty=2,col="blue",lwd=2); 
+points(z_vals[e],fitted_vals[e,1]-1.96/fitted_vals[e,2],type="l",lty=2,col="blue",lwd=2); 
 add_panel_label("c");
+
+if(FALSE) {
+##########################################################################
+# Fit a T model and add it to the plot 
+##########################################################################
+fitNO = gamlss(logarea.t1~logarea.t0+I(logarea.t0^2), sigma.formula = ~logarea.t0, ,family="NO",data=XH);
+fitT2 = gamlss(logarea.t1~logarea.t0+I(logarea.t0^2), sigma.formula = ~logarea.t0, nu.formula = ~1,family="TF",data=XH); 
+fitT2b = gamlss(logarea.t1~logarea.t0+I(logarea.t0^2), sigma.formula = ~logarea.t0, 
+nu.formula = ~logarea.t0, family="TF",data=XH); 
+
+z = z_vals[e]; 
+mu = fitT2b$mu.coef[1] + fitT2b$mu.coef[2]*z + fitT2b$mu.coef[3]*z^2
+sigma = exp(fitT2b$sigma.coef[1] + fitT2b$sigma.coef[2]*z); 
+nu = exp(fitT2b$nu.coef[1] + fitT2b$nu.coef[2]*z); 
+qt95 = qTF(0.975,mu=mu,sigma=sigma,nu=nu); 
+qt5 = qTF(0.025,mu=mu,sigma=sigma,nu=nu); 
+matpoints(z,cbind(qt5,qt95),col="purple",lty=3,lwd=2,type="l"); 
+}
 
 qqPlot(scaledResids,xlab="Normal quantiles",ylab="Scaled residuals"); 
 add_panel_label("d");
@@ -96,7 +125,7 @@ dev.copy2pdf(file="../manuscript/figures/AkumalPilot.pdf");
 #####################################################################
 # Graph: rolling moments diagnostic using NP skew, kurtosis
 #####################################################################
-z = rollMomentsNP(XH$logarea.t0,scaledResids,windows=10,smooth=TRUE,scaled=TRUE,xlab="Initial log area") 
+z = rollMomentsNP(XH$logarea.t0,scaledResids,windows=8,smooth=TRUE,scaled=TRUE,xlab="Initial log area") 
 dev.copy2pdf(file="../manuscript/figures/AkumalRollingResiduals.pdf");
 ## mean and SD look good, skew is variable and small except at small sizes, kurtosis on both sides of Gaussian! 
 
@@ -108,26 +137,29 @@ logResids <- logResids %>% mutate(size_bin = cut_number(init,n=8))
 
 source("../fitChosenDists.R"); 
 
-tryDists=c("GT","JSU", "SHASHo","SEP1","SEP3","SEP4"); 
+tryDists=c("PE","GT","JSU", "SHASHo","SEP1","SEP3","SEP4"); 
 
-bins = levels(logResids$size_bin); maxVals = matrix(NA,length(bins),length(tryDists)); 
+bins = levels(logResids$size_bin); 
+maxVals = matrix(NA,length(bins),length(tryDists)); 
+
+colnames(maxVals) = tryDists; 
 for(j in 1:length(bins)){
 for(k in 1:length(tryDists)) {
 	Xj=subset(logResids,size_bin==bins[j])
 	fitj = gamlssMaxlik(y=Xj$resids,DIST=tryDists[k]); 
-	maxVals[j,k] = fitj$out[[1]]$maximum;
+	maxVals[j,k] = fitj$aic;
 	cat("Finished ", tryDists[k]," ",j,k, fitj$maximum,"\n"); 
 }
 }
 
 ## best two for each bin 
 for(j in 1:length(bins)){
-	e = order(-maxVals[j,]); 
+	e = order(maxVals[j,]); 
 	cat(j, tryDists[e][1:8],"\n"); 
 }	
 
 # overall ranking 
-e = order(-colSums(maxVals)); 
+e = order(colSums(maxVals)); 
 rbind(tryDists[e],round(colSums(maxVals)[e],digits=3)); 
 
 # And the winner by a hair is: SEP2, just ahead of SEP1 and SEP3. 
@@ -153,7 +185,7 @@ mus = sigmas = nus = taus = bin_means = numeric(length(bins)-1);
 for(j in 1:length(mus)){
 	Xj=subset(XH,size_bin%in%c(bins[j-1],bins[j]))
 	fitj = gamlssMaxlik(Xj$logarea.t1, DIST=DIST) 
-	pars = fitj$estimate; 
+	pars = fitj$out[[1]]$estimate; 
 	mus[j]=pars[1]; sigmas[j]=pars[2]; nus[j]=pars[3]; taus[j]=pars[4]; 
 	bin_means[j]=mean(Xj$logarea.t0); 
 }	
@@ -172,7 +204,7 @@ spline.scatter.smooth(bin_means,taus,xlab="Initial size",
 			ylab=expression(paste("log Kurtosis parameter  ", tau)));  
 add_panel_label("d"); 
 
-savePlot(file="../manuscript/figures/RollingSEP1parsCorals.png", type="png"); 
+savePlot(file="../manuscript/figures/AkumalRollingSEP1pars.png", type="png"); 
 
 ## Based on the pilot Gaussian fit we let the mu be quadratic 
 ## and we try letting log sigma be linear (but will consider 
@@ -227,11 +259,14 @@ plot(x,exp(pars[4] + pars[5]*x), xlab="Initial size", ylab="Scale parameter sigm
 plot(x,pars[6] + pars[7]*x, xlab="Initial size",ylab="Shape parameter nu",type="l");
 plot(x,	exp(pars[8]+pars[9]*x), xlab="Initial size",ylab="Shape parameter tau",type="l");
 		
-		
 ############## Simulate data from fitted model
+
+fitted_vals = predict(fitGAU,type="response"); 
+sigma_hat = 1/fitted_vals[,2];
+
 pars = fit$estimate; x = XH$logarea.t0; 
 n_sim <- 500
-coral_sim<-matrix(NA,nrow=nrow(XH),ncol=n_sim)
+coral_sim = normal_sim = matrix(NA,nrow=nrow(XH),ncol=n_sim)
 for(i in 1:n_sim){
   if(i%%10==0) cat(i,"\n"); 
   coral_sim[,i] <- simfun(n = nrow(XH), 
@@ -239,14 +274,25 @@ for(i in 1:n_sim){
 					sigma = exp(pars[4] + pars[5]*x),
 					nu=pars[6] + pars[7]*x,
 					tau=exp(pars[8]+pars[9]*x) )
+  normal_sim[,i] =  rnorm(n=nrow(XH), mean=fitted_vals[,1], sd=sigma_hat)                 
 }
 
-out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,nBins=10,alpha_scale = 0.7) 		
+save.image(file="AkumalCoralsModeling.Rdata");
 
-# dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
+
+out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,
+                        nBins=8,alpha_scale = 0.7) 		
+                        
+dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
+
+out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=normal_sim,
+                        nBins=8,alpha_scale = 0.7)                      
+   
+
+source("../Diagnostics.R"); 
+out = momentsComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,normData=normal_sim,
+            nBins=10,alpha_scale = 0.7) 	
+dev.copy2pdf(file="../manuscript/figures/CoralMomentsComparePlot.pdf")
 		
-		
-		
-		
-		
+
 		

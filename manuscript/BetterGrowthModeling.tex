@@ -210,13 +210,14 @@ The modeling workflow that we suggest runs as follows (Fig. \ref{fig:workflow}):
 \item \textit{Fit a ``pilot'' model or models assuming a Gaussian distribution but allowing for non-constant variance.}
 \\ 
 This step is familiar to most IPM users, as it is the start and end of the traditional workflow. 
-The fitted model describes the mean and variance of future size conditional on current size and possibly on other measured covariates and/or random effects. 
-This step may include model selection among competing hypotheses about which treatment effects or environmental drivers affect the mean and
-possibly the variance of future size. 
-Non-constant variance is often (but not always) fitted in a two-stage process, first fitting a model with constant variance, 
-then doing a regression relating the squared residuals from the initial fit to a covariate, typically iniital size. 
-However, it is better to fit the mean and variance functions simultaneously as we do here, for the sake of statistical efficiency and
-because it can effect the outcome of model selection for the mean.  
+A well-fitted Gaussian model accurately describes the mean and variance of future size conditional on current size and 
+possibly on other measured covariates or random effects. 
+This step may include model selection to identify which treatment effects or environmental drivers affect the mean and/or 
+variance of future size. 
+Non-constant variance is often (but not always) fitted in a two-stage process, first fitting mean growth assuming constant variance, 
+then doing a regression relating the squared residuals from the initial fit to the fitted mean. 
+However, it is better to fit the mean and variance simultaneously, as we do here, because incorrectly assuming constant variance 
+can effect the outcome of model selection for the mean.  
 
 Allowing non-constant variance means that it is not necessary to transform the data in a way that stabilizes the growth variance. 
 Transformation remains an option when it does not create new problems (\tom{discussed later}{I think we will need to talk about the beta regression approach in the Discussion, and that could be a place to give an example of `new problems'.}), and it may have advantages besides variance stabilization.
@@ -387,7 +388,7 @@ scaledResids = residuals(fitGAU,type=''response'')/fitted_sd;
 \end{lstlisting}
 Fig. \ref{fig:AkumalPilot}C) shows the log-transformed data and Gaussian model. The mean function (solid blue curve) 
 is visually nearly linear, but the fitted nonlinear spline is strongly favored over a linear model for the mean ($\Delta AIC \approx 9$). 
-The spline for $\log sigma$ versus initial size (not shown) is also nearly linear, and evidence for nonlinearity is present but 
+The spline for $\log \sigma$ versus initial size (not shown) is also nearly linear, and evidence for nonlinearity is present but 
 weak ($\Delta AIC <2$). 
 
 There are no blatant signs of trouble in the pilot Gaussian model, but the scaled residuals are 
@@ -444,7 +445,7 @@ four simultaneously to the data in each bin.
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=0.8\textwidth]{figures/RollingSEP1parsCorals.png}
+\includegraphics[width=0.8\textwidth]{figures/AkumalRollingSEP1pars.png}
 \caption{Binned data SEP1 parameter estimates for growth distributions of sea fan corals, \emph{Gorgonia ventalina}. 
 Figure made by scripts \texttt{AkumalCorals.R} and \texttt{Diagnostics.R}.}
 \label{fig:AkumalRollingSEP1pars}
@@ -463,27 +464,28 @@ inform the starting parameter values. The quadratic term for $\mu$ proved to be 
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=.95\textwidth]{figures/CoralQuantileComparePlot.pdf}
-\caption{Binned data comparison of distribution quantiles between 500 simulations of the fitted SEP1 model (grey, black circles) and the 
-actual data (red diamonds) for sea fan corals \emph{G. ventalina}. Grey circles show the quantile for each of 500 replicate simulations,
-in which the fitted growth model was applied to all initial sizes in the empirical data sets, and black circles are the mean
-quantile across replicates. Red diamonds are quantiles for observed subsequent sizes. Bins are defined by initial size. Figure
+\includegraphics[width=.95\textwidth]{figures/CoralMomentsComparePlot.pdf}
+\caption{Binned data comparison of moments between 500 simulations of the fitted SEP1 model (grey, black circles), 500 simulations
+of the fitted Gaussian model (light blue and blue circles), and the actual data (red diamonds) for sea fan corals \emph{G. ventalina}. 
+Grey and light blue circles show the moments for each of 500 replicate simulations,
+in which the fitted growth models were applied to all initial sizes in the empirical data sets, and black/dark blue circles are the mean
+across replicates. Red diamonds are values for the data. Bins are defined by initial size. Figure
 made by scripts \texttt{Akumal Corals.R} and \texttt{Diagnostics.R}.}
-\label{fig:CoralQuantileCompare}
+\label{fig:CoralMomentsCompare}
 \end{figure} 
 
 The ``acid test'' of a growth model is that simulations from the fitted model should look like the real data. 
-To implement that criterion, we compared simulated and actual data with respect to quantiles of the distribution
+To implement that criterion, we compared simulated and actual data with respect to moments of the distribution
 of subsequent size, again using a series of bins defined by initial size to account for how those quantiles vary
-with initial size. We find a very close correspondence between model simulations and the data, at all quantiles for all bins
-(fig. ) and therefore accept this candidate model. 
+with initial size. As a benchmark, we did the same for simulations of the pilot Gaussian model. The results, in  
+fig. \ref{fig:CoralMomentsCompare}, \new{show depressingly small differences between the Gaussian and non-Gaussian models.} 
  
-Finally, how much have we gained by fitting a better growth model? Fig. \ref{CoralKernelCompare}A
+What, then, have we gained by fitting a better growth model? Fig. \ref{CoralKernelCompare}A
 compares the predicted distributions of subsequent size in the fitted model and Gaussian pilot models, for the median size of a new recruit 
 (leftmost pair of curves), the median initial size (central curves), and the 95th percentile of initial size in the data (rightmost
 curves). Differences are most pronounced for recruits, which have better odds of growing (leading to earlier reproduction and higher
 survival) in the fitted model, small at intermediate sizes where the skew and excess kurtosis are both small (fig. \ref{fig:AkumalRollingResiduals}CD),
-and larger again at high sizes where the fitted model is leptokurtic. Fig. \ref{CoralKernelCompare}B shows the predicted steady-state size
+and larger again at high sizes where the fitted model is leptokurtic. Fig. \ref{fig:CoralKernelCompare}B shows the predicted steady-state size
 distributions resulting from a constant unit input of recruits. The main difference is that the pilot model projects fewer individuals at
 or near the modal size; overall, the fitted model predicts 7\% more individuals at steady-state. Equivalently, the fitted
 model predicts a 7\% higher mean lifespan, 19.0 years vs. 17.7 in the pilot Gaussian model. 
@@ -503,12 +505,12 @@ of known new recruits. Figure made by script \texttt{AkumalCoralsIPMs.R}.}
 \end{figure}  
 
 \new{We used \texttt{gam} to fit the pilot Gaussian model because that obviated model selection on the mean and variance functions.
-However, \texttt{gam} should be used with caution. Nonparametric regression models notoriously ``wag their tails'' -- the ends of the fitted curve
-are often pulled close to the outermost data points. This is especially problematic for growth modeling, because data are typically 
-sparse near the top and bottom of the size range. Here, to minimize the risk of overfitting we used \texttt{gamma=1.4} to overweight
+However, \texttt{gam} should be used with caution. Nonparametric regression models notoriously ``wag their tails'' because the ends of 
+the fitted curve can be pulled close to the outermost data points. This is especially problematic for growth modeling, because data are typically 
+sparse near the top and bottom of the size range. To minimize the risk of overfitting we have used \texttt{gamma=1.4} to overweight
 model degrees of freedom, as suggested by \citet[][sec. 3.2]{gu-2013}. But it is always important to 
-plot the fitted splines and make sure they are not wagging unrealistically. If they are, the pilot model 
-can be fitted instead with parametric regression, as we illustrate in our cactus and creosote bush case studies.}
+plot the fitted splines and make sure they do not wag unrealistically. If they do, the pilot model 
+can be fitted with parametric regression, as we illustrate in our cactus and creosote bush case studies.}
 
 \clearpage   
 
@@ -697,6 +699,12 @@ possible. In JSU and skew $t$ and that makes fitting problematic, because zero e
 any actually possible parameter values ($df \to \infty$ for $t$, and $\tau \to 0$ for JSU). Comparison was therefore limited
 to \texttt{SHASH,SHASHo,SEP1,SEP3,SEP4} -- not \texttt{SEP2} for the reasons noted above. The winner was SHASH. 
 
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=.9\textwidth]{figures/RollingSHASHparsPSSP.png}
+\caption{Binned data SHASH parameters plot for \emph{P. spicata}. }
+\label{fig:rollingSHASHparsPSSP}
+\end{figure} 
 
 \item Now we need to model the size-dependence of the SHASH distribution parameters. In the pilot model, $\sigma$ as a function
 of fitted value was strongly favored or $\sigma$ as a function of initial size. We retain that structure in the SHASH model. 
@@ -706,13 +714,6 @@ modeling, but it shows that it is safe to regard $\mu$ as equivalent to the ``fi
 The other plots tell us how the other distribution parameters should be modeled as a function of $\mu$. $\log \tau$ is quadratic,
 and $log \nu$ is linear. 
  
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=.9\textwidth]{figures/RollingSHASHparsPSSP.png}
-\caption{Binned data SHASH parameters plot for \emph{P. spicata}. }
-\label{fig:rollingSHASHparsPSSP}
-\end{figure} 
-
 
 \begin{figure}[tbp]
 \centering
@@ -723,10 +724,22 @@ and $log \nu$ is linear.
 \end{figure} 
 
 
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=.9\textwidth]{figures/MomentsComparePlotPSSP.pdf}
+\caption{Binned data comparison of moments between simulations of the fitted SHASH model (grey, black) and the actual data (red) for 
+{P. spicata}. Individuals were binned based on their initial size. }
+\label{fig:BinnedConditionalMoments}
+\end{figure} 
+
 \item The model is easy to fit by ML. Does it do a good job of fitting the data? The comparison based on binned quantiles 
 (fig. \ref{fig:BinnedConditionalQuantiles} looks pretty good except that the variation in the 5th percentile of the data
-is more wiggly than the 5th percentile of the model. To eliminate this imperfection, we could try higher-order polynomials
+is more wiggly than the 5th percentile of the model. To eliminate this imperfection, we could perhaps try higher-order polynomials
 for $\nu$ or $\tau$. 
+
+\item More importantly, the SHASH model is a substantial improvement over the pilot Gaussian model, as seen in the
+binned moments diagnostic plot, fig.  \ref{fig:BinnedConditionalMoments}. The fits to mean and standard deviation are
+about as good, but only the SHASH model captures the skew and kurtosis and how they vary with size. 
 
 \begin{figure}[tbp]
 \centering

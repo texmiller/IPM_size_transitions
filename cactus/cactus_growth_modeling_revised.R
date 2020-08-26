@@ -1,3 +1,10 @@
+###################################################################
+# The cactus case study
+# Original code by Tom E.X. Miller 
+#
+# Last modified by Steve Ellner, August 20, 2020 
+#
+###################################################################
 rm(list=ls(all=TRUE));
 
 setwd("c:/repos/IPM_size_transitions/cactus"); #Steve
@@ -150,9 +157,12 @@ CYIM_lmer_best <- lmer(log(vol_t1) ~ log(vol_t) + I(log(vol_t)^2) + (1|year_t) +
 resids = residuals(CYIM_lmer_best)
 best_pars <- optim(c(sd(resids),0,0),varPars1,control=list(maxit=5000))
 
+###################################################################################################
 # Now visualize this kernel. This model is the *very best* we could do in a Gaussian framework 
 # (assuming there are no major fixed effects we are missing).
-##dummy variable for initial size
+###################################################################################################
+
+## dummy variable for initial size
 size_dim <- 100
 size_dum <- seq(min(log(CYIM$vol_t)),max(log(CYIM$vol_t)),length.out = size_dim)
 ## make a heatmap for the Gaussian kernel with non-constant variance -- updated with the quadratic terms for mean and variance
@@ -198,9 +208,11 @@ dev.off()
 # kurtosis, we cannot marginalize over the entire distribution of residuals (this may point 
 # us in the wrong direction). Instead, we can slice up the data into bins of expected 
 # value and find the best distribution for each bin using gamlss' fitDist().
+#
 # UPDATE: use our own gamlssMaxlik() instead. 
+
 # Here are the candidate distributions: skewed and either leptokurtic or lepto-platy kurtic
-cand_dist <- c("JSU","SEP1","SHASHo") ## does not like SHASH or SEP3 or SEP4
+cand_dist <- c("JSU","SEP1","SHASH","SHASHo") ## does not like SHASH or SEP3 or SEP4
 n_bins <- 20
 select_dist <- tibble(fit_best = fitted(CYIM_lmer_best),
                       scale_resid = residuals(CYIM_lmer_best)*sqrt(weights(CYIM_lmer_best))) %>% 
@@ -225,7 +237,7 @@ select_dist %>%
 # JSU favored over most of the size distribution
 
 #####################################################################################
-# STEVE interposes: doing the comparison again without so much tidyverse, so that 
+# STEVE interposes: the same comparison without so much tidyverse, so that 
 # I know what's going on. 
 #####################################################################################
 logResids <- data.frame(init=log(CYIM$vol_t),resids=scaledResids); 
@@ -252,21 +264,18 @@ rbind(tryDists[e],round(colSums(maxVals)[e],digits=3));
 #[1,] "JSU"       "SHASH"     "SEP4"      "SHASHo2"   "SEP3"      "SEP1"              
 #[2,] "-5403.484" "-5424.474" "-5435.949" "-5449.687" "-5467.682" "-10000000000005384"
 
-
 ## rankings for each bin 
 for(j in 1:length(bins)){
 	e = order(-maxVals[j,]); 
 	cat(j, tryDists[e][1:6],"\n"); 
 }	
-# At the lower end, JSU is often one of the worst. 
-# This is going to be a problem for doing bin-specific fits. 
+# But at the lower end, JSU is often one of the worst. 
+# This will prove to be a problem for bin-specific fits. 
 1 SHASH SHASHo2 SEP1 SEP3 SEP4 JSU 
 2 SHASH SEP4 SHASHo2 JSU SEP3 SEP1 
 3 SEP1 SHASHo2 SEP3 JSU SEP4 SHASH 
 4 SHASH SEP4 JSU SEP1 SHASHo2 SEP3 
 5 SHASH SEP4 SHASHo2 JSU SEP3 SEP1 
-6 JSU SHASH SHASHo2 SEP1 SEP4 SEP3 
-7 SHASH SHASHo2 SEP4 SEP3 JSU SEP1 
 
 ########################################################################
 ## Binned-data JSU parameter estimates on subsequent size 
@@ -317,77 +326,30 @@ add_panel_label("d");
 
 save.image("cactus_growth_modeling_revised.Rdata"); 
 
-
-#################################################################
-# Back to Tom 
-#################################################################
-CYIM_bin_fit <-CYIM %>% 
-  mutate(fitted = fitted(CYIM_lmer_best),
-         bin = as.integer(cut_number(fitted,n_bins))) %>% 
-  mutate(mu=NA, sigma=NA,nu=NA,tau=NA)
-for(b in 1:n_bins){
-  #bin_fit <- gamlssML(log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==b]) ~ 1,family="JSU")
-  bin_fit <- gamlssMaxlik(y=log(CYIM_bin_fit$vol_t1[CYIM_bin_fit$bin==b]),DIST="JSU")
-  CYIM_bin_fit$mu[CYIM_bin_fit$bin==b] <- bin_fit$out[[1]]$estimate["eta.mu"]
-  CYIM_bin_fit$sigma[CYIM_bin_fit$bin==b] <- exp(bin_fit$out[[1]]$estimate["eta.sigma"]) ## log link
-  CYIM_bin_fit$nu[CYIM_bin_fit$bin==b] <- bin_fit$out[[1]]$estimate["eta.nu"] ## identity link
-  CYIM_bin_fit$tau[CYIM_bin_fit$bin==b] <- exp(bin_fit$out[[1]]$estimate["eta.tau"]) ## log link
-}
-CYIM_bin_fit %>% 
-  group_by(bin) %>% 
-  summarise(N = n(),
-            mean_fitted = mean(fitted),
-            mu = unique(mu),
-            sigma=unique(sigma),
-            nu=unique(nu),
-            tau=unique(tau)) -> CYIM_bin_fit
-
-pdf("../manuscript/figures/cactus_binned_JSU.pdf",height = 8,width = 8,useDingbats = F)
-par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);
-plot(CYIM_bin_fit$mean_fitted,CYIM_bin_fit$mu,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu )),type="b",pch=16)
-plot(CYIM_bin_fit$mu,CYIM_bin_fit$sigma,xlab=expression(paste("Location parameter  ", mu )),
-                      ylab=expression(paste("Scale parameter  ", sigma)),type="b",pch=16)
-plot(CYIM_bin_fit$mu,CYIM_bin_fit$nu,xlab=expression(paste("Location parameter  ", mu )),
-                      ylab=expression(paste("Skewness parameter  ", nu )),type="b",pch=16)
-plot(CYIM_bin_fit$mu,CYIM_bin_fit$tau,xlab=expression(paste("Location parameter  ", mu )),
-                      ylab=expression(paste("Kurtosis parameter  ", tau)),type="b",pch=16) 
-dev.off()
-
-## alternatively, Steve's code fits splines to these
-par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
-spline.scatter.smooth(CYIM_bin_fit$mean_fitted,CYIM_bin_fit$mu,xlab="Fitted value",
-                      ylab=expression(paste("Location parameter  ", mu ))); #OK
-add_panel_label("a"); 
-spline.scatter.smooth(CYIM_bin_fit$mu,CYIM_bin_fit$sigma,xlab="Fitted value",
-                      ylab=expression(paste("log Scale parameter  ", sigma)));  
-add_panel_label("b"); 
-spline.scatter.smooth(CYIM_bin_fit$mu,CYIM_bin_fit$nu,xlab="Fitted value",
-                      ylab=expression(paste("Skewness parameter  ", nu ))); 
-add_panel_label("c"); 
-spline.scatter.smooth(CYIM_bin_fit$mu,CYIM_bin_fit$tau,xlab="Fitted value",
-                      ylab=expression(paste("log Kurtosis parameter  ", tau)));  
-add_panel_label("d"); 
-## how much should I believe the splines versus the points? I am going with the points
-
-# Fitting the final model -------------------------------------------------
+########################################################################
+# Fitting the final model ------------------------------------------
+########################################################################
 # Now we can fit a custom model via maximum likelihood, matching the structure of the best lmer 
 # model but fitting the random effects as fixed instead and estimating the corresponding variances 
 # with Steve's shrinkage methods. 
 
 #First we will defined the linear predictor for the location parameter mu 
 #(which is not necessarily the expected value). Note that this with parameterzation, the intercept is year1/plot1.
-U=model.matrix(~  0 + year_t + plot + log(vol_t)+ I(log(vol_t)^2), data=CYIM)
+U=model.matrix(~ 0 + year_t + plot + log(vol_t)+ I(log(vol_t)^2), data=CYIM)
 
-# Next define a likelihood function using this linear predictor for the location. I am including 
-# quadratic terms for sigma and nu based on the binned fits above.
-LogLik=function(pars,response,U){
+# Next define a likelihood function using this linear predictor for the location. We include
+# quadratic terms for sigma based on the pilot Gaussian model, and quadratic for nu and tau 
+# based on the binned fits plot above.
+
+# sigma.link = "log", nu.link = "identity", tau.link = "log"
+LogLik=function(pars,response,U,x=log(CYIM$vol_t)){
   pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
   mu = U%*%pars1;  
-  val = dJSU(x = response, 
+  val = dSHASH(response, 
              mu=mu,
-             sigma = exp(pars2[1] + pars2[2]*mu + pars2[3]*mu^2), 
-             nu = pars2[4] + pars2[5]*mu, 
-             tau = exp(pars2[6] + pars2[7]*mu + pars2[8]*mu^2), log=T) 
+             sigma = exp(pars2[1] + pars2[2]*x + pars2[3]*x^2), 
+             nu = exp(pars2[4] + pars2[5]*x + pars2[6]*x^2), 
+             tau = exp(pars2[7] + pars2[8]*x + pars2[9]*x^2), log=T) 
   return(val); 
 }
 
@@ -397,7 +359,7 @@ LogLik=function(pars,response,U){
 # so I am skimping on the paranoia here, but we might return to it to make this a good example to follow. 
 # This could also be a model selection step; easy to pull AIC from the maxLik fit. 
 
-paranoid_iter <- 1
+paranoid_iter <- 3
 coefs = list(paranoid_iter); LL=numeric(paranoid_iter);  
 
 # Starting values from the pilot model are jittered to do multi-start optimization). 
@@ -409,10 +371,11 @@ fixed_start = c(unlist(ranef(CYIM_lmer_best)$year_t) + unlist(ranef(CYIM_lmer_be
 ## make sure the dimensions line up
 length(fixed_start);ncol(U);colnames(U) 
 
-# Shape and scale coefficients from the rollaply diagnostic plots 
-fit_sigma = lm(log(sigma)~mu + I(mu^2), data=CYIM_bin_fit)
-fit_nu = lm(nu~mu, data=CYIM_bin_fit)
-fit_tau = lm(log(tau)~mu + I(mu^2), data=CYIM_bin_fit)
+# Shape and scale coefficients from the binned parameters diagnostic plots 
+# Note, distribution parameters in binPars2 are on the link-transformed scale (e.g., log(sigma)) 
+fit_sigma = lm(sigmas ~ bin_means + I(bin_means^2), data=binPars2)
+fit_nu = lm(nus~bin_means + I(bin_means^2),data=binPars2)
+fit_tau = lm(taus~bin_means + I(bin_means^2), data=binPars2)
 p0=c(fixed_start, coef(fit_sigma), coef(fit_nu),coef(fit_tau))
 
 for(j in 1:paranoid_iter) {
@@ -434,18 +397,23 @@ out=maxLik(logLik=LogLik,start=coefs[[j]],response=log(CYIM$vol_t1),U=U,
            method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE) 
 
 ######### save results of ML fit.  
-names(out$estimate)<-c(colnames(U),"sigma_b0","sigma_b1","sigma_b2","nu_b0","nu_b1","tau_b0","tau_b1","tau_b2")
+names(out$estimate)<-c(colnames(U),"sigma_b0","sigma_b1","sigma_b2","nu_b0","nu_b1","nu_b2","tau_b0","tau_b1","tau_b2")
 coefs=out$estimate
 ## these are the indices of plot and year effects, to make the next steps a little more intuitive
 years=1:9
 plots=10:16
 SEs = sqrt(diag(vcov(out))) 
-AIC_JSU <- 2*length(coefs) - 2*out$maximum
+AIC_SHASH <- 2*length(coefs) - 2*out$maximum
 AIC_norm <- AIC(CYIM_lmer_best)
 
 # The AIC comparison is a blowout, though I am not sure if it is ok to 
 # use the lmer AIC. Might be better to re-fit with plot and year as fixed. 
-tibble(growth_function=c("Gaussian","JSU"),AIC = c(AIC_norm,AIC_JSU))
+tibble(growth_function=c("Gaussian","SHASH"),AIC = c(AIC_norm,AIC_SHASH))
+
+save.image("cactus_growth_modeling_revised.Rdata"); 
+###########################
+OK DOWN TO HERE 
+###########################
 
 # Now use Steve's shrinkage code to get the random effect variances and compare these to the lmer estimates. 
 # I will need Steve to explain to me what the shrinkage step is doing, and what is the theory for this (or I should do my own homework). 
@@ -531,7 +499,9 @@ plot_sigma2.hat = mean(plot_fixed.fx^2)-mean(plot_fixed.se^2)
 plot_shrunk.fx = plot_fixed.fx*sqrt(plot_sigma2.hat/(plot_sigma2.hat + plot_fixed.se^2)) 
 ## dead end, negative shrunk variance
 
-# JSU visualization and diagnostics ---------------------------------------
+
+
+# Non-Gaussian model visualization and diagnostics ---------------------------------------
 
 
 ## Visual diagnostics of model fit via shrinkage
