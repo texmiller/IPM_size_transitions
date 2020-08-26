@@ -1,7 +1,7 @@
 invlogit<-function(x){exp(x)/(1+exp(x))}
 
 # VITAL RATE FUNCTIONS ----------------------------------------------------
-## GROWTH - SHASH
+## GROWTH - JSU 
 gxy_JSU<-function(x,y,params){
   xb=pmin(pmax(x,params$min.size),params$max.size) #Transforms all values below/above limits in min/max size
   grow_mu <- params$grow.mu + params$grow.bsize * xb + params$grow.bsize2 * xb^2
@@ -10,6 +10,16 @@ gxy_JSU<-function(x,y,params){
               sigma = exp(params$sigma_b0 + params$sigma_b1*grow_mu + params$sigma_b2*grow_mu^2), 
               nu = params$nu_b0 + params$nu_b1*grow_mu, 
               tau = exp(params$tau_b0 + params$tau_b1*grow_mu + params$tau_b2*grow_mu^2)))
+}
+
+## new result -- SHASH with higher moments as functions of initial size
+gxy_SHASH<-function(x,y,params){
+  xb=pmin(pmax(x,params$min.size),params$max.size) #Transforms all values below/above limits in min/max size
+  return(dSHASH(x=y, 
+              mu=params$grow.mu + params$grow.bsize * xb + params$grow.bsize2 * xb^2,
+              sigma = exp(params$sigma_b0 + params$sigma_b1*xb + params$sigma_b2*xb^2), 
+              nu = exp(params$nu_b0 + params$nu_b1*xb + params$nu_b2*xb^2), 
+              tau = exp(params$tau_b0 + params$tau_b1*xb + params$tau_b2*xb^2)))
 }
 
 ## GROWTH - Gaussian

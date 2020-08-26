@@ -290,13 +290,13 @@ par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4)
 with(binPars,{
 spline.scatter.smooth(bin_means,mus,gamma=1.4,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu ))); #OK
 add_panel_label("a"); 
-spline.scatter.smooth(mus,sigmas,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
+spline.scatter.smooth(bin_means,sigmas,gamma=1.4,xlab="Initial size",
 			ylab=expression(paste("log Scale parameter  ", sigma))); #linear 
 add_panel_label("b"); 
-spline.scatter.smooth(mus,nus,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
+spline.scatter.smooth(bin_means,nus,gamma=1.4,xlab="Initial size",
 			ylab=expression(paste("log Shape parameter  ", nu ))); #quadratic
 add_panel_label("c"); 
-spline.scatter.smooth(mus,taus,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
+spline.scatter.smooth(bin_means,taus,gamma=1.4,xlab="Initial size",
 			ylab=expression(paste("log Shape parameter  ", tau))); #linear 
 add_panel_label("d"); 
 })
@@ -311,15 +311,15 @@ graphics.off(); dev.new(width=8,height=6);
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
 
 with(binPars2,{
-spline.scatter.smooth(bin_means,mus,gamma=1.4,xlab="Fitted value",ylab=expression(paste("Location parameter  ", mu ))); #OK
+spline.scatter.smooth(bin_means,mus,gamma=1.4,xlab="Initial size",ylab=expression(paste("Location parameter  ", mu ))); #OK
 add_panel_label("a"); 
-spline.scatter.smooth(mus,sigmas,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
+spline.scatter.smooth(bin_means,sigmas,gamma=1.4,xlab="Initial size",
 			ylab=expression(paste("log Scale parameter  ", sigma))); #linear 
 add_panel_label("b"); 
-spline.scatter.smooth(mus,nus,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
+spline.scatter.smooth(bin_means,nus,gamma=1.4,xlab="Initial size",
 			ylab=expression(paste("log Shape parameter  ", nu ))); #quadratic
 add_panel_label("c"); 
-spline.scatter.smooth(mus,taus,gamma=1.4,xlab=expression(paste("Location parameter  ", mu )),
+spline.scatter.smooth(bin_means,taus,gamma=1.4,xlab="Initial size",
 			ylab=expression(paste("log Shape parameter  ", tau))); #linear 
 add_panel_label("d"); 
 })
@@ -341,7 +341,7 @@ U=model.matrix(~ 0 + year_t + plot + log(vol_t)+ I(log(vol_t)^2), data=CYIM)
 # quadratic terms for sigma based on the pilot Gaussian model, and quadratic for nu and tau 
 # based on the binned fits plot above.
 
-# sigma.link = "log", nu.link = "identity", tau.link = "log"
+# sigma.link = "log", nu.link = "log", tau.link = "log"
 LogLik=function(pars,response,U,x=log(CYIM$vol_t)){
   pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
   mu = U%*%pars1;  
@@ -411,9 +411,6 @@ AIC_norm <- AIC(CYIM_lmer_best)
 tibble(growth_function=c("Gaussian","SHASH"),AIC = c(AIC_norm,AIC_SHASH))
 
 save.image("cactus_growth_modeling_revised.Rdata"); 
-###########################
-OK DOWN TO HERE 
-###########################
 
 # Now use Steve's shrinkage code to get the random effect variances and compare these to the lmer estimates. 
 # I will need Steve to explain to me what the shrinkage step is doing, and what is the theory for this (or I should do my own homework). 
@@ -467,16 +464,16 @@ fixed_start_flip = c(unlist(ranef(CYIM_lmer_best)$plot) + unlist(ranef(CYIM_lmer
                 fixef(CYIM_lmer_best)[2],fixef(CYIM_lmer_best)[3])
 ## make sure the dimensions line up
 length(fixed_start_flip);ncol(U_flip);colnames(U_flip) 
-p0=c(fixed_start_flip, coef(fit_sigma), coef(fit_nu),coef(fit_tau))
+p0_flip=c(fixed_start_flip, coef(fit_sigma), coef(fit_nu),coef(fit_tau))
 coefs_flip = list(paranoid_iter); LL_flip=numeric(paranoid_iter);  
 for(j in 1:paranoid_iter) {
-  out_flip=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=log(CYIM$vol_t1),U=U_flip,
+  out_flip=maxLik(logLik=LogLik,start=p0_flip*exp(0.2*rnorm(length(p0))), response=log(CYIM$vol_t1),U=U_flip,
              method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
   
-  out_flip=maxLik(logLik=LogLik,start=out$estimate,response=log(CYIM$vol_t1),U=U_flip,
+  out_flip=maxLik(logLik=LogLik,start=out_flip$estimate,response=log(CYIM$vol_t1),U=U_flip,
              method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
   
-  out_flip=maxLik(logLik=LogLik,start=out$estimate,response=log(CYIM$vol_t1),U=U_flip,
+  out_flip=maxLik(logLik=LogLik,start=out_flip$estimate,response=log(CYIM$vol_t1),U=U_flip,
              method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
   
   coefs_flip[[j]] = out_flip$estimate; LL_flip[j] = out_flip$maximum;
@@ -486,41 +483,48 @@ for(j in 1:paranoid_iter) {
 j = min(which(LL_flip==max(LL_flip))) 
 out_flip=maxLik(logLik=LogLik,start=coefs_flip[[j]],response=log(CYIM$vol_t1),U=U_flip,
            method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE) 
-names(out_flip$estimate)<-c(colnames(U_flip),"sigma_b0","sigma_b1","sigma_b2","nu_b0","nu_b1","tau_b0","tau_b1","tau_b2")
+names(out_flip$estimate)<-c(colnames(U_flip),"sigma_b0","sigma_b1","sigma_b2","nu_b0","nu_b1","nu_b2","tau_b0","tau_b1","tau_b2")
 coefs_flip=out_flip$estimate
 ## these are the indices of plot and year effects, to make the next steps a little more intuitive
-plots=1:8
-years=9:16
-SEs = sqrt(diag(vcov(out))) 
+plots_flip=1:8
+years_flip=9:16
+SEs_flip = sqrt(diag(vcov(out_flip))) 
 ## shrinkage:plot
-plot_fixed.fx = coefs[plots] - mean(coefs[plots])
-plot_fixed.se = SEs[plots]
-plot_sigma2.hat = mean(plot_fixed.fx^2)-mean(plot_fixed.se^2)
-plot_shrunk.fx = plot_fixed.fx*sqrt(plot_sigma2.hat/(plot_sigma2.hat + plot_fixed.se^2)) 
-## dead end, negative shrunk variance
+plot_fixed.fx_flip = coefs_flip[plots_flip] - mean(coefs_flip[plots_flip])
+plot_fixed.se_flip = SEs_flip[plots_flip]
+plot_sigma2.hat_flip = mean(plot_fixed.fx_flip^2)-mean(plot_fixed.se_flip^2)
+plot_shrunk.fx_flip = plot_fixed.fx_flip*sqrt(plot_sigma2.hat_flip/(plot_sigma2.hat_flip + plot_fixed.se_flip^2)) 
+# dead end -- shrunk plot variance estimated to be effectively zero
 
+year_fixed.fx_flip = coefs_flip[years_flip] - mean(coefs_flip[years_flip])
+year_fixed.se_flip = SEs_flip[years_flip]
+year_sigma2.hat_flip = mean(year_fixed.fx_flip^2)-mean(year_fixed.se_flip^2)
+year_shrunk.fx_flip = year_fixed.fx_flip*sqrt(year_sigma2.hat_flip/(year_sigma2.hat_flip + year_fixed.se_flip^2)) 
 
+## how much does fitting order affect the year and plot estimates?
+plot(year_fixed.fx[-1],year_fixed.fx_flip);abline(0,1)
+plot(plot_fixed.fx,plot_fixed.fx_flip[-1]);abline(0,1)
+## looks good -- fitting order does not matter, and it shoudln't
 
 # Non-Gaussian model visualization and diagnostics ---------------------------------------
 
-
 ## Visual diagnostics of model fit via shrinkage
-## Here is the top-level view of the skewed t kernel. This will be the mean kernel, averaged over years and plots.
-CYIM_JSU_kernel <- matrix(NA,size_dim,size_dim)
+## Here is the top-level view of the SHASH kernel. This will be the mean kernel, averaged over years and plots.
+CYIM_SHASH_kernel <- matrix(NA,size_dim,size_dim)
 for(i in 1:size_dim){
   mu_size <- mean(coefs[c(years,plots)]) + coefs["log(vol_t)"] * size_dum[i] + coefs["I(log(vol_t)^2)"] * size_dum[i]^2
-  CYIM_JSU_kernel[i,] <- dJSU(x = size_dum, 
-             mu=mu_size,
-             sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*mu_size + coefs["sigma_b2"]*mu_size^2), 
-             nu = coefs["nu_b0"] + coefs["nu_b1"]*mu_size, 
-             tau = exp(coefs["tau_b0"] + coefs["tau_b1"]*mu_size + coefs["tau_b2"]*mu_size^2)) 
+  sigma_size <- exp(coefs["sigma_b0"] + coefs["sigma_b1"]*mu_size + coefs["sigma_b2"]*mu_size^2)
+  nu_size <- exp(coefs["nu_b0"] + coefs["nu_b1"]*mu_size + coefs["nu_b2"]*mu_size^2)
+  tau_size <- exp(coefs["tau_b0"] + coefs["tau_b1"]*mu_size + coefs["tau_b2"]*mu_size^2)
+  CYIM_SHASH_kernel[i,] <- dSHASH(x = size_dum,mu=mu_size,sigma = sigma_size,nu = nu_size,tau = tau_size) 
 }
 
-levelplot(CYIM_JSU_kernel,row.values = size_dum, column.values = size_dum,cuts=30,
-          col.regions=rainbow(30),xlab="log Size t",ylab="log Size t+1",main="JSU",
+levelplot(CYIM_SHASH_kernel,row.values = size_dum, column.values = size_dum,cuts=30,
+          col.regions=rainbow(30),xlab="log Size t",ylab="log Size t+1",main="SHASH",
           panel = function(...) {
             panel.levelplot(...)
-            grid.points(log(CYIM$vol_t), log(CYIM$vol_t1), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
+            ## double check I am plotting x,y correctly -- tom note to self
+            grid.points(log(CYIM$vol_t1), log(CYIM$vol_t), pch = ".",gp = gpar(cex=3,col=alpha("black",0.5)))
           })
 
 # Final fit - diagnostics -------------------------------------------------
@@ -529,17 +533,16 @@ levelplot(CYIM_JSU_kernel,row.values = size_dum, column.values = size_dum,cuts=3
 
 # Simulate data from fitted SHASH model
 MLmu = U%*%coefs[1:ncol(U)] 
+sigma_size = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*log(CYIM$vol_t)+ coefs["sigma_b2"]*log(CYIM$vol_t)^2)
+nu_size = exp(coefs["nu_b0"] + coefs["nu_b1"]*log(CYIM$vol_t) + coefs["nu_b2"]*log(CYIM$vol_t)^2)
+tau_size = exp(coefs["tau_b0"] + coefs["tau_b1"]*log(CYIM$vol_t) + coefs["tau_b2"]*log(CYIM$vol_t)^2)
 n_sim <- 500
 cactus_sim<-cactus_sim_norm<-matrix(NA,nrow=nrow(CYIM),ncol=n_sim)
 for(i in 1:n_sim){
-  cactus_sim[,i] <- rJSU(n = nrow(CYIM), 
-                    mu = MLmu, 
-					   sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*MLmu  + coefs["sigma_b2"]*MLmu^2), 
-             nu = coefs["nu_b0"] + coefs["nu_b1"]*MLmu, 
-             tau = exp(coefs["tau_b0"] + coefs["tau_b1"]*MLmu + coefs["tau_b2"]*MLmu^2))
+  cactus_sim[,i] <- rSHASH(n = nrow(CYIM),mu = MLmu,sigma = sigma_size,nu = nu_size,tau = tau_size)
   cactus_sim_norm[,i] <- rnorm(n = nrow(CYIM),
                                mean = predict(CYIM_lmer_best),
-                               sd = exp(pars[[best_model]][1] + pars[[best_model]][2]*predict(CYIM_lmer_best) + pars[[best_model]][3]*predict(CYIM_lmer_best)^2))
+                               sd = exp(best_pars$par[1] + best_pars$par[2]*log(CYIM$vol_t) + best_pars$par[3]*log(CYIM$vol_t)^2))
 }
 
 n_bins = 10
@@ -576,7 +579,7 @@ matplot(cactus_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflower
 points(cactus_moments$bin_mean+0.2, cactus_moments$mean_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.6)
 points(cactus_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
 points(cactus_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
-legend("topleft",legend=c("JSU model","Gaussian model","Data"),
+legend("topleft",legend=c("SHASH model","Gaussian model","Data"),
 col=c("gray","cornflowerblue","red"),pch=16,bty="n",cex=1.4,pt.lwd=2,pt.cex = 1.6) 
 add_panel_label("a")
 
@@ -700,6 +703,7 @@ cactus_params$sigma_b1 <- coefs["sigma_b1"]
 cactus_params$sigma_b2 <- coefs["sigma_b2"]
 cactus_params$nu_b0 <- coefs["nu_b0"]
 cactus_params$nu_b1 <- coefs["nu_b1"]
+cactus_params$nu_b2 <- coefs["nu_b2"]
 cactus_params$tau_b0 <- coefs["tau_b0"]
 cactus_params$tau_b1 <- coefs["tau_b1"]
 cactus_params$tau_b2 <- coefs["tau_b2"]
@@ -738,11 +742,11 @@ cactus_params$max.size <- log(max(CYIM$vol_t1))
 mat.size = 200
 lower.extension = -1
 upper.extension = 1.5
-kernel_JSU <- bigmatrix(params = cactus_params,
+kernel_SHASH <- bigmatrix(params = cactus_params,
           lower.extension = lower.extension, 
           upper.extension = upper.extension,
           mat.size = mat.size,
-          dist="JSU")
+          dist="SHASH")
 kernel_norm <- bigmatrix(params = cactus_params,
           lower.extension = lower.extension, 
           upper.extension = upper.extension,
@@ -751,22 +755,22 @@ kernel_norm <- bigmatrix(params = cactus_params,
 
 
 # And finally for IPM results. The mean model (averaging across years and plots) predicts very different growth rates:
- tibble(Growth_Dist = c("JSU","Gaussian"),
-       lambda = c(round(lambda(kernel_JSU$IPMmat),4),round(lambda(kernel_norm$IPMmat),4)))
+ tibble(Growth_Dist = c("SHASH","Gaussian"),
+       lambda = c(round(lambda(kernel_SHASH$IPMmat),4),round(lambda(kernel_norm$IPMmat),4)))
 
 #Also, the SSD's are very different and the observed distribution is maybe in between 
 # the two of them (in the data plot, colored bars are years). The Gaussian ssd is bi-modal but the 
 # lower mode disappears with the skewed $t$ growth kernel, probably because the big reproductive plants 
 # are rare in the ssd so you lose the signal of recruitment. 
-ssd_JSU <- stable.stage(kernel_JSU$IPMmat)[3:(mat.size+2)] / sum(stable.stage(kernel_JSU$IPMmat)[3:(mat.size+2)])
+ssd_SHASH <- stable.stage(kernel_SHASH$IPMmat)[3:(mat.size+2)] / sum(stable.stage(kernel_SHASH$IPMmat)[3:(mat.size+2)])
 ssd_norm <- stable.stage(kernel_norm$IPMmat)[3:(mat.size+2)] / sum(stable.stage(kernel_norm$IPMmat)[3:(mat.size+2)])
 empirical_sd <- density(log(CYIM$vol_t1),n=mat.size)
 
 pdf("../manuscript/figures/cactus_ssd.pdf",height = 6,width = 6,useDingbats = F)
 plot(kernel_norm$meshpts,ssd_norm,type="l",lty=2,lwd=3,xlab="log volume",ylab="Density")
-lines(kernel_JSU$meshpts,ssd_JSU,type="l",lwd=3)
+lines(kernel_SHASH$meshpts,ssd_SHASH,type="l",lwd=3)
 lines(empirical_sd$x,empirical_sd$y/sum(empirical_sd$y),col="red",lwd=3)
-legend("topleft",c("Gaussian SSD","JSU SSD", "Empirical SD"),lty=c(2,1,1),col=c("black","black","red"),lwd=3,bty="n")
+legend("topleft",c("Gaussian SSD","SHASH SSD", "Empirical SD"),lty=c(2,1,1),col=c("black","black","red"),lwd=3,bty="n")
 dev.off()
 
 # The difference in ssd's is pretty striking, so I just wanted to have a closer look at the two 
@@ -775,17 +779,17 @@ dev.off()
 # where the big difference in SSD comes from. 
 x = c(-2,5,12)
 pdf("../manuscript/figures/cactus_growth_compare.pdf",height = 5,width = 5,useDingbats = F)
-plot(size_dum,gxy_JSU(x=5,y=size_dum,params=cactus_params),
+plot(size_dum,gxy_SHASH(x=5,y=size_dum,params=cactus_params),
      xlab="Future size",ylab="Density",type="n",ylim=c(0,1.6))
-lines(size_dum,gxy_JSU(x=x[1],y=size_dum,params=cactus_params),lwd=2,col="tomato")
+lines(size_dum,gxy_SHASH(x=x[1],y=size_dum,params=cactus_params),lwd=2,col="tomato")
 lines(size_dum,gxy_norm(x=x[1],y=size_dum,params=cactus_params),lty=2,lwd=2,col="tomato")
 abline(v=x[1],lty=3,col="tomato")
-lines(size_dum,gxy_JSU(x=x[2],y=size_dum,params=cactus_params),lwd=2,col="darkgrey")
+lines(size_dum,gxy_SHASH(x=x[2],y=size_dum,params=cactus_params),lwd=2,col="darkgrey")
 lines(size_dum,gxy_norm(x=x[2],y=size_dum,params=cactus_params),lty=2,lwd=2,col="darkgrey")
 abline(v=x[2],lty=3,col="darkgrey")
-lines(size_dum,gxy_JSU(x=x[3],y=size_dum,params=cactus_params),lwd=2,col="dodgerblue")
+lines(size_dum,gxy_SHASH(x=x[3],y=size_dum,params=cactus_params),lwd=2,col="dodgerblue")
 lines(size_dum,gxy_norm(x=x[3],y=size_dum,params=cactus_params),lty=2,lwd=2,col="dodgerblue")
 abline(v=x[3],lty=3,col="dodgerblue")
-legend("topleft",legend=c("JSU","Gaussian"),lty=c(1,2),bty="n")
+legend("topleft",legend=c("SHASH","Gaussian"),lty=c(1,2),bty="n")
 dev.off()
 
