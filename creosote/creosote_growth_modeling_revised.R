@@ -136,10 +136,10 @@ z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE)
 source("../fitChosenDists.R")
 
 cand_dist=c("GT","JSU","LO","SEP3","SEP4", "SHASHo", "TF") ##NET not behaving, SEP1 takes too long and appears unstable
-n_bins <- 8
-select_dist <- tibble(fit_best = log(LATR$vol_t),
+n_bins <- 6
+select_dist <- tibble(init_size = log(LATR$vol_t),
                       scale_resid = scaledResids) %>% 
-  mutate(bin = as.integer(cut_number(fit_best,n_bins)),
+  mutate(bin = as.integer(cut_number(init_size,n_bins)),
          best_dist = NA,
          secondbest_dist = NA,
          aic_margin = NA) 
@@ -157,4 +157,30 @@ select_dist %>%
             aic_margin = unique(aic_margin))
 ## t family is best or second best for almost every bin
 
+## visualize TF parameters in relation to initial size bin
+LATR_bin_fit <-LATR %>% 
+  mutate(init_size = log(LATR$vol_t),
+         bin = as.integer(cut_number(init_size,n_bins))) %>% 
+  mutate(mu=NA, sigma=NA,nu=NA)
+for(b in 1:n_bins){
+  bin_fit <- gamlssMaxlik(y=log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b]),DIST="TF")
+  LATR_bin_fit$mu[LATR_bin_fit$bin==b] <- bin_fit$out[[1]]$estimate["eta.mu"] ## identity link
+  LATR_bin_fit$sigma[LATR_bin_fit$bin==b] <- exp(bin_fit$out[[1]]$estimate["eta.sigma"]) ## log link
+  LATR_bin_fit$nu[LATR_bin_fit$bin==b] <- exp(bin_fit$out[[1]]$estimate["eta.nu"]) ## log link
+}
+LATR_bin_fit %>% 
+  group_by(bin) %>% 
+  summarise(N = n(),
+            mean_size = mean(init_size),
+            mu = unique(mu),
+            sigma=unique(sigma),
+            nu=unique(nu)) -> LATR_bin_fit
 
+pdf("../manuscript/figures/creosote_binned_ST.pdf",height = 4,width = 10,useDingbats = F)
+par(mfrow=c(1,3),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);
+plot(LATR_bin_fit$mean_size,LATR_bin_fit$mu,xlab="Initial size",ylab=expression(paste("Skewed t parameter  ", mu )),type="b",pch=16)
+plot(LATR_bin_fit$mean_size,LATR_bin_fit$sigma,xlab="Initial size",
+     ylab=expression(paste("Skewed t  parameter  ", sigma)),type="b",pch=16)
+plot(LATR_bin_fit$mean_size,LATR_bin_fit$nu,xlab="Initial size",
+     ylab=expression(paste("Skewed t  parameter  ", nu )),type="b",pch=16)
+dev.off()
