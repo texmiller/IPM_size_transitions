@@ -1,7 +1,7 @@
 rm(list=ls(all=TRUE));
 
-setwd("c:/repos/IPM_size_transitions/creosote"); #Steve
-# setwd("C:/Users/tm9/Desktop/git local/IPM_size_transitions/creosote"); #Tom
+# setwd("c:/repos/IPM_size_transitions/creosote"); #Steve
+setwd("C:/Users/tm9/Desktop/git local/IPM_size_transitions/creosote"); #Tom
 
 require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(gamlss.tr); require(AICcmodavg); 
@@ -21,6 +21,8 @@ Lkurtosis=function(x) log(kurtosis(x));
 
 # Steve's diagnostics functions
 source("../Diagnostics.R")
+# function for choosing distribution family
+source("../fitChosenDists.R")
 
 ## read in data for Larrea tridentata (LATR)
 LATR <- read.csv("creosote_growth_density.csv") %>% 
@@ -82,8 +84,7 @@ for(mod in 4:6) {
   LATR_gam_models[[mod]] =  fitGAU;
 }
 
-AIC(LATR_gam_models[[1]]); AIC(LATR_gam_models[[2]]); AIC(LATR_gam_models[[3]]); 
-AIC(LATR_gam_models[[4]]); AIC(LATR_gam_models[[5]]); AIC(LATR_gam_models[[6]]); 
+AICtab(LATR_gam_models) 
 ## Models 2 and 3 are top and basically equivalent. I''ll proceed with 2, the simpler one
 ## It surprises me that initial size was the better covariated than initial value, because I expected the
 ## additional effect of density to affect sigma. But maybe size and density are correlated.
@@ -100,6 +101,7 @@ fitted_terms = predict(LATR_gam_model,type="terms");
 ##### effect of initial size on mean of final size 
 plot(log(LATR$vol_t), fitted_terms[,1]); 
 mean_fit1 = lm(fitted_terms[,1]~log(LATR$vol_t)); ## linear initial size is a perfect fit
+abline(coef(mean_fit1)[1],coef(mean_fit1)[2],col="red")
 
 ##### effect of d.stand on mean of final size 
 plot(LATR$d.stand, fitted_terms[,2]); ## complicated 
@@ -113,6 +115,7 @@ fitted_all = predict(LATR_gam_model,type="response");
 sigma.hat = 1/fitted_all[,2]; 
 plot(LATR$fitted_vals, log(sigma.hat)) ; 
 sigma_fit1 = lm(log(sigma.hat)~LATR$fitted_vals); ## linear in fitted value is a perfect fit 
+abline(coef(sigma_fit1)[1],coef(sigma_fit1)[2],col="red")
 
 ##################################################################  
 # Inspect scaled residuals to evaluate the pilot model: FAILS 
@@ -133,10 +136,9 @@ z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE)
 ################################################################################
 ## Finding a better distribution. Must at least allow positive excess kurtosis 
 #################################################################################
-source("../fitChosenDists.R")
 
-cand_dist=c("GT","JSU","LO","SEP3","SEP4", "SHASHo", "TF") ##NET not behaving, SEP1 takes too long and appears unstable
-n_bins <- 6
+cand_dist=c("GT","JSU","LO","TF","ST1","ST2","ST3","ST4","ST5") ##NET not behaving, SEP1 takes too long and appears unstable
+n_bins <- 20
 select_dist <- tibble(init_size = log(LATR$vol_t),
                       scale_resid = scaledResids) %>% 
   mutate(bin = as.integer(cut_number(init_size,n_bins)),
@@ -155,18 +157,20 @@ select_dist %>%
             best_dist = unique(best_dist),
             secondbest_dist = unique(secondbest_dist),
             aic_margin = unique(aic_margin))
-## t family is best or second best for almost every bin
+## TF and LO pop up a lot, but for the smallest bin it seems like a skewed distribution is best
+## But the skewed t's are giving me problems so I am going ahead with the logistic and we'll see how it does
 
-## visualize TF parameters in relation to initial size bin
+## visualize TF parameters in relation to fitted value by bin
 LATR_bin_fit <-LATR %>% 
   mutate(init_size = log(LATR$vol_t),
          bin = as.integer(cut_number(init_size,n_bins))) %>% 
   mutate(mu=NA, sigma=NA,nu=NA)
 for(b in 1:n_bins){
-  bin_fit <- gamlssMaxlik(y=log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b]),DIST="TF")
+  bin_fit <- gamlssMaxlik(y=log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b]),DIST="LO")
   LATR_bin_fit$mu[LATR_bin_fit$bin==b] <- bin_fit$out[[1]]$estimate["eta.mu"] ## identity link
   LATR_bin_fit$sigma[LATR_bin_fit$bin==b] <- exp(bin_fit$out[[1]]$estimate["eta.sigma"]) ## log link
-  LATR_bin_fit$nu[LATR_bin_fit$bin==b] <- exp(bin_fit$out[[1]]$estimate["eta.nu"]) ## log link
+  #LATR_bin_fit$nu[LATR_bin_fit$bin==b] <- exp(bin_fit$out[[1]]$estimate["eta.nu"]) ## log link
+  #LATR_bin_fit$tau[LATR_bin_fit$bin==b] <- exp(bin_fit$out[[1]]$estimate["eta.tau"]) ## log link
 }
 LATR_bin_fit %>% 
   group_by(bin) %>% 
@@ -176,11 +180,66 @@ LATR_bin_fit %>%
             sigma=unique(sigma),
             nu=unique(nu)) -> LATR_bin_fit
 
-pdf("../manuscript/figures/creosote_binned_ST.pdf",height = 4,width = 10,useDingbats = F)
-par(mfrow=c(1,3),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);
-plot(LATR_bin_fit$mean_size,LATR_bin_fit$mu,xlab="Initial size",ylab=expression(paste("Skewed t parameter  ", mu )),type="b",pch=16)
-plot(LATR_bin_fit$mean_size,LATR_bin_fit$sigma,xlab="Initial size",
-     ylab=expression(paste("Skewed t  parameter  ", sigma)),type="b",pch=16)
-plot(LATR_bin_fit$mean_size,LATR_bin_fit$nu,xlab="Initial size",
-     ylab=expression(paste("Skewed t  parameter  ", nu )),type="b",pch=16)
+pdf("../manuscript/figures/creosote_binned_LO.pdf",height = 5,width = 10,useDingbats = F)
+par(mfrow=c(1,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);
+plot(LATR_bin_fit$mean_size,LATR_bin_fit$mu,xlab="Initial size",ylab=expression(paste("Logistic parameter  ", mu )),type="b",pch=16)
+plot(LATR_bin_fit$mu,LATR_bin_fit$sigma,xlab=expression(paste("Fitted value  ", mu )),
+     ylab=expression(paste("Logistic  parameter  ", sigma)),type="b",pch=16)
 dev.off()
+
+
+# Fitting the final model -------------------------------------------------
+## Now we will define the U matrix based on what we found in the pilot gaussian fit.
+## That fit was based on gam() but we have approximations to the gam terms that we will use here. 
+## This includes a cubic term for density
+
+U=model.matrix(~  0 + unique.transect + log(vol_t) + d.stand + I(d.stand^2) + I(d.stand^3), data=LATR)
+
+# Likelihood function with sigma as a quadratic function of mu
+LogLik=function(pars,response,U){
+  pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
+  mu = U%*%pars1;  
+  val = dLO(x = response, 
+            mu=mu,
+            sigma = exp(pars2[1] + pars2[2]*mu + pars2[3]*mu^2),
+            log=T) 
+  return(val); 
+}
+
+
+paranoid_iter <- 3
+coefs = list(paranoid_iter); LL=numeric(paranoid_iter);  
+
+# Starting values from the pilot model are jittered to do multi-start optimization). 
+# Using good starting values really speeds up convergence in the ML fits  
+fixed_start = c(LATR_gam_model$coefficients["(Intercept)"] + LATR_gam_model$coefficients[paste0("s(unique.transect).",1:12)],##transect estimates
+                coef(mean_fit1)[2],#size slope
+                coef(d.stand_fit3)[2:4])
+## make sure the dimensions line up
+length(fixed_start);ncol(U);colnames(U) 
+## starting coefficients for sigma(mu)
+fit_sigma = lm(log(sigma)~mu + I(mu^2), data=LATR_bin_fit)
+## bundle coefficients for mu and sigma
+p0=c(fixed_start,coef(fit_sigma)) 
+
+for(j in 1:paranoid_iter) {
+  out=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=log(LATR$vol_t1),U=U,
+             method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
+  
+  out=maxLik(logLik=LogLik,start=out$estimate,response=log(LATR$vol_t1),U=U,
+             method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+  
+  out=maxLik(logLik=LogLik,start=out$estimate,response=log(LATR$vol_t1),U=U,
+             method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
+  
+  coefs[[j]] = out$estimate; LL[j] = out$maximum;
+  cat(j, "#--------------------------------------#",out$maximum,"\n"); 
+}
+
+j = min(which(LL==max(LL))) ## they actually all land on the same likelihood-that's good!
+out=maxLik(logLik=LogLik,start=coefs[[j]],response=log(LATR$vol_t1),U=U,
+           method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE) 
+
+# AIC improvement over gaussian
+(AIC_LO <- 2*length(coefs) - 2*out$maximum)
+(AIC_norm <- AIC(LATR_gam_model) ) ## the logistic is quite an improvement
