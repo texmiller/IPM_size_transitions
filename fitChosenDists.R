@@ -59,7 +59,7 @@ gamlssMaxlik <- function(y,DIST) {
   }
   
   bestPars=numeric(n_par); bestMax=-10^17; 
-  for(jrep in 1:20) {
+  for(jrep in 1:40) {
     startj = start*exp(0.1*rnorm(n_par)); 
     fit = maxLik(logLik=LogLik1,start=startj, response=y, method="BHHH",control=list(iterlim=5000,printLevel=0),
                 finalHessian=FALSE);  
