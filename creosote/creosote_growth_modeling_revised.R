@@ -408,3 +408,62 @@ points(LATR_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=a
 points(LATR_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
 add_panel_label("d")
 dev.off()
+
+# IPM ---------------------------------------------------------------------
+## the improvement of the skewed t (or the logistic for that matter) over the Gaussian is not particularly
+## striking in the binned simulated moment figures. But let's see how much this changes the IPM.
+
+## First, we need functions for survival and reproduction, and I will use gam() here following the models above
+LATR_flow_dat <- LATR %>% select(vol_t,total.reproduction_t,d.stand,unique.transect) %>% drop_na() %>% 
+  mutate(log_vol_t = log(vol_t))
+LATR_flower <- list()
+LATR_flower[[1]] <-  gam(total.reproduction_t>0 ~ s(log_vol_t) + s(unique.transect,bs="re"),
+                   data=LATR_flow_dat, gamma=1.4, family="binomial")
+LATR_flower[[2]] <-  gam(total.reproduction_t>0 ~ s(log_vol_t) + s(d.stand) + s(unique.transect,bs="re"),
+                         data=LATR_flow_dat, gamma=1.4, family="binomial")
+LATR_flower[[3]] <-  gam(total.reproduction_t>0 ~ s(log_vol_t) + s(d.stand) + d.stand:log(vol_t)  + s(unique.transect,bs="re"),
+                         data=LATR_flow_dat, gamma=1.4, family="binomial")
+AICtab(LATR_flower)
+LATR_flower_best <- LATR_flower[[2]]
+LATR_flower_fitted_terms = predict(LATR_flower_best,type="terms") 
+LATR_flow_dat$pred = predict.gam(LATR_flower_best,newdata = LATR_flow_dat)
+
+##### effect of size on pr(flower) -- simple linear
+plot(LATR_flow_dat$log_vol_t,LATR_flower_fitted_terms[,"s(log_vol_t)"]) 
+gam_size_smooth <- lm(LATR_flower_fitted_terms[,"s(log_vol_t)"]~LATR_flow_dat$log_vol_t)
+abline(coef(gam_size_smooth)[1],coef(gam_size_smooth)[2])
+#### effect of d.stand on pr(flower) -- linear POSITIVE effect of denity
+plot(LATR_flow_dat$d.stand,LATR_flower_fitted_terms[,"s(d.stand)"]) 
+gam_dens_smooth <- lm(LATR_flower_fitted_terms[,"s(d.stand)"]~LATR_flow_dat$d.stand)
+abline(coef(gam_dens_smooth)[1],coef(gam_dens_smooth)[2])
+
+## here is a frankenstein model that I will derive from the gam for prediction
+gam_predict_flower <- function(size,dens){
+  invlogit(coef(LATR_flower_best)[1] + 
+             coef(gam_size_smooth)[1] + coef(gam_size_smooth)[2]*size + 
+             coef(gam_dens_smooth)[1] + coef(gam_dens_smooth)[2]*dens)
+}
+## see how it compares to gam predict --  this works, let's use it
+plot(LATR_flow_dat$pred,logit(gam_predict_flower(LATR_flow_dat$log_vol_t,LATR_flow_dat$d.stand)))
+
+n_cuts_dens <- 6
+n_cuts_size <- 4
+LATR_flow_dat %>% 
+  mutate(size_bin = as.integer(cut_number(log_vol_t,n_cuts_size)),
+         dens_bin = as.integer(cut_number(d.stand,n_cuts_dens))) %>% 
+  group_by(size_bin,dens_bin) %>% 
+  mutate(mean_size = mean(log_vol_t),
+         mean_density = mean(d.stand),
+         mean_flower = mean(total.reproduction_t > 0),
+         pred_flower = mean(pred),
+         bin_n = n()) -> LATR_flow_dat_plot
+
+d_dummy <- seq(min(LATR_flow_dat_plot$d.stand),max(LATR_flow_dat_plot$d.stand),0.1)
+plot(LATR_flow_dat_plot$d.stand,LATR_flow_dat_plot$total.reproduction_t>0,type="n")
+for(i in 1:n_cuts_size){
+  points(LATR_flow_dat_plot$mean_density[LATR_flow_dat_plot$size_bin==i],
+         LATR_flow_dat_plot$mean_flower[LATR_flow_dat_plot$size_bin==i],pch=16,col=i)
+  lines(d_dummy,
+      gam_predict_flower(mean(LATR_flow_dat_plot$log_vol_t[LATR_flow_dat_plot$size_bin==i]),d_dummy),col=i)
+}
+
