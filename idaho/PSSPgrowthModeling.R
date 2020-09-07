@@ -364,13 +364,21 @@ title(main="Gaussian pilot model");
 
 dev.copy2pdf(file="../manuscript/figures/QuantileComparePlotPSSP-pilot.pdf")
 
-
 #############################################################################
 #  Binned moments comparison plot 
 #############################################################################
 out=momentsComparePlot(dropD$logarea.t0,dropD$logarea.t1,idaho_sim,
             idaho_Gsim,nBins=12);
 dev.copy2pdf(file="../manuscript/figures/MomentsComparePlotPSSP.pdf")
+
+idaho_sim3 = idaho_sim2 = idaho_sim; idaho_Gsim3 = idaho_Gsim2 = idaho_Gsim;
+for(j in 1:n_sim){
+        idaho_sim2[,j]=idaho_sim2[,j] - fitted_all[,1]; 
+        idaho_Gsim2[,j]=idaho_Gsim2[,j] -fitted_all[,1];
+}        
+    
+out=momentsComparePlot(dropD$logarea.t0,dropD$logarea.t1-fitted_all[,1],idaho_sim2,idaho_Gsim2,nBins=12);
+dev.copy2pdf(file="../manuscript/figures/MomentsComparePlotPSSP2.pdf")
 
 ########################################################################################
 #   Simulation: how well do we recover known random effects? 
