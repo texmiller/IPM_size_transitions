@@ -208,16 +208,19 @@ quantileComparePlot = function(sortVariable,trueData,simData,nBins,alpha_scale =
 ##
 ## The tidyverse is required so that pipes and various other bits work. 
 #########################################################################################
-momentsComparePlot = function(sortVariable,trueData,simData,normData=NULL,nBins,alpha_scale = 0.7) {
-  xTrue = data.frame(x=sortVariable,y=trueData)
+momentsComparePlot = function(sortVariable,trueData,simData,normData=NULL,fittedMean=NULL,nBins,alpha_scale = 0.7) {
 
+  # optional: skewness and kurtosis done on deviations from a fitted mean 
+  if(is.null(fittedMean)) fittedMean=rep(0,length(sortVariable)); 
+  
+  xTrue = data.frame(x=sortVariable,y=trueData, z= fittedMean)
   qTrue <- xTrue %>% arrange(x) %>% 
     mutate(size_bin = cut_number(x,n=nBins)) %>% 
     group_by(size_bin) %>% 
     summarise(q1 = mean(y),
               q2 = sd(y),
-              q3 = NPskewness(y),
-              q4 = NPkurtosis(y),
+              q3 = NPskewness(y-z),
+              q4 = NPkurtosis(y-z),
               bin_mean = mean(x),
               bin_n = n()) 
               
@@ -225,32 +228,33 @@ momentsComparePlot = function(sortVariable,trueData,simData,normData=NULL,nBins,
   qSim = array(NA,dim=c(nBins,ncol(simData),4))
   qnames=c("q1","q2","q3","q4"); 
   for(i in 1:ncol(simData)){
-    xSim_i = data.frame(x=sortVariable,y=simData[,i])
+    xSim_i = data.frame(x=sortVariable,y=simData[,i],z=fittedMean)
     qSim_i <- xSim_i %>% arrange(x) %>% 
       mutate(size_bin = cut_number(x,n=nBins)) %>% 
       group_by(size_bin) %>% 
       summarise(q1 = mean(y),
                 q2 = sd(y),
-                q3 = NPskewness(y),
-                q4 = NPkurtosis(y),
+                q3 = NPskewness(y-z),
+                q4 = NPkurtosis(y-z),
                 bin_mean = mean(x),
                 bin_n = n()) 
     for(j in 1:4) qSim[1:nBins,i,j]=unlist(qSim_i[1:nBins,qnames[j]])	
   }
   
-  if(!is.null(normData)) {   # optional: compare with Gaussian model 
+  # optional: compare with Gaussian model 
+  if(!is.null(normData)) {  
   
   qNorm = array(NA,dim=c(nBins,ncol(normData),4))
   qnames=c("q1","q2","q3","q4"); 
   for(i in 1:ncol(simData)){
-    xNorm_i = data.frame(x=sortVariable,y=normData[,i])
+    xNorm_i = data.frame(x=sortVariable,y=normData[,i],z=fittedMean)
     qNorm_i <- xNorm_i %>% arrange(x) %>% 
       mutate(size_bin = cut_number(x,n=nBins)) %>% 
       group_by(size_bin) %>% 
       summarise(q1 = mean(y),
                 q2 = sd(y),
-                q3 = NPskewness(y),
-                q4 = NPkurtosis(y),
+                q3 = NPskewness(y-z),
+                q4 = NPkurtosis(y-z),
                 bin_mean = mean(x),
                 bin_n = n()) 
     for(j in 1:4) qNorm[1:nBins,i,j]=unlist(qNorm_i[1:nBins,qnames[j]])	
@@ -283,9 +287,13 @@ momentsComparePlot = function(sortVariable,trueData,simData,normData=NULL,nBins,
 
     trueBinQ[,j] = unlist(qTrue[,qnames[j]]);
     simBinQ[,j] = apply(qSim_j,1,median);
-    if(j==1) legend("topleft",legend=c("Model simulations","Median of simulations","Data"),
+    if(j==1 & is.null(normData)) {legend("topleft",legend=c("Model simulations","Median of simulations","Data"),
                     col=c(alpha("gray",0.5),alpha("black",alpha_scale), alpha("red",alpha_scale)),
-                    pch=c(1,1,5),lwd=2,cex=1.1,bty="n"); 
+                    pch=c(1,1,5),lwd=2,cex=1.1,bty="n"); }
+     if(j==1 & !is.null(normData)) {legend("topleft",legend=c("Gaussian model","Non-Gaussian model","Data"),
+                    col=c(alpha("blue",0.5),alpha("grey",alpha_scale), alpha("red",alpha_scale)),
+                    pch=c(1,1,5),lwd=2,cex=1.1,bty="n"); }           
+                    
     add_panel_label(letters[j])
   }	
   
