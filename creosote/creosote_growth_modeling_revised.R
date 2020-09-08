@@ -323,7 +323,7 @@ LATR_moments <- LATR %>%
             bin_mean = mean(log(vol_t)),
             bin_n = n()) 
 
-pdf("../manuscript/figures/creosote_sim_moments_ST1.pdf",height = 8,width = 8,useDingbats = F)
+pdf("../manuscript/figures/creosote_sim_moments_ST1.pdf",height = 10,width = 10,useDingbats = F)
 par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2,1,0),bty="l"); 
 sim_bin_means=sim_moment_means=sim_moment_means_norm = matrix(NA,n_bins,n_sim); 
 for(i in 1:n_sim){
@@ -414,6 +414,8 @@ dev.off()
 ## striking in the binned simulated moment figures. But let's see how much this changes the IPM.
 
 ## First, we need functions for survival and reproduction, and I will use gam() here following the models above
+
+# Flowering ---------------------------------------------------------------
 LATR_flow_dat <- LATR %>% select(vol_t,total.reproduction_t,d.stand,unique.transect) %>% drop_na() %>% 
   mutate(log_vol_t = log(vol_t))
 LATR_flower <- list()
@@ -462,8 +464,31 @@ d_dummy <- seq(min(LATR_flow_dat_plot$d.stand),max(LATR_flow_dat_plot$d.stand),0
 plot(LATR_flow_dat_plot$d.stand,LATR_flow_dat_plot$total.reproduction_t>0,type="n")
 for(i in 1:n_cuts_size){
   points(LATR_flow_dat_plot$mean_density[LATR_flow_dat_plot$size_bin==i],
-         LATR_flow_dat_plot$mean_flower[LATR_flow_dat_plot$size_bin==i],pch=16,col=i)
+         LATR_flow_dat_plot$mean_flower[LATR_flow_dat_plot$size_bin==i],pch=16,col=i,
+         cex=(LATR_flow_dat_plot$bin_n[LATR_flow_dat_plot$size_bin==i]/max(LATR_flow_dat_plot$bin_n))*3)
   lines(d_dummy,
       gam_predict_flower(mean(LATR_flow_dat_plot$log_vol_t[LATR_flow_dat_plot$size_bin==i]),d_dummy),col=i)
 }
 
+
+# Fruit production --------------------------------------------------------
+LATR_fruits_dat <- subset(LATR_flow_dat,total.reproduction_t>0)
+LATR_fruits <- list()
+LATR_fruits[[1]] <-  gam(total.reproduction_t ~ s(log_vol_t) + s(unique.transect,bs="re"),
+                         data=LATR_fruits_dat, gamma=1.4, family="nb")
+LATR_fruits[[2]] <-  gam(total.reproduction_t ~ s(log_vol_t) + s(d.stand) + s(unique.transect,bs="re"),
+                         data=LATR_fruits_dat, gamma=1.4, family="nb")
+LATR_fruits[[3]] <-  gam(total.reproduction_t ~ s(log_vol_t) + s(d.stand) + d.stand:log(vol_t)  + s(unique.transect,bs="re"),
+                         data=LATR_fruits_dat, gamma=1.4, family="nb")
+AICtab(LATR_fruits)
+LATR_fruits_best <- LATR_fruits[[2]]
+LATR_fruits_fitted_terms = predict(LATR_fruits_best,type="terms") 
+LATR_fruits_dat$pred = predict.gam(LATR_fruits_best,newdata = LATR_fruits_dat)
+
+##### effect of size on pr(flower) -- simple linear
+plot(LATR_fruits_dat$log_vol_t,LATR_fruits_fitted_terms[,"s(log_vol_t)"]) 
+
+#### effect of d.stand on pr(flower) -- linear POSITIVE effect of denity
+plot(LATR_fruits_dat$d.stand,LATR_fruits_fitted_terms[,"s(d.stand)"]) 
+gam_dens_smooth <- lm(LATR_flower_fitted_terms[,"s(d.stand)"]~LATR_flow_dat$d.stand)
+abline(coef(gam_dens_smooth)[1],coef(gam_dens_smooth)[2])
