@@ -92,6 +92,8 @@ plot(LATR$d.stand,log(LATR$vol_t)) ## yes, they are - onward
 LATR_gam_model <- LATR_gam_models[[2]]; 
 LATR$fitted_vals = new_fitted_vals; 
 
+## can I extract the linear predictor from this thing?
+
 
 ##################################################################  
 # Extract values of the fitted splines to explore their properties 
@@ -137,7 +139,7 @@ z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE)
 ## Finding a better distribution. Must at least allow positive excess kurtosis 
 #################################################################################
 
-cand_dist=c("GT","LO","TF","ST1","ST2") ##NET, SEP1, and EGB2 are all highly unstable
+cand_dist=c("NO","GT","LO","TF","ST1","ST2") ##NET, SEP1, and EGB2 are all highly unstable
 n_bins <- 10
 select_dist <- tibble(init_size = log(LATR$vol_t),
                       scale_resid = scaledResids) %>% 
@@ -160,6 +162,7 @@ select_dist %>%
             aic_margin = unique(aic_margin))
 ## TF and LO pop up a lot, but for the smallest bin it seems like a skewed distribution is best
 ## But the skewed t's are giving me problems so I am going ahead with the logistic and we'll see how it does
+## Noteworthy that the normal is not supported (except last bin)
 
 ## visualize TF parameters in relation to fitted value by bin
 LATR_bin_fit <-LATR %>% 
@@ -198,21 +201,12 @@ dev.off()
 ## Now we will define the U matrix based on what we found in the pilot gaussian fit.
 ## That fit was based on gam() but we have approximations to the gam terms that we will use here. 
 ## This includes a cubic term for density
-
+## Is this the best we can do? It is unsatisfying that we have this hacky polynomial
+## as a stand-in for the curvature fit by gam()
 U=model.matrix(~  0 + unique.transect + log(vol_t) + d.stand + I(d.stand^2) + I(d.stand^3), data=LATR)
 
-# Likelihood function with sigma as a quadratic function of mu
-
-## This was the logistic likelihood function, but I am trying to improve upon it
-#LogLik=function(pars,response,U){
-#  pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
-#  mu = U%*%pars1;  
-#  val = dLO(x = response, 
-#            mu=mu,
-#            sigma = exp(pars2[1] + pars2[2]*mu + pars2[3]*mu^2),
-#            log=T) 
-#  return(val); 
-#}
+# Likelihood function with sigma and nu as a quadratic functions of mu,
+## and constant value of tau, which had a wonky bin fit but showed no obvious trend
 
 ## ST1 likelihood
 LogLik=function(pars,response,U){
@@ -428,7 +422,7 @@ LATR_flower[[3]] <-  gam(total.reproduction_t>0 ~ s(log_vol_t) + s(d.stand) + d.
 AICtab(LATR_flower)
 LATR_flower_best <- LATR_flower[[2]]
 LATR_flower_fitted_terms = predict(LATR_flower_best,type="terms") 
-LATR_flow_dat$pred = predict.gam(LATR_flower_best,newdata = LATR_flow_dat)
+LATR_flow_dat$pred = predict.gam(LATR_flower_best,newdata = LATR_flow_dat, exclude = "s(unique.transect)")
 
 ##### effect of size on pr(flower) -- simple linear
 plot(LATR_flow_dat$log_vol_t,LATR_flower_fitted_terms[,"s(log_vol_t)"]) 
@@ -440,15 +434,16 @@ gam_dens_smooth <- lm(LATR_flower_fitted_terms[,"s(d.stand)"]~LATR_flow_dat$d.st
 abline(coef(gam_dens_smooth)[1],coef(gam_dens_smooth)[2])
 
 ## here is a frankenstein model that I will derive from the gam for prediction
+## easy to do because the smooths are linear
 gam_predict_flower <- function(size,dens){
   invlogit(coef(LATR_flower_best)[1] + 
              coef(gam_size_smooth)[1] + coef(gam_size_smooth)[2]*size + 
              coef(gam_dens_smooth)[1] + coef(gam_dens_smooth)[2]*dens)
 }
-## see how it compares to gam predict --  this works, let's use it
+## see how it compares to gam predict --  this works
 plot(LATR_flow_dat$pred,logit(gam_predict_flower(LATR_flow_dat$log_vol_t,LATR_flow_dat$d.stand)))
 
-n_cuts_dens <- 6
+n_cuts_dens <- 8
 n_cuts_size <- 4
 LATR_flow_dat %>% 
   mutate(size_bin = as.integer(cut_number(log_vol_t,n_cuts_size)),
@@ -461,7 +456,8 @@ LATR_flow_dat %>%
          bin_n = n()) -> LATR_flow_dat_plot
 
 d_dummy <- seq(min(LATR_flow_dat_plot$d.stand),max(LATR_flow_dat_plot$d.stand),0.1)
-plot(LATR_flow_dat_plot$d.stand,LATR_flow_dat_plot$total.reproduction_t>0,type="n")
+plot(LATR_flow_dat_plot$mean_density,LATR_flow_dat_plot$total.reproduction_t>0,type="n",
+     xlab="Weighted density",ylab="Pr(Flowering)")
 for(i in 1:n_cuts_size){
   points(LATR_flow_dat_plot$mean_density[LATR_flow_dat_plot$size_bin==i],
          LATR_flow_dat_plot$mean_flower[LATR_flow_dat_plot$size_bin==i],pch=16,col=i,
@@ -469,7 +465,6 @@ for(i in 1:n_cuts_size){
   lines(d_dummy,
       gam_predict_flower(mean(LATR_flow_dat_plot$log_vol_t[LATR_flow_dat_plot$size_bin==i]),d_dummy),col=i)
 }
-
 
 # Fruit production --------------------------------------------------------
 LATR_fruits_dat <- subset(LATR_flow_dat,total.reproduction_t>0)
@@ -483,12 +478,39 @@ LATR_fruits[[3]] <-  gam(total.reproduction_t ~ s(log_vol_t) + s(d.stand) + d.st
 AICtab(LATR_fruits)
 LATR_fruits_best <- LATR_fruits[[2]]
 LATR_fruits_fitted_terms = predict(LATR_fruits_best,type="terms") 
-LATR_fruits_dat$pred = predict.gam(LATR_fruits_best,newdata = LATR_fruits_dat)
+LATR_fruits_dat$pred = predict.gam(LATR_fruits_best,newdata = LATR_fruits_dat,exclude="s(unique.transect)")
 
-##### effect of size on pr(flower) -- simple linear
+##### effect of size on pr(flower) -- a bit of a kink
 plot(LATR_fruits_dat$log_vol_t,LATR_fruits_fitted_terms[,"s(log_vol_t)"]) 
-
-#### effect of d.stand on pr(flower) -- linear POSITIVE effect of denity
+#### effect of d.stand on pr(flower) -- funky
 plot(LATR_fruits_dat$d.stand,LATR_fruits_fitted_terms[,"s(d.stand)"]) 
-gam_dens_smooth <- lm(LATR_flower_fitted_terms[,"s(d.stand)"]~LATR_flow_dat$d.stand)
-abline(coef(gam_dens_smooth)[1],coef(gam_dens_smooth)[2])
+
+LATR_fruits_dat %>% 
+  mutate(size_bin = as.integer(cut_number(log_vol_t,n_cuts_size)),
+         dens_bin = as.integer(cut_number(d.stand,n_cuts_dens))) %>% 
+  group_by(size_bin,dens_bin) %>% 
+  mutate(mean_size = mean(log_vol_t),
+         mean_density = mean(d.stand),
+         mean_fruits = mean(total.reproduction_t),
+         pred_fruits = mean(pred),
+         bin_n = n()) -> LATR_fruits_dat_plot
+
+## new data set for gam prediction
+fruits_newd <- data.frame(
+  size_bin = rep(1:n_cuts_size,each=length(d_dummy)),
+  log_vol_t = rep(aggregate(log_vol_t ~ size_bin, data=LATR_fruits_dat_plot, mean)$log_vol_t,
+                  each=length(d_dummy)),
+  d.stand = rep(d_dummy,times=n_cuts_size),
+  unique.transect = "transect"
+)
+fruits_newd$pred <- predict.gam(LATR_fruits_best,newdata = fruits_newd, exclude = "s(unique.transect)")
+
+plot(LATR_fruits_dat_plot$mean_density,LATR_fruits_dat_plot$mean_fruits,type="n",
+     xlab="Weighted density",ylab="Flowers and Fruits")
+for(i in 1:n_cuts_size){
+  points(LATR_fruits_dat_plot$mean_density[LATR_fruits_dat_plot$size_bin==i],
+         LATR_fruits_dat_plot$mean_fruits[LATR_fruits_dat_plot$size_bin==i],pch=16,col=i,
+         cex=(LATR_fruits_dat_plot$bin_n[LATR_fruits_dat_plot$size_bin==i]/max(LATR_fruits_dat_plot$bin_n))*3)
+  lines(fruits_newd$d.stand[fruits_newd$size_bin==i],
+        exp(fruits_newd$pred[fruits_newd$size_bin==i]),col=i)
+}
