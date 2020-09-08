@@ -281,13 +281,13 @@ save.image(file="AkumalCoralsModeling.Rdata");
 
 
 ################ Quantile comparison plot on final model 
-out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,
-                        nBins=8,alpha_scale = 0.7) 		
-                        
-dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
-
-out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=normal_sim,
-                        nBins=8,alpha_scale = 0.7)                      
+#out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,
+#                        nBins=8,alpha_scale = 0.7) 		
+#                        
+#dev.copy2pdf(file="../manuscript/figures/CoralQuantileComparePlot.pdf")
+#
+#out = quantileComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=normal_sim,
+#                        nBins=8,alpha_scale = 0.7)                      
    
 
 ################ Moments comparison plot on final model on final model 
@@ -296,15 +296,8 @@ out = momentsComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simDa
             nBins=10,alpha_scale = 0.7) 	
 dev.copy2pdf(file="../manuscript/figures/CoralMomentsComparePlot.pdf")
 
-coral_sim2 = coral_sim; normal_sim2 = normal_sim;
-for(j in 1:n_sim){
-        coral_sim2[,j]=coral_sim2[,j]- fitted_vals[,1]; 
-        normal_sim2[,j]=normal_sim2[,j]-fitted_vals[,1];
-}        
-    
-out = momentsComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1-fitted_vals[,1],simData=coral_sim2,normData=normal_sim2,
-            nBins=10,alpha_scale = 0.7) 	
+out = momentsComparePlot(sortVariable=XH$logarea.t0,trueData=XH$logarea.t1,simData=coral_sim,normData=normal_sim,
+            fittedMean=fitted_vals[,1],nBins=10,alpha_scale = 0.7) 	
 dev.copy2pdf(file="../manuscript/figures/CoralMomentsComparePlot2.pdf")
 		
-
 		
