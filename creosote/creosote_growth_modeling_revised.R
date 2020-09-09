@@ -93,7 +93,8 @@ LATR_gam_model <- LATR_gam_models[[2]];
 LATR$fitted_vals = new_fitted_vals; 
 
 ## can I extract the linear predictor from this thing?
-
+LATR_Xp <- predict.gam(LATR_gam_model,type="lpmatrix")
+LATR_Xp_rfx_drop <- predict.gam(LATR_gam_model,type="lpmatrix",exclude="s(unique.transect)")
 
 ##################################################################  
 # Extract values of the fitted splines to explore their properties 
