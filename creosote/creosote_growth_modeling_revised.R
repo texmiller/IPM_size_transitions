@@ -49,23 +49,32 @@ plot(log(LATR$vol_t),log(LATR$vol_t1))
 ############################################################################
 # Gaussian fits and model selection using mgcv 
 ############################################################################
+## three candidate models for the mean: size only, size + density, or size, density, and size:density
+## three candidates for variance: size only, size+density, fitted value (all the covariates plus rfx)
 LATR_gam_models=list()
 ## Pilot fits, where sigma depends on initial size only
-LATR$fitted_vals = log(LATR$vol_t); 
-LATR_gam_models[[1]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+LATR_gam_models[[1]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(unique.transect,bs="re"), ~s(log(vol_t))), 
                             data=LATR, gamma=1.4, family=gaulss())
-LATR_gam_models[[2]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+LATR_gam_models[[2]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + s(unique.transect,bs="re"), ~s(log(vol_t))), 
                             data=LATR, gamma=1.4, family=gaulss())                
-LATR_gam_models[[3]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + d.stand:log(vol_t) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
-                            data=LATR, gamma=1.4, family=gaulss())   
-## these models will be iterated to fit sigma as f(fitted value)
-LATR_gam_models[[4]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
-                            data=LATR, gamma=1.4, family=gaulss())
-LATR_gam_models[[5]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
-                            data=LATR, gamma=1.4, family=gaulss())                
-LATR_gam_models[[6]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + d.stand:log(vol_t) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+LATR_gam_models[[3]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + d.stand:log(vol_t) + s(unique.transect,bs="re"), ~s(log(vol_t))), 
                             data=LATR, gamma=1.4, family=gaulss())  
-for(mod in 4:6) {
+## Fits where sigma depends on both initial size and density
+LATR_gam_models[[4]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(unique.transect,bs="re"), ~s(log(vol_t)) + s(d.stand)), 
+                            data=LATR, gamma=1.4, family=gaulss())
+LATR_gam_models[[5]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + s(unique.transect,bs="re"), ~s(log(vol_t)) + s(d.stand)), 
+                            data=LATR, gamma=1.4, family=gaulss())                
+LATR_gam_models[[6]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + d.stand:log(vol_t) + s(unique.transect,bs="re"), ~s(log(vol_t)) + s(d.stand)), 
+                            data=LATR, gamma=1.4, family=gaulss()) 
+## these models will be iterated to fit sigma as f(fitted value)
+LATR$fitted_vals = log(LATR$vol_t); 
+LATR_gam_models[[7]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+                            data=LATR, gamma=1.4, family=gaulss())
+LATR_gam_models[[8]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+                            data=LATR, gamma=1.4, family=gaulss())                
+LATR_gam_models[[9]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + d.stand:log(vol_t) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+                            data=LATR, gamma=1.4, family=gaulss())  
+for(mod in 7:9) {
   fitGAU = LATR_gam_models[[mod]]
   fitted_all = predict(fitGAU,type="response",data=LATR);                  
   fitted_vals = new_fitted_vals = fitted_all[,1]; 
@@ -85,16 +94,16 @@ for(mod in 4:6) {
 }
 
 AICtab(LATR_gam_models) 
-## Models 2 and 3 are top and basically equivalent. I''ll proceed with 2, the simpler one
-## It surprises me that initial size was the better covariated than initial value, because I expected the
+## Model 2 is the winner: mean ~ s(size) + s(density), sd ~ s(size)
+## It surprises me that initial size was the better covariate than initial value, because I expected the
 ## additional effect of density to affect sigma. But maybe size and density are correlated.
 plot(LATR$d.stand,log(LATR$vol_t)) ## yes, they are - onward
-LATR_gam_model <- LATR_gam_models[[2]]; 
-LATR$fitted_vals = new_fitted_vals; 
 
-## can I extract the linear predictor from this thing?
+## define models 2 as our best Gaussian model
+LATR_gam_model <- LATR_gam_models[[2]]
+LATR$fitted_vals = new_fitted_vals
+## extract the linear predictor for the mean -- we'll use this later
 LATR_Xp <- predict.gam(LATR_gam_model,type="lpmatrix")
-LATR_Xp_rfx_drop <- predict.gam(LATR_gam_model,type="lpmatrix",exclude="s(unique.transect)")
 
 ##################################################################  
 # Extract values of the fitted splines to explore their properties 
