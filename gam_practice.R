@@ -1,12 +1,12 @@
 library(mgcv)
 library(maxLik)
 
-n_obs<-1000
+n_obs<-100
 n_levels<-10
 x1 = runif(n_obs,-2,2)
 rfx<-rnorm(n_levels,4.5,3)
 mu = rep(rfx,(n_obs/n_levels)) + 2.3*x1 - 0.5*x1^2 + 1.9*x1^3
-y = rnorm(1000,mu,2)
+y = rnorm(n_obs,mu,5)
 plot(x1,y,col="gray")
 practice.dat <- data.frame(x1=x1,
                            rfx=as.factor(rep(letters[1:n_levels],(n_obs/n_levels))),
