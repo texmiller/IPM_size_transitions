@@ -237,9 +237,9 @@ LogLik=function(pars,response,U){
   mu = U%*%pars1;  
   val = dST1(x = response, 
             mu=mu,
-            sigma = exp(pars2[1]),
-            nu = pars2[2],
-            tau = exp(pars2[3]),
+            sigma = exp(pars2[1] + pars2[2]*log(LATR$vol_t) + pars2[3]*LATR$d.stand),
+            nu = pars2[4] + pars2[5]*log(LATR$vol_t) + pars2[6]*LATR$d.stand,
+            tau = exp(pars2[7]),
             log=T) 
   return(val); 
 }
@@ -253,12 +253,12 @@ fixed_start = coef(LATR_gam_model)[1:ncol(LATR_Xp_mu)]
 ## make sure the dimensions line up
 length(fixed_start);ncol(U);colnames(U) 
 ## starting values for sigma, nu, tau
-fit_sigma = lm(log(sigma_highdens)~1, data=LATR_bin_fit)
-fit_nu = lm(nu_highdens~1, data=LATR_bin_fit)
+fit_sigma = lm(log(sigma_highdens)~mean_size, data=LATR_bin_fit)
+fit_nu = lm(nu_highdens~mean_size, data=LATR_bin_fit)
 fit_tau = lm(log(tau_highdens)~1, data=LATR_bin_fit)
 
 ## bundle coefficients for mu and sigma
-p0=c(fixed_start,coef(fit_sigma),coef(fit_nu),coef(fit_tau)) 
+p0=c(fixed_start,c(coef(fit_sigma),0),c(coef(fit_nu),0),coef(fit_tau)) 
 
 for(j in 1:paranoid_iter) {
   out=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=log(LATR$vol_t1),U=U,
