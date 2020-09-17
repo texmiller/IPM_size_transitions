@@ -539,3 +539,8 @@ for(i in 1:n_cuts_size){
   lines(fruits_newd$d.stand[fruits_newd$size_bin==i],
         exp(fruits_newd$pred[fruits_newd$size_bin==i]),col=i)
 }
+
+
+# Survival ----------------------------------------------------------------
+# read in transplant experiment and merge with obs data
+
