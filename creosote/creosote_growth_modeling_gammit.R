@@ -543,4 +543,15 @@ for(i in 1:n_cuts_size){
 
 # Survival ----------------------------------------------------------------
 # read in transplant experiment and merge with obs data
+# Combine transplants with large shrubs for later survival analysis
+# Keep only location info, survival, volume, and density
+CData.Transplants<-read.csv("CData.Transplants.csv") %>% 
+  select("site", "transect", "actual.window", 
+       "spring_survival_t1", "volume_t", "weighted.dens", "transplant") %>% 
+  rename("survival_t1" = "spring_survival_t1") %>% 
+  rbind(select(LATR, "site", "transect", "actual.window", 
+               "survival_t1", "volume_t", "weighted.dens", "transplant")) -> LATR_surv_dat
 
+## how much size overlap do we have between transplant experiment and observational census?
+hist(log(LATR_surv_dat$volume_t[LATR_surv_dat$transplant==F]))
+hist(log(LATR_surv_dat$volume_t[LATR_surv_dat$transplant==T]),add=T,col=alpha("gray",0.5))
