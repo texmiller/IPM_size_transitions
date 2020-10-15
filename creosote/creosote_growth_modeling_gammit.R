@@ -25,7 +25,8 @@ source("../Diagnostics.R")
 source("../fitChosenDists.R")
 
 ## read in data for Larrea tridentata (LATR)
-LATR <- read.csv("creosote_growth_density.csv") %>% 
+#LATR <- read.csv("creosote_growth_density.csv") %>% 
+LATR <- read.csv("CData.csv") %>% 
   #calculate volume
   mutate(vol_t = volume(max.ht_t,max.w_t,perp.w_t),
          vol_t1 = volume(max.ht_t1,max.w_t1,perp.w_t1),
@@ -39,8 +40,8 @@ LATR <- read.csv("creosote_growth_density.csv") %>%
 LATR %>% mutate(change=(vol_t1)-(vol_t)) %>% 
   filter(change > quantile(change,0.99,na.rm=T) | change < quantile(change,0.01,na.rm=T)) %>% 
   select(X,site,transect,designated.window,plant,year_t,max.ht_t,max.w_t,perp.w_t,max.ht_t1,max.w_t1,perp.w_t1)
-## FPS-3-500 and MOD-3-200 both look like errors. These are the suspect row numbers
-outliers <- c(617,684,686,688,882)
+## FPS-3-500, FPS-2-150, FPS-3-350, MOD-3-200, SLP-3-100look like errors. These are the suspect row numbers
+outliers <- c(282,307,637,704,708,709,845,847,848,907,1569)#c(617,684,686,688,882)
 LATR %>% filter(!(X %in% outliers)) -> LATR
 
 # first look at size transitions
@@ -555,3 +556,6 @@ CData.Transplants<-read.csv("CData.Transplants.csv") %>%
 ## how much size overlap do we have between transplant experiment and observational census?
 hist(log(LATR_surv_dat$volume_t[LATR_surv_dat$transplant==F]))
 hist(log(LATR_surv_dat$volume_t[LATR_surv_dat$transplant==T]),add=T,col=alpha("gray",0.5))
+
+plot(log(LATR_surv_dat$volume_t[LATR_surv_dat$transplant==F]),
+     LATR_surv_dat$survival_t1[LATR_surv_dat$transplant==F])
