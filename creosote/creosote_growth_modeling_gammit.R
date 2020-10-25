@@ -10,10 +10,6 @@ require(actuar); require(lattice); require(grid); require(scales);
 require(sgt); require(formatR); require(popbio); require(bbmle)
 
 # misc functions
-volume <- function(h, w, p){
-  (1/3)*pi*h*(((w + p)/2)/2)^2
-}
-
 invlogit <- function(x){exp(x)/(1+exp(x))}
  
 # log kurtosis function for diagnostics
@@ -24,28 +20,17 @@ source("../Diagnostics.R")
 # function for choosing distribution family
 source("../fitChosenDists.R")
 
-## read in data for Larrea tridentata (LATR)
-#LATR <- read.csv("creosote_growth_density.csv") %>% 
+## read in data for Larrea tridentata (LATR) -- derived data frame generated here: https://github.com/TrevorHD/LTEncroachment/blob/master/04_CDataPrep.R (line 261)
 LATR <- read.csv("CData.csv") %>% 
   #calculate volume
-  mutate(vol_t = volume(max.ht_t,max.w_t,perp.w_t),
-         vol_t1 = volume(max.ht_t1,max.w_t1,perp.w_t1),
-         #standardize weighted density to mean zero
+  mutate(#standardize weighted density to mean zero
          d.stand = (weighted.dens - mean(weighted.dens, na.rm = TRUE)) / sd(weighted.dens, na.rm = TRUE),
          #create unique transect as interaction of transect and site
          unique.transect = interaction(transect, site)) %>% 
-  drop_na(vol_t,vol_t1)
-
-# closer look at the outliers
-LATR %>% mutate(change=(vol_t1)-(vol_t)) %>% 
-  filter(change > quantile(change,0.99,na.rm=T) | change < quantile(change,0.01,na.rm=T)) %>% 
-  select(X,site,transect,designated.window,plant,year_t,max.ht_t,max.w_t,perp.w_t,max.ht_t1,max.w_t1,perp.w_t1)
-## FPS-3-500, FPS-2-150, FPS-3-350, MOD-3-200, SLP-3-100look like errors. These are the suspect row numbers
-outliers <- c(282,307,637,704,708,709,845,847,848,907,1569)#c(617,684,686,688,882)
-LATR %>% filter(!(X %in% outliers)) -> LATR
+  drop_na(volume_t,volume_t1)
 
 # first look at size transitions
-plot(log(LATR$vol_t),log(LATR$vol_t1))
+plot(log(LATR$volume_t),log(LATR$volume_t1))
 
 ############################################################################
 # Gaussian fits and model selection using mgcv 
