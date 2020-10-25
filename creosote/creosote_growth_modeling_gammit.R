@@ -21,13 +21,14 @@ source("../Diagnostics.R")
 source("../fitChosenDists.R")
 
 ## read in data for Larrea tridentata (LATR) -- derived data frame generated here: https://github.com/TrevorHD/LTEncroachment/blob/master/04_CDataPrep.R (line 261)
-LATR <- read.csv("CData.csv") %>% 
+LATR_full <- read.csv("CData.csv") %>% 
   #calculate volume
   mutate(#standardize weighted density to mean zero
-         d.stand = (weighted.dens - mean(weighted.dens, na.rm = TRUE)) / sd(weighted.dens, na.rm = TRUE),
-         #create unique transect as interaction of transect and site
-         unique.transect = interaction(transect, site)) %>% 
-  drop_na(volume_t,volume_t1)
+    d.stand = (weighted.dens - mean(weighted.dens, na.rm = TRUE)) / sd(weighted.dens, na.rm = TRUE),
+    #create unique transect as interaction of transect and site
+    unique.transect = interaction(transect, site))
+## prep a data subset for growth that drops rows missing either t or t1 size data
+LATR <- LATR_full  %>% drop_na(volume_t,volume_t1)
 
 # first look at size transitions
 plot(log(LATR$volume_t),log(LATR$volume_t1))
@@ -421,8 +422,31 @@ dev.off()
 ## First, we need functions for survival and reproduction, and I will use gam() here following the models above
 
 # Flowering ---------------------------------------------------------------
-LATR_flow_dat <- LATR %>% select(vol_t,total.reproduction_t,d.stand,unique.transect) %>% drop_na() %>% 
-  mutate(log_vol_t = log(vol_t))
+# populate year t of 2017-2018 transition year (there are no 2018 data but this way we get all four years in the reproduction models)
+# I'll do this by creating the 2017-18 data as a stand-alone df then bind rows
+LATR_flow_dat_201718 <- LATR_full[LATR_full$year_t==2016 & LATR_full$survival_t1==1,]
+## these are the 2017 survivors. Make their year t demography last year's data
+LATR_flow_dat_201718$year_t<-2017;LATR_flow_dat_201718$year_t1<-2018
+LATR_flow_dat_201718$max.ht_t<-LATR_flow_dat_201718$max.ht_t1
+LATR_flow_dat_201718$max.w_t<-LATR_flow_dat_201718$max.w_t1
+LATR_flow_dat_201718$volume_t<-LATR_flow_dat_201718$volume_t1
+LATR_flow_dat_201718$perp.w_t<-LATR_flow_dat_201718$perp.w_t1
+LATR_flow_dat_201718$flowers_t<-LATR_flow_dat_201718$flowers_t1
+LATR_flow_dat_201718$fruits_t<-LATR_flow_dat_201718$fruits_t1
+LATR_flow_dat_201718$reproductive_fraction_t<-LATR_flow_dat_201718$reproductive_fraction_t1
+LATR_flow_dat_201718$total.reproduction_t<-LATR_flow_dat_201718$total.reproduction_t1
+## now set all the t1 data to NA
+LATR_flow_dat_201718$max.ht_t1<-NA
+LATR_flow_dat_201718$max.w_t1<-NA
+LATR_flow_dat_201718$volume_t1<-NA
+LATR_flow_dat_201718$perp.w_t1<-NA
+LATR_flow_dat_201718$flowers_t1<-NA
+LATR_flow_dat_201718$fruits_t1<-NA
+LATR_flow_dat_201718$reproductive_fraction_t1<-NA
+LATR_flow_dat_201718$total.reproduction_t1<-NA
+## bind rows
+LATR_flow_dat <- bind_rows(LATR_full,LATR_flow_dat_201718)
+
 LATR_flower <- list()
 LATR_flower[[1]] <-  gam(total.reproduction_t>0 ~ s(log_vol_t) + s(unique.transect,bs="re"),
                    data=LATR_flow_dat, gamma=1.4, family="binomial")
