@@ -424,121 +424,123 @@ dev.off()
 # Flowering ---------------------------------------------------------------
 # populate year t of 2017-2018 transition year (there are no 2018 data but this way we get all four years in the reproduction models)
 # I'll do this by creating the 2017-18 data as a stand-alone df then bind rows
-LATR_flow_dat_201718 <- LATR_full[LATR_full$year_t==2016 & LATR_full$survival_t1==1,]
+LATR_dat_201718 <- LATR_full[LATR_full$year_t==2016 & LATR_full$survival_t1==1,]
 ## these are the 2017 survivors. Make their year t demography last year's data
-LATR_flow_dat_201718$year_t<-2017;LATR_flow_dat_201718$year_t1<-2018
-LATR_flow_dat_201718$max.ht_t<-LATR_flow_dat_201718$max.ht_t1
-LATR_flow_dat_201718$max.w_t<-LATR_flow_dat_201718$max.w_t1
-LATR_flow_dat_201718$volume_t<-LATR_flow_dat_201718$volume_t1
-LATR_flow_dat_201718$perp.w_t<-LATR_flow_dat_201718$perp.w_t1
-LATR_flow_dat_201718$flowers_t<-LATR_flow_dat_201718$flowers_t1
-LATR_flow_dat_201718$fruits_t<-LATR_flow_dat_201718$fruits_t1
-LATR_flow_dat_201718$reproductive_fraction_t<-LATR_flow_dat_201718$reproductive_fraction_t1
-LATR_flow_dat_201718$total.reproduction_t<-LATR_flow_dat_201718$total.reproduction_t1
+LATR_dat_201718$year_t<-2017;LATR_dat_201718$year_t1<-2018
+LATR_dat_201718$max.ht_t<-LATR_dat_201718$max.ht_t1
+LATR_dat_201718$max.w_t<-LATR_dat_201718$max.w_t1
+LATR_dat_201718$volume_t<-LATR_dat_201718$volume_t1
+LATR_dat_201718$perp.w_t<-LATR_dat_201718$perp.w_t1
+LATR_dat_201718$flowers_t<-LATR_dat_201718$flowers_t1
+LATR_dat_201718$fruits_t<-LATR_dat_201718$fruits_t1
+LATR_dat_201718$reproductive_fraction_t<-LATR_dat_201718$reproductive_fraction_t1
+LATR_dat_201718$total.reproduction_t<-LATR_dat_201718$total.reproduction_t1
 ## now set all the t1 data to NA
-LATR_flow_dat_201718$max.ht_t1<-NA
-LATR_flow_dat_201718$max.w_t1<-NA
-LATR_flow_dat_201718$volume_t1<-NA
-LATR_flow_dat_201718$perp.w_t1<-NA
-LATR_flow_dat_201718$flowers_t1<-NA
-LATR_flow_dat_201718$fruits_t1<-NA
-LATR_flow_dat_201718$reproductive_fraction_t1<-NA
-LATR_flow_dat_201718$total.reproduction_t1<-NA
+LATR_dat_201718$max.ht_t1<-NA
+LATR_dat_201718$max.w_t1<-NA
+LATR_dat_201718$volume_t1<-NA
+LATR_dat_201718$perp.w_t1<-NA
+LATR_dat_201718$flowers_t1<-NA
+LATR_dat_201718$fruits_t1<-NA
+LATR_dat_201718$reproductive_fraction_t1<-NA
+LATR_dat_201718$total.reproduction_t1<-NA
 ## bind rows
-LATR_flow_dat <- bind_rows(LATR_full,LATR_flow_dat_201718)
+LATR_flow_dat <- bind_rows(LATR_full,LATR_dat_201718) %>% 
+  select(unique.transect,volume_t,total.reproduction_t,d.stand) %>% drop_na()
+## create log_vol as new variables (easier for gams)
+LATR_flow_dat$log_volume_t <- log(LATR_flow_dat$volume_t)
 
 LATR_flower <- list()
-LATR_flower[[1]] <-  gam(total.reproduction_t>0 ~ s(log_vol_t) + s(unique.transect,bs="re"),
+LATR_flower[[1]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(unique.transect,bs="re"),
                    data=LATR_flow_dat, gamma=1.4, family="binomial")
-LATR_flower[[2]] <-  gam(total.reproduction_t>0 ~ s(log_vol_t) + s(d.stand) + s(unique.transect,bs="re"),
+LATR_flower[[2]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(d.stand) + s(unique.transect,bs="re"),
                          data=LATR_flow_dat, gamma=1.4, family="binomial")
-LATR_flower[[3]] <-  gam(total.reproduction_t>0 ~ s(log_vol_t) + s(d.stand) + d.stand:log(vol_t)  + s(unique.transect,bs="re"),
+LATR_flower[[3]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(d.stand) + d.stand:log_volume_t  + s(unique.transect,bs="re"),
                          data=LATR_flow_dat, gamma=1.4, family="binomial")
 AICtab(LATR_flower)
-LATR_flower_best <- LATR_flower[[2]]
+LATR_flower_best <- LATR_flower[[3]]
 LATR_flower_fitted_terms = predict(LATR_flower_best,type="terms") 
 LATR_flow_dat$pred = predict.gam(LATR_flower_best,newdata = LATR_flow_dat, exclude = "s(unique.transect)")
 
-##### effect of size on pr(flower) -- simple linear
-plot(LATR_flow_dat$log_vol_t,LATR_flower_fitted_terms[,"s(log_vol_t)"]) 
-gam_size_smooth <- lm(LATR_flower_fitted_terms[,"s(log_vol_t)"]~LATR_flow_dat$log_vol_t)
-abline(coef(gam_size_smooth)[1],coef(gam_size_smooth)[2])
-#### effect of d.stand on pr(flower) -- linear POSITIVE effect of denity
+##### effect of size on pr(flower) -- fairly linear
+plot(LATR_flow_dat$log_volume_t,LATR_flower_fitted_terms[,"s(log_volume_t)"]) 
+#### effect of d.stand on pr(flower) -- linear 
 plot(LATR_flow_dat$d.stand,LATR_flower_fitted_terms[,"s(d.stand)"]) 
 gam_dens_smooth <- lm(LATR_flower_fitted_terms[,"s(d.stand)"]~LATR_flow_dat$d.stand)
 abline(coef(gam_dens_smooth)[1],coef(gam_dens_smooth)[2])
 
-## here is a frankenstein model that I will derive from the gam for prediction
-## easy to do because the smooths are linear
-gam_predict_flower <- function(size,dens){
-  invlogit(coef(LATR_flower_best)[1] + 
-             coef(gam_size_smooth)[1] + coef(gam_size_smooth)[2]*size + 
-             coef(gam_dens_smooth)[1] + coef(gam_dens_smooth)[2]*dens)
-}
-## see how it compares to gam predict --  this works
-plot(LATR_flow_dat$pred,logit(gam_predict_flower(LATR_flow_dat$log_vol_t,LATR_flow_dat$d.stand)))
-
-n_cuts_dens <- 8
+## visualize data + model
+n_cuts_dens <- 6
 n_cuts_size <- 4
 LATR_flow_dat %>% 
-  mutate(size_bin = as.integer(cut_number(log_vol_t,n_cuts_size)),
+  mutate(size_bin = as.integer(cut_number(log_volume_t,n_cuts_size)),
          dens_bin = as.integer(cut_number(d.stand,n_cuts_dens))) %>% 
   group_by(size_bin,dens_bin) %>% 
-  mutate(mean_size = mean(log_vol_t),
+  summarise(mean_size = mean(log_volume_t),
          mean_density = mean(d.stand),
          mean_flower = mean(total.reproduction_t > 0),
          pred_flower = mean(pred),
          bin_n = n()) -> LATR_flow_dat_plot
 
-d_dummy <- seq(min(LATR_flow_dat_plot$d.stand),max(LATR_flow_dat_plot$d.stand),0.1)
-plot(LATR_flow_dat_plot$mean_density,LATR_flow_dat_plot$total.reproduction_t>0,type="n",
+## generate predictions for plotting
+size_means_flow <- LATR_flow_dat_plot %>% group_by(size_bin) %>% summarise(mean_size=mean(mean_size))
+LATR_flow_pred <- data.frame(
+  d.stand = rep(seq(min(LATR_flow_dat$d.stand),max(LATR_flow_dat$d.stand),length.out = 20),times=n_cuts_size),
+  log_volume_t = rep(size_means_flow$mean_size,each=20),
+  unique.transect=1,
+  size_bin = rep(size_means_flow$size_bin,each=20)
+)
+LATR_flow_pred$pred <- predict.gam(LATR_flower_best,newdata = LATR_flow_pred, exclude = "s(unique.transect)")
+
+plot(LATR_flow_dat_plot$mean_density,LATR_flow_dat_plot$mean_flower,type="n",ylim=c(0,1),
      xlab="Weighted density",ylab="Pr(Flowering)")
 for(i in 1:n_cuts_size){
   points(LATR_flow_dat_plot$mean_density[LATR_flow_dat_plot$size_bin==i],
          LATR_flow_dat_plot$mean_flower[LATR_flow_dat_plot$size_bin==i],pch=16,col=i,
          cex=(LATR_flow_dat_plot$bin_n[LATR_flow_dat_plot$size_bin==i]/max(LATR_flow_dat_plot$bin_n))*3)
-  lines(d_dummy,
-      gam_predict_flower(mean(LATR_flow_dat_plot$log_vol_t[LATR_flow_dat_plot$size_bin==i]),d_dummy),col=i)
+  lines(LATR_flow_pred$d.stand[LATR_flow_pred$size_bin==i],
+      invlogit(LATR_flow_pred$pred[LATR_flow_pred$size_bin==i]),col=i)
 }
 
 # Fruit production --------------------------------------------------------
 LATR_fruits_dat <- subset(LATR_flow_dat,total.reproduction_t>0)
 LATR_fruits <- list()
-LATR_fruits[[1]] <-  gam(total.reproduction_t ~ s(log_vol_t) + s(unique.transect,bs="re"),
+LATR_fruits[[1]] <-  gam(total.reproduction_t ~ s(log_volume_t) + s(unique.transect,bs="re"),
                          data=LATR_fruits_dat, gamma=1.4, family="nb")
-LATR_fruits[[2]] <-  gam(total.reproduction_t ~ s(log_vol_t) + s(d.stand) + s(unique.transect,bs="re"),
+LATR_fruits[[2]] <-  gam(total.reproduction_t ~ s(log_volume_t) + s(d.stand) + s(unique.transect,bs="re"),
                          data=LATR_fruits_dat, gamma=1.4, family="nb")
-LATR_fruits[[3]] <-  gam(total.reproduction_t ~ s(log_vol_t) + s(d.stand) + d.stand:log(vol_t)  + s(unique.transect,bs="re"),
+LATR_fruits[[3]] <-  gam(total.reproduction_t ~ s(log_volume_t) + s(d.stand) + d.stand:log_volume_t  + s(unique.transect,bs="re"),
                          data=LATR_fruits_dat, gamma=1.4, family="nb")
 AICtab(LATR_fruits)
 LATR_fruits_best <- LATR_fruits[[2]]
 LATR_fruits_fitted_terms = predict(LATR_fruits_best,type="terms") 
 LATR_fruits_dat$pred = predict.gam(LATR_fruits_best,newdata = LATR_fruits_dat,exclude="s(unique.transect)")
 
-##### effect of size on pr(flower) -- a bit of a kink
-plot(LATR_fruits_dat$log_vol_t,LATR_fruits_fitted_terms[,"s(log_vol_t)"]) 
-#### effect of d.stand on pr(flower) -- funky
+##### effect of size on pr(flower) -- linear, positive
+plot(LATR_fruits_dat$log_volume_t,LATR_fruits_fitted_terms[,"s(log_volume_t)"]) 
+#### effect of d.stand on pr(flower) -- negative, a bit of a kink
 plot(LATR_fruits_dat$d.stand,LATR_fruits_fitted_terms[,"s(d.stand)"]) 
 
 LATR_fruits_dat %>% 
-  mutate(size_bin = as.integer(cut_number(log_vol_t,n_cuts_size)),
+  mutate(size_bin = as.integer(cut_number(log_volume_t,n_cuts_size)),
          dens_bin = as.integer(cut_number(d.stand,n_cuts_dens))) %>% 
   group_by(size_bin,dens_bin) %>% 
-  mutate(mean_size = mean(log_vol_t),
+  summarise(mean_size = mean(log_volume_t),
          mean_density = mean(d.stand),
          mean_fruits = mean(total.reproduction_t),
          pred_fruits = mean(pred),
          bin_n = n()) -> LATR_fruits_dat_plot
 
 ## new data set for gam prediction
-fruits_newd <- data.frame(
-  size_bin = rep(1:n_cuts_size,each=length(d_dummy)),
-  log_vol_t = rep(aggregate(log_vol_t ~ size_bin, data=LATR_fruits_dat_plot, mean)$log_vol_t,
-                  each=length(d_dummy)),
-  d.stand = rep(d_dummy,times=n_cuts_size),
-  unique.transect = "transect"
+size_means_fruit <- LATR_fruits_dat_plot %>% group_by(size_bin) %>% summarise(mean_size=mean(mean_size))
+LATR_fruit_pred <- data.frame(
+  d.stand = rep(seq(min(LATR_fruits_dat$d.stand),max(LATR_fruits_dat$d.stand),length.out = 20),times=n_cuts_size),
+  log_volume_t = rep(size_means_fruit$mean_size,each=20),
+  unique.transect=1,
+  size_bin = rep(size_means_fruit$size_bin,each=20)
 )
-fruits_newd$pred <- predict.gam(LATR_fruits_best,newdata = fruits_newd, exclude = "s(unique.transect)")
+LATR_fruit_pred$pred <- predict.gam(LATR_fruits_best,newdata = LATR_fruit_pred, exclude = "s(unique.transect)")
+
 
 plot(LATR_fruits_dat_plot$mean_density,LATR_fruits_dat_plot$mean_fruits,type="n",
      xlab="Weighted density",ylab="Flowers and Fruits")
@@ -546,8 +548,8 @@ for(i in 1:n_cuts_size){
   points(LATR_fruits_dat_plot$mean_density[LATR_fruits_dat_plot$size_bin==i],
          LATR_fruits_dat_plot$mean_fruits[LATR_fruits_dat_plot$size_bin==i],pch=16,col=i,
          cex=(LATR_fruits_dat_plot$bin_n[LATR_fruits_dat_plot$size_bin==i]/max(LATR_fruits_dat_plot$bin_n))*3)
-  lines(fruits_newd$d.stand[fruits_newd$size_bin==i],
-        exp(fruits_newd$pred[fruits_newd$size_bin==i]),col=i)
+  lines(LATR_fruit_pred$d.stand[LATR_fruit_pred$size_bin==i],
+        exp(LATR_fruit_pred$pred[LATR_fruit_pred$size_bin==i]),col=i)
 }
 
 
