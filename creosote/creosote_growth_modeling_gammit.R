@@ -557,12 +557,15 @@ for(i in 1:n_cuts_size){
 # read in transplant experiment and merge with obs data
 # Combine transplants with large shrubs for later survival analysis
 # Keep only location info, survival, volume, and density
-CData.Transplants<-read.csv("CData.Transplants.csv") %>% 
+CData.Transplants<-read.csv("CData.Transplants.csv")%>% 
   select("site", "transect", "actual.window", 
        "spring_survival_t1", "volume_t", "weighted.dens", "transplant") %>% 
   rename("survival_t1" = "spring_survival_t1") %>% 
-  rbind(select(LATR, "site", "transect", "actual.window", 
-               "survival_t1", "volume_t", "weighted.dens", "transplant")) -> LATR_surv_dat
+  mutate(d.stand = (weighted.dens - mean(weighted.dens, na.rm = TRUE)) / sd(weighted.dens, na.rm = TRUE),
+         unique.transect = interaction(transect, site)) %>% 
+  rbind(select(LATR_full, "site", "transect", "actual.window", 
+               "survival_t1", "volume_t", "weighted.dens", "transplant","d.stand","unique.transect")) %>% 
+  mutate(log_volume_t = log(volume_t))-> LATR_surv_dat
 
 ## how much size overlap do we have between transplant experiment and observational census?
 hist(log(LATR_surv_dat$volume_t[LATR_surv_dat$transplant==F]))
@@ -570,3 +573,23 @@ hist(log(LATR_surv_dat$volume_t[LATR_surv_dat$transplant==T]),add=T,col=alpha("g
 
 plot(log(LATR_surv_dat$volume_t[LATR_surv_dat$transplant==F]),
      LATR_surv_dat$survival_t1[LATR_surv_dat$transplant==F])
+points(log(LATR_surv_dat$volume_t[LATR_surv_dat$transplant==T]),
+       LATR_surv_dat$survival_t1[LATR_surv_dat$transplant==T]-0.025,pch=2)
+
+LATR_surv <- list()
+LATR_surv[[1]] <-  gam(survival_t1 ~ s(log_volume_t) + transplant + s(unique.transect,bs="re"),
+                         data=LATR_surv_dat, gamma=1.4, family="binomial")
+LATR_surv[[2]] <-  gam(survival_t1 ~ s(log_volume_t) + s(d.stand)  + transplant + s(unique.transect,bs="re"),
+                       data=LATR_surv_dat, gamma=1.4, family="binomial")
+LATR_surv[[3]] <-  gam(survival_t1 ~ s(log_volume_t) + s(d.stand) + transplant + d.stand:log_volume_t + s(unique.transect,bs="re"),
+                       data=LATR_surv_dat, gamma=1.4, family="binomial")
+AICtab(LATR_surv)
+LATR_surv_best <- LATR_surv[[2]]
+LATR_surv_fitted_terms = predict(LATR_surv_best,type="terms") 
+LATR_surv_dat$pred = predict.gam(LATR_surv_best,newdata = LATR_surv_dat,exclude="s(unique.transect)")
+
+##### effect of size on pr(flower) -- linear, positive
+plot(LATR_surv_dat$log_volume_t,LATR_surv_fitted_terms[,"s(log_volume_t)"]) 
+#### effect of d.stand on pr(flower) -- negative, a bit of a kink
+plot(LATR_fruits_dat$d.stand,LATR_fruits_fitted_terms[,"s(d.stand)"]) 
+
