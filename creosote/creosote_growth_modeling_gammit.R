@@ -84,12 +84,9 @@ for(mod in 7:9) {
 }
 
 AICtab(LATR_gam_models) 
-## Model 2 is the winner: mean ~ s(size) + s(density), sd ~ s(size)
-## It surprises me that initial size was the better covariate than initial value, because I expected the
-## additional effect of density to affect sigma. But maybe size and density are correlated.
-plot(LATR$d.stand,LATR$log_volume_t) ## yes, they are - onward
+## Model 5 is the winner: mean ~ s(size) + s(density), sd ~ s(size) + s(density)
 
-## define models 2 as our best Gaussian model
+## define models 5 as our best Gaussian model
 LATR_gam_model <- LATR_gam_models[[5]]
 LATR$fitted_vals = new_fitted_vals
 ## extract the linear predictor for the mean -- we'll use this later
@@ -152,28 +149,27 @@ select_dist %>%
             best_dist = unique(best_dist),
             secondbest_dist = unique(secondbest_dist),
             aic_margin = unique(aic_margin))
-## TF and LO pop up a lot, but for the smallest bin it seems like a skewed distribution is best
 ## Going ahead with ST1, which can hopefully get both the skew and kurtosis
-## Noteworthy that the normal is not supported (except last bin)
 
 ## visualize ST1 parameters in relation to fitted value by bin
 LATR_bin_fit <-LATR %>% 
-  mutate(init_size = log(LATR$vol_t),
+  mutate(init_size = LATR$log_volume_t,
          bin = as.integer(cut_number(init_size,n_bins)),
          dens_bin = as.integer(cut_number(d.stand,2))) %>% 
   mutate(mu_lowdens=NA,sigma_lowdens=NA,nu_lowdens=NA,tau_lowdens=NA,
          mu_highdens=NA,sigma_highdens=NA,nu_highdens=NA,tau_highdens=NA)
 for(b in 1:n_bins){
-  bin_fit_lowdens <- gamlssMaxlik(y=log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b & LATR_bin_fit$dens_bin==1]),DIST="ST1")
-  bin_fit_highdens <- gamlssMaxlik(y=log(LATR_bin_fit$vol_t1[LATR_bin_fit$bin==b & LATR_bin_fit$dens_bin==2]),DIST="ST1")
-  LATR_bin_fit$mu_lowdens[LATR_bin_fit$bin==b] <- bin_fit_lowdens$out[[1]]$estimate["eta.mu"] ## identity link
-  LATR_bin_fit$sigma_lowdens[LATR_bin_fit$bin==b] <- exp(bin_fit_lowdens$out[[1]]$estimate["eta.sigma"]) ## log link
-  LATR_bin_fit$nu_lowdens[LATR_bin_fit$bin==b] <- (bin_fit_lowdens$out[[1]]$estimate["eta.nu"]) ## identity link
-  LATR_bin_fit$tau_lowdens[LATR_bin_fit$bin==b] <- exp(bin_fit_lowdens$out[[1]]$estimate["eta.tau"]) ## log link
-  LATR_bin_fit$mu_highdens[LATR_bin_fit$bin==b] <- bin_fit_highdens$out[[1]]$estimate["eta.mu"] ## identity link
-  LATR_bin_fit$sigma_highdens[LATR_bin_fit$bin==b] <- exp(bin_fit_highdens$out[[1]]$estimate["eta.sigma"]) ## log link
-  LATR_bin_fit$nu_highdens[LATR_bin_fit$bin==b] <- (bin_fit_highdens$out[[1]]$estimate["eta.nu"]) ## identity link
-  LATR_bin_fit$tau_highdens[LATR_bin_fit$bin==b] <- exp(bin_fit_highdens$out[[1]]$estimate["eta.tau"]) ## log link
+  bin_fit_lowdens <- gamlssMaxlik(y=LATR_bin_fit$log_volume_t1[LATR_bin_fit$bin==b & LATR_bin_fit$dens_bin==1],DIST="ST1")
+  bin_fit_highdens <- gamlssMaxlik(y=LATR_bin_fit$log_volume_t1[LATR_bin_fit$bin==b & LATR_bin_fit$dens_bin==2],DIST="ST1")
+  ## ST1 links are identity-log-identity-log
+  LATR_bin_fit$mu_lowdens[LATR_bin_fit$bin==b] <- bin_fit_lowdens$out[[1]]$estimate["eta.mu"] 
+  LATR_bin_fit$sigma_lowdens[LATR_bin_fit$bin==b] <- exp(bin_fit_lowdens$out[[1]]$estimate["eta.sigma"])
+  LATR_bin_fit$nu_lowdens[LATR_bin_fit$bin==b] <- (bin_fit_lowdens$out[[1]]$estimate["eta.nu"]) 
+  LATR_bin_fit$tau_lowdens[LATR_bin_fit$bin==b] <- exp(bin_fit_lowdens$out[[1]]$estimate["eta.tau"]) 
+  LATR_bin_fit$mu_highdens[LATR_bin_fit$bin==b] <- bin_fit_highdens$out[[1]]$estimate["eta.mu"] 
+  LATR_bin_fit$sigma_highdens[LATR_bin_fit$bin==b] <- exp(bin_fit_highdens$out[[1]]$estimate["eta.sigma"]) 
+  LATR_bin_fit$nu_highdens[LATR_bin_fit$bin==b] <- (bin_fit_highdens$out[[1]]$estimate["eta.nu"]) 
+  LATR_bin_fit$tau_highdens[LATR_bin_fit$bin==b] <- exp(bin_fit_highdens$out[[1]]$estimate["eta.tau"]) 
   }
 LATR_bin_fit %>% 
   group_by(bin) %>% 
@@ -188,26 +184,23 @@ LATR_bin_fit %>%
             nu_highdens=unique(nu_highdens),
             tau_highdens=unique(tau_highdens)) -> LATR_bin_fit
 
-pdf("../manuscript/figures/creosote_binned_LO.pdf",height = 5,width = 10,useDingbats = F)
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);
 plot(LATR_bin_fit$mean_size,LATR_bin_fit$mu_lowdens,xlab="Initial size",ylab=expression(paste("ST parameter  ", mu )),type="b",pch=1)
 points(LATR_bin_fit$mean_size,LATR_bin_fit$mu_highdens,type="b",pch=16)
 
-plot(LATR_bin_fit$mean_size,LATR_bin_fit$sigma_highdens,xlab="Initial size",
-     ylab=expression(paste("ST  parameter  ", sigma)),type="b",pch=16)
-points(LATR_bin_fit$mean_size,LATR_bin_fit$sigma_lowdens,type="b",pch=1)
+plot(LATR_bin_fit$mean_size,LATR_bin_fit$sigma_lowdens,xlab="Initial size",
+     ylab=expression(paste("ST  parameter  ", sigma)),type="b",pch=1)
+points(LATR_bin_fit$mean_size,LATR_bin_fit$sigma_highdens,type="b",pch=16)
 
-plot(LATR_bin_fit$mean_size,LATR_bin_fit$nu_highdens,xlab="Initial size",
-     ylab=expression(paste("ST  parameter  ", nu)),type="b",pch=16)
-points(LATR_bin_fit$mean_size,LATR_bin_fit$nu_lowdens,type="b",pch=1)
+plot(LATR_bin_fit$mean_size,LATR_bin_fit$nu_lowdens,xlab="Initial size",
+     ylab=expression(paste("ST  parameter  ", nu)),type="b",pch=1,ylim=c(-20,20))
+points(LATR_bin_fit$mean_size,LATR_bin_fit$nu_highdens,type="b",pch=16)
 
 plot(LATR_bin_fit$mean_size,LATR_bin_fit$tau_highdens,xlab="Initial size",
-     ylab=expression(paste("ST  parameter  ", tau)),type="b",pch=16)
+     ylab=expression(paste("ST  parameter  ", tau)),type="b",pch=16,ylim=c(-20,50))
 points(LATR_bin_fit$mean_size,LATR_bin_fit$tau_lowdens,xlab="Initial size",
      ylab=expression(paste("ST  parameter  ", tau)),type="b",pch=1)
-
-dev.off()
-
+## nu and tau have some weirdly unstable values
 
 # Fitting the final model -------------------------------------------------
 ## we will use the design matrix from gam() to fit the linear predictor
@@ -469,8 +462,6 @@ LATR_flow_dat$pred = predict.gam(LATR_flower_best,newdata = LATR_flow_dat, exclu
 plot(LATR_flow_dat$log_volume_t,LATR_flower_fitted_terms[,"s(log_volume_t)"]) 
 #### effect of d.stand on pr(flower) -- linear 
 plot(LATR_flow_dat$d.stand,LATR_flower_fitted_terms[,"s(d.stand)"]) 
-gam_dens_smooth <- lm(LATR_flower_fitted_terms[,"s(d.stand)"]~LATR_flow_dat$d.stand)
-abline(coef(gam_dens_smooth)[1],coef(gam_dens_smooth)[2])
 
 ## visualize data + model
 n_cuts_dens <- 6
@@ -596,4 +587,60 @@ LATR_surv_dat$pred = predict.gam(LATR_surv_best,newdata = LATR_surv_dat,exclude=
 plot(LATR_surv_dat$log_volume_t,LATR_surv_fitted_terms[,"s(log_volume_t)"]) 
 #### effect of d.stand on pr(flower) -- negative, a bit of a kink
 plot(LATR_surv_dat$d.stand,LATR_surv_fitted_terms[,"s(d.stand)"]) 
+
+## visualize data + model -- this is for the natural census
+n_cuts_dens <- 4
+n_cuts_size <- 4
+LATR_surv_dat %>% 
+  filter(transplant==F) %>% 
+  mutate(size_bin = as.integer(cut_interval(log_volume_t,n_cuts_size)),
+         dens_bin = as.integer(cut_interval(d.stand,n_cuts_dens))) %>% 
+  group_by(size_bin,dens_bin) %>% 
+  summarise(mean_size = mean(log_volume_t),
+            mean_density = mean(d.stand),
+            mean_surv = mean(survival_t1),
+            pred_surv = mean(pred),
+            bin_n = n()) -> LATR_surv_nat_plot
+
+## generate predictions for plotting
+size_means_surv_nat <- LATR_surv_nat_plot %>% group_by(size_bin) %>% summarise(mean_size=mean(mean_size))
+LATR_surv_nat_pred <- data.frame(
+  d.stand = rep(seq(min(LATR_surv_nat_plot$mean_density),max(LATR_surv_nat_plot$mean_density),length.out = 20),times=n_cuts_size),
+  log_volume_t = rep(size_means_surv_nat$mean_size,each=20),
+  unique.transect=1,
+  transplant=F,
+  size_bin = rep(size_means_surv_nat$size_bin,each=20)
+)
+LATR_surv_nat_pred$pred <- predict.gam(LATR_surv_best,newdata = LATR_surv_nat_pred, exclude = "s(unique.transect)")
+
+plot(LATR_surv_nat_plot$mean_density,LATR_surv_nat_plot$mean_surv,type="n",ylim=c(0,1),
+     xlab="Weighted density",ylab="Pr(Survival)")
+for(i in 1:n_cuts_size){
+  points(LATR_surv_nat_plot$mean_density[LATR_surv_nat_plot$size_bin==i],
+         LATR_surv_nat_plot$mean_surv[LATR_surv_nat_plot$size_bin==i],pch=16,col=i,
+         cex=(LATR_surv_nat_plot$bin_n[LATR_surv_nat_plot$size_bin==i]/max(LATR_surv_nat_plot$bin_n))*3)
+  lines(LATR_surv_nat_pred$d.stand[LATR_surv_nat_pred$size_bin==i],
+        invlogit(LATR_surv_nat_pred$pred[LATR_surv_nat_pred$size_bin==i]),col=i)
+}
+
+## now transplants
+LATR_surv_dat %>% 
+  filter(transplant==T) %>% 
+  mutate(dens_bin = as.integer(cut_interval(d.stand,n_cuts_dens)),
+         mean_size = mean(log_volume_t)) %>% 
+  group_by(dens_bin) %>% 
+  summarise(mean_size = unique(mean_size),
+            mean_density = mean(d.stand),
+            mean_surv = mean(survival_t1),
+            bin_n = n()) -> LATR_surv_exp_plot
+LATR_surv_exp_pred <- data.frame(
+  d.stand = seq(min(LATR_surv_exp_plot$mean_density),max(LATR_surv_exp_plot$mean_density),length.out = 20),
+  log_volume_t = LATR_surv_exp_plot$mean_size[1],
+  unique.transect=1,
+  transplant=T
+)
+LATR_surv_exp_pred$pred <- predict.gam(LATR_surv_best,newdata = LATR_surv_exp_pred, exclude = "s(unique.transect)")
+
+points(LATR_surv_exp_plot$mean_density,LATR_surv_exp_plot$mean_surv,ylim=c(0,1))
+lines(LATR_surv_exp_pred$d.stand,invlogit(LATR_surv_exp_pred$pred))
 
