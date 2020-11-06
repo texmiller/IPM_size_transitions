@@ -28,7 +28,10 @@ LATR_full <- read.csv("CData.csv") %>%
     #create unique transect as interaction of transect and site
     unique.transect = interaction(transect, site))
 ## prep a data subset for growth that drops rows missing either t or t1 size data
-LATR <- LATR_full  %>% drop_na(volume_t,volume_t1)
+LATR <- LATR_full  %>% drop_na(volume_t,volume_t1) %>% 
+## also create log_volume as a new variable because gam doesn't like functions of variables as variables
+mutate(log_volume_t = log(volume_t),
+       log_volume_t1 = log(volume_t1))
 
 # first look at size transitions
 plot(log(LATR$volume_t),log(LATR$volume_t1))
@@ -40,26 +43,26 @@ plot(log(LATR$volume_t),log(LATR$volume_t1))
 ## three candidates for variance: size only, size+density, fitted value (all the covariates plus rfx)
 LATR_gam_models=list()
 ## Pilot fits, where sigma depends on initial size only
-LATR_gam_models[[1]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(unique.transect,bs="re"), ~s(log(vol_t))), 
+LATR_gam_models[[1]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(unique.transect,bs="re"), ~s(log_volume_t)), 
                             data=LATR, gamma=1.4, family=gaulss())
-LATR_gam_models[[2]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + s(unique.transect,bs="re"), ~s(log(vol_t))), 
+LATR_gam_models[[2]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(d.stand) + s(unique.transect,bs="re"), ~s(log_volume_t)), 
                             data=LATR, gamma=1.4, family=gaulss())                
-LATR_gam_models[[3]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + d.stand:log(vol_t) + s(unique.transect,bs="re"), ~s(log(vol_t))), 
+LATR_gam_models[[3]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(d.stand) + d.stand:log_volume_t + s(unique.transect,bs="re"), ~s(log_volume_t)), 
                             data=LATR, gamma=1.4, family=gaulss())  
 ## Fits where sigma depends on both initial size and density
-LATR_gam_models[[4]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(unique.transect,bs="re"), ~s(log(vol_t)) + s(d.stand)), 
+LATR_gam_models[[4]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(unique.transect,bs="re"), ~s(log_volume_t) + s(d.stand)), 
                             data=LATR, gamma=1.4, family=gaulss())
-LATR_gam_models[[5]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + s(unique.transect,bs="re"), ~s(log(vol_t)) + s(d.stand)), 
+LATR_gam_models[[5]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(d.stand) + s(unique.transect,bs="re"), ~s(log_volume_t) + s(d.stand)), 
                             data=LATR, gamma=1.4, family=gaulss())                
-LATR_gam_models[[6]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + d.stand:log(vol_t) + s(unique.transect,bs="re"), ~s(log(vol_t)) + s(d.stand)), 
+LATR_gam_models[[6]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(d.stand) + d.stand:log_volume_t + s(unique.transect,bs="re"), ~s(log_volume_t) + s(d.stand)), 
                             data=LATR, gamma=1.4, family=gaulss()) 
 ## these models will be iterated to fit sigma as f(fitted value)
-LATR$fitted_vals = log(LATR$vol_t); 
-LATR_gam_models[[7]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+LATR$fitted_vals = LATR$log_volume_t 
+LATR_gam_models[[7]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
                             data=LATR, gamma=1.4, family=gaulss())
-LATR_gam_models[[8]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+LATR_gam_models[[8]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(d.stand) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
                             data=LATR, gamma=1.4, family=gaulss())                
-LATR_gam_models[[9]] <- gam(list(log(vol_t1) ~s(log(vol_t)) + s(d.stand) + d.stand:log(vol_t) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+LATR_gam_models[[9]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(d.stand) + d.stand:log_volume_t + s(unique.transect,bs="re"), ~s(fitted_vals)), 
                             data=LATR, gamma=1.4, family=gaulss())  
 for(mod in 7:9) {
   fitGAU = LATR_gam_models[[mod]]
@@ -84,7 +87,7 @@ AICtab(LATR_gam_models)
 ## Model 2 is the winner: mean ~ s(size) + s(density), sd ~ s(size)
 ## It surprises me that initial size was the better covariate than initial value, because I expected the
 ## additional effect of density to affect sigma. But maybe size and density are correlated.
-plot(LATR$d.stand,log(LATR$vol_t)) ## yes, they are - onward
+plot(LATR$d.stand,LATR$log_volume_t) ## yes, they are - onward
 
 ## define models 2 as our best Gaussian model
 LATR_gam_model <- LATR_gam_models[[5]]
@@ -97,12 +100,12 @@ LATR_Xp <- predict.gam(LATR_gam_model,type="lpmatrix")
 fitted_terms = predict(LATR_gam_model,type="terms")  
 
 ##### effect of initial size on mean of final size 
-plot(log(LATR$vol_t), fitted_terms[,"s(log(vol_t))"]) 
+plot(LATR$log_volume_t, fitted_terms[,"s(log_volume_t)"]) 
 ##### effect of d.stand on mean of final size 
 plot(LATR$d.stand, fitted_terms[,"s(d.stand)"]); ## complicated 
 
 ##### sigma versus size - presumably log scale
-plot(log(LATR$vol_t), fitted_terms[,"s.1(log(vol_t))"]) 
+plot(LATR$log_volume_t, fitted_terms[,"s.1(log_volume_t)"]) 
 ##### sigma versus density 
 plot(LATR$d.stand, fitted_terms[,"s.1(d.stand)"]) 
 
@@ -130,7 +133,7 @@ z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE)
 
 cand_dist=c("NO","GT","LO","TF","ST1","ST2") ##NET, SEP1, and EGB2 are all highly unstable
 n_bins <- 8
-select_dist <- tibble(init_size = log(LATR$vol_t),
+select_dist <- tibble(init_size = LATR$log_volume_t,
                       scale_resid = scaledResids) %>% 
   mutate(bin = as.integer(cut_number(init_size,n_bins)),
          best_dist = NA,
@@ -565,7 +568,8 @@ CData.Transplants<-read.csv("CData.Transplants.csv")%>%
          unique.transect = interaction(transect, site)) %>% 
   rbind(select(LATR_full, "site", "transect", "actual.window", 
                "survival_t1", "volume_t", "weighted.dens", "transplant","d.stand","unique.transect")) %>% 
-  mutate(log_volume_t = log(volume_t))-> LATR_surv_dat
+  mutate(log_volume_t = log(volume_t)) %>% 
+  drop_na()-> LATR_surv_dat
 
 ## how much size overlap do we have between transplant experiment and observational census?
 hist(log(LATR_surv_dat$volume_t[LATR_surv_dat$transplant==F]))
@@ -591,5 +595,5 @@ LATR_surv_dat$pred = predict.gam(LATR_surv_best,newdata = LATR_surv_dat,exclude=
 ##### effect of size on pr(flower) -- linear, positive
 plot(LATR_surv_dat$log_volume_t,LATR_surv_fitted_terms[,"s(log_volume_t)"]) 
 #### effect of d.stand on pr(flower) -- negative, a bit of a kink
-plot(LATR_fruits_dat$d.stand,LATR_fruits_fitted_terms[,"s(d.stand)"]) 
+plot(LATR_surv_dat$d.stand,LATR_surv_fitted_terms[,"s(d.stand)"]) 
 
