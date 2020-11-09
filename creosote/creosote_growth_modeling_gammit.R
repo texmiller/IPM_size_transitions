@@ -23,18 +23,18 @@ source("../fitChosenDists.R")
 ## read in data for Larrea tridentata (LATR) -- derived data frame generated here: https://github.com/TrevorHD/LTEncroachment/blob/master/04_CDataPrep.R (line 261)
 LATR_full <- read.csv("CData.csv") %>% 
   #calculate volume
-  mutate(#standardize weighted density to mean zero
-    d.stand = (weighted.dens - mean(weighted.dens, na.rm = TRUE)) / sd(weighted.dens, na.rm = TRUE),
+  mutate(#standardize weighted density to mean zero -- dropping this bc different data subsets woudl have different values
+    #d.stand = (weighted.dens - mean(weighted.dens, na.rm = TRUE)) / sd(weighted.dens, na.rm = TRUE),
     #create unique transect as interaction of transect and site
     unique.transect = interaction(transect, site))
 ## prep a data subset for growth that drops rows missing either t or t1 size data
-LATR <- LATR_full  %>% drop_na(volume_t,volume_t1) %>% 
+LATR_grow <- LATR_full  %>% drop_na(volume_t,volume_t1) %>% 
 ## also create log_volume as a new variable because gam doesn't like functions of variables as variables
 mutate(log_volume_t = log(volume_t),
        log_volume_t1 = log(volume_t1))
 
 # first look at size transitions
-plot(log(LATR$volume_t),log(LATR$volume_t1))
+plot(log(LATR_grow$volume_t),log(LATR_grow$volume_t1))
 
 ############################################################################
 # Gaussian fits and model selection using mgcv 
@@ -44,26 +44,26 @@ plot(log(LATR$volume_t),log(LATR$volume_t1))
 LATR_gam_models=list()
 ## Pilot fits, where sigma depends on initial size only
 LATR_gam_models[[1]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(unique.transect,bs="re"), ~s(log_volume_t)), 
-                            data=LATR, gamma=1.4, family=gaulss())
-LATR_gam_models[[2]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(d.stand) + s(unique.transect,bs="re"), ~s(log_volume_t)), 
-                            data=LATR, gamma=1.4, family=gaulss())                
-LATR_gam_models[[3]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(d.stand) + d.stand:log_volume_t + s(unique.transect,bs="re"), ~s(log_volume_t)), 
-                            data=LATR, gamma=1.4, family=gaulss())  
+                            data=LATR_grow, gamma=1.4, family=gaulss())
+LATR_gam_models[[2]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(weighted.dens) + s(unique.transect,bs="re"), ~s(log_volume_t)), 
+                            data=LATR_grow, gamma=1.4, family=gaulss())                
+LATR_gam_models[[3]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(weighted.dens) + weighted.dens:log_volume_t + s(unique.transect,bs="re"), ~s(log_volume_t)), 
+                            data=LATR_grow, gamma=1.4, family=gaulss())  
 ## Fits where sigma depends on both initial size and density
-LATR_gam_models[[4]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(unique.transect,bs="re"), ~s(log_volume_t) + s(d.stand)), 
-                            data=LATR, gamma=1.4, family=gaulss())
-LATR_gam_models[[5]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(d.stand) + s(unique.transect,bs="re"), ~s(log_volume_t) + s(d.stand)), 
-                            data=LATR, gamma=1.4, family=gaulss())                
-LATR_gam_models[[6]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(d.stand) + d.stand:log_volume_t + s(unique.transect,bs="re"), ~s(log_volume_t) + s(d.stand)), 
-                            data=LATR, gamma=1.4, family=gaulss()) 
+LATR_gam_models[[4]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(unique.transect,bs="re"), ~s(log_volume_t) + s(weighted.dens)), 
+                            data=LATR_grow, gamma=1.4, family=gaulss())
+LATR_gam_models[[5]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(weighted.dens) + s(unique.transect,bs="re"), ~s(log_volume_t) + s(weighted.dens)), 
+                            data=LATR_grow, gamma=1.4, family=gaulss())                
+LATR_gam_models[[6]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(weighted.dens) + weighted.dens:log_volume_t + s(unique.transect,bs="re"), ~s(log_volume_t) + s(weighted.dens)), 
+                            data=LATR_grow, gamma=1.4, family=gaulss()) 
 ## these models will be iterated to fit sigma as f(fitted value)
-LATR$fitted_vals = LATR$log_volume_t 
+LATR_grow$fitted_vals = LATR_grow$log_volume_t 
 LATR_gam_models[[7]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
-                            data=LATR, gamma=1.4, family=gaulss())
-LATR_gam_models[[8]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(d.stand) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
-                            data=LATR, gamma=1.4, family=gaulss())                
-LATR_gam_models[[9]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(d.stand) + d.stand:log_volume_t + s(unique.transect,bs="re"), ~s(fitted_vals)), 
-                            data=LATR, gamma=1.4, family=gaulss())  
+                            data=LATR_grow, gamma=1.4, family=gaulss())
+LATR_gam_models[[8]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(weighted.dens) + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+                            data=LATR_grow, gamma=1.4, family=gaulss())                
+LATR_gam_models[[9]] <- gam(list(log_volume_t1 ~s(log_volume_t) + s(weighted.dens) + weighted.dens:log_volume_t + s(unique.transect,bs="re"), ~s(fitted_vals)), 
+                            data=LATR_grow, gamma=1.4, family=gaulss())  
 for(mod in 7:9) {
   fitGAU = LATR_gam_models[[mod]]
   fitted_all = predict(fitGAU,type="response",data=LATR);                  
@@ -72,9 +72,9 @@ for(mod in 7:9) {
 
   err=100; k=0; 
   while(err>10^(-6)) {
-    LATR$fitted_vals = new_fitted_vals; 
+    LATR_grow$fitted_vals = new_fitted_vals; 
     fitGAU <- update(fitGAU); 
-    fitted_all = predict(fitGAU,type="response",data=LATR);   
+    fitted_all = predict(fitGAU,type="response",data=LATR_grow);   
     new_fitted_vals = fitted_all[,1]; new_weights = fitted_all[,2];
     err = weights - new_weights; err=sqrt(mean(err^2)); 
     weights = new_weights; 
@@ -88,7 +88,7 @@ AICtab(LATR_gam_models)
 
 ## define models 5 as our best Gaussian model
 LATR_gam_model <- LATR_gam_models[[5]]
-LATR$fitted_vals = new_fitted_vals
+LATR_grow$fitted_vals = new_fitted_vals
 ## extract the linear predictor for the mean -- we'll use this later
 LATR_Xp <- predict.gam(LATR_gam_model,type="lpmatrix")
 ##################################################################  
@@ -97,14 +97,14 @@ LATR_Xp <- predict.gam(LATR_gam_model,type="lpmatrix")
 fitted_terms = predict(LATR_gam_model,type="terms")  
 
 ##### effect of initial size on mean of final size 
-plot(LATR$log_volume_t, fitted_terms[,"s(log_volume_t)"]) 
-##### effect of d.stand on mean of final size 
-plot(LATR$d.stand, fitted_terms[,"s(d.stand)"]); ## complicated 
+plot(LATR_grow$log_volume_t, fitted_terms[,"s(log_volume_t)"]) 
+##### effect of weighted.dens on mean of final size 
+plot(LATR_grow$weighted.dens, fitted_terms[,"s(weighted.dens)"]); ## complicated 
 
 ##### sigma versus size - presumably log scale
-plot(LATR$log_volume_t, fitted_terms[,"s.1(log_volume_t)"]) 
+plot(LATR_grow$log_volume_t, fitted_terms[,"s.1(log_volume_t)"]) 
 ##### sigma versus density 
-plot(LATR$d.stand, fitted_terms[,"s.1(d.stand)"]) 
+plot(LATR_grow$weighted.dens, fitted_terms[,"s.1(weighted.dens)"]) 
 
 ##################################################################  
 # Inspect scaled residuals to evaluate the pilot model: FAILS 
@@ -121,7 +121,7 @@ anscombe.test(scaledResids) # kurtosis: FAILS, P < 0.001
 agostino.test(scaledResids) # skewness: FAILS, P<0.001 
 
 ######## rolling NP moments diagnostic: skew is small but variable, tails are fat. 
-px = LATR$fitted_vals; py=scaledResids; 
+px = LATR_grow$fitted_vals; py=scaledResids; 
 z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE) 
 
 ################################################################################
@@ -130,7 +130,7 @@ z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE)
 
 cand_dist=c("NO","GT","LO","TF","ST1","ST2") ##NET, SEP1, and EGB2 are all highly unstable
 n_bins <- 8
-select_dist <- tibble(init_size = LATR$log_volume_t,
+select_dist <- tibble(init_size = LATR_grow$log_volume_t,
                       scale_resid = scaledResids) %>% 
   mutate(bin = as.integer(cut_number(init_size,n_bins)),
          best_dist = NA,
@@ -152,10 +152,10 @@ select_dist %>%
 ## Going ahead with ST1, which can hopefully get both the skew and kurtosis
 
 ## visualize ST1 parameters in relation to fitted value by bin
-LATR_bin_fit <-LATR %>% 
-  mutate(init_size = LATR$log_volume_t,
+LATR_bin_fit <-LATR_grow %>% 
+  mutate(init_size = log_volume_t,
          bin = as.integer(cut_number(init_size,n_bins)),
-         dens_bin = as.integer(cut_number(d.stand,2))) %>% 
+         dens_bin = as.integer(cut_number(weighted.dens,2))) %>% 
   mutate(mu_lowdens=NA,sigma_lowdens=NA,nu_lowdens=NA,tau_lowdens=NA,
          mu_highdens=NA,sigma_highdens=NA,nu_highdens=NA,tau_highdens=NA)
 for(b in 1:n_bins){
@@ -220,8 +220,8 @@ LogLik=function(pars,response,U){
   mu = U%*%pars1;  
   val = dST1(x = response, 
             mu=mu,
-            sigma = exp(pars2[1] + pars2[2]*log(LATR$vol_t) + pars2[3]*LATR$d.stand),
-            nu = pars2[4] + pars2[5]*log(LATR$vol_t) + pars2[6]*LATR$d.stand,
+            sigma = exp(pars2[1] + pars2[2]*log(LATR$vol_t) + pars2[3]*LATR_grow$weighted.dens),
+            nu = pars2[4] + pars2[5]*log(LATR$vol_t) + pars2[6]*LATR_grow$weighted.dens,
             tau = exp(pars2[7]),
             log=T) 
   return(val); 
@@ -244,13 +244,13 @@ fit_tau = lm(log(tau_highdens)~1, data=LATR_bin_fit)
 p0=c(fixed_start,c(coef(fit_sigma),0),c(coef(fit_nu),0),coef(fit_tau)) 
 
 for(j in 1:paranoid_iter) {
-  out=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=log(LATR$vol_t1),U=U,
+  out=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=log(LATR_grow$vol_t1),U=U,
              method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
   
-  out=maxLik(logLik=LogLik,start=out$estimate,response=log(LATR$vol_t1),U=U,
+  out=maxLik(logLik=LogLik,start=out$estimate,response=log(LATR_grow$vol_t1),U=U,
              method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
   
-  out=maxLik(logLik=LogLik,start=out$estimate,response=log(LATR$vol_t1),U=U,
+  out=maxLik(logLik=LogLik,start=out$estimate,response=log(LATR_grow$vol_t1),U=U,
              method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
   
   coefs[[j]] = out$estimate; LL[j] = out$maximum;
@@ -258,7 +258,7 @@ for(j in 1:paranoid_iter) {
 }
 
 j = min(which(LL==max(LL))) ## they actually all land on the same likelihood-that's good!
-out=maxLik(logLik=LogLik,start=coefs[[j]],response=log(LATR$vol_t1),U=U,
+out=maxLik(logLik=LogLik,start=coefs[[j]],response=log(LATR_grow$vol_t1),U=U,
            method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE) 
 
 # AIC improvement over gaussian
@@ -442,16 +442,16 @@ LATR_dat_201718$reproductive_fraction_t1<-NA
 LATR_dat_201718$total.reproduction_t1<-NA
 ## bind rows
 LATR_flow_dat <- bind_rows(LATR_full,LATR_dat_201718) %>% 
-  select(unique.transect,volume_t,total.reproduction_t,d.stand) %>% drop_na()
+  select(unique.transect,volume_t,total.reproduction_t,weighted.dens) %>% drop_na()
 ## create log_vol as new variables (easier for gams)
 LATR_flow_dat$log_volume_t <- log(LATR_flow_dat$volume_t)
 
 LATR_flower <- list()
 LATR_flower[[1]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(unique.transect,bs="re"),
                    data=LATR_flow_dat, gamma=1.4, family="binomial")
-LATR_flower[[2]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(d.stand) + s(unique.transect,bs="re"),
+LATR_flower[[2]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(weighted.dens) + s(unique.transect,bs="re"),
                          data=LATR_flow_dat, gamma=1.4, family="binomial")
-LATR_flower[[3]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(d.stand) + d.stand:log_volume_t  + s(unique.transect,bs="re"),
+LATR_flower[[3]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(weighted.dens) + weighted.dens:log_volume_t  + s(unique.transect,bs="re"),
                          data=LATR_flow_dat, gamma=1.4, family="binomial")
 AICtab(LATR_flower)
 LATR_flower_best <- LATR_flower[[3]]
@@ -461,17 +461,17 @@ LATR_flow_dat$pred = predict.gam(LATR_flower_best,newdata = LATR_flow_dat, exclu
 ##### effect of size on pr(flower) -- fairly linear
 plot(LATR_flow_dat$log_volume_t,LATR_flower_fitted_terms[,"s(log_volume_t)"]) 
 #### effect of d.stand on pr(flower) -- linear 
-plot(LATR_flow_dat$d.stand,LATR_flower_fitted_terms[,"s(d.stand)"]) 
+plot(LATR_flow_dat$weighted.dens,LATR_flower_fitted_terms[,"s(weighted.dens)"]) 
 
 ## visualize data + model
 n_cuts_dens <- 6
 n_cuts_size <- 4
 LATR_flow_dat %>% 
   mutate(size_bin = as.integer(cut_number(log_volume_t,n_cuts_size)),
-         dens_bin = as.integer(cut_number(d.stand,n_cuts_dens))) %>% 
+         dens_bin = as.integer(cut_number(weighted.dens,n_cuts_dens))) %>% 
   group_by(size_bin,dens_bin) %>% 
   summarise(mean_size = mean(log_volume_t),
-         mean_density = mean(d.stand),
+         mean_density = mean(weighted.dens),
          mean_flower = mean(total.reproduction_t > 0),
          pred_flower = mean(pred),
          bin_n = n()) -> LATR_flow_dat_plot
@@ -479,7 +479,7 @@ LATR_flow_dat %>%
 ## generate predictions for plotting
 size_means_flow <- LATR_flow_dat_plot %>% group_by(size_bin) %>% summarise(mean_size=mean(mean_size))
 LATR_flow_pred <- data.frame(
-  d.stand = rep(seq(min(LATR_flow_dat$d.stand),max(LATR_flow_dat$d.stand),length.out = 20),times=n_cuts_size),
+  weighted.dens = rep(seq(min(LATR_flow_dat$weighted.dens),max(LATR_flow_dat$weighted.dens),length.out = 20),times=n_cuts_size),
   log_volume_t = rep(size_means_flow$mean_size,each=20),
   unique.transect=1,
   size_bin = rep(size_means_flow$size_bin,each=20)
@@ -492,7 +492,7 @@ for(i in 1:n_cuts_size){
   points(LATR_flow_dat_plot$mean_density[LATR_flow_dat_plot$size_bin==i],
          LATR_flow_dat_plot$mean_flower[LATR_flow_dat_plot$size_bin==i],pch=16,col=i,
          cex=(LATR_flow_dat_plot$bin_n[LATR_flow_dat_plot$size_bin==i]/max(LATR_flow_dat_plot$bin_n))*3)
-  lines(LATR_flow_pred$d.stand[LATR_flow_pred$size_bin==i],
+  lines(LATR_flow_pred$weighted.dens[LATR_flow_pred$size_bin==i],
       invlogit(LATR_flow_pred$pred[LATR_flow_pred$size_bin==i]),col=i)
 }
 
@@ -501,9 +501,9 @@ LATR_fruits_dat <- subset(LATR_flow_dat,total.reproduction_t>0)
 LATR_fruits <- list()
 LATR_fruits[[1]] <-  gam(total.reproduction_t ~ s(log_volume_t) + s(unique.transect,bs="re"),
                          data=LATR_fruits_dat, gamma=1.4, family="nb")
-LATR_fruits[[2]] <-  gam(total.reproduction_t ~ s(log_volume_t) + s(d.stand) + s(unique.transect,bs="re"),
+LATR_fruits[[2]] <-  gam(total.reproduction_t ~ s(log_volume_t) + s(weighted.dens) + s(unique.transect,bs="re"),
                          data=LATR_fruits_dat, gamma=1.4, family="nb")
-LATR_fruits[[3]] <-  gam(total.reproduction_t ~ s(log_volume_t) + s(d.stand) + d.stand:log_volume_t  + s(unique.transect,bs="re"),
+LATR_fruits[[3]] <-  gam(total.reproduction_t ~ s(log_volume_t) + s(weighted.dens) + weighted.dens:log_volume_t  + s(unique.transect,bs="re"),
                          data=LATR_fruits_dat, gamma=1.4, family="nb")
 AICtab(LATR_fruits)
 LATR_fruits_best <- LATR_fruits[[2]]
@@ -513,14 +513,14 @@ LATR_fruits_dat$pred = predict.gam(LATR_fruits_best,newdata = LATR_fruits_dat,ex
 ##### effect of size on pr(flower) -- linear, positive
 plot(LATR_fruits_dat$log_volume_t,LATR_fruits_fitted_terms[,"s(log_volume_t)"]) 
 #### effect of d.stand on pr(flower) -- negative, a bit of a kink
-plot(LATR_fruits_dat$d.stand,LATR_fruits_fitted_terms[,"s(d.stand)"]) 
+plot(LATR_fruits_dat$weighted.dens,LATR_fruits_fitted_terms[,"s(weighted.dens)"]) 
 
 LATR_fruits_dat %>% 
   mutate(size_bin = as.integer(cut_number(log_volume_t,n_cuts_size)),
-         dens_bin = as.integer(cut_number(d.stand,n_cuts_dens))) %>% 
+         dens_bin = as.integer(cut_number(weighted.dens,n_cuts_dens))) %>% 
   group_by(size_bin,dens_bin) %>% 
   summarise(mean_size = mean(log_volume_t),
-         mean_density = mean(d.stand),
+         mean_density = mean(weighted.dens),
          mean_fruits = mean(total.reproduction_t),
          pred_fruits = mean(pred),
          bin_n = n()) -> LATR_fruits_dat_plot
@@ -528,7 +528,7 @@ LATR_fruits_dat %>%
 ## new data set for gam prediction
 size_means_fruit <- LATR_fruits_dat_plot %>% group_by(size_bin) %>% summarise(mean_size=mean(mean_size))
 LATR_fruit_pred <- data.frame(
-  d.stand = rep(seq(min(LATR_fruits_dat$d.stand),max(LATR_fruits_dat$d.stand),length.out = 20),times=n_cuts_size),
+  weighted.dens = rep(seq(min(LATR_fruits_dat$weighted.dens),max(LATR_fruits_dat$weighted.dens),length.out = 20),times=n_cuts_size),
   log_volume_t = rep(size_means_fruit$mean_size,each=20),
   unique.transect=1,
   size_bin = rep(size_means_fruit$size_bin,each=20)
@@ -542,7 +542,7 @@ for(i in 1:n_cuts_size){
   points(LATR_fruits_dat_plot$mean_density[LATR_fruits_dat_plot$size_bin==i],
          LATR_fruits_dat_plot$mean_fruits[LATR_fruits_dat_plot$size_bin==i],pch=16,col=i,
          cex=(LATR_fruits_dat_plot$bin_n[LATR_fruits_dat_plot$size_bin==i]/max(LATR_fruits_dat_plot$bin_n))*3)
-  lines(LATR_fruit_pred$d.stand[LATR_fruit_pred$size_bin==i],
+  lines(LATR_fruit_pred$weighted.dens[LATR_fruit_pred$size_bin==i],
         exp(LATR_fruit_pred$pred[LATR_fruit_pred$size_bin==i]),col=i)
 }
 
@@ -555,10 +555,9 @@ CData.Transplants<-read.csv("CData.Transplants.csv")%>%
   select("site", "transect", "actual.window", 
        "spring_survival_t1", "volume_t", "weighted.dens", "transplant") %>% 
   rename("survival_t1" = "spring_survival_t1") %>% 
-  mutate(d.stand = (weighted.dens - mean(weighted.dens, na.rm = TRUE)) / sd(weighted.dens, na.rm = TRUE),
-         unique.transect = interaction(transect, site)) %>% 
+  mutate(unique.transect = interaction(transect, site)) %>% 
   rbind(select(LATR_full, "site", "transect", "actual.window", 
-               "survival_t1", "volume_t", "weighted.dens", "transplant","d.stand","unique.transect")) %>% 
+               "survival_t1", "volume_t", "weighted.dens", "transplant","unique.transect")) %>% 
   mutate(log_volume_t = log(volume_t)) %>% 
   drop_na()-> LATR_surv_dat
 
@@ -574,19 +573,19 @@ points(log(LATR_surv_dat$volume_t[LATR_surv_dat$transplant==T]),
 LATR_surv <- list()
 LATR_surv[[1]] <-  gam(survival_t1 ~ s(log_volume_t) + transplant + s(unique.transect,bs="re"),
                          data=LATR_surv_dat, gamma=1.4, family="binomial")
-LATR_surv[[2]] <-  gam(survival_t1 ~ s(log_volume_t) + s(d.stand)  + transplant + s(unique.transect,bs="re"),
+LATR_surv[[2]] <-  gam(survival_t1 ~ s(log_volume_t) + s(weighted.dens)  + transplant + s(unique.transect,bs="re"),
                        data=LATR_surv_dat, gamma=1.4, family="binomial")
-LATR_surv[[3]] <-  gam(survival_t1 ~ s(log_volume_t) + s(d.stand) + transplant + d.stand:log_volume_t + s(unique.transect,bs="re"),
+LATR_surv[[3]] <-  gam(survival_t1 ~ s(log_volume_t) + s(weighted.dens) + transplant + weighted.dens:log_volume_t + s(unique.transect,bs="re"),
                        data=LATR_surv_dat, gamma=1.4, family="binomial")
 AICtab(LATR_surv)
-LATR_surv_best <- LATR_surv[[2]]
+LATR_surv_best <- LATR_surv[[3]]
 LATR_surv_fitted_terms = predict(LATR_surv_best,type="terms") 
 LATR_surv_dat$pred = predict.gam(LATR_surv_best,newdata = LATR_surv_dat,exclude="s(unique.transect)")
 
 ##### effect of size on pr(flower) -- linear, positive
 plot(LATR_surv_dat$log_volume_t,LATR_surv_fitted_terms[,"s(log_volume_t)"]) 
 #### effect of d.stand on pr(flower) -- negative, a bit of a kink
-plot(LATR_surv_dat$d.stand,LATR_surv_fitted_terms[,"s(d.stand)"]) 
+plot(LATR_surv_dat$weighted.dens,LATR_surv_fitted_terms[,"s(weighted.dens)"]) 
 
 ## visualize data + model -- this is for the natural census
 n_cuts_dens <- 4
@@ -594,10 +593,10 @@ n_cuts_size <- 4
 LATR_surv_dat %>% 
   filter(transplant==F) %>% 
   mutate(size_bin = as.integer(cut_interval(log_volume_t,n_cuts_size)),
-         dens_bin = as.integer(cut_interval(d.stand,n_cuts_dens))) %>% 
+         dens_bin = as.integer(cut_interval(weighted.dens,n_cuts_dens))) %>% 
   group_by(size_bin,dens_bin) %>% 
   summarise(mean_size = mean(log_volume_t),
-            mean_density = mean(d.stand),
+            mean_density = mean(weighted.dens),
             mean_surv = mean(survival_t1),
             pred_surv = mean(pred),
             bin_n = n()) -> LATR_surv_nat_plot
@@ -605,7 +604,7 @@ LATR_surv_dat %>%
 ## generate predictions for plotting
 size_means_surv_nat <- LATR_surv_nat_plot %>% group_by(size_bin) %>% summarise(mean_size=mean(mean_size))
 LATR_surv_nat_pred <- data.frame(
-  d.stand = rep(seq(min(LATR_surv_nat_plot$mean_density),max(LATR_surv_nat_plot$mean_density),length.out = 20),times=n_cuts_size),
+  weighted.dens = rep(seq(min(LATR_surv_nat_plot$mean_density),max(LATR_surv_nat_plot$mean_density),length.out = 20),times=n_cuts_size),
   log_volume_t = rep(size_means_surv_nat$mean_size,each=20),
   unique.transect=1,
   transplant=F,
@@ -619,22 +618,22 @@ for(i in 1:n_cuts_size){
   points(LATR_surv_nat_plot$mean_density[LATR_surv_nat_plot$size_bin==i],
          LATR_surv_nat_plot$mean_surv[LATR_surv_nat_plot$size_bin==i],pch=16,col=i,
          cex=(LATR_surv_nat_plot$bin_n[LATR_surv_nat_plot$size_bin==i]/max(LATR_surv_nat_plot$bin_n))*3)
-  lines(LATR_surv_nat_pred$d.stand[LATR_surv_nat_pred$size_bin==i],
+  lines(LATR_surv_nat_pred$weighted.dens[LATR_surv_nat_pred$size_bin==i],
         invlogit(LATR_surv_nat_pred$pred[LATR_surv_nat_pred$size_bin==i]),col=i)
 }
 
 ## now transplants
 LATR_surv_dat %>% 
   filter(transplant==T) %>% 
-  mutate(dens_bin = as.integer(cut_interval(d.stand,n_cuts_dens)),
+  mutate(dens_bin = as.integer(cut_interval(weighted.dens,n_cuts_dens)),
          mean_size = mean(log_volume_t)) %>% 
   group_by(dens_bin) %>% 
   summarise(mean_size = unique(mean_size),
-            mean_density = mean(d.stand),
+            mean_density = mean(weighted.dens),
             mean_surv = mean(survival_t1),
             bin_n = n()) -> LATR_surv_exp_plot
 LATR_surv_exp_pred <- data.frame(
-  d.stand = seq(min(LATR_surv_exp_plot$mean_density),max(LATR_surv_exp_plot$mean_density),length.out = 20),
+  weighted.dens = seq(min(LATR_surv_exp_plot$mean_density),max(LATR_surv_exp_plot$mean_density),length.out = 20),
   log_volume_t = LATR_surv_exp_plot$mean_size[1],
   unique.transect=1,
   transplant=T
@@ -642,5 +641,5 @@ LATR_surv_exp_pred <- data.frame(
 LATR_surv_exp_pred$pred <- predict.gam(LATR_surv_best,newdata = LATR_surv_exp_pred, exclude = "s(unique.transect)")
 
 points(LATR_surv_exp_plot$mean_density,LATR_surv_exp_plot$mean_surv,ylim=c(0,1))
-lines(LATR_surv_exp_pred$d.stand,invlogit(LATR_surv_exp_pred$pred))
+lines(LATR_surv_exp_pred$weighted.dens,invlogit(LATR_surv_exp_pred$pred))
 
