@@ -23,18 +23,18 @@ source("../fitChosenDists.R")
 ## read in data for Larrea tridentata (LATR) -- derived data frame generated here: https://github.com/TrevorHD/LTEncroachment/blob/master/04_CDataPrep.R (line 261)
 LATR_full <- read.csv("CData.csv") %>% 
   #calculate volume
-  mutate(#standardize weighted density to mean zero
-    d.stand = (weighted.dens - mean(weighted.dens, na.rm = TRUE)) / sd(weighted.dens, na.rm = TRUE),
+  mutate(#standardize weighted density to mean zero -- dropping this bc different data subsets woudl have different values
+    #d.stand = (weighted.dens - mean(weighted.dens, na.rm = TRUE)) / sd(weighted.dens, na.rm = TRUE),
     #create unique transect as interaction of transect and site
     unique.transect = interaction(transect, site))
 ## prep a data subset for growth that drops rows missing either t or t1 size data
-LATR <- LATR_full  %>% drop_na(volume_t,volume_t1) %>% 
+LATR_grow <- LATR_full  %>% drop_na(volume_t,volume_t1) %>% 
 ## also create log_volume as a new variable because gam doesn't like functions of variables as variables
 mutate(log_volume_t = log(volume_t),
        log_volume_t1 = log(volume_t1))
 
 # first look at size transitions
-plot(log(LATR$volume_t),log(LATR$volume_t1))
+plot(log(LATR_grow$volume_t),log(LATR_grow$volume_t1))
 
 ############################################################################
 # Gaussian fits and model selection using mgcv 
@@ -442,16 +442,16 @@ LATR_dat_201718$reproductive_fraction_t1<-NA
 LATR_dat_201718$total.reproduction_t1<-NA
 ## bind rows
 LATR_flow_dat <- bind_rows(LATR_full,LATR_dat_201718) %>% 
-  select(unique.transect,volume_t,total.reproduction_t,d.stand) %>% drop_na()
+  select(unique.transect,volume_t,total.reproduction_t,weighted.dens) %>% drop_na()
 ## create log_vol as new variables (easier for gams)
 LATR_flow_dat$log_volume_t <- log(LATR_flow_dat$volume_t)
 
 LATR_flower <- list()
 LATR_flower[[1]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(unique.transect,bs="re"),
                    data=LATR_flow_dat, gamma=1.4, family="binomial")
-LATR_flower[[2]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(d.stand) + s(unique.transect,bs="re"),
+LATR_flower[[2]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(weighted.dens) + s(unique.transect,bs="re"),
                          data=LATR_flow_dat, gamma=1.4, family="binomial")
-LATR_flower[[3]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(d.stand) + d.stand:log_volume_t  + s(unique.transect,bs="re"),
+LATR_flower[[3]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(weighted.dens) + weighted.dens:log_volume_t  + s(unique.transect,bs="re"),
                          data=LATR_flow_dat, gamma=1.4, family="binomial")
 AICtab(LATR_flower)
 LATR_flower_best <- LATR_flower[[3]]
@@ -461,17 +461,17 @@ LATR_flow_dat$pred = predict.gam(LATR_flower_best,newdata = LATR_flow_dat, exclu
 ##### effect of size on pr(flower) -- fairly linear
 plot(LATR_flow_dat$log_volume_t,LATR_flower_fitted_terms[,"s(log_volume_t)"]) 
 #### effect of d.stand on pr(flower) -- linear 
-plot(LATR_flow_dat$d.stand,LATR_flower_fitted_terms[,"s(d.stand)"]) 
+plot(LATR_flow_dat$weighted.dens,LATR_flower_fitted_terms[,"s(weighted.dens)"]) 
 
 ## visualize data + model
 n_cuts_dens <- 6
 n_cuts_size <- 4
 LATR_flow_dat %>% 
   mutate(size_bin = as.integer(cut_number(log_volume_t,n_cuts_size)),
-         dens_bin = as.integer(cut_number(d.stand,n_cuts_dens))) %>% 
+         dens_bin = as.integer(cut_number(weighted.dens,n_cuts_dens))) %>% 
   group_by(size_bin,dens_bin) %>% 
   summarise(mean_size = mean(log_volume_t),
-         mean_density = mean(d.stand),
+         mean_density = mean(weighted.dens),
          mean_flower = mean(total.reproduction_t > 0),
          pred_flower = mean(pred),
          bin_n = n()) -> LATR_flow_dat_plot
@@ -479,7 +479,7 @@ LATR_flow_dat %>%
 ## generate predictions for plotting
 size_means_flow <- LATR_flow_dat_plot %>% group_by(size_bin) %>% summarise(mean_size=mean(mean_size))
 LATR_flow_pred <- data.frame(
-  d.stand = rep(seq(min(LATR_flow_dat$d.stand),max(LATR_flow_dat$d.stand),length.out = 20),times=n_cuts_size),
+  weighted.dens = rep(seq(min(LATR_flow_dat$weighted.dens),max(LATR_flow_dat$weighted.dens),length.out = 20),times=n_cuts_size),
   log_volume_t = rep(size_means_flow$mean_size,each=20),
   unique.transect=1,
   size_bin = rep(size_means_flow$size_bin,each=20)
@@ -492,7 +492,7 @@ for(i in 1:n_cuts_size){
   points(LATR_flow_dat_plot$mean_density[LATR_flow_dat_plot$size_bin==i],
          LATR_flow_dat_plot$mean_flower[LATR_flow_dat_plot$size_bin==i],pch=16,col=i,
          cex=(LATR_flow_dat_plot$bin_n[LATR_flow_dat_plot$size_bin==i]/max(LATR_flow_dat_plot$bin_n))*3)
-  lines(LATR_flow_pred$d.stand[LATR_flow_pred$size_bin==i],
+  lines(LATR_flow_pred$weighted.dens[LATR_flow_pred$size_bin==i],
       invlogit(LATR_flow_pred$pred[LATR_flow_pred$size_bin==i]),col=i)
 }
 
