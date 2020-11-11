@@ -23,7 +23,7 @@ beta <- testgam$coefficients
 # linear predictor
 Xp <- predict.gam(testgam,type = "lpmatrix")
 
-plot(x1,Xp%*%beta) ## no the rfx levels apparent here
+plot(x1,Xp%*%beta) ## note the rfx levels apparent here
 
 ## can I "re-fit" this spline by ML using the design matrix?
 LogLik=function(pars,response,U){
@@ -112,10 +112,26 @@ pars = coef(fitk)[1:ncol(B)]
 yhat = B%*%pars; 
 points(x1,yhat,type="p",pch=16,col="forestgreen"); 
 
+########################################################### 
+# Same process with smoothCon instead of fda
+###########################################################
+practice.dat <- data.frame(y=y,x1=x1,rfx=fac.rfx)
+U = model.matrix(~practice.dat$rfx-1);
 
-
-
-
+AICs = rep(10^6,12); 
+for(k in 4:12) {
+  B <- smoothCon(s(x1,k=k),data=practice.dat,absorb.cons=TRUE)[[1]]$X
+  Xb = cbind(B,U); 
+  fitk = lm(y~Xb-1); # it's Gaussian, so we can do it the quick way. 
+  AICs[k]=AIC(fitk); 
+} 
+k.best = which.min(AICs)
+B <- smoothCon(s(x1,k=k.best),data=practice.dat,absorb.cons=TRUE)[[1]]$X
+Xb = cbind(B,U); 
+fitk = lm(y~Xb-1) 
+pars = coef(fitk)[1:ncol(B)]
+yhat = B%*%pars 
+points(x1,yhat,type="p",pch=16,col="tomato")
 
 
 
