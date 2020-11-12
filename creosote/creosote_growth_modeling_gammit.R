@@ -203,74 +203,67 @@ points(LATR_bin_fit$mean_size,LATR_bin_fit$tau_lowdens,xlab="Initial size",
 ## nu and tau have some weirdly unstable values
 
 # Fitting the final model -------------------------------------------------
-## we will use the design matrix from gam() to fit the linear predictor
-## for the mean exactly as it was fit for the gaussian model (except now it's location)
-## gam() also fit smooths for sigma but I think it is not the same sigma as ST1's...?
+## we will create basis functions for size and density, 
+## for now going with a basis dimension of 10 for each (can revisit with AIC selection)
 ## sigma and nu also look like they should have size and density dependence
 ## tau is causing trouble in the binned fits, so I will fit a constant value
 
-## I am going to separate the design matrix into matrices for the mean and sigma
-## sigma terms start with "(Intercept).1"
-U <- LATR_Xp[,1:(which(names(coef(LATR_gam_model))=="(Intercept).1")-1)]
-U_sigma <- LATR_Xp[,(which(names(coef(LATR_gam_model))=="(Intercept).1"):length(coef(LATR_gam_model)))]
-
-## ST1 likelihood -- with design matrix from gam()
+## ST1 likelihood -- with size and density dependence in sigma and nu
 LogLik=function(pars,response,U){
   pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
   mu = U%*%pars1;  
   val = dST1(x = response, 
-            mu=mu,
-            sigma = exp(pars2[1] + pars2[2]*log(LATR$vol_t) + pars2[3]*LATR_grow$weighted.dens),
-            nu = pars2[4] + pars2[5]*log(LATR$vol_t) + pars2[6]*LATR_grow$weighted.dens,
-            tau = exp(pars2[7]),
-            log=T) 
+             mu=mu,
+             sigma = exp(pars2[1] + pars2[2]*LATR_grow$log_volume_t + pars2[3]*LATR_grow$weighted.dens),
+             nu = pars2[4] + pars2[5]*LATR_grow$log_volume_t + pars2[6]*LATR_grow$weighted.dens,
+             tau = exp(pars2[7]),
+             log=T) 
   return(val); 
 }
 
-paranoid_iter <- 3
-coefs = list(paranoid_iter); LL=numeric(paranoid_iter);  
+## design matrix for random effects on the mean
+R <- model.matrix(~LATR_grow$unique.transect-1)
+## design matrix for size effect on mean (smooth term)
+S_size <- smoothCon(s(log_volume_t,k=10),data=LATR_grow,absorb.cons=TRUE)[[1]]$X
+## design matrix for density effect on mean (smooth term)
+S_dens <- smoothCon(s(weighted.dens,k=10),data=LATR_grow,absorb.cons=TRUE)[[1]]$X
+## bind together in a single design matrix for the mean
+Xb = cbind(S_size,S_dens,R)
 
-# Starting values from the gam fit  
-fixed_start = coef(LATR_gam_model)[1:ncol(LATR_Xp_mu)]
-
-## make sure the dimensions line up
-length(fixed_start);ncol(U);colnames(U) 
+# Starting values for smooths and fac levels -- starting "blind" here
+fixed_start = rep(0,times=ncol(Xb))
 ## starting values for sigma, nu, tau
 fit_sigma = lm(log(sigma_highdens)~mean_size, data=LATR_bin_fit)
 fit_nu = lm(nu_highdens~mean_size, data=LATR_bin_fit)
 fit_tau = lm(log(tau_highdens)~1, data=LATR_bin_fit)
-
 ## bundle coefficients for mu and sigma
-p0=c(fixed_start,c(coef(fit_sigma),0),c(coef(fit_nu),0),coef(fit_tau)) 
+p0=c(fixed_start,c(coef(fit_sigma),0),c(coef(fit_nu),0),5) 
 
+paranoid_iter <- 3
+coefs = list(paranoid_iter); LL=numeric(paranoid_iter);  
 for(j in 1:paranoid_iter) {
-  out=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=log(LATR_grow$vol_t1),U=U,
+  out=maxLik(logLik=LogLik,start=p0*exp(0.2*rnorm(length(p0))), response=LATR_grow$log_volume_t1,U=Xb,
              method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
   
-  out=maxLik(logLik=LogLik,start=out$estimate,response=log(LATR_grow$vol_t1),U=U,
+  out=maxLik(logLik=LogLik,start=out$estimate,response=LATR_grow$log_volume_t1,U=Xb,
              method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
   
-  out=maxLik(logLik=LogLik,start=out$estimate,response=log(LATR_grow$vol_t1),U=U,
+  out=maxLik(logLik=LogLik,start=out$estimate,response=LATR_grow$log_volume_t1,U=Xb,
              method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
   
   coefs[[j]] = out$estimate; LL[j] = out$maximum;
   cat(j, "#--------------------------------------#",out$maximum,"\n"); 
 }
 
-j = min(which(LL==max(LL))) ## they actually all land on the same likelihood-that's good!
-out=maxLik(logLik=LogLik,start=coefs[[j]],response=log(LATR_grow$vol_t1),U=U,
+j = min(which(LL==max(LL))) 
+out=maxLik(logLik=LogLik,start=coefs[[j]],response=LATR_grow$log_volume_t1,U=Xb,
            method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE) 
 
-# AIC improvement over gaussian
-(AIC_ST <- 2*length(coefs) - 2*out$maximum)
-(AIC_norm <- AIC(LATR_gam_model) ) 
-
-## How do the param estimates compare to original gam()?
-## keep in mind I have constant variance, skew, kurtosis for now
-plot(fixed_start,out$estimate[1:ncol(LATR_Xp_mu)]);abline(0,1)
+# AIC 
+(AIC_ST1 <- 2*length(coefs) - 2*out$maximum)
 
 ######### save results of ML fit.  
-names(out$estimate)<-c(colnames(U),"sigma_b0","sigma_b1","sigma_b2","nu_b0","nu_b1","nu_b2","tau_b0")
+names(out$estimate)<-c(colnames(Xb),"sigma_b0","sigma_b1","sigma_b2","nu_b0","nu_b1","nu_b2","tau_b0")
 coefs=out$estimate # parameters
 V = vcov(out); SEs = sqrt(diag(V)); # standard errors
 
@@ -289,54 +282,47 @@ shrinkRanIntercept = fixed.fx*sqrt(var.hat/(var.hat + diag(V1)));
 plot(LATR_gam_model$coefficients[paste0("s(unique.transect).",1:12)],
      shrinkRanIntercept);abline(0,1)
 
-
 # compare simulated and real data -----------------------------------------
-
-# Simulate data from fitted LO model
-MLmu = U%*%coefs[1:ncol(U)] 
+# Simulate data from fitted ST1 model
+MLmu = Xb%*%coefs[1:ncol(Xb)] 
 n_sim <- 500
-LATR_sim_LO<-LATR_sim_NO<-LATR_sim_ST1<-matrix(NA,nrow=nrow(LATR),ncol=n_sim)
+LATR_sim_NO<-LATR_sim_ST1<-matrix(NA,nrow=nrow(LATR_grow),ncol=n_sim)
 for(i in 1:n_sim){
-  #LATR_sim_LO[,i] <- rLO(n = nrow(LATR), 
-  #                       mu = MLmu, 
-  #                       sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*MLmu  + coefs["sigma_b2"]*MLmu^2))
-  ## is this a fair comparison? The linear predictor for the mean is different, because the LO approximates the gam
-  LATR_sim_ST1[,i] <- rST1(n = nrow(LATR), 
+  LATR_sim_ST1[,i] <- rST1(n = nrow(LATR_grow), 
                            mu = MLmu, 
-                           sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*MLmu  + coefs["sigma_b2"]*MLmu^2),
-                           nu=coefs["nu_b0"] + coefs["nu_b1"]*MLmu  + coefs["nu_b2"]*MLmu^2,
+                           sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*LATR_grow$log_volume_t  + coefs["sigma_b2"]*LATR_grow$weighted.dens),
+                           nu=coefs["nu_b0"] + coefs["nu_b1"]*LATR_grow$log_volume_t  + coefs["nu_b2"]*LATR_grow$weighted.dens,
                            tau=exp(coefs["tau_b0"]))
-  LATR_sim_NO[,i] <- rnorm(n = nrow(LATR),
+  LATR_sim_NO[,i] <- rnorm(n = nrow(LATR_grow),
                            mean = fitted_all[,1],
                            sd = 1/fitted_all[,2])
 }
 
-
 n_bins = 10
 alpha_scale = 0.7
-LATR_moments <- LATR %>% 
-  arrange(log(vol_t)) %>% 
-  mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+LATR_moments <- LATR_grow %>% 
+  arrange(log_volume_t) %>% 
+  mutate(size_bin = cut_number(log_volume_t,n=n_bins)) %>% 
   group_by(size_bin) %>% 
-  summarise(mean_t1 = mean(log(vol_t1)),
-            sd_t1 = sd(log(vol_t1)),
-            skew_t1 = NPskewness(log(vol_t1)),
-            kurt_t1 = NPkurtosis(log(vol_t1)),
-            bin_mean = mean(log(vol_t)),
+  summarise(mean_t1 = mean(log_volume_t1),
+            sd_t1 = sd(log_volume_t1),
+            skew_t1 = NPskewness(log_volume_t1),
+            kurt_t1 = NPkurtosis(log_volume_t1),
+            bin_mean = mean(log_volume_t),
             bin_n = n()) 
 
 pdf("../manuscript/figures/creosote_sim_moments_ST1.pdf",height = 10,width = 10,useDingbats = F)
 par(mfrow=c(2,2),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2,1,0),bty="l"); 
 sim_bin_means=sim_moment_means=sim_moment_means_norm = matrix(NA,n_bins,n_sim); 
 for(i in 1:n_sim){
-  sim_moments <- bind_cols(LATR,data.frame(sim=LATR_sim_ST1[,i],
+  sim_moments <- bind_cols(LATR_grow,data.frame(sim=LATR_sim_ST1[,i],
                                            sim_norm=LATR_sim_NO[,i])) %>% 
-    arrange(log(vol_t)) %>% 
-    mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+    arrange(log_volume_t) %>% 
+    mutate(size_bin = cut_number(log_volume_t,n=n_bins)) %>% 
     group_by(size_bin) %>% 
     summarise(mean_t1 = mean(sim),
               mean_t1_norm = mean(sim_norm),
-              bin_mean = mean(log(vol_t)))
+              bin_mean = mean(log_volume_t))
   sim_bin_means[,i]=sim_moments$bin_mean; 
   sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;		  
 }
@@ -351,14 +337,14 @@ legend("topleft",legend=c("Skewed t model","Gaussian model","Data"),
 add_panel_label("a")
 
 for(i in 1:n_sim){
-  sim_moments <- bind_cols(LATR,data.frame(sim=LATR_sim_ST1[,i],
+  sim_moments <- bind_cols(LATR_grow,data.frame(sim=LATR_sim_ST1[,i],
                                            sim_norm=LATR_sim_NO[,i])) %>% 
-    arrange(log(vol_t)) %>% 
-    mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+    arrange(log_volume_t) %>% 
+    mutate(size_bin = cut_number(log_volume_t,n=n_bins)) %>% 
     group_by(size_bin) %>% 
     summarise(mean_t1 = sd(sim),
               mean_t1_norm = sd(sim_norm),
-              bin_mean = mean(log(vol_t)))
+              bin_mean = mean(log_volume_t))
   sim_bin_means[,i]=sim_moments$bin_mean; 
   sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;		  
 }
@@ -371,14 +357,14 @@ points(LATR_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lw
 add_panel_label("b")
 
 for(i in 1:n_sim){
-  sim_moments <- bind_cols(LATR,data.frame(sim=LATR_sim_ST1[,i],
+  sim_moments <- bind_cols(LATR_grow,data.frame(sim=LATR_sim_ST1[,i],
                                            sim_norm=LATR_sim_NO[,i])) %>% 
-    arrange(log(vol_t)) %>% 
-    mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+    arrange(log_volume_t) %>% 
+    mutate(size_bin = cut_number(log_volume_t,n=n_bins)) %>% 
     group_by(size_bin) %>% 
     summarise(mean_t1 = NPskewness(sim),
               mean_t1_norm = NPskewness(sim_norm),
-              bin_mean = mean(log(vol_t)))
+              bin_mean = mean(log_volume_t))
   sim_bin_means[,i]=sim_moments$bin_mean; 
   sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;	  
 }
@@ -391,14 +377,14 @@ points(LATR_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lw
 add_panel_label("c")
 
 for(i in 1:n_sim){
-  sim_moments <- bind_cols(LATR,data.frame(sim=LATR_sim_ST1[,i],
+  sim_moments <- bind_cols(LATR_grow,data.frame(sim=LATR_sim_ST1[,i],
                                            sim_norm=LATR_sim_NO[,i])) %>% 
-    arrange(log(vol_t)) %>% 
-    mutate(size_bin = cut_number(log(vol_t),n=n_bins)) %>% 
+    arrange(log_volume_t) %>% 
+    mutate(size_bin = cut_number(log_volume_t,n=n_bins)) %>% 
     group_by(size_bin) %>% 
     summarise(mean_t1 = NPkurtosis(sim),
               mean_t1_norm = NPkurtosis(sim_norm),
-              bin_mean = mean(log(vol_t)))
+              bin_mean = mean(log_volume_t))
   sim_bin_means[,i]=sim_moments$bin_mean; 
   sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;	  
 }
