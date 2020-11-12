@@ -116,10 +116,15 @@ points(x1,yhat,type="p",pch=16,col="forestgreen");
 # Same process with smoothCon instead of fda
 ###########################################################
 practice.dat <- data.frame(y=y,x1=x1,rfx=fac.rfx)
+<<<<<<< HEAD
 plot(practice.dat$x1,practice.dat$y,col="gray")
 
 U = model.matrix(~practice.dat$rfx-1);
 
+=======
+U = model.matrix(~practice.dat$rfx-1);
+
+>>>>>>> 9cdf3570be99e6d075d53f9da3009f17d2366d24
 AICs = rep(10^6,12); 
 for(k in 4:12) {
   B <- smoothCon(s(x1,k=k),data=practice.dat,absorb.cons=TRUE)[[1]]$X
@@ -135,8 +140,12 @@ pars = coef(fitk)[1:ncol(B)]
 yhat = B%*%pars 
 points(x1,yhat,type="p",pch=16,col="tomato")
 
+<<<<<<< HEAD
 ##compare to canned gam
 testgam <- gam(y~s(x1)+s(rfx,bs="re"),data=practice.dat)
 pred <- predict.gam(testgam,newdata = data.frame(x1=seq(-2,2,0.01),rfx="foo"), exclude = "s(rfx)")
 lines(seq(-2,2,0.01),pred,col="black")
+=======
+
+>>>>>>> 9cdf3570be99e6d075d53f9da3009f17d2366d24
 
