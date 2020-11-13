@@ -288,6 +288,7 @@ MLmu = Xb%*%coefs[1:ncol(Xb)]
 n_sim <- 500
 LATR_sim_NO<-LATR_sim_ST1<-matrix(NA,nrow=nrow(LATR_grow),ncol=n_sim)
 for(i in 1:n_sim){
+  print(i)
   LATR_sim_ST1[,i] <- rST1(n = nrow(LATR_grow), 
                            mu = MLmu, 
                            sigma = exp(coefs["sigma_b0"] + coefs["sigma_b1"]*LATR_grow$log_volume_t  + coefs["sigma_b2"]*LATR_grow$weighted.dens),
