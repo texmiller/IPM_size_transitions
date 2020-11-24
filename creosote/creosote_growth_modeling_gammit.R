@@ -223,12 +223,12 @@ LogLik=function(pars,response,U){
 
 ## design matrix for random effects on the mean
 R <- model.matrix(~LATR_grow$unique.transect-1)
-## design matrix for size effect on mean (smooth term)
+## design matrix for size effect on mean (smooth term) -- can and will choose k by model selection. but not now. 
 S_size <- smoothCon(s(log_volume_t,k=10),data=LATR_grow,absorb.cons=TRUE)[[1]]$X
-## design matrix for density effect on mean (smooth term)
+## design matrix for density effect on mean (smooth term) -- can and will choose k by model selection. but not now. 
 S_dens <- smoothCon(s(weighted.dens,k=10),data=LATR_grow,absorb.cons=TRUE)[[1]]$X
 ## bind together in a single design matrix for the mean
-Xb = cbind(S_size,S_dens,R)
+Xb = cbind(R,S_size,S_dens)
 
 # Starting values for smooths and fac levels -- starting "blind" here
 fixed_start = rep(0,times=ncol(Xb))
@@ -569,9 +569,9 @@ LATR_surv_best <- LATR_surv[[3]]
 LATR_surv_fitted_terms = predict(LATR_surv_best,type="terms") 
 LATR_surv_dat$pred = predict.gam(LATR_surv_best,newdata = LATR_surv_dat,exclude="s(unique.transect)")
 
-##### effect of size on pr(flower) -- linear, positive
+##### effect of size on pr(survival) -- linear, positive
 plot(LATR_surv_dat$log_volume_t,LATR_surv_fitted_terms[,"s(log_volume_t)"]) 
-#### effect of d.stand on pr(flower) -- negative, a bit of a kink
+#### effect of d.stand on pr(survival) -- negativ, a bit of a kink
 plot(LATR_surv_dat$weighted.dens,LATR_surv_fitted_terms[,"s(weighted.dens)"]) 
 
 ## visualize data + model -- this is for the natural census
