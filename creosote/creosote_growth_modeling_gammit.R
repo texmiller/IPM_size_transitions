@@ -83,11 +83,11 @@ for(mod in 7:9) {
   LATR_gam_models[[mod]] =  fitGAU;
 }
 
-AICtab(LATR_gam_models) 
+grow_aic <- AICtab(LATR_gam_models,base=T) 
 ## Model 5 is the winner: mean ~ s(size) + s(density), sd ~ s(size) + s(density)
 
 ## define models 5 as our best Gaussian model
-LATR_gam_model <- LATR_gam_models[[5]]
+LATR_gam_model <- LATR_gam_models[[which.min(grow_aic)]]
 LATR_grow$fitted_vals = new_fitted_vals
 ## extract the linear predictor for the mean -- we'll use this later
 LATR_Xp <- predict.gam(LATR_gam_model,type="lpmatrix")
@@ -440,8 +440,8 @@ LATR_flower[[2]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(weighted.d
                          data=LATR_flow_dat, gamma=1.4, family="binomial")
 LATR_flower[[3]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(weighted.dens) + weighted.dens:log_volume_t  + s(unique.transect,bs="re"),
                          data=LATR_flow_dat, gamma=1.4, family="binomial")
-AICtab(LATR_flower)
-LATR_flower_best <- LATR_flower[[3]]
+flower_aic<-AICtab(LATR_flower,base=T)
+LATR_flower_best <- LATR_flower[[which.min(flower_aic$AIC)]]
 LATR_flower_fitted_terms = predict(LATR_flower_best,type="terms") 
 LATR_flow_dat$pred = predict.gam(LATR_flower_best,newdata = LATR_flow_dat, exclude = "s(unique.transect)")
 
@@ -492,8 +492,8 @@ LATR_fruits[[2]] <-  gam(total.reproduction_t ~ s(log_volume_t) + s(weighted.den
                          data=LATR_fruits_dat, gamma=1.4, family="nb")
 LATR_fruits[[3]] <-  gam(total.reproduction_t ~ s(log_volume_t) + s(weighted.dens) + weighted.dens:log_volume_t  + s(unique.transect,bs="re"),
                          data=LATR_fruits_dat, gamma=1.4, family="nb")
-AICtab(LATR_fruits)
-LATR_fruits_best <- LATR_fruits[[2]]
+fruits_aic<-AICtab(LATR_fruits,base=T)
+LATR_fruits_best <- LATR_fruits[[which.min(fruits_aic$AIC)]]
 LATR_fruits_fitted_terms = predict(LATR_fruits_best,type="terms") 
 LATR_fruits_dat$pred = predict.gam(LATR_fruits_best,newdata = LATR_fruits_dat,exclude="s(unique.transect)")
 
@@ -564,8 +564,8 @@ LATR_surv[[2]] <-  gam(survival_t1 ~ s(log_volume_t) + s(weighted.dens)  + trans
                        data=LATR_surv_dat, gamma=1.4, family="binomial")
 LATR_surv[[3]] <-  gam(survival_t1 ~ s(log_volume_t) + s(weighted.dens) + transplant + weighted.dens:log_volume_t + s(unique.transect,bs="re"),
                        data=LATR_surv_dat, gamma=1.4, family="binomial")
-AICtab(LATR_surv)
-LATR_surv_best <- LATR_surv[[3]]
+surv_aic<-AICtab(LATR_surv,base=T)
+LATR_surv_best <- LATR_surv[[which.min(surv_aic$AIC)]]
 LATR_surv_fitted_terms = predict(LATR_surv_best,type="terms") 
 LATR_surv_dat$pred = predict.gam(LATR_surv_best,newdata = LATR_surv_dat,exclude="s(unique.transect)")
 
@@ -635,15 +635,42 @@ lines(LATR_surv_exp_pred$weighted.dens,invlogit(LATR_surv_exp_pred$pred))
 ## estimate per-seed recruitment probability by estimating total seeds per window and total recruits per window
 
 LATR_recruits <- LATR_full %>% 
-  group_by(year_t1,site,transect,actual.window) %>% 
+  mutate(unique.transect = interaction(transect, site)) %>% 
+  group_by(year_t1,unique.transect,actual.window) %>% 
   filter(seedling_t1==1) %>% 
-  summarise(n())
+  summarise(recruits = n()) %>% 
+  rename(window=actual.window)
 
 ## now estimate total seeds produced in each window using the known plant sizes and the fitted flowering and fruiting models
-LATR_transects <- read.csv("CData.Transects.csv") 
+LATR_transects <- read.csv("CData.Transects.Windows.csv") %>% 
+  mutate(unique.transect = interaction(transect, site),
+         log_volume_t = log(volume))
+LATR_transects$seeds = ceiling(invlogit(predict.gam(LATR_flower_best,newdata = LATR_transects)) * 
+           exp(predict.gam(LATR_fruits_best,newdata = LATR_transects))) 
+LATR_transects %>% 
+  group_by(unique.transect,window) %>% 
+  summarise(total_seeds=sum(seeds),
+            weighted.dens = unique(weighted.dens)) -> LATR_transects
 
-%>% 
-  select() %>% 
-  #calculate volume
-  mutate(unique.transect = interaction(transect, site))
-str(LATR_transects)
+## now do something weird. take three copies of this df, assigning each one to a different year and assigning recruits to zero (for now)
+LATR_recruitment <- bind_rows(LATR_transects %>% filter(unique.transect=="1.FPS"|unique.transect=="2.FPS"|unique.transect=="3.FPS") %>% 
+                                mutate(year_t1=2014,recruits=0), ## only FPS for 2013-2014
+          LATR_transects %>% mutate(year_t1=2015,recruits=0),
+          LATR_transects %>% mutate(year_t1=2016,recruits=0),
+          LATR_transects %>% mutate(year_t1=2017,recruits=0)) %>% 
+  left_join(.,LATR_recruits,by=c("year_t1","unique.transect","window")) %>% 
+  mutate(recruits.y=replace_na(recruits.y,0),
+         recruits = pmax(recruits.x,recruits.y,na.rm=T)) %>% 
+  drop_na()
+
+LATR_recruit <- list()
+LATR_recruit[[1]] <-  gam(cbind(recruits,total_seeds-recruits) ~ s(unique.transect,bs="re"),
+                       data=LATR_recruitment, gamma=1.4, family="binomial")
+LATR_recruit[[2]] <-  gam(cbind(recruits,total_seeds-recruits) ~ s(weighted.dens) + s(unique.transect,bs="re"),
+                          data=LATR_recruitment, gamma=1.4, family="binomial")
+recruit_aic<-AICtab(LATR_recruit,base=T)
+LATR_recruit_best <- LATR_recruit[[which.min(recruit_aic$AIC)]]
+
+plot(LATR_recruitment$weighted.dens,LATR_recruitment$recruits/LATR_recruitment$total_seeds)
+LATR_recruitment$pred = predict.gam(LATR_recruit_best,newdata = LATR_recruitment,exclude="s(unique.transect)")
+points(LATR_recruitment$weighted.dens,invlogit(LATR_recruitment$pred),col="red",pch=".")
