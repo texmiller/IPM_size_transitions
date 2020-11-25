@@ -630,3 +630,20 @@ LATR_surv_exp_pred$pred <- predict.gam(LATR_surv_best,newdata = LATR_surv_exp_pr
 points(LATR_surv_exp_plot$mean_density,LATR_surv_exp_plot$mean_surv,ylim=c(0,1))
 lines(LATR_surv_exp_pred$weighted.dens,invlogit(LATR_surv_exp_pred$pred))
 
+
+# Recruitment -------------------------------------------------------------
+## estimate per-seed recruitment probability by estimating total seeds per window and total recruits per window
+
+LATR_recruits <- LATR_full %>% 
+  group_by(year_t1,site,transect,actual.window) %>% 
+  filter(seedling_t1==1) %>% 
+  summarise(n())
+
+## now estimate total seeds produced in each window using the known plant sizes and the fitted flowering and fruiting models
+LATR_transects <- read.csv("CData.Transects.csv") 
+
+%>% 
+  select() %>% 
+  #calculate volume
+  mutate(unique.transect = interaction(transect, site))
+str(LATR_transects)
