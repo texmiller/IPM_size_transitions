@@ -16,7 +16,6 @@ growth_fn_norm <- function(x,y,d){
   grow_sigma <- exp(lpmat[,32:50]%*%coef(LATR_gam_model)[32:50])
   return(dnorm(y,mean=grow_mu,sd=grow_sigma))
 }
-growth_fn_norm(5,5,0)
 
 ## Survival-- prediction from naturally occuring plants
 survival_fn <- function(x,d){
@@ -29,7 +28,6 @@ survival_fn <- function(x,d){
               exclude = "s(unique.transect)")
   return(invlogit(pred))
 }
-survival_fn(x=0,d=0)
 
 ## Flowering
 flower_fn <- function(x,d){
@@ -42,8 +40,6 @@ flower_fn <- function(x,d){
   return(invlogit(pred))
 }
 
-flower_fn(x=5,d=0)
-
 ## Fruits
 fruits_fn <- function(x,d){
   pred <- predict.gam(LATR_fruits_best,
@@ -54,4 +50,3 @@ fruits_fn <- function(x,d){
                       exclude = "s(unique.transect)")
   return(exp(pred))
 }
-fruits_fn(x=5,d=0)
