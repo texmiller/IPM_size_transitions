@@ -8,7 +8,7 @@ growth_fn_norm <- function(x,y,d){
                       newdata = data.frame(
                         weighted.dens = d,
                         log_volume_t = x,
-                        unique.transect="foo"),
+                        unique.transect="1.FPS"),
                       type="lpmatrix",
                       exclude = "s(unique.transect)")
   ## linear predictor for mean and log sigma -- need to update so these indices are not hard-coded but for now they work
@@ -24,7 +24,7 @@ survival_fn <- function(x,d){
                 weighted.dens = d,
                 log_volume_t = x,
                 transplant=F,
-                unique.transect="foo"),
+                unique.transect="1.FPS"),
               exclude = "s(unique.transect)")
   return(invlogit(pred))
 }
@@ -35,18 +35,28 @@ flower_fn <- function(x,d){
               newdata = data.frame(
                 weighted.dens = d,
                 log_volume_t = x,
-                unique.transect="foo"),
+                unique.transect="1.FPS"),
               exclude = "s(unique.transect)")
   return(invlogit(pred))
 }
 
-## Fruits
-fruits_fn <- function(x,d){
+## seed production (fruits * seeds/fruit)
+seeds_fn <- function(x,d,seeds.per.fruit=6){
   pred <- predict.gam(LATR_fruits_best,
                       newdata = data.frame(
                         weighted.dens = d,
                         log_volume_t = x,
-                        unique.transect="foo"),
+                        unique.transect="1.FPS"),
                       exclude = "s(unique.transect)")
-  return(exp(pred))
+  return(exp(pred)*seeds.per.fruit)
+}
+
+## Seed-to-Seedling recruitment probability
+recruit_fn <- function(d){
+  pred <- predict.gam(LATR_recruit_best,
+                      newdata = data.frame(
+                        weighted.dens = d,
+                        unique.transect="1.FPS"),
+                      exclude = "s(unique.transect)")
+  return(invlogit(pred))
 }
