@@ -83,11 +83,12 @@ for(mod in 7:9) {
   LATR_gam_models[[mod]] =  fitGAU;
 }
 
-grow_aic <- AICtab(LATR_gam_models,base=T) 
+grow_aic <- AICtab(LATR_gam_models,base=T,sort=F) 
 ## Model 5 is the winner: mean ~ s(size) + s(density), sd ~ s(size) + s(density)
 
 ## define models 5 as our best Gaussian model
-LATR_gam_model <- LATR_gam_models[[which.min(grow_aic)]]
+LATR_gam_model <- LATR_gam_models[[which.min(grow_aic$AIC)]]
+saveRDS(LATR_gam_model,"LATR_grow_best.rds")
 LATR_grow$fitted_vals = new_fitted_vals
 ## extract the linear predictor for the mean -- we'll use this later
 LATR_Xp <- predict.gam(LATR_gam_model,type="lpmatrix")
@@ -440,8 +441,9 @@ LATR_flower[[2]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(weighted.d
                          data=LATR_flow_dat, gamma=1.4, family="binomial")
 LATR_flower[[3]] <-  gam(total.reproduction_t>0 ~ s(log_volume_t) + s(weighted.dens) + weighted.dens:log_volume_t  + s(unique.transect,bs="re"),
                          data=LATR_flow_dat, gamma=1.4, family="binomial")
-flower_aic<-AICtab(LATR_flower,base=T)
+flower_aic<-AICtab(LATR_flower,base=T,sort=F)
 LATR_flower_best <- LATR_flower[[which.min(flower_aic$AIC)]]
+saveRDS(LATR_flower_best,"LATR_flower_best.rds")
 LATR_flower_fitted_terms = predict(LATR_flower_best,type="terms") 
 LATR_flow_dat$pred = predict.gam(LATR_flower_best,newdata = LATR_flow_dat, exclude = "s(unique.transect)")
 
@@ -483,6 +485,7 @@ for(i in 1:n_cuts_size){
       invlogit(LATR_flow_pred$pred[LATR_flow_pred$size_bin==i]),col=i)
 }
 
+
 # Fruit production --------------------------------------------------------
 LATR_fruits_dat <- subset(LATR_flow_dat,total.reproduction_t>0)
 LATR_fruits <- list()
@@ -492,8 +495,9 @@ LATR_fruits[[2]] <-  gam(total.reproduction_t ~ s(log_volume_t) + s(weighted.den
                          data=LATR_fruits_dat, gamma=1.4, family="nb")
 LATR_fruits[[3]] <-  gam(total.reproduction_t ~ s(log_volume_t) + s(weighted.dens) + weighted.dens:log_volume_t  + s(unique.transect,bs="re"),
                          data=LATR_fruits_dat, gamma=1.4, family="nb")
-fruits_aic<-AICtab(LATR_fruits,base=T)
+fruits_aic<-AICtab(LATR_fruits,base=T,sort=F)
 LATR_fruits_best <- LATR_fruits[[which.min(fruits_aic$AIC)]]
+saveRDS(LATR_fruits_best,"LATR_fruits_best.rds")
 LATR_fruits_fitted_terms = predict(LATR_fruits_best,type="terms") 
 LATR_fruits_dat$pred = predict.gam(LATR_fruits_best,newdata = LATR_fruits_dat,exclude="s(unique.transect)")
 
@@ -564,8 +568,9 @@ LATR_surv[[2]] <-  gam(survival_t1 ~ s(log_volume_t) + s(weighted.dens)  + trans
                        data=LATR_surv_dat, gamma=1.4, family="binomial")
 LATR_surv[[3]] <-  gam(survival_t1 ~ s(log_volume_t) + s(weighted.dens) + transplant + weighted.dens:log_volume_t + s(unique.transect,bs="re"),
                        data=LATR_surv_dat, gamma=1.4, family="binomial")
-surv_aic<-AICtab(LATR_surv,base=T)
+surv_aic<-AICtab(LATR_surv,base=T,sort=F)
 LATR_surv_best <- LATR_surv[[which.min(surv_aic$AIC)]]
+saveRDS(LATR_surv_best,"LATR_surv_best.rds")
 LATR_surv_fitted_terms = predict(LATR_surv_best,type="terms") 
 LATR_surv_dat$pred = predict.gam(LATR_surv_best,newdata = LATR_surv_dat,exclude="s(unique.transect)")
 
@@ -668,9 +673,54 @@ LATR_recruit[[1]] <-  gam(cbind(recruits,total_seeds-recruits) ~ s(unique.transe
                        data=LATR_recruitment, gamma=1.4, family="binomial")
 LATR_recruit[[2]] <-  gam(cbind(recruits,total_seeds-recruits) ~ s(weighted.dens) + s(unique.transect,bs="re"),
                           data=LATR_recruitment, gamma=1.4, family="binomial")
-recruit_aic<-AICtab(LATR_recruit,base=T)
+recruit_aic<-AICtab(LATR_recruit,base=T,sort=F)
 LATR_recruit_best <- LATR_recruit[[which.min(recruit_aic$AIC)]]
+saveRDS(LATR_recruit_best,"LATR_recruit_best.rds")
 
 plot(LATR_recruitment$weighted.dens,LATR_recruitment$recruits/LATR_recruitment$total_seeds)
 LATR_recruitment$pred = predict.gam(LATR_recruit_best,newdata = LATR_recruitment,exclude="s(unique.transect)")
 points(LATR_recruitment$weighted.dens,invlogit(LATR_recruitment$pred),col="red",pch=".")
+
+
+# Seedlings size distribution ---------------------------------------------
+LATR_recruit_size <- LATR_full %>% 
+  filter(seedling_t1==1) %>% 
+  mutate(log_volume = log(volume_t1))
+
+hist(LATR_recruit_size$log_volume)
+saveRDS(data.frame(recruit_mean = mean(LATR_recruit_size$log_volume),
+                   recruit_sd = sd(LATR_recruit_size$log_volume)),"LATR_recruit_size.rds")
+
+
+# Size bounds -------------------------------------------------------------
+saveRDS(data.frame(min_size = log(min(LATR_full$volume_t,LATR_full$volume_t1[LATR_full$transplant==F],na.rm=T)),
+                   max_size = log(max(LATR_full$volume_t,LATR_full$volume_t1[LATR_full$transplant==F],na.rm=T))),
+        "LATR_size_bounds.rds")
+
+
+# IPM results -------------------------------------------------------------
+source("creosote_IPM_source_fns.R")
+
+## lambda over density variation
+density_dummy <- seq(min(LATR_full$weighted.dens,na.rm=T),max(LATR_full$weighted.dens,na.rm=T),length.out = 30)
+lambda_density <- c()
+for(d in 1:length(density_dummy)){
+  print(d)
+  lambda_density[d] <- lambda(bigmatrix(dens=density_dummy[d], mat.size=200)$IPMmat)
+}
+
+plot(density_dummy,lambda_density,type="l",lwd=3,xlab="Weighted density",ylab="lambda")
+abline(h=1,lty=3)
+
+test <- bigmatrix(dens=0,mat.size = 200)
+## check the P matrix
+plot(test$Pmat)
+colSums(test$Pmat)
+lambda(test$Pmat)
+## checks out
+
+## check the F matrix
+plot(test$Fmat)
+
+
+lambda(test$IPMmat)
