@@ -8,8 +8,8 @@
 ###################################################################
 rm(list=ls(all=TRUE));
 
-#setwd("c:/repos/IPM_size_transitions/cactus"); #Steve
-setwd("C:/Users/tm9/Desktop/git local/IPM_size_transitions/cactus"); #Tom
+setwd("c:/repos/IPM_size_transitions/cactus"); #Steve
+# setwd("C:/Users/tm9/Desktop/git local/IPM_size_transitions/cactus"); #Tom
 
 require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(gamlss.tr); require(AICcmodavg); 
