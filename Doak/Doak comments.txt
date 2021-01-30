@@ -1,0 +1,72 @@
+Introduction. 
+
+Ramula et al. 2009, Salguero-Gomez and Plotkin, Picard and Liang, do not just state criticisms of MPMs; 
+they are computational studies providing evidence for what they assert. Ramula et al 2009 really
+do find that IPMs work better than small matrix models when sample sizes are small, and nothing in Doak et al. 
+contradicts that finding. Ozgul et al. (2012) fitted an MPM and an IPM to the same data set, and
+found that only the IPM correctly predicted the effect of experimental perturbations to their laboratory
+soil mite system. These papers are not merely stating opinions, as one would infer from how they are presented
+in Doak et al.; they are providing evidence to support them. 
+
+Also, can Doak et al. identify the specific sentence in Rees et al. (2014) which asserts the general superiority of
+IPMs? The Introduction contains a paragraph arguing that MPMs are preferable in some circumstances, while
+IPMs are preferable in others. In what way does this differ from the conclusions of Doak et al? 
+
+The sentence about "actual implementation" amounts to the assertion that if an integral is evaluated by 
+numerical quadrature with equally spaced nodes, it is no longer an integral. The underlying models are  
+continuous as claimed; numerical quadrature is often the most efficient way to calculate its properties. 
+Exactly the same numbers would be gotten through Monte Carlo integration where matrix approximations 
+are not used; it would just take a lot more effort to get the same accuracy. Moreover, the
+fact that we use a discrete set of nodes is front-and-center in every paper about methods starting 
+with Easterling et al. (2000). Claiming that we "ignore" this fact is ludicrous. 
+
+The fact that vital rate functions have to be modeled as "fairly simple continuous functions of the state
+variable" is not "rarely discussed". Rees et al. (2014) talk at length about the importance of doing 
+diagnostic tests to validate the fitted model, and we do the same (partially by cut-and-paste) in 
+Ellner et al. (2016). 
+
+Overall, the Introduction is full of very inaccurate statements. This should not be acceptable behavior. 
+
+p. 7 In MPMs "multiple iterations are needed to find a model structure that balances sampling and estimation error".
+How do you know when this has been achieved? We know how to do this for regression models (e.g., data-based
+choice of smoothing parameter in splines; comparison of simple vs. complex parametric models via AIC). 
+What comparable methodology has been developed for matrix models? Is there one, or is it just making a choice
+that feels like it's right? To balance this they say later (Fig 1) that multiple iterations are needed to
+choose the right number of bins in an IPM -- but that's easy, keep increasing until the answers asymptote. 
+
+p. 9 "Next, the squared residuals from this relationship" -- this approach has not been recommended, 
+or widely used, for the last 15 years. 
+
+p. 9 "Most commonly, the vital rate estimate corresponding to the midpoint size in the class is used". In other words, 
+the MPM method of choice with continuous vital rate functions is exactly the same as an IPM using midpoint rule, 
+with a small number of bins. If you are doing things this way, what is gained by using 10 bins instead of 50? The
+increase in numerical accuracy with 50 bins may be small, but it's gain without pain. 
+
+p. 12 "in the few studies of which we are aware that test for class number effects in IPMs, 
+increasing classes beyond 10 to 20 has little effect on model results". Evidently Doak et al. 
+read Chapter 6 of "Data-driven modeling..." without noticing Figures 6.6 or 6.7, which 
+show results for empirically parameterized tree IPMs (from Zuidema et al. 2010) where 20 bins would
+be woefully inadequate, even with the most accurate numerical quadrature method. The only way to know
+if 20 is adquate is to try 20, 50, 100, etc. -- and stop as soon as you can. 
+
+p. 13 "Not featured in most descriptions of IPMs or in the software to run these models..". 
+It would be hard for anything else to be true, since its first appearance in print was
+in 2016 in DDM. It would take a time machine to put it into a 2013 paper or into IPMpack. 
+The presentation in DDM includes general-purpose code to build the kernel this way. 
+
+p. 14  Vital rate estimation. This section takes something perfectly clear and portrays it as ambiguous. 
+It is written as if the last 50 years of statistical theory did not exist, and we were
+in the early 1970s speculating about the future. I am not aware of any statistical papers or 
+books that advocate fitting a smooth function of a continuous variable using step functions. 
+When the response function is smooth, we know how to do better. Can Doak et al. find anything 
+in the statistical literature to suggest that fitting a smooth response with a step function 
+is ever superior to smooth alternatives such as local polynomial regression or splines? When 
+there is a jump or a kink we can use piecewise continuous, and there are well 
+developed methods to find the change points. 
+ 
+p. 15 Normal growth distributions are not an assumption of IPMs. The range of easy alternatives
+is discussed in Rees et al. (2014) and in DDM. I've used t-distributions, Petersen et al. use a 
+skewed-normal distribution. This paragraph is comparing MPMs to a straw man. 
+
+
+ 

@@ -17,7 +17,7 @@ library(matrixStats)
 #Remember to set directory to access input files
 
 ### Specify what range of classes/bins to evaluate -----------------------
-bin.num <- seq(from = 10, to = 100, by=10); bin.num=round(bin.num); 
+bin.num <- seq(from = 20, to = 100, by=20); bin.num=round(bin.num); 
 nSizes = length(bin.num); 
 kernels = list(nSizes); 
 all_meshpts = list(nSizes); 
@@ -177,6 +177,34 @@ for (i in 1:length(bin.num)){
  cat(i,sum(N[,1]),"\n")
 }
 
+
+allElas = matrix(NA,400,nSizes)
+K = kernels[[1]]; eK = eigen(K); 
+lambda=abs(eK$values[1]); 
+w = eK$vectors[,1]; w = abs(w)/sum(abs(w)); 
+v = eigen(t(K))$vectors[,1]; v=abs(v); 
+sens = outer(v,w)/sum(v*w); 
+elas = (K/lambda)*sens; 
+allElas[,1]=matrix(elas,400,1); 
+
+
+for(js in 1:nSizes) {
+    K = kernels[[js]]; eK = eigen(K); 
+    lambda=abs(eK$values[1]); 
+    w = eK$vectors[,1]; w = abs(w)/sum(abs(w)); 
+    v = eigen(t(K))$vectors[,1]; v=abs(v); 
+    sens = outer(v,w)/sum(v*w); 
+    elas = (K/lambda)*sens; 
+    binElas = matrix(NA,20,20)
+    for(i in 1:20){
+    for(j in 1:20){
+            i.end = i*js; i.start = (i-1)*js + 1; 
+            j.end = j*js; j.start = (j-1)*js + 1; 
+            ebin = elas[i.start:i.end,j.start:j.end]
+            binElas[i,j]=sum(ebin)
+    } }       
+    allElas[,js]=matrix(binElas,400,1); 
+}
 
 require(viridis); colors=magma(nSizes); 
 K = kernels[[1]]; eK = eigen(K); 
