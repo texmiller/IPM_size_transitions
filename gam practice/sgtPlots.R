@@ -10,10 +10,20 @@ py2 = dsgt(x,mu=0,sigma=1,lambda=0,p=4,q=4);
 py3 = dsgt(x,mu=0,sigma=1,lambda=0,p=2,q=20);
 matplot(x,cbind(py1,py2,py3),type="l",col=c("black","red","blue")); 
 
-require(splines);
+
+#######################
+require(fda); require(sgt); 
 z=rnorm(1000); z=sort(z); z=z*abs(z); hist(z); 
 
 B = create.bspline.basis(rangeval=range(z), norder=4, nbasis=4)
 x = seq(min(z),max(z),length=200); 
 out = eval.basis(x,B);   
 matplot(x,out,type="l"); 
+
+x = rnorm(250); x = sort(x); 
+resids = rsgt(length(x),mu=0,sigma=1,lambda=1,p=2,q=20); 
+
+
+hist(resids); 
+
+ 
