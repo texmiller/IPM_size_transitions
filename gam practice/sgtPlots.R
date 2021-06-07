@@ -1,4 +1,8 @@
+rm(list=ls(all=TRUE)); 
+
+setwd("c:/repos/IPM_size_transitions/gam practice"); 
 require(sgt); 
+
 ######### Visualize effects of changing p and q 
 par(mfrow=c(3,1)); 
 x=seq(-5,5,length=500); 
@@ -23,7 +27,7 @@ matplot(x,cbind(py1,py2,py3),type="l",col=c("black","red","blue"));
 
 ######### Create covariate for residuals 
 require(fda); require(sgt); require(maxLik); 
-z = rt(500,df=10); z=sort(z); hist(z); 
+z = rt(2000,df=10); z=sort(z); hist(z); 
 
 ########### Create artificial "residuals" with known sgt parameters 
 resids = rsgt(length(z),mu=0,sigma=1,lambda= 1-exp(z/10), p = 2 + 0.1*z, q=3 - 0.1*z); 
@@ -42,9 +46,9 @@ X = eval.basis(z,B); P = bsplinepen(B);
 notExp2 = function (x, d, b=1/d) exp(d * sin(x * b))  # from mgcv
 
 make_lpq = function(pars){
-    u = X%*%pars[1:6]; lambda = -1 + 2*exp(u)/(1+exp(u));
-    u = X%*%pars[7:12]; pz = notExp2(u,d=log(50)); 
-    u = X%*%pars[13:18]; qz = 0.5 + notExp2(u,d=log(100));
+    u = X%*%pars[1:6]; lambda = -1 + 2*exp(u)/(1+exp(u)); # -1 to 1 (open interval)
+    u = X%*%pars[7:12]; pz = notExp2(u,d=log(50));  # 1/50 to 50 
+    u = X%*%pars[13:18]; qz = 0.5 + notExp2(u,d=log(100)); #1/100 to 100 
     
     # evaluate penalties 
     pars=matrix(pars,ncol=1); 
@@ -52,8 +56,7 @@ make_lpq = function(pars){
     Pp = t(pars[7:12])%*%P%*%pars[7:12]
     Pq = t(pars[13:18])%*%P%*%pars[13:18]
     
-    df1 = lambda2df(pars[1:6],B)
-    
+
     r = rep(1,length(pz));  
     e = which(pz*qz < 2.01); r[e]=sqrt(2.05/(pz[e]*qz[e]));
     pz=pz*r; qz = qz*r; 
@@ -74,48 +77,53 @@ make_lpq = function(pars){
  } 
 
  evalAIC = function(logpen){
-        pen=exp(logpen); 
-        fit = optim(par=rep(0,18),fn=PenNegLogLik,control=list(maxit=10000,trace=0),pen=pen)
+        pen=10^(logpen); 
+        
+        #fit = optim(par=rep(0,18),fn=PenNegLogLik,control=list(maxit=10000,trace=0),pen=pen)
+
+        fit = bobyqa(par=rep(0,18), fn=PenNegLogLik, control = list(iprint=0,maxfun=5000,rhobeg=1), pen=pen)
+        
         pars=fit$par; 
+               
         edf1 = lambda2df(argvals=z,basisobj=B,lambda=pen[1])
         edf2 = lambda2df(argvals=z,basisobj=B,lambda=pen[2])
         edf3 = lambda2df(argvals=z,basisobj=B,lambda=pen[3])
-        AICval = NegLogLik(pars) + 2*(edf1+edf2+edf3);
+        AICval = NegLogLik(pars) + log(length(z))*(edf1+edf2+edf3);
+        write.table(round(pars,digits=8), append=FALSE, row.names=FALSE,col.names=FALSE,file="splinePars.txt")
+        
         return(AICval); 
  }       
-evalAIC(c(-1,0,-2));
+
+Val = array(NA,c(6,6,6)); 
+lambdas = seq(-6,6,length=6); 
+for(i in 1:6){
+for(j in 1:6){
+for(k in 1:6){
+    x = c(lambdas[i],lambdas[j],lambdas[k])
+    Val[i,j,k]=evalAIC(x)
+    cat(i,j,k,Val[i,j,k],"\n"); 
+}}}
+
+ 
+bestPlace = which(Val==min(Val),arr.ind=TRUE);
+bestVal = lambdas[bestPlace]; 
+
+bestPen = optim(par=bestVal,fn=evalAIC, control=list(maxit=10000,trace=4)); 
+# -5.4666667  1.3000000  0.9333333
+bestAIC = evalAIC(bestPen$par); 
+
+bestSplinePars=read.table("splinePars.txt"); 
+
+bestSplineFits = make_lpq(bestSplinePars$V1); 
+par(mfrow=c(3,1)); 
+plot(z,bestSplineFits$lambda);
+plot(z,bestSplineFits$p);
+plot(z,bestSplineFits$q);
+
+
+
+
 
 
  
-
-## log likelihood function for maxLik 
-sgt_logLik = function(pars) {
-    lpq = make_lpq(pars); 
-    lik = dsgt(resids, mu = 0, sigma = 1, lambda = lpq$lambda, p = lpq$p, q = lpq$q, log = TRUE)
-    return(lik)    
-}
-
-## log likelihood function for optim 
-sgt_logLik1 = function(pars) {
-    val = sum(sgt_logLik(pars))
-    if(!is.finite(val)) val = -(10^16)
-    return(-val)
-}  
-
-
-
-
-
-out=optim(par=rep(1,9),sgt_logLik1,control=list(trace=4,maxit=25000)); 
-out$estimate=out$par; 
-
-out = maxLik(sgt_logLik, start = rep(-3,9), method="BHHH",control=list(printLevel=2)); 
-for(k in 1:5) {
-    #out = optim(par=out$estimate,sgt_logLik1,control=list(trace=4,maxit=25000)); 
-    out = maxLik(sgt_logLik, start = out$estimate, method="BHHH",control=list(printLevel=2)); 
-  
-}    
-
-fit = make_lpq(out$estimate); 
-matplot(x, cbind(fit$lambda,fit$p,fit$q), type="l",lty=1, col=c("black","red","blue")); 
  
