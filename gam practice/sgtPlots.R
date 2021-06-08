@@ -1,7 +1,7 @@
 rm(list=ls(all=TRUE)); 
 
 setwd("c:/repos/IPM_size_transitions/gam practice"); 
-require(sgt); 
+require(sgt); require(minqa); 
 
 ######### Visualize effects of changing p and q 
 par(mfrow=c(3,1)); 
@@ -27,14 +27,14 @@ matplot(x,cbind(py1,py2,py3),type="l",col=c("black","red","blue"));
 
 ######### Create covariate for residuals 
 require(fda); require(sgt); require(maxLik); 
-z = rt(2000,df=10); z=sort(z); hist(z); 
+z = rt(500,df=10); z=sort(z); hist(z); 
 
 ########### Create artificial "residuals" with known sgt parameters 
 resids = rsgt(length(z),mu=0,sigma=1,lambda= 1-exp(z/10), p = 2 + 0.1*z, q=3 - 0.1*z); 
 hist(resids); plot(z,resids); 
 
 ########## Create B-spline basis, and plot it 
-B = create.bspline.basis(rangeval=range(z), norder=4, nbasis=6)
+B = create.bspline.basis(rangeval=range(z), norder=4, nbasis=4)
 x = seq(min(z),max(z),length=200); 
 out = eval.basis(x,B);   
 matplot(x,out,type="l"); 
@@ -46,15 +46,15 @@ X = eval.basis(z,B); P = bsplinepen(B);
 notExp2 = function (x, d, b=1/d) exp(d * sin(x * b))  # from mgcv
 
 make_lpq = function(pars){
-    u = X%*%pars[1:6]; lambda = -1 + 2*exp(u)/(1+exp(u)); # -1 to 1 (open interval)
-    u = X%*%pars[7:12]; pz = notExp2(u,d=log(50));  # 1/50 to 50 
-    u = X%*%pars[13:18]; qz = 0.5 + notExp2(u,d=log(100)); #1/100 to 100 
+    u = X%*%pars[1:4]; lambda = -1 + 2*exp(u)/(1+exp(u)); # -1 to 1 (open interval)
+    u = X%*%pars[5:8]; pz = notExp2(u,d=log(50));  # 1/50 to 50 
+    u = X%*%pars[9:12]; qz = 0.5 + notExp2(u,d=log(100)); #1/100 to 100 
     
     # evaluate penalties 
     pars=matrix(pars,ncol=1); 
-    Plam = t(pars[1:6])%*%P%*%pars[1:6]
-    Pp = t(pars[7:12])%*%P%*%pars[7:12]
-    Pq = t(pars[13:18])%*%P%*%pars[13:18]
+    Plam = t(pars[1:4])%*%P%*%pars[1:4]
+    Pp = t(pars[5:8])%*%P%*%pars[5:8]
+    Pq = t(pars[9:12])%*%P%*%pars[9:12]
     
 
     r = rep(1,length(pz));  
@@ -67,7 +67,11 @@ make_lpq = function(pars){
     out=make_lpq(pars);
     NLL = -sum(dsgt(z,mu=0,sigma=1,lambda=out$lambda,p=out$p,q=out$q,log=TRUE))  
     return(NLL)
-}    
+}
+
+########## Unconstrained fit 
+fit = bobyqa(par=rep(0,12), fn=NegLogLik, control = list(iprint=0,maxfun=5000,rhobeg=1))
+    
  
  PenNegLogLik = function(pars,pen) {
      out = make_lpq(pars); 
@@ -79,9 +83,9 @@ make_lpq = function(pars){
  evalAIC = function(logpen){
         pen=10^(logpen); 
         
-        #fit = optim(par=rep(0,18),fn=PenNegLogLik,control=list(maxit=10000,trace=0),pen=pen)
+        #fit = optim(par=rep(0,12),fn=PenNegLogLik,control=list(maxit=10000,trace=0),pen=pen)
 
-        fit = bobyqa(par=rep(0,18), fn=PenNegLogLik, control = list(iprint=0,maxfun=5000,rhobeg=1), pen=pen)
+        fit = bobyqa(par=rep(0,12), fn=PenNegLogLik, control = list(iprint=0,maxfun=5000,rhobeg=1), pen=pen)
         
         pars=fit$par; 
                
@@ -109,8 +113,8 @@ bestPlace = which(Val==min(Val),arr.ind=TRUE);
 bestVal = lambdas[bestPlace]; 
 
 bestPen = optim(par=bestVal,fn=evalAIC, control=list(maxit=10000,trace=4)); 
-# -5.4666667  1.3000000  0.9333333
-bestAIC = evalAIC(bestPen$par); 
+
+bestAIC = evalAIC(bestPen$par); # last thing done 
 
 bestSplinePars=read.table("splinePars.txt"); 
 
@@ -119,6 +123,8 @@ par(mfrow=c(3,1));
 plot(z,bestSplineFits$lambda);
 plot(z,bestSplineFits$p);
 plot(z,bestSplineFits$q);
+
+
 
 
 

@@ -122,7 +122,6 @@ matplot(target.skews,theMins[,8:12],ylim=ylim1, type="o",lty=1,col=1:5,lwd=2,pch
 ylab = "Minimum NP Kurtosis",cex=1.3);
 legend("topleft",legend=c("ST1","ST2","ST3","ST4","ST5"),lty=1,col=1:5,lwd=2,pch=1:5,bty="n");
 
-
 ylim1=c(min(theMaxs,na.rm=TRUE),1); 
 
 matplot(target.skews,theMaxs[,1:3],ylim=ylim1, type="o",lty=1,col=1:4,lwd=2,pch=1:4,xlab="NP Skew",
