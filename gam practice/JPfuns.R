@@ -13,8 +13,8 @@
 # delta>0 is the tail weight parameter. Values < 1 give fatter
 # than Gaussian tails, values > 1 give thinner. 
 # It corresponds to tau in gamlss. 
-###################################@@@@@@######################
-require(gamlss);  
+##############################################################
+require(gamlss); require(maxLik);  
 
 #################################################
 # Functions for the original JP distribution 
@@ -68,6 +68,7 @@ points(x,dSHASHo(x,0,1,1,2),type="p",lty=2,col="red"); # should overplot
     
 qJP(0.26, -1, 2); qSHASHo(0.26,0,1,-1,2); 
 
+
 ###################################################
 # Functions for the standardized JP distribution 
 ###################################################
@@ -86,8 +87,6 @@ rSJP = function(n, epsilon=0, delta=1){
     
 }
 
-
-
 # Testing the moments 
 for(j in 1:10) {
  epsilon=rnorm(1); delta=exp(rnorm(1)); 
@@ -96,6 +95,61 @@ for(j in 1:10) {
  z = integrate(function(x) (x^2)*dSJP(x,epsilon,delta), -Inf, Inf)$value   # should equal 1 
 cat(round(u,digits=6), round(v,digits=6), round(z,digits=6), "\n"); 
 }
+
+
+###################################################
+# Nonparametric skew and kurtosis functions. 
+# These are the same for JP and standardized JP
+###################################################
+
+JP_NPskewness = function(epsilon,delta,p=0.1) {
+	q = qJP(c(p,0.5,1-p),epsilon,delta)
+	u = (q[3]+q[1]-2*q[2])/(q[3]-q[1]);
+	return(as.numeric(u)); 
+	
+}	
+
+JP_NPkurtosis=function(epsilon,delta,p=0.05) {
+	q = qJP(c(p,0.25,0.75,1-p),epsilon,delta)
+	qN = qnorm(c(p,0.25,0.75,1-p))
+	u = (q[4]-q[1])/(q[3]-q[2]);
+	uN = (qN[4]-qN[1])/(qN[3]-qN[2]);
+	return (as.numeric(u/uN-1)) 
+}
+
+########################################################################
+# Fit parameters of standardized JP by maximum Likelihood
+# using BHHH from MaxLik package.  
+#
+# Maximization uses multistart with random initial parameters,
+# with input parameter nstart specifying the number of random starts. 
+#######################################################################
+
+SJPMaxlik <- function(y,nstart=10,start = c(epsilon=0,log.delta = 0), sigma.start=0.2 ) {
+ 
+  LogLik1=function(pars,response){
+    val = dSJP(response,epsilon=pars[1],delta=exp(pars[2]));  
+    return(log(val)); 
+  }  
+    
+
+  bestPars=numeric(2); bestMax=-10^17; 
+  for(jrep in 1:nstart) {
+    startj = start + sigma.start*rnorm(2); 
+    fit = maxLik(logLik=LogLik1,start=startj, response=y, method="BHHH",control=list(iterlim=5000,printLevel=1),
+                finalHessian=FALSE);  
+    
+    if(fit$maximum==0) fit$maximum = -10^16; 	# failed fit
+    if(fit$code>2) fit$maximum = -10^16; 		# failed fit
+    if(fit$maximum > bestMax)	{bestPars=fit$estimate; bestMax=fit$maximum; bestFit=fit;}
+    cat(jrep,fit$maximum,"\n"); 
+  }	
+  
+  estimate = fit$estimate; estimate[2]=exp(estimate[2]); 
+            
+  return(list(fit=bestFit,estimate=estimate)); 
+}
+
 
 
 

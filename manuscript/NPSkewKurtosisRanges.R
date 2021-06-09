@@ -4,7 +4,6 @@
 rm(list=ls(all=TRUE))
 setwd("c:/repos/IPM_size_transitions/manuscript"); #edit as needed 
 source("../Diagnostics.R"); 
-source("../QuantileFunctions.R"); 
 
 require(gamlss); 
 
@@ -83,7 +82,7 @@ maxKurtNP=function(qfun,target.skew,trace=0) {
 }
 
 funs=list(12);
-funs[[1]]=qJSU; funs[[2]]=qSHASH; funs[[3]]=qSHASHo2;
+funs[[1]]=qJSU; funs[[2]]=qSHASH; funs[[3]]=qSHASHo;
 funs[[4]]=qSEP1; funs[[5]]=qSEP2; funs[[6]]=qSEP3; funs[[7]]=qSEP4; 
 funs[[8]]=qST1; funs[[9]]=qST2; funs[[10]]=qST3; funs[[11]]=qST4; funs[[12]]=qST5; 
 
@@ -94,15 +93,29 @@ target.skews=c(0.02,0.05,seq(0.1,0.7,by=0.2));
 theNames = c("JSU","SHASH","SHASHo","SEP1","SEP2","SEP3","SEP4","ST1","ST2","ST3","ST4","ST5")
 colnames(theMins) = colnames(theMaxs) = theNames 
 
-for(k in 9:9) {
+for(k in 1:3) {
   cat("Starting ", theNames[k],"\n"); 
   for(j in 1:6) { 
     qfun = funs[[k]]; 
     theMins[j,k] = tryCatch(minKurtNP(qfun,target.skews[j],trace=1),error=function(e) NA);  
-    # theMaxs[j,k] = tryCatch(maxKurtNP(qfun,target.skews[j],trace=4), error=function(e) NA); 
+    theMaxs[j,k] = tryCatch(maxKurtNP(qfun,target.skews[j],trace=4), error=function(e) NA); 
     cat(j,k,"\n"); 
   }
 }    
+
+graphics.off(); 
+par(mfrow=c(1,2)); 
+ylim1=c(min(theMins,na.rm=TRUE),1.5); 
+
+matplot(target.skews,theMins[,1:3],ylim=ylim1, type="o",lty=1,col=1:4,lwd=2,pch=1:4,xlab="NP Skew",
+ylab = "Minimum NP Kurtosis",cex=1.3);
+legend("topleft",legend=c("JSU","SHASH","SHASHo"),lty=1,col=1:4,lwd=2,pch=1:4,bty="n");
+
+matplot(target.skews,theMaxs[,1:3],ylim=ylim1, type="o",lty=1,col=1:5,lwd=2,pch=1:5,xlab="NP Skew",
+ylab = "Maximum NP Kurtosis",cex=1.3);
+
+
+
 
 graphics.off(); 
 dev.new(width=9,height=7); 
