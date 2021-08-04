@@ -4,43 +4,47 @@ setwd("c:/repos/IPM_size_transitions/gam practice");
 require(sgt); require(minqa); 
 
 ######### Visualize effects of changing p and q 
-par(mfrow=c(3,1)); 
+par(mfrow=c(3,1),mar=c(4,4,1,1),mgp=c(2.2,1,0),bty="l"); 
 x=seq(-5,5,length=500); 
 
 py1 = dsgt(x,mu=0,sigma=1,lambda=0,p=1,q=2.2);
 py2 = dsgt(x,mu=0,sigma=1,lambda=0,p=1,q=4);
 py3 = dsgt(x,mu=0,sigma=1,lambda=0,p=1,q=20);
 matplot(x,cbind(py1,py2,py3),type="l",col=c("black","red","blue")); 
+title(main="p=1"); 
+legend("left",legend=c("q=2.2", "q=4", "q=20"), col=c("black","red","blue"), lty=1, pch=NULL,cex=2,bty="n",inset=0.04); 
 
 py1 = dsgt(x,mu=0,sigma=1,lambda=0,p=2,q=1.2);
 py2 = dsgt(x,mu=0,sigma=1,lambda=0,p=2,q=4);
 py3 = dsgt(x,mu=0,sigma=1,lambda=0,p=2,q=20);
 matplot(x,cbind(py1,py2,py3),type="l",col=c("black","red","blue")); 
-
+title(main="p=2"); 
+legend("left",legend=c("q=1.2", "q=4", "q=20"), col=c("black","red","blue"), lty=1, pch=NULL,cex=2,bty="n",inset=0.04); 
 
 x=seq(-5,5,length=500); 
 py1 = dsgt(x,mu=0,sigma=1,lambda=0,p=5,q=.5);
 py2 = dsgt(x,mu=0,sigma=1,lambda=0,p=5,q=4);
 py3 = dsgt(x,mu=0,sigma=1,lambda=0,p=5,q=20);
 matplot(x,cbind(py1,py2,py3),type="l",col=c("black","red","blue")); 
+title(main="p=5"); 
+legend("left",legend=c("q=0.5", "q=4", "q=20"), col=c("black","red","blue"), lty=1, pch=NULL,cex=2,bty="n",inset=0.04); 
 
 
-######### Create covariate for residuals 
+######### Create covariate z for artificial "residuals" 
 require(fda); require(sgt); require(maxLik); 
 z = rt(500,df=10); z=sort(z); hist(z); 
 
-########### Create artificial "residuals" with known sgt parameters 
+########### Create artificial "residuals" with sgt parameters p(z) and q(z), mu=0, sigma=1 
 resids = rsgt(length(z),mu=0,sigma=1,lambda= 1-exp(z/10), p = 2 + 0.1*z, q=3 - 0.1*z); 
 hist(resids); plot(z,resids); 
 
-########## Create B-spline basis, and plot it 
+########## Create B-spline basis for fitting p and q, and plot it 
 B = create.bspline.basis(rangeval=range(z), norder=4, nbasis=4)
 x = seq(min(z),max(z),length=200); 
 out = eval.basis(x,B);   
 matplot(x,out,type="l"); 
 
-
-########### function to convert coefficients into lambda, p, q values 
+########### function to convert spline coefficients into lambda, p, q values 
 X = eval.basis(z,B); P = bsplinepen(B); 
 
 notExp2 = function (x, d, b=1/d) exp(d * sin(x * b))  # from mgcv
@@ -50,16 +54,19 @@ make_lpq = function(pars){
     u = X%*%pars[5:8]; pz = notExp2(u,d=log(50));  # 1/50 to 50 
     u = X%*%pars[9:12]; qz = 0.5 + notExp2(u,d=log(100)); #1/100 to 100 
     
-    # evaluate penalties 
+    # evaluate penalties: integrated squared 2nd derivative  
     pars=matrix(pars,ncol=1); 
     Plam = t(pars[1:4])%*%P%*%pars[1:4]
     Pp = t(pars[5:8])%*%P%*%pars[5:8]
     Pq = t(pars[9:12])%*%P%*%pars[9:12]
     
 
+    # p*q must be bigger than 2 to have finite variance 
     r = rep(1,length(pz));  
     e = which(pz*qz < 2.01); r[e]=sqrt(2.05/(pz[e]*qz[e]));
     pz=pz*r; qz = qz*r; 
+    
+    
     return(list(lambda=lambda,p=pz,q=qz,Plam=Plam,Pp=Pp,Pq=Pq)); 
  }
  
@@ -80,7 +87,8 @@ fit = bobyqa(par=rep(0,12), fn=NegLogLik, control = list(iprint=0,maxfun=5000,rh
      return(PNLL)
  } 
 
- evalAIC = function(logpen){
+## This isn't really AIC because it's based on the 2nd derivative complexity measure
+evalAIC = function(logpen){
         pen=10^(logpen); 
         
         #fit = optim(par=rep(0,12),fn=PenNegLogLik,control=list(maxit=10000,trace=0),pen=pen)
