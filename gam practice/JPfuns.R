@@ -14,7 +14,7 @@
 # than Gaussian tails, values > 1 give thinner. 
 # It corresponds to tau in gamlss. 
 ##############################################################
-require(gamlss); require(maxLik);  
+require(gamlss.dist); require(maxLik);  
 
 #################################################
 # Functions for the original JP distribution 

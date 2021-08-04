@@ -35,7 +35,11 @@ require(fda); require(sgt); require(maxLik);
 z = rt(500,df=10); z=sort(z); hist(z); 
 
 ########### Create artificial "residuals" with sgt parameters p(z) and q(z), mu=0, sigma=1 
-resids = rsgt(length(z),mu=0,sigma=1,lambda= 1-exp(z/10), p = 2 + 0.1*z, q=3 - 0.1*z); 
+True.lambda= -0.5 + plogis(z); True.p = 3 + 0.5*z^2; True.q = 3 - 0.5*z
+
+graphics.off(); dev.new(height=9,width=7); par(mfrow=c(3,1)); 
+matplot(z,cbind(True.lambda, True.p, True.q), type="l", col=1:3); range(True.p*True.q); 
+resids = rsgt(length(z),mu=0,sigma=1,lambda= True.lambda, p = True.p, q= True.q); 
 hist(resids); plot(z,resids); 
 
 ########## Create B-spline basis for fitting p and q, and plot it 
@@ -70,23 +74,62 @@ make_lpq = function(pars){
     return(list(lambda=lambda,p=pz,q=qz,Plam=Plam,Pp=Pp,Pq=Pq)); 
  }
  
- NegLogLik = function(pars){
+NegLogLik = function(pars){
     out=make_lpq(pars);
     NLL = -sum(dsgt(z,mu=0,sigma=1,lambda=out$lambda,p=out$p,q=out$q,log=TRUE))  
     return(NLL)
 }
 
-########## Unconstrained fit 
-fit = bobyqa(par=rep(0,12), fn=NegLogLik, control = list(iprint=0,maxfun=5000,rhobeg=1))
-    
  
- PenNegLogLik = function(pars,pen) {
+PenNegLogLik = function(pars,pen) {
      out = make_lpq(pars); 
      NLL = NegLogLik(pars); 
      PNLL = NLL + pen[1]*out$Plam + pen[2]*out$Pp + pen[3]*out$Pq
      return(PNLL)
  } 
+ 
+ 
+PenNegLogLik1 = function(pars,pen) {
+     out = make_lpq(pars); 
+     NLL = NegLogLik(pars); 
+     PNLL = NLL + pen*(out$Plam + out$Pp + out$Pq); 
+     return(PNLL)
+ } 
 
+
+fits=list(10); pens=10^seq(-3,0,length=10)
+for(k in 1:10) {
+    foo = optim(par=rep(0,12), PenNegLogLik1, control = list(maxit=10000, trace=0), pen=pens[k]) 
+    for(rr in 1:10) {
+    foo = bobyqa(par=foo$par, fn=PenNegLogLik1, control = list(iprint=100,maxfun=10000,rhobeg=1), pen=pens[k]) 
+    foo = optim(foo$par, PenNegLogLik1, control = list(maxit=10000, trace=0), pen=pens[k]) 
+    cat(k, rr, "<---------------------------------------->", "\n"); 
+    }
+    fits[[k]]= bobyqa(par=foo$par, fn=PenNegLogLik1, control = list(iprint=100,maxfun=10000,rhobeg=1), pen=pens[k]) 
+    cat("Finished fit ", k, "<------------------------------->", "\n"); 
+}
+
+par(mfrow=c(3,1),mar=c(4,4,1,1),bty="l"); 
+out = make_lpq(fits[[1]]$par); ps = out$p; lambs=out$lambda; qs=out$q; 
+for(k in 2:10) {
+    out = make_lpq(fits[[k]]$par); 
+    ps = cbind(ps,out$p); lambs=cbind(lambs,out$lambda); qs=cbind(qs,out$q); 
+}
+require(viridisLite); 
+matplot(z,lambs,lty=1,type="l",col=magma(10)); points(z,True.lambda,col="red",lty=1,lwd=2,type="l"); 
+matplot(z,ps,lty=1,type="l",col=magma(10));  points(z,True.p,col="red",lty=1,lwd=2,type="l"); 
+matplot(z,qs,lty=1,type="l",col=magma(10));   points(z,True.q,col="red",lty=1,lwd=2,type="l"); 
+
+
+
+
+##################################################
+# Basement: 3-penalty fitting attempt. 
+##################################################
+
+
+ 
+if(FALSE){
 ## This isn't really AIC because it's based on the 2nd derivative complexity measure
 evalAIC = function(logpen){
         pen=10^(logpen); 
@@ -106,11 +149,11 @@ evalAIC = function(logpen){
         return(AICval); 
  }       
 
-Val = array(NA,c(6,6,6)); 
-lambdas = seq(-6,6,length=6); 
-for(i in 1:6){
-for(j in 1:6){
-for(k in 1:6){
+Val = array(NA,c(4,4,4)); 
+lambdas = seq(-6,6,length=4); 
+for(i in 1:4){
+for(j in 1:4){
+for(k in 1:4){
     x = c(lambdas[i],lambdas[j],lambdas[k])
     Val[i,j,k]=evalAIC(x)
     cat(i,j,k,Val[i,j,k],"\n"); 
@@ -120,7 +163,7 @@ for(k in 1:6){
 bestPlace = which(Val==min(Val),arr.ind=TRUE);
 bestVal = lambdas[bestPlace]; 
 
-bestPen = optim(par=bestVal,fn=evalAIC, control=list(maxit=10000,trace=4)); 
+bestPen = optim(par=bestVal,fn=evalAIC, method="BFGS", control=list(maxit=10000,trace=4)); 
 
 bestAIC = evalAIC(bestPen$par); # last thing done 
 
@@ -131,7 +174,7 @@ par(mfrow=c(3,1));
 plot(z,bestSplineFits$lambda);
 plot(z,bestSplineFits$p);
 plot(z,bestSplineFits$q);
-
+} ########################################################## End of the basement 
 
 
 

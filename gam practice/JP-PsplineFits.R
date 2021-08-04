@@ -10,7 +10,8 @@ source("JPfuns.R");
 z = rt(500,df=10); z=sort(z); hist(z); 
 
 ########### Create artificial "residuals" with known sgt parameters 
-resids = rSJP(length(z), epsilon=-0.5, delta = 0.5 + 0.05*z^2); 
+True.epsilon= rep(-0.5,length(z)); True.delta = 0.5 + 0.05*z^2
+resids = rSJP(length(z), epsilon=True.epsilon, delta = True.delta); 
 par(mfrow=c(2,1)); 
 hist(resids); plot(z,resids); 
 
@@ -51,10 +52,10 @@ fit = bobyqa(par=fit$par, fn=NegLogLik, control = list(iprint=1000,maxfun=250000
 
 bestSplineFits = make_eps_delta(fit$par); 
 par(mfrow=c(2,1)); 
-plot(z,bestSplineFits$epsilon,type="l"); points(z,rep(-0.5,length(z)), type="l",lty=2,col="blue") 
+plot(z,bestSplineFits$epsilon,type="l"); points(z,True.epsilon, type="l",lty=2,col="blue") 
 rug(z); 
 
-plot(z,bestSplineFits$delta,type="l"); points(z,0.5+0.05*z^2, type="l",lty=2,col="blue"); 
+plot(z,bestSplineFits$delta,type="l"); points(z,True.delta, type="l",lty=2,col="blue"); 
 rug(z); 
     
 ########################################################################
@@ -70,15 +71,17 @@ rug(z);
 Pfit = optim(par=rep(0,12), fn=PenNegLogLik, control = list(trace=4,maxit=250000), pen=10^c(0,0))
 Pfit = optim(par=Pfit$par, fn=PenNegLogLik, control = list(trace=4,maxit=250000), pen=10^c(0,0))
 
-Pfit = bobyqa(par=rep(0,12), fn=PenNegLogLik, control = list(iprint=100,maxfun=250000,rhobeg=1), pen=10^c(2,2))
+Pfit = optim(par=rep(0,12), fn=PenNegLogLik, control = list(trace=4,maxit=250000), pen=10^c(2,2))
 Pfit = bobyqa(par=Pfit$par, fn=PenNegLogLik, control = list(iprint=100,maxfun=250000,rhobeg=1), pen=10^c(2,2))
+Pfit = optim(par=Pfit$par, fn=PenNegLogLik, control = list(trace=4,maxit=250000), pen=10^c(2,2))
+
 
 bestSplineFits = make_eps_delta(Pfit$par); 
 par(mfrow=c(2,1)); 
-plot(z,bestSplineFits$epsilon,type="l"); points(z,rep(-0.5,length(z)), type="l",lty=2,col="blue") 
+plot(z,bestSplineFits$epsilon,type="l"); points(z,True.epsilon, type="l",lty=2,col="blue") 
 rug(z); 
 
-plot(z,bestSplineFits$delta,type="l"); points(z,0.5+0.05*z^2, type="l",lty=2,col="blue"); 
+plot(z,bestSplineFits$delta,type="l"); points(z,True.delta, type="l",lty=2,col="blue"); 
 rug(z); 
 
 
