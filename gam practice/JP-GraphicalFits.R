@@ -85,7 +85,7 @@ Fun = function(par, data) {
 
 ### Do Metropolis-Hastings with bivariate Gaussian proposal 
 ### with pars = c(nu,tau)) 
-N = 250000; scale=c(.2,0.2); 
+N = 1500000; scale=c(.2,0.2); 
 pars = matrix(NA,N,2); pars[1,]=rnorm(2,0,0.1); oldFun = Fun(pars[1,],data=y); 
 accept = 0; 
 for(j in 2:N) {
@@ -103,7 +103,7 @@ for(j in 2:N) {
          }   
     }
 }
-keep = seq(N/2,N,by=50); 
+keep = seq(N/2,N,by=100); 
 pars=pars[keep,]; 
 nu=pars[,1]; tau=pars[,2]; ### PAY CLOSE ATTENTION! 
 delta=exp(-tau); epsilon=delta*nu; 
