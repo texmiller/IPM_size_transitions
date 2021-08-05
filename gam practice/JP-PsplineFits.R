@@ -7,10 +7,12 @@ notExp2 = function (x, d, b=1/d) exp(d * sin(x * b))  # from mgcv
 
 ######### Create covariate for residuals 
 
-z = -1+2*rbeta(500,2,2); z=sort(z); hist(z); 
+z = -1+2*rbeta(250,2,2); z=sort(z); hist(z); 
 
-########### Create artificial "residuals" with known sgt parameters 
-True.epsilon= rep(-0.8,length(z)); True.delta = notExp2(1 + 0.5*z,d=log(10)); 
+z = runif(1000,-1,1); z=sort(z); hist(z); 
+
+########### Create artificial "residuals" with known parameters 
+True.epsilon= rep(-0.5,length(z)); True.delta = exp(-0.35*z); 
 resids = rSJP(length(z), epsilon=True.epsilon, delta = True.delta); 
 par(mfrow=c(2,1)); 
 hist(resids); plot(z,resids); 
@@ -23,8 +25,6 @@ matplot(x,out,type="l");
 
 ########### function to convert coefficients into epsilon and delta values 
 X = eval.basis(z,B); P = bsplinepen(B,Lfdobj=2); 
-
-
 
 make_eps_delta = function(pars){
     epsilon = X%*%pars[1:6]; 
@@ -46,9 +46,7 @@ make_eps_delta = function(pars){
 
  NegLogLikQuadratic = function(pars){
     epsilon = pars[1] + pars[2]*z + pars[3]*z^2; 
-    u = pars[4] + pars[5]*z + pars[6]*z^2; 
-    delta = notExp2(u,d=log(10))
-
+    delta = pars[4] + pars[5]*z + pars[6]*z^2; 
     NLL = -sum(log(dSJP(z,epsilon,delta)))  
     return(NLL)
 }
@@ -65,8 +63,7 @@ fit = bobyqa(par=fit$par, fn=NegLogLikQuadratic, control = list(iprint=1000,maxf
 
 pars = fit$par; 
 epsilonQ = pars[1] + pars[2]*z + pars[3]*z^2; 
-u = pars[4] + pars[5]*z + pars[6]*z^2; 
-deltaQ = notExp2(u,d=log(10))
+deltaQ = pars[4] + pars[5]*z + pars[6]*z^2; 
 
 par(mfrow=c(2,1)); 
 plot(z,epsilonQ,type="l"); points(z,True.epsilon, type="l",lty=2,col="blue") 
@@ -95,7 +92,6 @@ plot(z,bestSplineFits$delta,type="l"); points(z,True.delta, type="l",lty=2,col="
 rug(z); 
 
 
-   
 ########################################################################
 # Penalized fit 
 ########################################################################

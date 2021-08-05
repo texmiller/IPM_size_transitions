@@ -1,8 +1,14 @@
 rm(list=ls(all=TRUE)); 
 
+require(minqa); require(fda); require(viridisLite); 
+require(moments); require(zoo); require(fields); 
+
 setwd("c:/repos/IPM_size_transitions/gam practice"); 
-require(minqa); require(fda); require(moments); require(zoo); 
-source("JPfuns.R"); source("../Diagnostics.R"); source("../matrixImage.R"); 
+source("JPfuns.R"); 
+source("../Diagnostics.R"); 
+
+notExp2 = function (x, d, b=1/d) exp(d * sin(x * b))  # from mgcv
+
 graphics.off(); 
 
 #######################################################
@@ -14,7 +20,7 @@ nu = seq(-3,3,length=150)
 tau = seq(-1,1,length=151);  
 for(i in 1:150) {
 for(j in 1:151){
-    epsilon=nu[i]; delta=exp(-tau[j]); 
+    delta=exp(-tau[j]); epsilon=delta*nu[i]; 
     SkewMat[i,j]=JP_NPskewness(epsilon,delta);
     KurtMat[i,j]=JP_NPkurtosis(epsilon,delta);
 }}
@@ -24,75 +30,100 @@ dev.new();
 image.plot(nu,tau,SkewMat,col=plasma(64));  title(main="NP Skewness"); 
 
 dev.new(); 
-image.plot(nu, tau,KurtMat,col=plasma(64)); title(main = "NP Kurtosis"); 
+image.plot(nu,tau,KurtMat,col=plasma(64)); title(main = "NP Kurtosis"); 
     
-
 ############################################################
 #  Explore what diagnostic plots can reveal about residuals
-#  250 data points is enough to find signs of trouble 
 ############################################################    
     
 ######### Create covariate for residuals 
 
-z = rt(250,df=10); z=sort(z); hist(z); 
+z = -1+2*rbeta(500,2,2); z=sort(z); hist(z); 
 
-########### Create artificial "residuals" with known sgt parameters 
-nu=exp(0.1*z); tau = -2+z;  
-resids = rSJP(length(z), epsilon=nu, delta = exp(-tau)); 
+########### Create artificial "residuals" with known parameters 
+True.epsilon= rep(-0.8,length(z)); True.delta = exp(-0.5*z); 
+resids = rSJP(length(z), epsilon=True.epsilon, delta = True.delta); 
+par(mfrow=c(2,1)); 
+hist(resids); plot(z,resids); 
 
 jarque.test(resids)$p.value # normality test
 agostino.test(resids)$p.value # skew 
 anscombe.test(resids)$p.value # kurtosis 
 
-
-graphics.off(); plot(z,resids); 
-dev.new(); qqPlot(resids); 
-
 dev.new(); 
-out=rollMomentsNP(z,resids,windows=5);
-
-fit = SJPMaxlik(resids,nstart=10)
-
+out=rollMoments(z,resids,windows=5);
 
 ###########################################################################
-# Fit suitable distributions to binned data (FOR CORALS - must adapt!) 
+# Fit sJP to binned data
 ###########################################################################
-logResids <- data.frame(init=XH$logarea.t0,resids=scaledResids); 
-logResids <- logResids %>% mutate(size_bin = cut_number(init,n=8))
+require(tidyverse); 
+X <- data.frame(init=z,resids=resids); 
+X <- X %>% mutate(size_bin = cut_number(init,n=5))
+bins = levels(X$size_bin); 
+X2=subset(X,size_bin==bins[2]); y = X2$resids; 
 
-source("../fitChosenDists.R"); 
+prior.eps=function(epsilon) dnorm(epsilon,mean=0,sd=10); 
+prior.del=approxfun(c(0,0.02,50,51),c(0,1,1,0),rule=2); 
 
-tryDists=c("PE","GT","JSU", "SHASHo","SEP1","SEP3","SEP4"); 
+######### TEST DATA: can we recover known epsilon and delta?  
 
-bins = levels(logResids$size_bin); 
-maxVals = matrix(NA,length(bins),length(tryDists)); 
+y = rSJP(500,epsilon = -1, delta=1); 
 
-colnames(maxVals) = tryDists; 
-for(j in 1:length(bins)){
-for(k in 1:length(tryDists)) {
-	Xj=subset(logResids,size_bin==bins[j])
-	fitj = gamlssMaxlik(y=Xj$resids,DIST=tryDists[k]); 
-	maxVals[j,k] = fitj$aic;
-	cat("Finished ", tryDists[k]," ",j,k, fitj$maximum,"\n"); 
+# Likelihood times prior, pars=c(nu,tau)  
+# These are closer than (epsilon,delta) to: nu measures skew, tau measures kurtosis 
+Fun = function(par, data) {
+   nu=par[1]; tau=par[2]; 
+   delta=exp(-tau); epsilon=delta*nu; ### PAY CLOSE ATTENTION! 
+   Lik = dSJP(data,epsilon,delta);
+   if(sum(!is.finite(Lik)) > 0){
+        val=0; 
+        }else{
+        val = prod(Lik)*prior.eps(epsilon)*prior.del(delta)
+    }    
+    return(val);  
+} 
+
+### Do Metropolis-Hastings with bivariate Gaussian proposal 
+### with pars = c(nu,tau)) 
+N = 250000; scale=c(.2,0.2); 
+pars = matrix(NA,N,2); pars[1,]=rnorm(2,0,0.1); oldFun = Fun(pars[1,],data=y); 
+accept = 0; 
+for(j in 2:N) {
+    if(j%%10000==0) cat(j, "\n"); 
+    newPars = pars[j-1,] + rnorm(2,0,scale); 
+    newFun = Fun(newPars,data=y); 
+    if(newFun >= oldFun) { 
+        oldFun=newFun; pars[j,]=newPars; accept=accept+1; 
+    }else{  
+        r = newFun/oldFun; 
+        if(runif(1)<r) {
+            oldFun=newFun; pars[j,]=newPars; accept = accept + 1; 
+         }else{
+             pars[j,]=pars[j-1,]   
+         }   
+    }
 }
-}
+keep = seq(N/2,N,by=50); 
+pars=pars[keep,]; 
+nu=pars[,1]; tau=pars[,2]; ### PAY CLOSE ATTENTION! 
+delta=exp(-tau); epsilon=delta*nu; 
+
+graphics.off(); 
+dev.new(); par(mfrow=c(1,2)); plot(epsilon); plot(delta); 
+
+graphics.off(); 
+dev.new(); plot(epsilon,delta); points(-1,1,pch=1,col="red",lwd=2,cex=2); 
+
+dev.new();
+xx = 1.2*range(y); px = seq(xx[1],xx[2],length=1000); 
+py1 = dSJP(px, epsilon=-1, delta=1); 
+py2 = dSJP(px, epsilon=-5, delta=1.5); 
+par(yaxs="i",bty="l",cex=1.2); 
+matplot(px,cbind(py1,py2), col=c("black","red"),type="l",lwd=2, lty=c(1,2), xlab="Value",ylab="Scaled JP density function") 
+legend("topleft",legend=c("epsilon = -1, delta = 1", "epsilon = -5, delta = 1.5"), col=c("black","red"),lty=c(1,2), lwd=2,pch=NULL,bty="n"); 
+
 
  
-
-
-if(FALSE) {
-
-########## Create B-spline basis, and plot it 
-B = create.bspline.basis(rangeval=range(z), norder=4, nbasis=6)
-x = seq(min(z),max(z),length=200); 
-out = eval.basis(x,B);   
-matplot(x,out,type="l"); iprint=1000,maxfun=250000))
-
-}
-
-
-
-
 
 
 

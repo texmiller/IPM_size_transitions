@@ -6,7 +6,6 @@ source("JPfuns.R");
 
 
 ######### Create covariate for residuals 
-
 z = rt(500,df=10); z=sort(z); hist(z); 
 
 ########### Create artificial "residuals" with known sgt parameters 

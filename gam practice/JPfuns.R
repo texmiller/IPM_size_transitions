@@ -22,8 +22,8 @@ require(gamlss.dist); require(maxLik);
 ## See Jones & Pewsey 2009, p. 764 
 Pq = function(q) {
     fac=exp(0.25)/sqrt(8*pi); 
-    t1 = besselK(x=1/4, nu=0.5*(q+1)); 
-    t2 = besselK(x=1/4, nu= 0.5*(q-1)); 
+    t1 = besselK(x=1/4, nu = 0.5*(q+1)); 
+    t2 = besselK(x=1/4, nu = 0.5*(q-1)); 
     return(fac*(t1+t2))
 }
 
@@ -52,7 +52,6 @@ qJP = function(p, epsilon=0, delta=1) {
     nu = epsilon; tau=delta; mu=0; sigma=1; 
     return(  sinh((1/tau) * asinh(qnorm(p)) + (nu/tau)) )
 }
-
 
 rJP = function(n, epsilon=0, delta=1){
     U = runif(n); 
@@ -87,7 +86,8 @@ rSJP = function(n, epsilon=0, delta=1){
     
 }
 
-if(TESTING) {
+TESTING=FALSE; 
+if(TESTING) {######################
 # Testing the moments 
 for(j in 1:10) {
  epsilon=rnorm(1); delta=exp(rnorm(1)); 
@@ -108,7 +108,7 @@ NLL = function(p) {
 fit=optim(par=c(0,1), NLL, control=list(maxit=50000,trace=4)); 
 fit$par;     
 
-}
+} ###################################
 
 
 ###################################################
@@ -152,6 +152,10 @@ SJPMaxlik <- function(y,nstart=10,start = c(epsilon=0,log.delta = 0), sigma.star
     startj = start + sigma.start*rnorm(2); 
     fit = maxLik(logLik=LogLik1,start=startj, response=y, method="BHHH",control=list(iterlim=5000,printLevel=1),
                 finalHessian=FALSE);  
+    fit = maxLik(logLik=LogLik1,start=fit$estimate, response=y, method="BHHH",control=list(iterlim=5000,printLevel=1),
+                finalHessian=FALSE);             
+    fit = maxLik(logLik=LogLik1,start=fit$estimate, response=y, method="BHHH",control=list(iterlim=5000,printLevel=1),
+                finalHessian=FALSE);     
     
     if(fit$maximum==0) fit$maximum = -10^16; 	# failed fit
     if(fit$code>2) fit$maximum = -10^16; 		# failed fit
