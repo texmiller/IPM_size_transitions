@@ -3,14 +3,14 @@ rm(list=ls(all=TRUE));
 setwd("c:/repos/IPM_size_transitions/gam practice"); 
 require(minqa); require(fda);
 source("JPfuns.R"); 
-notExp2 = function (x, d, b=1/d) exp(d * sin(x * b))  # from mgcv
+
 
 ######### Create covariate for residuals 
 
-z = -1+2*rbeta(500,2,2); z=sort(z); hist(z); 
+z = rt(500,df=10); z=sort(z); hist(z); 
 
 ########### Create artificial "residuals" with known sgt parameters 
-True.epsilon= rep(-0.8,length(z)); True.delta = notExp2(1 + 0.5*z,d=log(10)); 
+True.epsilon= rep(-0.5,length(z)); True.delta = 0.5 + 0.05*z^2
 resids = rSJP(length(z), epsilon=True.epsilon, delta = True.delta); 
 par(mfrow=c(2,1)); 
 hist(resids); plot(z,resids); 
@@ -24,7 +24,7 @@ matplot(x,out,type="l");
 ########### function to convert coefficients into epsilon and delta values 
 X = eval.basis(z,B); P = bsplinepen(B,Lfdobj=2); 
 
-
+notExp2 = function (x, d, b=1/d) exp(d * sin(x * b))  # from mgcv
 
 make_eps_delta = function(pars){
     epsilon = X%*%pars[1:6]; 
@@ -44,47 +44,11 @@ make_eps_delta = function(pars){
     return(NLL)
 }
 
- NegLogLikQuadratic = function(pars){
-    epsilon = pars[1] + pars[2]*z + pars[3]*z^2; 
-    u = pars[4] + pars[5]*z + pars[6]*z^2; 
-    delta = notExp2(u,d=log(10))
-
-    NLL = -sum(log(dSJP(z,epsilon,delta)))  
-    return(NLL)
-}
-
 ########################################################################
-# Unconstrained Polynomial fit 
+# Unconstrained fit 
 ########################################################################
-fit = optim(par=c(0,0,0,0,0,0), NegLogLikQuadratic, control = list(trace=4,maxit=250000))
-
-for(m in 1:5){
-fit = optim(par=fit$par, fn=NegLogLikQuadratic, control = list(trace=4,maxit=250000))
-fit = bobyqa(par=fit$par, fn=NegLogLikQuadratic, control = list(iprint=1000,maxfun=250000))
-}
-
-pars = fit$par; 
-epsilonQ = pars[1] + pars[2]*z + pars[3]*z^2; 
-u = pars[4] + pars[5]*z + pars[6]*z^2; 
-deltaQ = notExp2(u,d=log(10))
-
-par(mfrow=c(2,1)); 
-plot(z,epsilonQ,type="l"); points(z,True.epsilon, type="l",lty=2,col="blue") 
-rug(z); 
-
-plot(z,deltaQ,type="l"); points(z,True.delta, type="l",lty=2,col="blue"); 
-rug(z); 
-
-
-########################################################################
-# Unconstrained Spline fit 
-########################################################################
-fit = optim(par=rep(0,12), NegLogLik, control = list(trace=4,maxit=250000))
-
-for(m in 1:5){
-fit = optim(par=fit$par, fn=NegLogLik, control = list(trace=4,maxit=250000))
+fit = bobyqa(par=rep(0,12), fn=NegLogLik, control = list(iprint=1000,maxfun=250000,rhobeg=1))
 fit = bobyqa(par=fit$par, fn=NegLogLik, control = list(iprint=1000,maxfun=250000))
-}
 
 bestSplineFits = make_eps_delta(fit$par); 
 par(mfrow=c(2,1)); 
@@ -93,9 +57,7 @@ rug(z);
 
 plot(z,bestSplineFits$delta,type="l"); points(z,True.delta, type="l",lty=2,col="blue"); 
 rug(z); 
-
-
-   
+    
 ########################################################################
 # Penalized fit 
 ########################################################################
