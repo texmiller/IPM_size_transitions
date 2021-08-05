@@ -188,7 +188,7 @@ for(i in 1:n_sim){
 }
 
 n_bins = 12
-alpha_scale = 0.7
+alpha_scale = 0.5
 LATR_moments <- LATR_grow %>% 
   arrange(log_volume_t) %>% 
   mutate(size_bin = cut_interval(log_volume_t,n=n_bins)) %>% 
@@ -214,12 +214,12 @@ for(i in 1:n_sim){
   sim_bin_means[,i]=sim_moments$bin_mean; 
   sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;		  
 }
-matplot(LATR_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Mean(Size t1)",cex=1,
+matplot(LATR_moments$bin_mean, sim_moment_means,col=alpha("gray",0.05),pch=16,xlab="Mean size t0",ylab="Mean(Size t1)",cex=1,
         xlim=c(min(LATR_moments$bin_mean),max(LATR_moments$bin_mean)+0.4))
-matplot(LATR_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.5),pch=16,add=T)
-points(LATR_moments$bin_mean+0.2, LATR_moments$mean_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.6)
-points(LATR_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
-points(LATR_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
+matplot(LATR_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.05),pch=16,add=T)
+points(LATR_moments$bin_mean, apply(sim_moment_means,1,median),pch="--",col="gray",cex=3)
+points(LATR_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch="--",col="cornflowerblue",cex=3)
+points(LATR_moments$bin_mean+0.2, LATR_moments$mean_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.2)
 legend("topleft",legend=c("SGT","Gaussian","Data"),
        col=c("gray","cornflowerblue","red"),pch=16,bty="n",cex=1,pt.lwd=2,pt.cex = 1.2) 
 add_panel_label("a")
@@ -236,12 +236,12 @@ for(i in 1:n_sim){
   sim_bin_means[,i]=sim_moments$bin_mean; 
   sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;		  
 }
-matplot(LATR_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="SD(Size t1)",cex=1,
+matplot(LATR_moments$bin_mean, sim_moment_means,col=alpha("gray",0.05),pch=16,xlab="Mean size t0",ylab="SD(Size t1)",cex=1,
         xlim=c(min(LATR_moments$bin_mean),max(LATR_moments$bin_mean)+0.4)) 
-matplot(LATR_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.5),pch=16,add=T)
-points(LATR_moments$bin_mean+0.2, LATR_moments$sd_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.6)
-points(LATR_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
-points(LATR_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
+matplot(LATR_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.05),pch=16,add=T)
+points(LATR_moments$bin_mean, apply(sim_moment_means,1,median),pch="--",col="gray",cex=3)
+points(LATR_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch="--",col="cornflowerblue",cex=3)
+points(LATR_moments$bin_mean+0.2, LATR_moments$sd_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.2)
 add_panel_label("b")
 
 for(i in 1:n_sim){
@@ -256,12 +256,12 @@ for(i in 1:n_sim){
   sim_bin_means[,i]=sim_moments$bin_mean; 
   sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;	  
 }
-matplot(LATR_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Skew(Size t1)",cex=1,
+matplot(LATR_moments$bin_mean, sim_moment_means,col=alpha("gray",0.05),pch=16,xlab="Mean size t0",ylab="Skew(Size t1)",cex=1,
         xlim=c(min(LATR_moments$bin_mean),max(LATR_moments$bin_mean)+0.4))
-matplot(LATR_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.5),pch=16,add=T)
-points(LATR_moments$bin_mean+0.2, LATR_moments$skew_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.6)
-points(LATR_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
-points(LATR_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
+matplot(LATR_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.05),pch=16,add=T)
+points(LATR_moments$bin_mean, apply(sim_moment_means,1,median),pch="--",col="gray",cex=3)
+points(LATR_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch="--",col="cornflowerblue",cex=3)
+points(LATR_moments$bin_mean+0.2, LATR_moments$skew_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.2)
 add_panel_label("c")
 
 for(i in 1:n_sim){
@@ -276,12 +276,12 @@ for(i in 1:n_sim){
   sim_bin_means[,i]=sim_moments$bin_mean; 
   sim_moment_means[,i]=sim_moments$mean_t1; sim_moment_means_norm[,i]=sim_moments$mean_t1_norm;	  
 }
-matplot(LATR_moments$bin_mean, sim_moment_means,col=alpha("gray",0.5),pch=16,xlab="Mean size t0",ylab="Kurtosis(Size t1)",cex=1,
+matplot(LATR_moments$bin_mean, sim_moment_means,col=alpha("gray",0.05),pch=16,xlab="Mean size t0",ylab="Kurtosis(Size t1)",cex=1,
         xlim=c(min(LATR_moments$bin_mean),max(LATR_moments$bin_mean)+0.4))
-matplot(LATR_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.5),pch=16,add=T)
-points(LATR_moments$bin_mean+0.2, LATR_moments$kurt_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.6)
-points(LATR_moments$bin_mean, apply(sim_moment_means,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
-points(LATR_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch=1,lwd=2,col=alpha("black",alpha_scale),cex=1.6)
+matplot(LATR_moments$bin_mean+0.4, sim_moment_means_norm,col=alpha("cornflowerblue",0.05),pch=16,add=T)
+points(LATR_moments$bin_mean, apply(sim_moment_means,1,median),pch="--",col="gray",cex=3)
+points(LATR_moments$bin_mean+0.4, apply(sim_moment_means_norm,1,median),pch="--",col="cornflowerblue",cex=3)
+points(LATR_moments$bin_mean+0.2, LATR_moments$kurt_t1,pch=16,lwd=2,col=alpha("red",alpha_scale),cex=1.2)
 add_panel_label("d")
 
 
