@@ -14,7 +14,7 @@
 # than Gaussian tails, values > 1 give thinner. 
 # It corresponds to tau in gamlss. 
 ##############################################################
-require(gamlss); require(maxLik);  
+require(gamlss.dist); require(maxLik);  
 
 #################################################
 # Functions for the original JP distribution 
@@ -87,6 +87,7 @@ rSJP = function(n, epsilon=0, delta=1){
     
 }
 
+if(TESTING) {
 # Testing the moments 
 for(j in 1:10) {
  epsilon=rnorm(1); delta=exp(rnorm(1)); 
@@ -94,6 +95,19 @@ for(j in 1:10) {
  v = integrate(function(x) x*dSJP(x,epsilon,delta), -Inf, Inf)$value   # should equal 0 
  z = integrate(function(x) (x^2)*dSJP(x,epsilon,delta), -Inf, Inf)$value   # should equal 1 
 cat(round(u,digits=6), round(v,digits=6), round(z,digits=6), "\n"); 
+}
+
+## Testing the RNG -- do we recover the parameters that generated the "data"? 
+par(mfrow=c(2,1)); 
+X = rSJP(50000,epsilon=-0.5,delta=.25);
+NLL = function(p) {
+    eps=p[1]; del=p[2]; 
+    -sum(log(dSJP(X,eps,del)))
+}
+
+fit=optim(par=c(0,1), NLL, control=list(maxit=50000,trace=4)); 
+fit$par;     
+
 }
 
 
