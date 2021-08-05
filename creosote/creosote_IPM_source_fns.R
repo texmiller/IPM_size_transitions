@@ -16,7 +16,7 @@ size_dummy <- seq(LATR_size_bounds$min_size,LATR_size_bounds$max_size,0.1)
 
 ## Growth -- Gaussian using best gam
 LATR_grow_best <- readRDS("LATR_grow_best.rds")
-growth_fn <- function(x,y,d){
+growth_NO <- function(x,y,d){
   xb=pmin(pmax(x,LATR_size_bounds$min_size),LATR_size_bounds$max_size)
   lpmat <- predict.gam(LATR_grow_best,
                       newdata = data.frame(
@@ -26,10 +26,29 @@ growth_fn <- function(x,y,d){
                       type="lpmatrix",
                       exclude = "s(unique.transect)")
   ## linear predictor for mean and log sigma -- need to update so these indices are not hard-coded but for now they work
-  grow_mu <- lpmat[,1:19]%*%coef(LATR_grow_best)[1:19]
+  grow_mu <- lpmat[,1:31]%*%coef(LATR_grow_best)[1:31]
   grow_sigma <- exp(lpmat[,32:50]%*%coef(LATR_grow_best)[32:50])
   return(dnorm(y,mean=grow_mu,sd=grow_sigma))
 }
+
+growth_SGT <- function(x, y, d){
+  xb = pmin(pmax(x, LATR_size_bounds$min_size), LATR_size_bounds$max_size)
+  lpmat <- predict.gam(LATR_grow_best,
+                       newdata = data.frame(weighted.dens = d, log_volume_t = xb, unique.transect = "1.FPS"),
+                       type = "lpmatrix",
+                       exclude = "s(unique.transect)")
+  # Linear predictor for mean, sigma, and lambda
+  grow_mu <- lpmat[, 1:31] %*% coef_grow_best[1:31]
+  grow_sigma <- exp(lpmat[, 32:50] %*% coef_grow_best[32:50])
+  grow_lambda <- -invlogit(coef_grow_best[51]+coef_grow_best[52]*xb)
+  return(dsgt(x = y, 
+              mu=grow_mu,
+              sigma=grow_sigma,
+              lambda=grow_lambda,
+              p=exp(coef_grow_best[53]),
+              q=exp(coef_grow_best[54]),
+              mean.cent=T,
+              var.adj=T))}
 
 ## Survival-- prediction from naturally occuring plants
 LATR_surv_best <- readRDS("LATR_surv_best.rds")
@@ -48,8 +67,9 @@ survival_fn <- function(x,d){
 }
 
 ## combined growth and survival
-pxy <- function(x,y,d){
-  survival_fn(x,d) * growth_fn(x,y,d)
+pxy <- function(x,y,d,dist="SGT"){
+  if(dist=="SGT"){return(survival_fn(x,d) * growth_SGT(x,y,d))}
+  if(dist=="NO"){return(survival_fn(x,d) * growth_NO(x,y,d))}
 }
 
 ## Flowering
@@ -113,7 +133,8 @@ bigmatrix<-function(lower.extension = -8, ## needs a large lower extension becau
                     min.size = LATR_size_bounds$min_size,
                     max.size = LATR_size_bounds$max_size,
                     mat.size = 200,
-                    dens){
+                    dens,
+                    dist="SGT"){
   
   n<-mat.size
   L<-min.size + lower.extension
@@ -124,7 +145,7 @@ bigmatrix<-function(lower.extension = -8, ## needs a large lower extension becau
   y<-0.5*(b[1:n]+b[2:(n+1)]);  #Bin midpoints
   
   # Growth/Survival matrix
-  Pmat<-t(outer(y,y,pxy,d=dens)) * h 
+  Pmat<-t(outer(y,y,pxy,d=dens,dist=dist)) * h 
   
   # Fertility/Recruiment matrix
   Fmat<-t(outer(y,y,fxy,d=dens)) * h 
