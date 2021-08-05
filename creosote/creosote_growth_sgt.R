@@ -157,6 +157,7 @@ out=maxLik(logLik=sgtLogLik,start=out$estimate,response=LATR_grow$log_volume_t1,
 
 out=maxLik(logLik=sgtLogLik,start=out$estimate,response=LATR_grow$log_volume_t1,
            method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=TRUE) 
+coef_grow_best<-out$estimate
 
 ## compare to original (gaussian) gam parameter estimates
 plot(LATR_beta,out$estimate[1:50])
@@ -577,3 +578,35 @@ saveRDS(data.frame(recruit_mean = mean(LATR_recruit_size$log_volume),
 saveRDS(data.frame(min_size = log(min(LATR_full$volume_t,LATR_full$volume_t1[LATR_full$transplant==F],na.rm=T)),
                    max_size = log(max(LATR_full$volume_t,LATR_full$volume_t1[LATR_full$transplant==F],na.rm=T))),
         "LATR_size_bounds.rds")
+
+
+# IPM results -------------------------------------------------------------
+source("creosote_IPM_source_fns.R")
+
+## lambda over density variation
+density_dummy <- seq(min(LATR_full$weighted.dens,na.rm=T),max(LATR_full$weighted.dens,na.rm=T),length.out = 15)
+lambda_density_SGT <- lambda_density_NO <- c()
+for(d in 1:length(density_dummy)){
+  print(d)
+  lambda_density_SGT[d] <- lambda(bigmatrix(dens=density_dummy[d],lower.extension = -12,mat.size = 300)$IPMmat)
+  lambda_density_NO[d] <- lambda(bigmatrix(dens=density_dummy[d],lower.extension = -12,mat.size = 300, dist="NO")$IPMmat)
+}
+
+par(mfrow=c(1,1))
+plot(density_dummy,lambda_density_SGT,type="b",lwd=2,pch=16,xlab="Weighted density",ylab="lambda",ylim=c(1,1.15))
+lines(density_dummy,lambda_density_NO,type="b",lwd=2,pch=16,col="red")
+abline(h=1,lty=3)
+legend("topright",legend=c("SGT","Gaussian"),pch=16,lwd=2,col=c("black","red"))
+
+## messing around with eviction and mat size
+lambda(bigmatrix(dens=0,lower.extension = -8)$IPMmat)
+lambda(bigmatrix(dens=0,lower.extension = -9)$IPMmat)
+lambda(bigmatrix(dens=0,lower.extension = -10)$IPMmat)
+lambda(bigmatrix(dens=0,lower.extension = -11)$IPMmat)
+lambda(bigmatrix(dens=0,lower.extension = -12,mat.size = 300)$IPMmat)
+
+lambda(bigmatrix(dens=0,lower.extension = -8, dist="NO")$IPMmat)
+lambda(bigmatrix(dens=0,lower.extension = -9, dist="NO")$IPMmat)
+lambda(bigmatrix(dens=0,lower.extension = -10, dist="NO")$IPMmat)
+lambda(bigmatrix(dens=0,lower.extension = -11, dist="NO")$IPMmat)
+lambda(bigmatrix(dens=0,lower.extension = -12, dist="NO",mat.size = 300)$IPMmat)
