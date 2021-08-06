@@ -86,6 +86,15 @@ rSJP = function(n, epsilon=0, delta=1){
     
 }
 
+SJP_moments=function(epsilon,delta) {
+    m3 = integrate(function(x) (x^3)*dSJP(x,epsilon,delta), -Inf, Inf)$value
+    m4 = integrate(function(x) (x^4)*dSJP(x,epsilon,delta), -Inf, Inf)$value
+    return(list(skew = m3, excess.kurtosis = m4/3 -1))
+}    
+    
+    
+
+
 TESTING=FALSE; 
 if(TESTING) {######################
 # Testing the moments 
@@ -115,6 +124,7 @@ fit$par;
 # Nonparametric skew and kurtosis functions. 
 # These are the same for JP and standardized JP
 ###################################################
+
 
 JP_NPskewness = function(epsilon,delta,p=0.1) {
 	q = qJP(c(p,0.5,1-p),epsilon,delta)
