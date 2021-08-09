@@ -4,30 +4,141 @@ setwd("c:/repos/IPM_size_transitions/gam practice");
 require(sgt); require(minqa); 
 
 ######### Visualize effects of changing p and q 
+dev.new(); 
 par(mfrow=c(3,1),mar=c(4,4,1,1),mgp=c(2.2,1,0),bty="l"); 
 x=seq(-5,5,length=500); 
 
-py1 = dsgt(x,mu=0,sigma=1,lambda=0,p=1,q=2.2);
-py2 = dsgt(x,mu=0,sigma=1,lambda=0,p=1,q=4);
-py3 = dsgt(x,mu=0,sigma=1,lambda=0,p=1,q=20);
+py1 = dsgt(x,mu=0,sigma=1,lambda=0.5,p=1,q=2.2);
+py2 = dsgt(x,mu=0,sigma=1,lambda=0.5,p=1,q=4);
+py3 = dsgt(x,mu=0,sigma=1,lambda=0.5,p=1,q=20);
 matplot(x,cbind(py1,py2,py3),type="l",col=c("black","red","blue")); 
 title(main="p=1"); 
 legend("left",legend=c("q=2.2", "q=4", "q=20"), col=c("black","red","blue"), lty=1, pch=NULL,cex=2,bty="n",inset=0.04); 
 
-py1 = dsgt(x,mu=0,sigma=1,lambda=0,p=2,q=1.2);
-py2 = dsgt(x,mu=0,sigma=1,lambda=0,p=2,q=4);
-py3 = dsgt(x,mu=0,sigma=1,lambda=0,p=2,q=20);
+py1 = dsgt(x,mu=0,sigma=1,lambda=0.5,p=2,q=1.2);
+py2 = dsgt(x,mu=0,sigma=1,lambda=0.5,p=2,q=4);
+py3 = dsgt(x,mu=0,sigma=1,lambda=0.5,p=2,q=20);
 matplot(x,cbind(py1,py2,py3),type="l",col=c("black","red","blue")); 
 title(main="p=2"); 
 legend("left",legend=c("q=1.2", "q=4", "q=20"), col=c("black","red","blue"), lty=1, pch=NULL,cex=2,bty="n",inset=0.04); 
 
 x=seq(-5,5,length=500); 
-py1 = dsgt(x,mu=0,sigma=1,lambda=0,p=5,q=.5);
-py2 = dsgt(x,mu=0,sigma=1,lambda=0,p=5,q=4);
-py3 = dsgt(x,mu=0,sigma=1,lambda=0,p=5,q=20);
+py1 = dsgt(x,mu=0,sigma=1,lambda=0.5,p=5,q=.5);
+py2 = dsgt(x,mu=0,sigma=1,lambda=0.5,p=5,q=4);
+py3 = dsgt(x,mu=0,sigma=1,lambda=0.5,p=5,q=20);
 matplot(x,cbind(py1,py2,py3),type="l",col=c("black","red","blue")); 
 title(main="p=5"); 
 legend("left",legend=c("q=0.5", "q=4", "q=20"), col=c("black","red","blue"), lty=1, pch=NULL,cex=2,bty="n",inset=0.04); 
+
+
+sgt_NPskewness = function(lambda,p,q,tail.p=0.1) {
+	qt = qsgt(c(tail.p,0.5,1-tail.p),lambda=lambda,p=p,q = q)
+	u = (qt[3]+qt[1]-2*qt[2])/(qt[3]-qt[1]);
+	return(as.numeric(u)); 
+	
+}	
+
+sgt_NPkurtosis=function(lambda,p,q, tail.p=0.05) {
+	qt = qsgt(c(tail.p,0.25,0.75,1-tail.p),lambda=lambda,p=p,q=q)
+	qN = qnorm(c(tail.p,0.25,0.75,1-tail.p))
+	u = (qt[4]-qt[1])/(qt[3]-qt[2]);
+	uN = (qN[4]-qN[1])/(qN[3]-qN[2]);
+	return (as.numeric(u/uN-1)) 
+}
+
+############# Vary lambda and p 
+SkewMat = KurtMat = matrix(NA,50,51);
+lambda = seq(-0.95,0.95,length=50)
+p = seq(1.5,10,length=51);  
+for(i in 1:50) {
+for(j in 1:51){
+    SkewMat[i,j]=sgt_NPskewness(lambda=lambda[i],p=p[j],q=2);
+    KurtMat[i,j]=sgt_NPkurtosis(lambda=lambda[i],p=p[j],q=2);
+}}
+
+require(viridisLite); require(fields); 
+graphics.off(); dev.new(); 
+image.plot(lambda,p,SkewMat,col=plasma(64));  title(main="sgt NP Skewness"); 
+contour(lambda,p,SkewMat,add=TRUE,labcex=1) 
+
+
+dev.new(); 
+image.plot(lambda,p,KurtMat,col=plasma(64));  title(main="sgt NP Kurtosis"); 
+contour(lambda,p,KurtMat,add=TRUE,labcex=1) 
+
+############ Vary lambda and q 
+SkewMat = KurtMat = matrix(NA,50,51);
+lambda = seq(-0.95,0.95,length=50)
+q = seq(1.5,10,length=51);  
+for(i in 1:50) {
+for(j in 1:51){
+    SkewMat[i,j]=sgt_NPskewness(lambda=lambda[i],p=2,q=q[j]);
+    KurtMat[i,j]=sgt_NPkurtosis(lambda=lambda[i],p=2,q=q[j]);
+}}
+
+dev.new(); 
+image.plot(lambda,q,SkewMat,col=plasma(64));  title(main="sgt NP Skewness"); 
+contour(lambda,p,SkewMat,add=TRUE,labcex=1) 
+
+dev.new(); 
+image.plot(lambda,q,KurtMat,col=plasma(64));  title(main="sgt NP Kurtosis"); 
+contour(lambda,p,KurtMat,add=TRUE,labcex=1) 
+
+
+############ Vary p and q 
+SkewMat = KurtMat = matrix(NA,60,61);
+p = seq(1.5,10,length=60);  
+q = seq(1.5,10,length=61);  
+for(i in 1:60) {
+for(j in 1:61){
+    SkewMat[i,j]=sgt_NPskewness(lambda=0.35, p=p[i],q=q[j]);
+    KurtMat[i,j]=sgt_NPkurtosis(lambda=0.35, p=p[i],q=q[j]);
+}}
+graphics.off(); 
+
+dev.new(); 
+image.plot(p,q,SkewMat);  title(main="sgt NP Skewness"); 
+contour(p,q,SkewMat,add=TRUE,labcex=1) 
+
+dev.new(); 
+image.plot(p,q,KurtMat);  title(main="sgt NP Kurtosis"); 
+contour(p,q,KurtMat,add=TRUE,labcex=1) 
+
+
+
+
+#######################################################
+#  Display how NP skew and kurtosis depend on parameters
+#######################################################
+
+SkewMat = KurtMat = matrix(NA,150,151);
+nu = seq(-3,3,length=150)
+tau = seq(-1,1,length=151);  
+for(i in 1:150) {
+for(j in 1:151){
+    delta=exp(-0.5*tau[j]); epsilon=delta*nu[i]; 
+    SkewMat[i,j]=JP_NPskewness(epsilon,delta);
+    KurtMat[i,j]=JP_NPkurtosis(epsilon,delta);
+}}
+
+graphics.off(); 
+dev.new(); 
+image.plot(nu,tau,SkewMat,col=plasma(64));  title(main="NP Skewness"); 
+contour(nu,tau,SkewMat,add=TRUE) 
+
+dev.new(); 
+image.plot(nu,tau,KurtMat,col=plasma(64)); title(main = "NP Kurtosis"); 
+contour(nu,tau,KurtMat,add=TRUE) 
+
+
+
+
+
+
+
+
+
+
 
 
 ######### Create covariate z for artificial "residuals" 
@@ -121,14 +232,10 @@ matplot(z,ps,lty=1,type="l",col=magma(10));  points(z,True.p,col="red",lty=1,lwd
 matplot(z,qs,lty=1,type="l",col=magma(10));   points(z,True.q,col="red",lty=1,lwd=2,type="l"); 
 
 
-
-
 ##################################################
 # Basement: 3-penalty fitting attempt. 
 ##################################################
 
-
- 
 if(FALSE){
 ## This isn't really AIC because it's based on the 2nd derivative complexity measure
 evalAIC = function(logpen){

@@ -179,6 +179,46 @@ SJPMaxlik <- function(y,nstart=10,start = c(epsilon=0,log.delta = 0), sigma.star
 }
 
 
+########################################################################
+# Fit parameters of standardized JP by maximum Likelihood
+# using BHHH from MaxLik package.  
+#
+# Maximization uses multistart with random initial parameters,
+# with input parameter nstart specifying the number of random starts. 
+#######################################################################
+
+SJP_ML <- function(y,nstart=10,start = c(lambda=0,tau=0), sigma.start=0.2 ) {
+ 
+  LogLik1=function(pars,response){
+    lambda=pars[1]; tau = pars[2]
+    delta=exp(-tau); epsilon=lambda*delta;
+    val = dSJP(response,epsilon,delta);  
+    return(log(val)); 
+  }  
+    
+  NLL = function(pars,response) -sum(LogLik1(pars,response)); 
+
+  bestPars=numeric(2); bestMax=-10^17; 
+  for(jrep in 1:nstart) {
+    startj = start + sigma.start*rnorm(2); 
+    fit = optim(startj,NLL,response=y, control=list(trace=0,maxit=20000)); 
+    fit = maxLik(logLik=LogLik1,start=fit$par,response=y, method="BHHH",control=list(iterlim=5000,printLevel=1),
+                finalHessian=FALSE); 
+    fit = optim(fit$estimate,NLL,response=y, control=list(trace=0,maxit=20000));         
+    fit = maxLik(logLik=LogLik1,start=fit$par, response=y, method="BHHH",control=list(iterlim=5000,printLevel=1),
+                finalHessian=FALSE);     
+    
+    if(fit$maximum==0) fit$maximum = -10^16; 	# failed fit
+    if(fit$code>2) fit$maximum = -10^16; 		# failed fit
+    if(fit$maximum > bestMax)	{bestPars=fit$estimate; bestMax=fit$maximum; bestFit=fit;}
+    cat("ML fit ", jrep,fit$maximum," <--------------------->", "\n"); 
+  }	
+      
+  return(list(fit=bestFit,estimate=fit$estimate)); 
+}
+
+
+
 
 
 

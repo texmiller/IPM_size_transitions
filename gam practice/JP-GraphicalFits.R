@@ -16,67 +16,62 @@ graphics.off();
 #######################################################
 
 SkewMat = KurtMat = matrix(NA,150,151);
-nu = seq(-3,3,length=150)
-tau = seq(-1,1,length=151);  
+lambda = seq(-2,2,length=150)
+tau = seq(-1.5,1,length=151);  
 for(i in 1:150) {
 for(j in 1:151){
-    delta=exp(-0.5*tau[j]); epsilon=delta*nu[i]; 
+    delta=exp(-tau[j]); epsilon = lambda[i]*delta; 
     SkewMat[i,j]=JP_NPskewness(epsilon,delta);
     KurtMat[i,j]=JP_NPkurtosis(epsilon,delta);
 }}
 
-graphics.off(); 
 dev.new(); 
-image.plot(nu,tau,SkewMat,col=plasma(64));  title(main="NP Skewness"); 
-contour(nu,tau,SkewMat,add=TRUE) 
+image.plot(lambda,tau,SkewMat);  title(main="NP Skewness"); 
+contour(lambda,tau,SkewMat,add=TRUE,labcex=1) 
 
 dev.new(); 
-image.plot(nu,tau,KurtMat,col=plasma(64)); title(main = "NP Kurtosis"); 
-contour(nu,tau,KurtMat,add=TRUE) 
+image.plot(lambda,tau,KurtMat); title(main = "NP Kurtosis"); 
+contour(lambda,tau,KurtMat,add=TRUE,labcex=1) 
 
 
 ################################################################
 #  Display how ordinary skew and kurtosis depend on parameters
 ################################################################
 
-SkewMat = KurtMat = matrix(NA,50,51);
-nu = seq(-3,3,length=50)
-tau = seq(-1,1,length=51);  
-for(i in 1:50) {
-for(j in 1:51){
-    delta=exp(-0.5*tau[j]); epsilon=delta*nu[i]; 
+SkewMat = KurtMat = matrix(NA,70,71);
+lambda = seq(-2,2,length=70)
+tau = seq(-1.5,1,length=71);  
+for(i in 1:70) {
+for(j in 1:71){
+    delta=exp(-tau[j]); epsilon = lambda[i]*delta; 
     out = SJP_moments(epsilon,delta); 
     SkewMat[i,j]=out$skew;
     KurtMat[i,j]=out$excess.kurtosis;
 }}
 
-graphics.off(); 
+# graphics.off(); 
 dev.new(); 
-image.plot(nu,tau,SkewMat,col=plasma(64));  title(main="Skewness"); 
-contour(nu,tau,SkewMat,add=TRUE) 
+image.plot(lambda,tau,SkewMat);  title(main="Skewness"); 
+contour(lambda,tau,SkewMat,add=TRUE,labcex=1) 
 
 dev.new(); 
-image.plot(nu,tau,KurtMat,col=plasma(64)); title(main = "Excess Kurtosis"); 
-contour(nu,tau,KurtMat,add=TRUE) 
+image.plot(lambda,tau,KurtMat); title(main = "Excess Kurtosis"); 
+contour(lambda,tau,KurtMat,add=TRUE,labcex=1) 
 
-   
-
+ 
 ######### TEST DATA: can we recover known epsilon and delta?  
-prior.eps=function(epsilon) dnorm(epsilon,mean=0,sd=100); 
-prior.del=approxfun(c(0,0.02,50,51),c(0,1,1,0),rule=2); 
-
-nu.true = -0.5; tau.true = 1.5; 
-delta.true=exp(-0.5*tau.true); epsilon.true=delta.true*nu.true;
+epsilon.true = 1; delta.true = 0.5;  
+lambda.true=epsilon.true/delta.true; tau.true = - log(delta.true); 
 SJP_moments(epsilon.true,delta.true); 
 
-
 y = rSJP(500,epsilon = epsilon.true, delta=delta.true); 
+out = SJP_ML(y); out; lambda.true; tau.true; 
 
 # Likelihood times prior, pars=c(nu,tau)  
 # These are closer than (epsilon,delta) to: nu measures skew, tau measures kurtosis 
 Fun = function(par, data) {
-   nu=par[1]; tau=par[2]; 
-   delta=exp(-0.5*tau); epsilon=delta*nu; ### PAY CLOSE ATTENTION! 
+   lambda=par[1]; tau=par[2]; 
+   delta=exp(-tau); epsilon=lambda*delta; ### PAY CLOSE ATTENTION! 
    Lik = dSJP(data,epsilon,delta);
    if(sum(!is.finite(Lik)) > 0){
         val=0; 
@@ -87,7 +82,7 @@ Fun = function(par, data) {
 } 
 
 ### Do Metropolis-Hastings with bivariate Gaussian proposal 
-### with pars = c(nu,tau)) 
+### with pars = c(lambda,tau)) 
 N = 10^6; scale=c(.2,0.2); 
 pars = matrix(NA,N,2); pars[1,]=rnorm(2,0,0.1); oldFun = Fun(pars[1,],data=y); 
 accept = 0; 
@@ -108,15 +103,15 @@ for(j in 2:N) {
 }
 keep = seq(N/4,N,by=50); 
 pars=pars[keep,]; 
-nu=pars[,1]; tau=pars[,2]; ### PAY CLOSE ATTENTION! 
-delta=exp(-0.5*tau); epsilon=delta*nu; 
+lambda=pars[,1]; tau=pars[,2]; ### PAY CLOSE ATTENTION! 
+delta=exp(-tau); epsilon=delta*lambda; 
 
 graphics.off(); 
-dev.new(); par(mfrow=c(1,2)); plot(epsilon); plot(delta); 
+dev.new(); par(mfrow=c(1,2)); plot(lambda); plot(tau); 
 
 graphics.off(); 
-dev.new(); plot(nu,tau); 
-points(nu.true,tau.true,pch=1,col="red",lwd=2,cex=2); 
+dev.new(); plot(lambda,tau); 
+points(lambda.true,tau.true,pch=1,col="red",lwd=2,cex=2); 
 
 graphics.off(); 
 dev.new(); plot(epsilon,delta); points(epsilon.true, delta.true,pch=1,col="red",lwd=2,cex=2); 
@@ -136,12 +131,13 @@ legend("topleft",legend=c("epsilon = -1, delta = 1", "epsilon = -5, delta = 1.5"
 ############################################################    
     
 ######### Create covariate for residuals 
-
-z = -1+2*rbeta(500,2,2); z=sort(z); hist(z); 
+z = rbeta(500,2,2); z=sort(z); hist(z); 
 
 ########### Create artificial "residuals" with known parameters 
-True.epsilon= rep(-0.8,length(z)); True.delta = exp(-0.5*z); 
-resids = rSJP(length(z), epsilon=True.epsilon, delta = True.delta); 
+true.lambda = -z^2; true.tau = 0.25  
+true.delta=exp(-true.tau); true.epsilon=true.delta*true.lambda; 
+
+resids = rSJP(length(z), epsilon=true.epsilon, delta = true.delta); 
 par(mfrow=c(2,1)); 
 hist(resids); plot(z,resids); 
 
@@ -149,17 +145,28 @@ jarque.test(resids)$p.value # normality test
 agostino.test(resids)$p.value # skew 
 anscombe.test(resids)$p.value # kurtosis 
 
-dev.new(); 
-out=rollMoments(z,resids,windows=5);
+graphics.off(); dev.new(); 
+out=rollMomentsNP(z,resids,windows=4);
 
 ###########################################################################
 # Fit sJP to binned data
 ###########################################################################
 require(tidyverse); 
 X <- data.frame(init=z,resids=resids); 
-X <- X %>% mutate(size_bin = cut_number(init,n=5))
-bins = levels(X$size_bin); 
-X2=subset(X,size_bin==bins[2]); y = X2$resids; 
+X <- X %>% mutate(size_bin = cut_number(init,n=6))
+bins = levels(X$size_bin);
+nbins=length(bins); 
+
+fits = list(nbins); 
+fittedPars=matrix(NA,nbins,3); 
+for(j in 1:nbins){
+    Xj=subset(X,size_bin==bins[j]);
+    fits[[j]] = SJP_ML(Xj$resids); 
+    fittedPars[j,1]=median(Xj$init); 
+    fittedPars[j,2:3] = fits[[j]]$estimate; 
+}    
+dev.new(); matplot(fittedPars[,1],fittedPars[,2:3], type="o", lty=1, pch=1); 
+
 
 
 
