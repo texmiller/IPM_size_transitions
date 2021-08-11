@@ -1,25 +1,37 @@
 ###############################################################
-# Functions for a Standardized Jones-Pewsey distribution, 
-# a two-parameter family with mean=0 and variance=1. 
+# Functions for Jones-Pewsey (JP) distribution and relatives.  
 #
-# The "Jones Pewsey distribution" is equivalent to SHASHo
-# in gamlss with mu=0 and sigma=1, which DOES NOT have
-# zero mean and unit variance.  
+# JP is a two-parameter family with skew and kurtosis parameters.  
+# Our notation follows the original paper (Jones and Pewsey 2009).
+# epsilon is the skew parameter (negative/positive values give
+# negative and positive skew). delta > 0 is the tail-weight parameter.
+# Values < 1 give fatter than Gaussian tails, values > 1 give thinner. 
+# 
+# JP is equivalent to SHASHo in gamlss with mu=0 and sigma=1; 
+# though neither one has zero mean an unit variance. Because  
+# gamlss is poorly documented, rather than relying on it we 
+# self-contained code for the density dJP, quantile function qJP, and 
+# random number generation rJP. 
 #
-# Epsilon is the skew parameter, negative/positive values
-# giving negative/positive skew. 
-# It corresponds to nu in gamlss. 
+# SJP is a centered and scaled version of JP, which has
+# zero mean and unit variance for all values of epsilon and delta. 
 #
-# delta>0 is the tail weight parameter. Values < 1 give fatter
-# than Gaussian tails, values > 1 give thinner. 
-# It corresponds to tau in gamlss. 
+# RSJP is the "reparameterised" SJP distribution. The parameters
+# for RSJP are lambda = exp(-delta) and tau = epsilon/delta. 
+# This reparameterization reduces the undesirable feature of
+# JP and SJP that changes in the tail-weight parameter also
+# have a large effect on the skewness, and results in more
+# reliable parameter estimation.  
+ 
 ##############################################################
 require(gamlss.dist); require(maxLik);  
 
 #################################################
 # Functions for the original JP distribution 
+# See Jones & Pewsey 2009, p. 764 
 #################################################
-## See Jones & Pewsey 2009, p. 764 
+
+## Utility function for mean and variance 
 Pq = function(q) {
     fac=exp(0.25)/sqrt(8*pi); 
     t1 = besselK(x=1/4, nu = 0.5*(q+1)); 
@@ -49,24 +61,25 @@ dJP = function(x,epsilon,delta) {
 
 
 qJP = function(p, epsilon=0, delta=1) {
-    nu = epsilon; tau=delta; mu=0; sigma=1; 
-    return(  sinh((1/tau) * asinh(qnorm(p)) + (nu/tau)) )
+    nu = epsilon; tau=delta;  
+    return(sinh((1/delta) * asinh(qnorm(p)) + (epsilon/delta)) )
 }
 
 rJP = function(n, epsilon=0, delta=1){
     U = runif(n); 
     return (qJP(U,epsilon,delta))
 }
-    
+
+TESTING=FALSE; 
+if(TESTING) {  ##############################  
 JPmean(0,1); JPvar(0,1);  # should be zero, 1 
 
-   
 x=seq(-5,5,length=100); 
 plot(x,dJP(x,1,2),type="l",lwd=2); 
 points(x,dSHASHo(x,0,1,1,2),type="p",lty=2,col="red"); # should overplot     
     
 qJP(0.26, -1, 2); qSHASHo(0.26,0,1,-1,2); 
-
+} ########################################
 
 ###################################################
 # Functions for the standardized JP distribution 
@@ -94,9 +107,7 @@ SJP_moments=function(epsilon,delta) {
     
     
 
-
-TESTING=FALSE; 
-if(TESTING) {######################
+if(TESTING) {##########################
 # Testing the moments 
 for(j in 1:10) {
  epsilon=rnorm(1); delta=exp(rnorm(1)); 
@@ -122,10 +133,8 @@ fit$par;
 
 ###################################################
 # Nonparametric skew and kurtosis functions. 
-# These are the same for JP and standardized JP
+# These are the same for JP and SJP
 ###################################################
-
-
 JP_NPskewness = function(epsilon,delta,p=0.1) {
 	q = qJP(c(p,0.5,1-p),epsilon,delta)
 	u = (q[3]+q[1]-2*q[2])/(q[3]-q[1]);
@@ -180,14 +189,14 @@ SJPMaxlik <- function(y,nstart=10,start = c(epsilon=0,log.delta = 0), sigma.star
 
 
 ########################################################################
-# Fit parameters of standardized JP by maximum Likelihood
+# Fit parameters of RSJP by maximum Likelihood
 # using BHHH from MaxLik package.  
 #
 # Maximization uses multistart with random initial parameters,
 # with input parameter nstart specifying the number of random starts. 
 #######################################################################
 
-SJP_ML <- function(y,nstart=10,start = c(lambda=0,tau=0), sigma.start=0.2 ) {
+RSJP_ML <- function(y,nstart=10,start = c(lambda=0,tau=0), sigma.start=0.2 ) {
  
   LogLik1=function(pars,response){
     lambda=pars[1]; tau = pars[2]
