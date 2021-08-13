@@ -722,7 +722,7 @@ and $log \nu$ is linear.
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=.9\textwidth]{figures/MomentsComparePlotPSSP.pdf}
+% \includegraphics[width=.9\textwidth]{figures/MomentsComparePlotPSSP.pdf}
 \caption{Binned data comparison of moments between simulations of the fitted SHASH model (grey, black) and the actual data (red) for 
 {P. spicata}. Individuals were binned based on their initial size. }
 \label{fig:BinnedConditionalMoments}
@@ -944,7 +944,7 @@ The name ``shrinkage'' comes from the fact that each estimate is adjusted toward
 larger adjustments of values that have higher estimated sampling error variance, $\hat{V}_{t,t}$. 
 This shrinkage estimate has the property that the expected sample variance of the 
 adjusted estimates $\widetilde{a}_t$ is very close to $\hat{\sigma^2}$, so the $\widetilde{a}_t$ approximate
-the actual amount of 
+the actual amount of parameter variation. 
 
 The second is to replace $\hat{a}_t$ by the least-squares estimate of $a_t$ under the 
 additional assumption that the $a_t$ are drawn from a Gaussian distribution; this is given by 
@@ -952,15 +952,15 @@ additional assumption that the $a_t$ are drawn from a Gaussian distribution; thi
 \widetilde{a}_t = \bar{\hat{a_t}} + \frac{\hat{\sigma}^2}{\hat{\sigma}^2 + \hat{V}_{t,t}}\left (\hat{a_t} - \bar{\hat{a_t}} \right). 
 \label{eqn:ShrinkMore}
 \ee
-This option is theoretically preferable if you are mainly interested in year-specific values rather than the across-year variance,
-and the Gaussian assumption is reasonable. However, \citet{metcalf-etal-2015} found that even \eqref{eqn:ShrinkLess}, which does 
+This option is theoretically preferable if the Gaussian assumption is reasonable, and you are more interested in year-specific values rather 
+than across-year variance. However, \citet{metcalf-etal-2015} found that even \eqref{eqn:ShrinkLess}, which does 
 less shrinkage, resulted in a small downward bias in the temporal variance of population growth rates. This argues for  
-always using the first option, as MARK does, and we do the same here. 
+always using the first option, and we do the same here. 
 
 We differ from MARK, however, in using \eqref{eqn:hatSigma} rather than an iterative method that takes \eqref{eqn:hatSigma} as its 
 starting estimate and refines the estimate by using weighted least squares based on the current estimate. 
-\citet{metcalf-etal-2015} found, in simulation studies, that the iterative method was usually slightly beneficial but 
-sometimes wildly inaccurate. We therefore advise against it. 
+\citet{metcalf-etal-2015} found, in simulation studies, that the iterative method was either slightly beneficial 
+or wildly inaccurate. We therefore advise against it. 
 
 Finally, as mentioned above, the estimate of $\sigma^2$ can account for temporal autocorrelation in the $a_t$. 
 When present, those correlations add a term to eqn. \eqref{eqn:biasTerms} (see eqn. (1) in \citet{gould-nichols-1998}), 
@@ -994,6 +994,8 @@ The figure below shows the results for one artificial PSSP ``data'' set, having 
 about 175 individuals/year on average. The true random year effects (the ones used to generate the data) are recovered
 with good accuracy and no bias. In particular there is no sign of extreme values being pulled in too far
 towards the mean, which would cause an S-shaped graph of estimated versus true values. 
+
+\bigskip 
 
 \centerline{\includegraphics[width=\textwidth]{figures/SimpleShrinkage.pdf}}
 

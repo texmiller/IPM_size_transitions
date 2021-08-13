@@ -27,8 +27,9 @@
 require(gamlss.dist); require(maxLik);  
 
 #################################################
-# Functions for the original JP distribution 
-# See Jones & Pewsey 2009, p. 764 
+## Functions for the two-parameter JP distribution 
+## See Jones & Pewsey 2009, p. 764 
+## epsilon is real-valued, delta > 0
 #################################################
 
 ## Utility function for mean and variance 
@@ -39,18 +40,8 @@ Pq = function(q) {
     return(fac*(t1+t2))
 }
 
-#### epsilon is real-valued, delta > 0
-JPmean = function(epsilon,delta) {
-        sinh(epsilon/delta)*Pq(1/delta)
-}
 
-#### epsilon is real-valued, delta > 0
-JPvar = function(epsilon,delta) {
-        EX2 = 0.5*(cosh(2*epsilon/delta)*Pq(2/delta) -1)
-        return( EX2 - JPmean(epsilon,delta)^2 ) 
-}
-
-#### epsilon is real-valued, delta > 0
+#### probability density function
 dJP = function(x,epsilon,delta) {
         S = sinh(delta*asinh(x)- epsilon) 
         C = sqrt(1+S^2); 
@@ -59,37 +50,60 @@ dJP = function(x,epsilon,delta) {
         return(f)
 }        
 
-
+#### quantile function 
 qJP = function(p, epsilon=0, delta=1) {
-    nu = epsilon; tau=delta;  
     return(sinh((1/delta) * asinh(qnorm(p)) + (epsilon/delta)) )
 }
 
+#### cumulative distribution function 
+pJP = function (q, epsilon = 0, delta = 1) {
+    r <- sinh(delta * asinh(q) - epsilon)
+    return(pnorm(r))
+}
+
+
+### random number generation 
 rJP = function(n, epsilon=0, delta=1){
     U = runif(n); 
     return (qJP(U,epsilon,delta))
 }
 
+
+### mean and variance 
+JPmean = function(epsilon,delta) {
+        sinh(epsilon/delta)*Pq(1/delta)
+}
+
+JPvar = function(epsilon,delta) {
+        EX2 = 0.5*(cosh(2*epsilon/delta)*Pq(2/delta) -1)
+        return( EX2 - JPmean(epsilon,delta)^2 ) 
+}        
+
+
 TESTING=FALSE; 
-if(TESTING) {  ##############################  
-JPmean(0,1); JPvar(0,1);  # should be zero, 1 
+if(TESTING) { #--------------------------------------------------------
+JPmean(0,1); JPvar(0,1);  # Gives N(0,1), so values should be 0, 1 
 
 x=seq(-5,5,length=100); 
 plot(x,dJP(x,1,2),type="l",lwd=2); 
 points(x,dSHASHo(x,0,1,1,2),type="p",lty=2,col="red"); # should overplot     
     
 qJP(0.26, -1, 2); qSHASHo(0.26,0,1,-1,2); 
-} ########################################
+} -----------------------------------------------------------------------
 
-###################################################
-# Functions for the standardized JP distribution 
-###################################################
+######################################################
+# Functions for the standardized JP distribution, i.e. 
+# centered and scaled so mean=0, variance=1 
+######################################################
+
+## probability density function 
 dSJP = function(x,epsilon,delta) {
     mu = JPmean(epsilon,delta)
     sigma = sqrt(JPvar(epsilon,delta))
     return( sigma*dJP(mu + sigma*x,epsilon,delta) )
 }    
 
+## random number generation 
 rSJP = function(n, epsilon=0, delta=1){
     U = runif(n); 
     X = qJP(U,epsilon,delta)
@@ -99,15 +113,31 @@ rSJP = function(n, epsilon=0, delta=1){
     
 }
 
+#### quantile function 
+qSJP = function(p, epsilon=0, delta=1) {
+    q = qJP(p,epsilon,delta); 
+    mu = JPmean(epsilon,delta)
+    sigma = sqrt(JPvar(epsilon,delta))
+    return( (q - mu)/sigma )
+}
+
+#### cumulative distribution function 
+pSJP = function (q, epsilon = 0, delta = 1) {
+   mu = JPmean(epsilon,delta)
+   sigma = sqrt(JPvar(epsilon,delta))
+   qs = mu + sigma*q
+   return(pJP(qs,epsilon,delta))
+}
+
 SJP_moments=function(epsilon,delta) {
     m3 = integrate(function(x) (x^3)*dSJP(x,epsilon,delta), -Inf, Inf)$value
     m4 = integrate(function(x) (x^4)*dSJP(x,epsilon,delta), -Inf, Inf)$value
     return(list(skew = m3, excess.kurtosis = m4/3 -1))
 }    
-    
+ 
     
 
-if(TESTING) {##########################
+if(TESTING) {#------------------------------------------------------------
 # Testing the moments 
 for(j in 1:10) {
  epsilon=rnorm(1); delta=exp(rnorm(1)); 
@@ -128,13 +158,13 @@ NLL = function(p) {
 fit=optim(par=c(0,1), NLL, control=list(maxit=50000,trace=4)); 
 fit$par;     
 
-} ###################################
+} #------------------------------------------------------------------------------
 
 
-###################################################
+#####################################################
 # Nonparametric skew and kurtosis functions. 
 # These are the same for JP and SJP
-###################################################
+#####################################################
 JP_NPskewness = function(epsilon,delta,p=0.1) {
 	q = qJP(c(p,0.5,1-p),epsilon,delta)
 	u = (q[3]+q[1]-2*q[2])/(q[3]-q[1]);
@@ -150,12 +180,95 @@ JP_NPkurtosis=function(epsilon,delta,p=0.05) {
 	return (as.numeric(u/uN-1)) 
 }
 
+SJP_NPskewness = JP_NPskewness; 
+SJP_NPkurtosis = JP_NPkurtosis; 
+
+
+############################################################
+## Reparameterized SJP distribution 
+## Functions for SJP distribution in (lambda, tau) parameters
+############################################################
+
+## probability density function 
+dRSJP = function(x,lambda=0,tau=0) {
+    delta=exp(-tau); epsilon=lambda*delta;
+    return(dSJP(x,delta,epsilon)); 
+}    
+
+## random number generation 
+rRSJP = function(n, lambda=0, tau=0){
+    delta=exp(-tau); epsilon=lambda*delta;
+    return(rSJP(x,delta,epsilon)); 
+}
+
+#### quantile function 
+qRSJP = function(p, lambda=0, tau=0) {
+    delta=exp(-tau); epsilon=lambda*delta;
+    return(qSJP(p,delta,epsilon)); 
+}
+
+#### cumulative distribution function 
+pRSJP = function (q, lambda=0, tau=0) {
+    delta=exp(-tau); epsilon=lambda*delta;
+    return(pSJP(q,epsilon,delta))
+}
+
+RSJP_moments=function(lambda=0, tau=0) {
+    delta=exp(-tau); epsilon=lambda*delta;
+    m3 = integrate(function(x) (x^3)*dSJP(x,epsilon,delta), -Inf, Inf)$value
+    m4 = integrate(function(x) (x^4)*dSJP(x,epsilon,delta), -Inf, Inf)$value
+    return(list(skew = m3, excess.kurtosis = m4/3 -1))
+}
+
+RSJP_NPskewness = function(lambda=0,tau=0,p=0.1) {
+    delta=exp(-tau); epsilon=lambda*delta;
+    u = JP_NPskewness(epsilon,delta,p); 
+	return(u); 
+}	
+
+RSJP_NPkurtosis = function(lambda=0,tau=0,p=0.05) {
+    delta=exp(-tau); epsilon=lambda*delta;
+    u = JP_NPkurtosis(epsilon,delta,p); 
+	return(u); 
+}	
+
+############################################################
+## Four-parameter Reparameterized JP distribution 
+## The mean and sd parameters are the actual mean and sd
+## The (lambda, tau) parameters are used for skew and kurtosis
+## !! These need to be checked!! 
+############################################################
+
+## probability density function 
+dCRJP = function(x, mean=0, sd=1, lambda=0, tau=0) {
+    delta=exp(-tau); epsilon=lambda*delta;
+    return((1/sd)*dRSJP((x-mean/sd),delta,epsilon)); 
+}    
+
+## random number generation 
+rCRJP = function(n, mean=0, sd=1, lambda=0, tau=0){
+    delta=exp(-tau); epsilon=lambda*delta;
+    return(mu +sd*rRSJP(n,delta,epsilon)); 
+}
+
+#### quantile function 
+qCRJP = function(p, mean=0, sd=1, lambda=0, tau=0) {
+    delta=exp(-tau); epsilon=lambda*delta;
+    return(mu + sigma*qRSJP(p,delta,epsilon)); 
+}
+
+#### cumulative distribution function 
+pCRJP = function (q, mean=0, sd=1, lambda=0, tau=0) {
+    delta=exp(-tau); epsilon=lambda*delta;
+    qs = (z - mean)/sd; 
+    return(pRSJP(qs,epsilon,delta))
+}
+
 ########################################################################
-# Fit parameters of standardized JP by maximum Likelihood
-# using BHHH from MaxLik package.  
-#
-# Maximization uses multistart with random initial parameters,
-# with input parameter nstart specifying the number of random starts. 
+## Fit parameters of SJP by maximum Likelihood, using BHHH from MaxLik
+##
+## Maximization uses multistart with random initial parameters,
+## with input parameter nstart specifying the number of random starts. 
 #######################################################################
 
 SJPMaxlik <- function(y,nstart=10,start = c(epsilon=0,log.delta = 0), sigma.start=0.2 ) {
@@ -165,7 +278,6 @@ SJPMaxlik <- function(y,nstart=10,start = c(epsilon=0,log.delta = 0), sigma.star
     return(log(val)); 
   }  
     
-
   bestPars=numeric(2); bestMax=-10^17; 
   for(jrep in 1:nstart) {
     startj = start + sigma.start*rnorm(2); 
@@ -187,13 +299,11 @@ SJPMaxlik <- function(y,nstart=10,start = c(epsilon=0,log.delta = 0), sigma.star
   return(list(fit=bestFit,estimate=estimate)); 
 }
 
-
 ########################################################################
-# Fit parameters of RSJP by maximum Likelihood
-# using BHHH from MaxLik package.  
-#
-# Maximization uses multistart with random initial parameters,
-# with input parameter nstart specifying the number of random starts. 
+## Fit parameters of RSJP by maximum Likelihood using BHHH from MaxLik.
+##
+## Maximization uses multistart with random initial parameters,
+## with input parameter nstart specifying the number of random starts. 
 #######################################################################
 
 RSJP_ML <- function(y,nstart=10,start = c(lambda=0,tau=0), sigma.start=0.2 ) {

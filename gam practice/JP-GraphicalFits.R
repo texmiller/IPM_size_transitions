@@ -58,14 +58,46 @@ dev.new();
 image.plot(lambda,tau,KurtMat); title(main = "Excess Kurtosis"); 
 contour(lambda,tau,KurtMat,add=TRUE,labcex=1) 
 
+
+######################################################################### 
+## TEST DATA: can we recover known epsilon and delta?  
+## Bayesian fit, using the (lambda, tau) parameterization with BayesianTools 
+#########################################################################
+epsilon.true = 1; delta.true = 0.5;  
+lambda.true=epsilon.true/delta.true; tau.true = - log(delta.true); 
+data = rSJP(500,epsilon = epsilon.true, delta=delta.true); 
+
+ll = function(par) {
+   lambda=par[1]; tau=par[2]; 
+   delta=exp(-tau); epsilon=lambda*delta; 
+   Lik = dSJP(data,epsilon,delta);
+   if(sum(!is.finite(Lik)) > 0){
+        val=0; 
+        }else{
+        val = prod(Lik)
+    }    
+    return(log(val));  
+} 
+
+bayesianSetup = createBayesianSetup(likelihood = ll, lower = rep(-10, 2), upper = rep(10, 2))
+settings <- list(iterations = 100000, adapt = F, DRlevels = 1, nrChains = 3, gibbsProbabilities = c(0,1), temperingFunction = NULL, 
+optimize = F,  message = TRUE, startValue=c(0,2))
+
+### VERY SLOW compared to doing MH "by hand" below 
+out <- runMCMC(bayesianSetup, sampler="Metropolis", settings = settings)
+
+
  
-######### TEST DATA: can we recover known epsilon and delta?  
+################################################################## 
+## TEST DATA: can we recover known epsilon and delta?  
+## Bayesian fit, using the (lambda, tau) parameterization 
+##################################################################
 epsilon.true = 1; delta.true = 0.5;  
 lambda.true=epsilon.true/delta.true; tau.true = - log(delta.true); 
 SJP_moments(epsilon.true,delta.true); 
 
 y = rSJP(500,epsilon = epsilon.true, delta=delta.true); 
-out = SJP_ML(y); out; lambda.true; tau.true; 
+out = RSJP_ML(y); out; lambda.true; tau.true; 
 
 # Likelihood times prior, pars=c(nu,tau)  
 # These are closer than (epsilon,delta) to: nu measures skew, tau measures kurtosis 
@@ -76,7 +108,7 @@ Fun = function(par, data) {
    if(sum(!is.finite(Lik)) > 0){
         val=0; 
         }else{
-        val = prod(Lik)*prior.eps(epsilon)*prior.del(delta)
+        val = prod(Lik)# *prior.eps(epsilon)*prior.del(delta)
     }    
     return(val);  
 } 
@@ -101,6 +133,7 @@ for(j in 2:N) {
          }   
     }
 }
+
 keep = seq(N/4,N,by=50); 
 pars=pars[keep,]; 
 lambda=pars[,1]; tau=pars[,2]; ### PAY CLOSE ATTENTION! 
