@@ -858,8 +858,15 @@ To avoid that problems, we reparameterize the distribution as follows:
 X_{\lambda,\tau} = \sinh \left( e^{-\tau} \; \mbox{asinh}(Z) + \lambda \right).
 \label{eqn:SJP}
 \ee
-The connection at is, 
-
+Thus, the two parameterizations are related by
+\be
+\delta = e^{\tau}, \epsilon= \delta \lambda =  e^{\tau} \lambda.
+\ee
+The definition of $\tau$ allows it to take any real value, with negative values giving thinner than Gaussian tails and positive
+values giving fatter than Gaussian tails. $\lambda$ also can take any real value, and the distribution's skew has the same sign as $\lambda$. 
+Because the $\sinh$ function is nonlinear, it is still the case that the skew depends on $\tau$ as well as $\lambda$, but the
+``crosstalk'' between the kurtosis and skew parameters is weaker. As  a result, we found that parameter values were more reliably
+recovered from data sets generated from known values of $\tau$ and $\lambda$. 
 
 
 
