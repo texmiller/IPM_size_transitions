@@ -815,6 +815,58 @@ This research was supported by US NSF grants DEB-1933497 (SPE) and ....
 
 \centerline{\Large{\textbf{Appendices}}}
 
+\section{The Jones-Pewsey distribution} 
+\citet{jones-pewsey-2009} introduced a simple, tractable generalization of the Normal distribution with two additional parameters determining  
+asymmetry (skewness), and tail weight (kurtosis) which can be either lighter or heavier than the Gaussian. It is defined as a transformation
+of a Normal(0,1) random variable usingthe sinh (hyperbolic sin) function and its inverse (asinh), as follows. The distribution family's base probability density  
+$f_{\epsilon,\delta}$  is the probability density of the random variable $X_{\epsilon,\delta}$ where  
+\be
+Z = \sinh (\delta \; \mbox{asinh}(X_{\epsilon,\delta}) - \epsilon)
+\label{eqn:JP1}
+\ee
+and $Z$ has a Normal(0,1) distribution.  Equivalently, 
+\be
+X_{\epsilon,\delta} = \sinh \left( \frac{1}{\delta} \; \mbox{asinh}(Z) + \frac{\epsilon}{\delta}\right).
+\label{eqn:JP2}
+\ee
+Parameters $\delta=1, \epsilon=0$ give the Normal(0,1) distribution. Skewness has the sign of $\epsilon$, and
+$\delta > 0$ controls tail weight, with heavier than Gaussian tails for $\delta<1$ and lighter than Gaussian tails for $\delta > 1$. 
+A formula for the density $f_{\epsilon,\delta}$ is given by \citet[][eqn. 2]{jones-pewsey-2009}. 
+The general four-parameter family with location parameter $\mu$ and scale parameter $\sigma$ is defined as the probability densities 
+of $\mu + \sigma X_{\epsilon, \delta}$. We refer to this as the JP distribution family. 
+
+As is unfortunately the case for most four-parameter distributions $\mu$ is not the mean, $\sigma$ is not the standard deviation, $\epsilon$ is not
+the skew and $\delta$ is not the kurtosis. All else being equal, larger $\mu$  gives a larger mean, larger $\sigma$ gives a higher
+standard deviation, higher $\epsilon$ gives higher asymmetry, and higher $\delta$ gives heavier tail weight.  But each moment is jointly determined 
+by all four parameters. 
+
+The main advantage of the JP distribution is that the attainable combinations of skewness and kurtosis are very broad, compared to other 
+four-parameter families, and come very close to the theoretical limits on kurtosis as a function of skewness \citep[][Fig.  2]{jones-pewsey-2009}. 
+Additionally, being a transformation of the Normal makes it very simple to generate random numbers from the distribution, and to compute 
+probability density, cumultive distribution, and quantile functions. There are also simple analytic formulas for the first four moments
+\citep[][p. 764]{jones-pewsey-2009} which we use below to define a centered and scaled version in which $\mu$ and $\sigma$ 
+are the mean and standard deviation. 
+
+The definition \eqref{eqn:JP2} shows that the distribution depends on $\epsilon$ only through the ratio $\epsilon/\delta$. We have found
+that this property can be problematic for estimating distribution parameters. Even with good sized ($n=250$ or 500) data sets generated from the 
+distribution with known parameters, both maximum likelihood and Bayesian estimation were unstable for some values of $\epsilon$ and $\delta$, 
+occasionally yielding estimates far from the truth. One cause was a ridge in the $(\epsilon,\delta)$ likelihood surface with a constant of 
+$\epsilon/\delta$. Another is that when $\delta$ is large,  changes in $\epsilon$ have little effect. 
+
+To avoid that problems, we reparameterize the distribution as follows: 
+\be
+X_{\lambda,\tau} = \sinh \left( e^{-\tau} \; \mbox{asinh}(Z) + \lambda \right).
+\label{eqn:SJP}
+\ee
+The connection at is, 
+
+
+
+
+
+
+
+
 \section{Estimating mixed-effects models using shrinkage}
 
 Ecologists often fit demographic and other statistical models that include random effects terms to
