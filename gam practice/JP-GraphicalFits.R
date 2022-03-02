@@ -11,9 +11,10 @@ notExp2 = function (x, d, b=1/d) exp(d * sin(x * b))  # from mgcv
 
 graphics.off(); 
 
-#######################################################
+##########################################################
 #  Display how NP skew and kurtosis depend on parameters
-#######################################################
+#  in the (lambda, tau) parameterization 
+#########################################################
 
 SkewMat = KurtMat = matrix(NA,150,151);
 lambda = seq(-2,2,length=150)
@@ -79,13 +80,14 @@ ll = function(par) {
     return(log(val));  
 } 
 
+if(FALSE){
 bayesianSetup = createBayesianSetup(likelihood = ll, lower = rep(-10, 2), upper = rep(10, 2))
 settings <- list(iterations = 100000, adapt = F, DRlevels = 1, nrChains = 3, gibbsProbabilities = c(0,1), temperingFunction = NULL, 
 optimize = F,  message = TRUE, startValue=c(0,2))
 
 ### VERY SLOW compared to doing MH "by hand" below 
 out <- runMCMC(bayesianSetup, sampler="Metropolis", settings = settings)
-
+}
 
  
 ################################################################## 

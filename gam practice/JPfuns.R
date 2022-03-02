@@ -1,36 +1,40 @@
 ###############################################################
 # Functions for Jones-Pewsey (JP) distribution and relatives.  
 #
-# JP is a two-parameter family with skew and kurtosis parameters.  
-# Our notation follows the original paper (Jones and Pewsey 2009).
-# epsilon is the skew parameter (negative/positive values give
-# negative and positive skew). delta > 0 is the tail-weight parameter.
-# Values < 1 give fatter than Gaussian tails, values > 1 give thinner. 
+# (1) JP is equivalent to SHASHo in gamlss with mu=0 and sigma=1,
+#     but it does not have mean=0 or variance=1. It is thus a 
+#     a two-parameter family with skew and kurtosis parameters.  
+#     Our notation follows the original paper (Jones and Pewsey 2009).
+#     - epsilon is the skew parameter (negative/positive values give
+#       negative and positive skew). 
+#     - delta > 0 is the tail-weight parameter. Values < 1 
+#       give fatter than Gaussian tails, values > 1 give thinner. 
 # 
-# JP is equivalent to SHASHo in gamlss with mu=0 and sigma=1; 
-# though neither one has zero mean an unit variance. Because  
-# gamlss is poorly documented, rather than relying on it we 
-# self-contained code for the density dJP, quantile function qJP, and 
-# random number generation rJP. 
+#     JP is equivalent to SHASHo in gamlss with mu=0 and sigma=1; 
+#     though neither one has zero mean an unit variance. Because  
+#     gamlss is poorly documented, rather than relying on it we provide 
+#     self-contained code for the density dJP, quantile function qJP, and 
+#     random number generation rJP. 
 #
-# SJP is a centered and scaled version of JP, which has
-# zero mean and unit variance for all values of epsilon and delta. 
+# (2) SJP is a centered and scaled version of JP, which has
+#     zero mean and unit variance for all values of epsilon and delta. 
 #
-# RSJP is the "reparameterised" SJP distribution. The parameters
-# for RSJP are lambda = exp(-delta) and tau = epsilon/delta. 
-# This reparameterization reduces the undesirable feature of
-# JP and SJP that changes in the tail-weight parameter also
-# have a large effect on the skewness, and results in more
-# reliable parameter estimation.  
+# (3) RSJP is the "reparameterised" SJP distribution. The parameters
+#     for RSJP are lambda = exp(-delta) and tau = epsilon/delta. 
+#     This reparameterization reduces the undesirable feature of
+#     JP and SJP that changes in the tail-weight parameter also
+#     have a large effect on the skewness, and results in more
+#     reliable parameter estimation.  
  
 ##############################################################
 require(gamlss.dist); require(maxLik);  
 
-#################################################
+#####################################################
+##              JP Distribution 
 ## Functions for the two-parameter JP distribution 
 ## See Jones & Pewsey 2009, p. 764 
 ## epsilon is real-valued, delta > 0
-#################################################
+####################################################
 
 ## Utility function for mean and variance 
 Pq = function(q) {
@@ -92,6 +96,7 @@ qJP(0.26, -1, 2); qSHASHo(0.26,0,1,-1,2);
 } -----------------------------------------------------------------------
 
 ######################################################
+#              SJP Distribution 
 # Functions for the standardized JP distribution, i.e. 
 # centered and scaled so mean=0, variance=1 
 ######################################################
@@ -184,10 +189,12 @@ SJP_NPskewness = JP_NPskewness;
 SJP_NPkurtosis = JP_NPkurtosis; 
 
 
-############################################################
+###############################################################
+##              RSJP Distribution  
 ## Reparameterized SJP distribution 
 ## Functions for SJP distribution in (lambda, tau) parameters
-############################################################
+## lambda = exp(-delta) and tau = epsilon/delta. 
+##############################################################
 
 ## probability density function 
 dRSJP = function(x,lambda=0,tau=0) {
