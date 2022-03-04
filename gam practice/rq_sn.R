@@ -1,4 +1,7 @@
-library(quantreg); library(fda); library(sn); library(moments); 
+graphics.off(); 
+rm(list=ls(all=TRUE)); 
+library(quantreg); library(fda); library(sn); 
+library(moments); library(dplyr); library(zoo); library(bbmle); 
 
 ############## Pull in gorgonian data, to fit an SN distribution and then 
 ############## generate synthetic data with known properties 
@@ -14,9 +17,10 @@ size <- size[-which(is.na(size$t0)),]
 size <- size[-which(is.na(size$t1)),]
 size <- size[size$Site=='Portcros',] # For this example, use Portcros site 
 nx = nrow(size); 
-size$z0 = sqrt(size$t0); size$z1 = sqrt(size$t1); 
+size$z0 = size$t0^0.5; size$z1 = size$t1^0.5; 
+plot(z1~z0,data=size); 
 
-### Fit Skewed Normal #####################################################
+### Fit a skewed Normal ##################################################
 
 par(mfrow=c(2,2)); 
 rollmean <- rollapply(size$z0,width=50,mean,na.rm=T)
@@ -25,21 +29,21 @@ rollsd <- rollapply(size$z1,width=50,sd,na.rm=T)
 rollskew<-rollapply(size$z1,width=50,skewness,na.rm=T)
 rollkurt<-rollapply(size$z1,width=50,kurtosis,na.rm=T)
 plot(rollmean,rollmu,xlab='Size at time t',ylab='Mean size at size t+1',type='l'); 
-plot(rollmean,log(rollsd),xlab='Size at time t',ylab='log(SD) size at size t+1',type='l'); 
-plot(rollmean,rollskew,xlab='Size at time t',ylab='Skewness size at size t+1',type='l'); 
-plot(rollmean,rollkurt/3 -1 ,xlab='Size at time t',ylab='Excess kurtosis size at size t+1',type='l'); 
+plot(rollmu,log(rollsd),xlab='Size at time t',ylab='log(SD) size at size t+1',type='l'); 
+plot(rollmu,rollskew,xlab='Size at time t',ylab='Skewness size at size t+1',type='l'); 
+plot(rollmu,rollkurt/3 -1 ,xlab='Size at time t',ylab='Excess kurtosis size at size t+1',type='l'); 
 
 
-NLLsn <- function(a,b,av,bv,aa,ba) {
-    mean=a+b*z0;
-    sd = exp(av + bv*z0)
-    alpha = aa + ba*z0; 
-    -sum(dsn(z1,xi=mean,omega=sd,alpha=alpha,tau=0,log=TRUE))
+NLLsn <- function(a,b,av,bv,aa,ba,ca) {
+    mu = a+b*z0;
+    sd = exp(av + bv*mu)
+    alpha = aa + ba*mu + ca*mu^2; 
+    -sum(dSHASHo(z1,mu=mu,sigma=sd,nu=alpha,tau=1,log=TRUE))
 }    
 z0 = size$z0; z1 = size$z1; 
 fit0=lm(z1~z0); sigma0=sqrt(mean(fit0$residuals^2));
 c0=as.vector(coef(fit0)); 
-fitSN=mle2(NLLsn,start=list(a=c0[1],b=c0[2],av=log(sigma0),bv=0.001,aa=0,ba=-0.5),
+fitSN=mle2(NLLsn,start=list(a=c0[1],b=c0[2],av=log(sigma0),bv=0.001, aa=0,ba=-0.5, ca=0),
 method="Nelder-Mead",skip.hessian=TRUE, control=list(trace=4,maxit=10000)); 
 for(k in 1:25) {
     c1 = as.list(coef(fitSN)); 
@@ -48,34 +52,43 @@ for(k in 1:25) {
     cat("BFGS","\n"); 
     fitSN=mle2(NLLsn,start=c1, method="BFGS",skip.hessian=TRUE, control=list(REPORT=1,maxit=10000)); 
  }
- c1 = as.list(coef(fitSN));
- fitSN=mle2(NLLsn,start=c1, method="BFGS",skip.hessian=FALSE, control=list(REPORT=1,maxit=10000)); 
- summary(fitSN); 
- round(coef(fitSN),digits=3); 
-#     a      b     av     bv     aa     ba 
-# 0.339  0.997 -1.424  0.183  0.879 -0.826 
-a = 0.339; b = 0.997; av=-1.424; bv = 0.183; aa = 0.879; ba=-0.826 
+c1 = as.list(coef(fitSN));
+fitSN=mle2(NLLsn,start=c1, method="BFGS",skip.hessian=FALSE, control=list(REPORT=1,maxit=10000)); 
+summary(fitSN); 
+pars = round(coef(fitSN),digits=3); 
+names(pars) <- c("a","b","av","bv","aa","ba","ca"); 
+a = pars["a"]; b = pars["b"];  av = pars["av"]; bv = pars["bv"];  
+aa = pars["aa"]; ba = pars["ba"];  ca = pars["ca"];  
 
 
 ###########################################################
-#  Generate artificial data 
+#  Generate artificial data from fitted distribution 
 ########################################################### 
-x = size$z0; nx = length(x); 
+x = sample(size$z0,nrow(size),replace=FALSE); x=sort(x); nx = length(x); 
 means = a + b*x; 
-sds =  exp(av + bv*x); 
-alphas = aa + ba*x;  
+sds =  exp(av + bv*means); 
+alphas = aa + ba*means  + ca*means^2;  
 par(mfrow=c(3,1)); 
 plot(x,means,type="l");  plot(x,log(sds),type="l");  plot(x,alphas,type="l");  
 
-y = rsn(length(x),xi=means,omega=sds,alpha=alphas,tau=0)
+y = rSHASHo(length(x),means,sds,alphas,tau=1)
 par(mfrow=c(2,1)); 
-plot(x,y,type="p"); 
+plot(x,y,type="p");
 
-y1 = rsn(100000,xi=means[1],omega=sds[1],alpha=alphas[1]);
-y2 = rsn(100000,xi=means[nx],omega=sds[nx],alpha=alphas[nx]);
-skewness(y1); skewness(y2); 
+fsize = data.frame(z0=x,z1=y); 
+par(mfrow=c(2,2)); 
+rollmean <- rollapply(fsize$z0,width=50,mean,na.rm=T)
+rollmu<-rollapply(fsize$z1,width=50,mean,na.rm=T)
+rollsd <- rollapply(fsize$z1,width=50,sd,na.rm=T)
+rollskew<-rollapply(fsize$z1,width=50,skewness,na.rm=T)
+rollkurt<-rollapply(fsize$z1,width=50,kurtosis,na.rm=T)
+plot(rollmean,rollmu,xlab='Size at time t',ylab='Mean size at size t+1',type='l'); 
+plot(rollmu,log(rollsd),xlab='Size at time t',ylab='log(SD) size at size t+1',type='l'); 
+plot(rollmu,rollskew,xlab='Size at time t',ylab='Skewness size at size t+1',type='l'); 
+plot(rollmu,rollkurt/3 -1 ,xlab='Size at time t',ylab='Excess kurtosis size at size t+1',type='l'); 
 
-B=create.bspline.basis(rangeval=range(x), nbasis=4, norder=3);
+breakpts = c(min(x),quantile(x,c(1/3,2/3)), max(x))
+B=create.bspline.basis(rangeval=range(x), breaks=breakpts,  norder=3);
 X = eval.basis(B,x);
 
 f.50 <- rq(y ~ X-1, tau=0.5)

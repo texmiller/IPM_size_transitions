@@ -1,8 +1,8 @@
 ###############################################################
 # Functions for Jones-Pewsey (JP) distribution and relatives.  
 #
-# (1) JP is equivalent to SHASHo in gamlss with mu=0 and sigma=1,
-#     but it does not have mean=0 or variance=1. It is thus a 
+# (1) JP is equivalent to SHASHo in gamlss with mu=0 and sigma=1.
+#     It does NOT have mean=0 or variance=1. It is thus a 
 #     a two-parameter family with skew and kurtosis parameters.  
 #     Our notation follows the original paper (Jones and Pewsey 2009).
 #     - epsilon is the skew parameter (negative/positive values give
@@ -10,9 +10,7 @@
 #     - delta > 0 is the tail-weight parameter. Values < 1 
 #       give fatter than Gaussian tails, values > 1 give thinner. 
 # 
-#     JP is equivalent to SHASHo in gamlss with mu=0 and sigma=1; 
-#     though neither one has zero mean an unit variance. Because  
-#     gamlss is poorly documented, rather than relying on it we provide 
+#     Because gamlss is poorly documented, we provide here  
 #     self-contained code for the density dJP, quantile function qJP, and 
 #     random number generation rJP. 
 #
@@ -24,7 +22,11 @@
 #     This reparameterization reduces the undesirable feature of
 #     JP and SJP that changes in the tail-weight parameter also
 #     have a large effect on the skewness, and results in more
-#     reliable parameter estimation.  
+#     reliable parameter estimation.
+#  
+#  (4) CRJP is the four-parameter reparameterized JP distribution. 
+#      The mean and sd parameters are the actual mean and sd
+#      The (lambda, tau) parameters are used for skew and kurtosis
  
 ##############################################################
 require(gamlss.dist); require(maxLik);  
