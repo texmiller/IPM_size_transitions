@@ -1,6 +1,6 @@
 library(quantreg); library(fda); library(sn); library(moments); 
 
-x=seq(0,2,length=500); 
+x=seq(0,2,length=250); 
 alphas = -3 + 10*x
 y = rsn(length(x),xi=0,omega=1,alpha=alphas);
 par(mfrow=c(2,1)); 
@@ -10,8 +10,11 @@ y1 = rsn(100000,xi=0,omega=1,alpha=min(alphas));
 y2 = rsn(100000,xi=0,omega=1,alpha=max(alphas));
 skewness(y1); skewness(y2); skewness(c(y1,y2)); 
 
-B=create.bspline.basis(rangeval=range(x), nbasis=4, norder=3);
+B=create.bspline.basis(rangeval=range(x), nbasis=4, norder=4);
 X = eval.basis(B,x);
+
+X = ns(x,df=4, intercept=TRUE, Boundary.knots=c(0,2)); 
+matplot(x,X,type="l"); 
 
 f.50 <- rq(y ~ X-1, tau=0.5)
 f.90 <- rq(y ~ X-1, tau=0.9)
@@ -27,6 +30,9 @@ boot.90=boot.rq(X,y,tau=0.9, R=501, U=boot.10$U);
 bootq.10=X%*%t(boot.10$B);
 bootq.50=X%*%t(boot.50$B);
 bootq.90=X%*%t(boot.90$B);
+
+matplot(x, cbind(bootq.10,bootq.50, bootq.90), type="l"); 
+
 
 bootNPS = (bootq.10 + bootq.90 - 2*bootq.50)/(bootq.90 - bootq.10); 
 LS = apply(bootNPS,1,function(x) quantile(x,0.05)); 
@@ -46,5 +52,5 @@ b2 = apply(bootNPS,2,function(s) lm(s~x + I(x^2))$coef[3]);
 quantile(b2,c(0.01, 0.05,0.95,0.99)); 
 
 require(mgcv); 
-gam_fit = gam(list(y~1,~1, ~s(x), ~1), family="shash"); 
+gam_fit = gam(list(y~s(x),~s(x), ~s(x), ~s(x)), family="shash"); 
 summary(gam_fit); 
