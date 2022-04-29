@@ -10,7 +10,7 @@ y1 = rsn(100000,xi=0,omega=1,alpha=min(alphas));
 y2 = rsn(100000,xi=0,omega=1,alpha=max(alphas));
 skewness(y1); skewness(y2); skewness(c(y1,y2)); 
 
-B=create.bspline.basis(rangeval=range(x), nbasis=4, norder=4);
+B=create.bspline.basis(rangeval=range(x), nbasis=4, norder=2);
 X = eval.basis(B,x);
 
 X = ns(x,df=4, intercept=TRUE, Boundary.knots=c(0,2)); 
