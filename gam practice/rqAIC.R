@@ -3,30 +3,39 @@ library(quantreg); library(fda); library(sn); library(moments);
 ### A qsn function that actually works, unlike the one in the sn package. 
 ### Vectorized in p, but not the distribution parameters 
 my.qsn = function(p,xi,omega,alpha) {
-    px = seq(-10,120,length=250); 
+    px = seq(-50,50,length=500); 
     py = psn(px,xi=xi,omega=omega,alpha=alpha,tau=0);
     F = splinefun(py,px,method="monoH.FC"); 
     return(F(p))
 }  
-
-rqAIC = function(x,y,tau, L=NULL, U=NULL) {
+ 
+## AIC model averaging of df=(1,2,3,4) quantile regression
+## df=3 or 4 are natural B-spline bases including intercept.  
+## Model df are over-weighted by default, as recommended for 
+## spline smoothing in ordinary regression. Here it is just
+## a weak hedge against overfitting.
+rqAIC = function(x,y,tau, L=NULL, U=NULL, gamma=1.4) {
     e = order(x); x=x[e]; y=y[e]; 
 
   # fit constant (df=1)
     fit.1 = rq(y~1, tau = tau); 
+
   # fit linear (df=2)
      fit.2 = rq(y~x, tau = tau); 
+
   # fit with df=3
     if(is.null(U)) U = max(x);
     if(is.null(L)) L = min(x) 
     X3 = ns(x,df=3, intercept=TRUE, Boundary.knots=c(L,U)); 
     fit.3 = rq(y ~ X3-1, tau=tau) 
+
   # fit with df=4
     X4 = ns(x,df=4, intercept=TRUE, Boundary.knots=c(L,U)); 
     fit.4 = rq(y ~ X4-1, tau=tau) 
-    
-    # Compute AIC weights 
-    z = c(AIC(fit.1)[1],AIC(fit.2)[1], AIC(fit.3)[1], AIC(fit.4)[1]); 
+   
+    AICs = c(AIC(fit.1)[1],AIC(fit.2)[1], AIC(fit.3)[1], AIC(fit.4)[1]); 
+  # For AIC weights with over-weighted model df 
+    z = AICs + 2*(gamma-1)*c(1,2,3,4)  
     w = exp(-0.5*(z-mean(z))); w = w/sum(w); 
     
     px = seq(L,U,length=100); 
@@ -37,34 +46,35 @@ rqAIC = function(x,y,tau, L=NULL, U=NULL) {
     return(qfun); 
 } 
  
-x=seq(0,2,length=250); alphas = -3 + 5*x
+x=seq(0,2,length=250); alphas = -3 + 3*x
 y = rsn(length(x),xi=0,omega=1,alpha=alphas);
 plot(x,y,type="p"); 
-
-qfun = rqAIC(x,y,0.25,L=0,U=2); points(x,qfun(x),type="l"); 
-qfun = rqAIC(x,y,0.5,L=0,U=2); points(x,qfun(x),type="l"); 
-qfun = rqAIC(x,y,0.75,L=0,U=2); points(x,qfun(x),type="l"); 
-
-py = qsn(0.25,xi=0, omega=1, alpha=alphas,solver="RFB"); points(x,py,type="l",col="blue"); 
-
-
 
 y1 = rsn(100000,xi=0,omega=1,alpha=min(alphas));
 y2 = rsn(100000,xi=0,omega=1,alpha=max(alphas));
 skewness(y1); skewness(y2); skewness(c(y1,y2)); 
 
-# B=create.bspline.basis(rangeval=range(x), nbasis=4, norder=4);
-# X = eval.basis(B,x);
+qfun = rqAIC(x,y,0.1,L=0,U=2); q.10 = qfun(x); points(x,q.10,type="l"); 
+qfun = rqAIC(x,y,0.5,L=0,U=2); q.50 = qfun(x); points(x,q.50,type="l"); 
+qfun = rqAIC(x,y,0.9,L=0,U=2); q.90 = qfun(x); points(x,q.90,type="l"); 
+
+Y = matrix(NA,length(alphas),3)
+for(i in 1:length(alphas)) {
+    out = my.qsn(c(0.1,0.5,0.9), xi=0, omega=1, alpha=alphas[i]);
+    Y[i,]=out; 
+    if(i%%20==0) cat(i, "\n"); 
+} 
+matpoints(x,Y,type="l",lty=2, col="blue"); 
+
+NPS.hat = (q.10 + q.90 - 2*q.50)/(q.90 - q.10); 
+NPS = (Y[,1]+Y[,3]-2*Y[,2])/(Y[,3]-Y[,1]); 
+dev.new(); 
+matplot(x,cbind(NPS,NPS.hat),type="l", lty=c(1,2)); 
+
+
+
 
 X = ns(x,df=4, intercept=TRUE, Boundary.knots=c(0,2)); 
-matplot(x,X,type="l"); 
-
-f.50 <- rq(y ~ X-1, tau=0.5)
-f.90 <- rq(y ~ X-1, tau=0.9)
-f.10 <- rq(y ~ X-1, tau=0.1)
-q.50 = fitted(f.50); q.90 = fitted(f.90); q.10 = fitted(f.10);
-matpoints(x,cbind(q.10, q.50, q.90), type="l",lty=2, col="blue"); 
-NPS = (q.10 + q.90 - 2*q.50)/(q.90 - q.10); 
 
 boot.10=boot.rq(X,y,tau=0.1, R=501);
 boot.50=boot.rq(X,y,tau=0.5,  R=501, U=boot.10$U);
@@ -75,7 +85,6 @@ bootq.50=X%*%t(boot.50$B);
 bootq.90=X%*%t(boot.90$B);
 
 matplot(x, cbind(bootq.10,bootq.50, bootq.90), type="l"); 
-
 
 bootNPS = (bootq.10 + bootq.90 - 2*bootq.50)/(bootq.90 - bootq.10); 
 LS = apply(bootNPS,1,function(x) quantile(x,0.05)); 
