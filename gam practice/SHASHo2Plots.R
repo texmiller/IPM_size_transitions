@@ -12,8 +12,6 @@ py2 = dSHASHo2(x,mu=0,sigma=1,nu=0,tau=1)
 py3 = dSHASHo2(x,mu=0,sigma=1,nu=1,tau=1)
 matplot(x,cbind(py1,py2,py3),type="l",col=c("black","red","blue"),main="Vary nu"); 
 
-
-
 ########### Create artificial "residuals" with known parameters 
 x = rnorm(500); x = sort(x); 
 resids = rSHASHo2(length(x),mu=0,sigma=1,nu= 0.1*x^3 + (x^2)/5,tau=0.7); 

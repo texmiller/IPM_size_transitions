@@ -1,16 +1,30 @@
-library(quantreg); library(fda); library(sn); library(moments); library(mgcv); 
+####################################################################################
+## Exploring the feasibility of quantile-regression diagnostics for scaled residuals
+## Fake 'scaled residuals' are generated from JP distribution
+####################################################################################
 
-### A qsn function that actually works, unlike the one in the sn package. 
-### Vectorized in p, but not the distribution parameters 
-my.qsn = function(p,xi,omega,alpha) {
-    px = seq(-50,50,length=500); 
-    py = psn(px,xi=xi,omega=omega,alpha=alpha,tau=0);
-    F = splinefun(py,px,method="monoH.FC"); 
-    return(F(p))
-}  
- 
-x = sort(2*rbeta(500,3,3)); 
-alphas = 5 - 5*x; 
+
+library(quantreg); library(fda); library(sn); 
+library(moments); library(mgcv); 
+
+
+root = "c:/repos"; # edit as needed 
+setwd(root); setwd("IPM_size_transitions/gam practice"); 
+
+source("JPfuns.R");
+
+nx = 500; 
+x = sort(2*rbeta(nx,3,3)); 
+lambdas = 1 - x; 
+y = numeric(nx); 
+for (i in 1:nx) y[i]=rRSJP(1,lambdas[i],tau=0) 
+
+plot(x,y); 
+
+
+
+
+
 Y = matrix(NA,length(alphas),3)
 for(i in 1:length(alphas)) {
     out = my.qsn(c(0.2,0.5,0.8), xi=0, omega=1, alpha=alphas[i]);
@@ -19,7 +33,7 @@ for(i in 1:length(alphas)) {
 } 
 
 graphics.off(); 
-y = rsn(length(x),xi=0,omega=1,alpha=alphas); 
+
 xydata = data.frame(x = x, y = y); 
 
 

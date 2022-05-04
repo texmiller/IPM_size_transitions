@@ -25,16 +25,14 @@
 #     reliable parameter estimation.
 #  
 #  (4) CRJP is the four-parameter reparameterized JP distribution. 
-#      The mean and sd parameters are the actual mean and sd
-#      The (lambda, tau) parameters are used for skew and kurtosis
+#      The (lambda, tau) parameters are used for skew and kurtosis, 
+#      while arguments mu and sigma are the actual mean and std dev. 
+####################################################################      
  
-##############################################################
-require(gamlss.dist); require(maxLik);  
-
 #####################################################
 ##              JP Distribution 
 ## Functions for the two-parameter JP distribution 
-## See Jones & Pewsey 2009, p. 764 
+## See Jones & Pewsey 2009, p. 764.  
 ## epsilon is real-valued, delta > 0
 ####################################################
 
@@ -99,8 +97,8 @@ qJP(0.26, -1, 2); qSHASHo(0.26,0,1,-1,2);
 
 ######################################################
 #              SJP Distribution 
-# Functions for the standardized JP distribution, i.e. 
-# centered and scaled so mean=0, variance=1 
+# Functions for the standardized JP distribution,  
+# which is centered and scaled so mean=0, variance=1 
 ######################################################
 
 ## probability density function 
@@ -109,6 +107,8 @@ dSJP = function(x,epsilon,delta) {
     sigma = sqrt(JPvar(epsilon,delta))
     return( sigma*dJP(mu + sigma*x,epsilon,delta) )
 }    
+
+
 
 ## random number generation 
 rSJP = function(n, epsilon=0, delta=1){
@@ -120,6 +120,7 @@ rSJP = function(n, epsilon=0, delta=1){
     
 }
 
+
 #### quantile function 
 qSJP = function(p, epsilon=0, delta=1) {
     q = qJP(p,epsilon,delta); 
@@ -127,6 +128,7 @@ qSJP = function(p, epsilon=0, delta=1) {
     sigma = sqrt(JPvar(epsilon,delta))
     return( (q - mu)/sigma )
 }
+
 
 #### cumulative distribution function 
 pSJP = function (q, epsilon = 0, delta = 1) {
@@ -140,8 +142,7 @@ SJP_moments=function(epsilon,delta) {
     m3 = integrate(function(x) (x^3)*dSJP(x,epsilon,delta), -Inf, Inf)$value
     m4 = integrate(function(x) (x^4)*dSJP(x,epsilon,delta), -Inf, Inf)$value
     return(list(skew = m3, excess.kurtosis = m4/3 -1))
-}    
- 
+}
     
 
 if(TESTING) {#------------------------------------------------------------
@@ -170,7 +171,7 @@ fit$par;
 
 #####################################################
 # Nonparametric skew and kurtosis functions. 
-# These are the same for JP and SJP
+# These are the same for JP and SJP distributions. 
 #####################################################
 JP_NPskewness = function(epsilon,delta,p=0.1) {
 	q = qJP(c(p,0.5,1-p),epsilon,delta)
@@ -195,25 +196,28 @@ SJP_NPkurtosis = JP_NPkurtosis;
 ##              RSJP Distribution  
 ## Reparameterized SJP distribution 
 ## Functions for SJP distribution in (lambda, tau) parameters
+## where lambda controls skewness and tau controls kurtosis. 
+## In terms of the parameters of the original distribution, 
 ## lambda = exp(-delta) and tau = epsilon/delta. 
 ##############################################################
 
 ## probability density function 
 dRSJP = function(x,lambda=0,tau=0) {
     delta=exp(-tau); epsilon=lambda*delta;
-    return(dSJP(x,delta,epsilon)); 
+    return(dSJP(x,epsilon,delta)); 
 }    
+
 
 ## random number generation 
 rRSJP = function(n, lambda=0, tau=0){
     delta=exp(-tau); epsilon=lambda*delta;
-    return(rSJP(x,delta,epsilon)); 
+    return(rSJP(n,epsilon,delta)); 
 }
 
 #### quantile function 
 qRSJP = function(p, lambda=0, tau=0) {
     delta=exp(-tau); epsilon=lambda*delta;
-    return(qSJP(p,delta,epsilon)); 
+    return(qSJP(p,epsilon,delta)); 
 }
 
 #### cumulative distribution function 
@@ -242,28 +246,29 @@ RSJP_NPkurtosis = function(lambda=0,tau=0,p=0.05) {
 }	
 
 ############################################################
-## Four-parameter Reparameterized JP distribution 
-## The mean and sd parameters are the actual mean and sd
+##              CSJP Distribution  
+## Four-parameter reparameterized JP distribution.  
+## The mu and sigma arguments are the actual mean and std dev. 
 ## The (lambda, tau) parameters are used for skew and kurtosis
-## !! These need to be checked!! 
+##          !! These need to be tested !! 
 ############################################################
 
 ## probability density function 
 dCRJP = function(x, mean=0, sd=1, lambda=0, tau=0) {
     delta=exp(-tau); epsilon=lambda*delta;
-    return((1/sd)*dRSJP((x-mean/sd),delta,epsilon)); 
+    return((1/sd)*dRSJP((x-mean/sd),epsilon,delta)); 
 }    
 
 ## random number generation 
 rCRJP = function(n, mean=0, sd=1, lambda=0, tau=0){
     delta=exp(-tau); epsilon=lambda*delta;
-    return(mu +sd*rRSJP(n,delta,epsilon)); 
+    return(mu +sd*rRSJP(n,epsilon,delta)); 
 }
 
 #### quantile function 
 qCRJP = function(p, mean=0, sd=1, lambda=0, tau=0) {
     delta=exp(-tau); epsilon=lambda*delta;
-    return(mu + sigma*qRSJP(p,delta,epsilon)); 
+    return(mu + sigma*qRSJP(p,epsilon,delta)); 
 }
 
 #### cumulative distribution function 
@@ -273,12 +278,15 @@ pCRJP = function (q, mean=0, sd=1, lambda=0, tau=0) {
     return(pRSJP(qs,epsilon,delta))
 }
 
+
 ########################################################################
-## Fit parameters of SJP by maximum Likelihood, using BHHH from MaxLik
-##
+## Fit parameters (epsilon, delta) of SJP by maximum Likelihood, 
+## using BHHH from MaxLik. 
 ## Maximization uses multistart with random initial parameters,
 ## with input parameter nstart specifying the number of random starts. 
 #######################################################################
+
+require(maxLik); 
 
 SJPMaxlik <- function(y,nstart=10,start = c(epsilon=0,log.delta = 0), sigma.start=0.2 ) {
  
@@ -309,8 +317,8 @@ SJPMaxlik <- function(y,nstart=10,start = c(epsilon=0,log.delta = 0), sigma.star
 }
 
 ########################################################################
-## Fit parameters of RSJP by maximum Likelihood using BHHH from MaxLik.
-##
+## Fit parameters (lambda, tau) of RSJP by maximum Likelihood 
+## using BHHH from MaxLik.
 ## Maximization uses multistart with random initial parameters,
 ## with input parameter nstart specifying the number of random starts. 
 #######################################################################
@@ -344,6 +352,16 @@ RSJP_ML <- function(y,nstart=10,start = c(lambda=0,tau=0), sigma.start=0.2 ) {
       
   return(list(fit=bestFit,estimate=fit$estimate)); 
 }
+
+
+
+
+
+
+
+
+
+
 
 
 
