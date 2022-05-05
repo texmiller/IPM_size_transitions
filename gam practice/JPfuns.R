@@ -85,7 +85,7 @@ JPvar = function(epsilon,delta) {
 
 
 TESTING=FALSE; 
-if(TESTING) { #--------------------------------------------------------
+if(TESTING) { #-------------------------------------------------------
 JPmean(0,1); JPvar(0,1);  # Gives N(0,1), so values should be 0, 1 
 
 x=seq(-5,5,length=100); 
@@ -93,23 +93,21 @@ plot(x,dJP(x,1,2),type="l",lwd=2);
 points(x,dSHASHo(x,0,1,1,2),type="p",lty=2,col="red"); # should overplot     
     
 qJP(0.26, -1, 2); qSHASHo(0.26,0,1,-1,2); 
-} -----------------------------------------------------------------------
+} #--------------------------------------------------------------------
 
 ######################################################
 #              SJP Distribution 
 # Functions for the standardized JP distribution,  
 # which is centered and scaled so mean=0, variance=1 
 ######################################################
-
+ 
 ## probability density function 
-dSJP = function(x,epsilon,delta) {
-    mu = JPmean(epsilon,delta)
-    sigma = sqrt(JPvar(epsilon,delta))
-    return( sigma*dJP(mu + sigma*x,epsilon,delta) )
+dSJP = function(x,epsilon=0,delta=1) {
+    mu = JPmean(epsilon,delta);
+    sigma = sqrt(JPvar(epsilon,delta));
+    return( sigma*dJP(mu + sigma*x,epsilon,delta) );
 }    
-
-
-
+ 
 ## random number generation 
 rSJP = function(n, epsilon=0, delta=1){
     U = runif(n); 
@@ -117,9 +115,7 @@ rSJP = function(n, epsilon=0, delta=1){
     mu = JPmean(epsilon,delta)
     sigma = sqrt(JPvar(epsilon,delta))
     return ( (X-mu)/sigma ) 
-    
 }
-
 
 #### quantile function 
 qSJP = function(p, epsilon=0, delta=1) {
@@ -128,7 +124,6 @@ qSJP = function(p, epsilon=0, delta=1) {
     sigma = sqrt(JPvar(epsilon,delta))
     return( (q - mu)/sigma )
 }
-
 
 #### cumulative distribution function 
 pSJP = function (q, epsilon = 0, delta = 1) {
@@ -144,8 +139,9 @@ SJP_moments=function(epsilon,delta) {
     return(list(skew = m3, excess.kurtosis = m4/3 -1))
 }
     
-
-if(TESTING) {#------------------------------------------------------------
+    
+TESTING=FALSE;     
+if(TESTING) {
 # Testing the moments 
 for(j in 1:10) {
  epsilon=rnorm(1); delta=exp(rnorm(1)); 
@@ -166,7 +162,7 @@ NLL = function(p) {
 fit=optim(par=c(0,1), NLL, control=list(maxit=50000,trace=4)); 
 fit$par;     
 
-} #------------------------------------------------------------------------------
+} 
 
 
 #####################################################
@@ -352,13 +348,6 @@ RSJP_ML <- function(y,nstart=10,start = c(lambda=0,tau=0), sigma.start=0.2 ) {
       
   return(list(fit=bestFit,estimate=fit$estimate)); 
 }
-
-
-
-
-
-
-
 
 
 
