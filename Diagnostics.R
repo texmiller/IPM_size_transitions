@@ -37,6 +37,7 @@ rollMoments=function(px,py,windows=10,smooth=TRUE,scaled=TRUE) {
 
   width=round(length(px)/windows); by=round(width/2); 
   rollx=rollapply(px,width=width,mean,by=by);
+  rollxmedian = rollapply(px,width=width,median,by=by);
   rollmean = rollapply(py,width=width,mean,by=by); 
   rollsd=rollapply(py,width=width,sd,by=by); 
   rollkurt=rollapply(py,width=width,kurtosis,by=by);
@@ -56,7 +57,7 @@ rollMoments=function(px,py,windows=10,smooth=TRUE,scaled=TRUE) {
   spline.scatter.smooth(rollx,rollkurt,gamma=2,xlab="Fitted values",ylab="Kurtosis"); 
   if(scaled) abline(h=3,col="red",lty=2,lwd=2)
 }
-return(list(rollx=rollx,rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollskew=rollskew))
+return(list(rollx=rollx,rollxmedian=rollxmedian,rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollskew=rollskew))
 }
 
 ###############################################################################
@@ -101,6 +102,7 @@ rollMomentsNP=function(px,py,windows=10,smooth=TRUE,scaled=TRUE,xlab=NULL) {
 
   width=round(length(px)/windows); by=round(width/2); 
   rollx=rollapply(px,width=width,mean,by=by);
+  rollxmedian = rollapply(px,width=width,median,by=by);
   rollmean = rollapply(py,width=width,mean,by=by); 
   rollsd=rollapply(py,width=width,sd,by=by); 
   rollkurt=rollapply(py,width=width,NPkurtosis,by=by);
@@ -124,7 +126,7 @@ rollMomentsNP=function(px,py,windows=10,smooth=TRUE,scaled=TRUE,xlab=NULL) {
   if(scaled) abline(h=0,col="red",lty=2,lwd=2)
   add_panel_label("d"); 
 }
-return(list(rollx=rollx,rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollskew=rollskew))
+return(list(rollx=rollx,rollxmedian=rollxmedian, rollmean=rollmean,rollsd=rollsd,rollkurt=rollkurt,rollskew=rollskew))
 }
 
 #########################################################################################
