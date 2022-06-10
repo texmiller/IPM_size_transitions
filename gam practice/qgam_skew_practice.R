@@ -42,11 +42,11 @@ title(main="qGAM");
 NPS_hat = matrix(NA,nx,10); 
 for(k in 1:10) {
     z=y[,k]; xzdata = data.frame(x=x,z=z); 
-    S.10 = qgam(z~s(x,k=5), data=xzdata,qu=0.05,argGam=list(gamma=2)); 
+    S.10 = qgam(z~s(x,k=5), data=xzdata,qu=0.1,argGam=list(gamma=2)); 
         q.10 = predict(S.10,newdata=xzdata); 
     S.50 = qgam(z~s(x,k=5),data=xzdata,qu=0.5,argGam=list(gamma=2)); 
         q.50 = predict(S.50,newdata=xzdata); 
-    S.90 = qgam(z~s(x,k=5),data=xzdata,qu=0.95,argGam=list(gamma=2)); 
+    S.90 = qgam(z~s(x,k=5),data=xzdata,qu=0.9,argGam=list(gamma=2)); 
         q.90 = predict(S.90,newdata=xydata);
     matpoints(x, cbind(q.10,q.50,q.90), type="l", lty=1, lwd=1, col="grey50"); 
     NPS_hat[,k] = (q.10 + q.90 - 2*q.50)/(q.90 - q.10);
