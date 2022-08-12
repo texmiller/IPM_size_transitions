@@ -49,13 +49,13 @@ title(main="qGAM");
 NPK_hat = matrix(NA,nx,10); 
 for(k in 1:10) {
     z=y[,k]; xzdata = data.frame(x=x,z=z); 
-    S.05 = qgam(z~s(x,k=5),data=xzdata,qu=0.05,argGam=list(gamma=2)); 
+    S.05 = qgam(z~s(x,k=4),data=xzdata,qu=0.05,argGam=list(gamma=2)); 
         q.05 = predict(S.05,newdata=xzdata); 
-    S.25 = qgam(z~s(x,k=5),data=xzdata,qu=0.25,argGam=list(gamma=2)); 
+    S.25 = qgam(z~s(x,k=4),data=xzdata,qu=0.25,argGam=list(gamma=2)); 
         q.25 = predict(S.25,newdata=xzdata);         
-    S.75 = qgam(z~s(x,k=5),data=xzdata,qu=0.75,argGam=list(gamma=2)); 
+    S.75 = qgam(z~s(x,k=4),data=xzdata,qu=0.75,argGam=list(gamma=2)); 
         q.75 = predict(S.75,newdata=xzdata); 
-    S.95 = qgam(z~s(x,k=5),data=xzdata,qu=0.95,argGam=list(gamma=2)); 
+    S.95 = qgam(z~s(x,k=4),data=xzdata,qu=0.95,argGam=list(gamma=2)); 
         q.95 = predict(S.95,newdata=xydata);
     matpoints(x, cbind(q.05,q.25,q.75,q.95), type="l", lty=1, lwd=1, col="grey50"); 
     NPK_hat[,k] = ((q.95-q.05)/(q.75-q.25))/KG - 1; 
@@ -64,6 +64,7 @@ for(k in 1:10) {
 matpoints(x,Y, type="l",lty=1,lwd=2,col="red"); 
 matplot(x,cbind(NPK,NPK_hat),type="l", lty=c(1,rep(2,10)), col=c("black", rep("blue",10)),lwd=c(2,rep(1,10))); 
 err = scale(t(NPK_hat),center=NPK,scale=FALSE); RMSE = round(sqrt(mean(err^2)),digits=3); 
+rug(x); 
 title(main=paste("RMSE=", RMSE)); 
 
 
@@ -86,6 +87,7 @@ for(k in 1:10) {
 matpoints(x,Y, type="l",lty=1,lwd=2,col="red"); 
 matplot(x,cbind(NPK,NPK_hat),type="l", lty=c(1,rep(2,10)), col=c("black", rep("blue",10)),lwd=c(2,rep(1,10))); 
 err = scale(t(NPK_hat),center=NPK,scale=FALSE); RMSE = round(sqrt(mean(err^2)),digits=3); 
+rug(x); 
 title(main=paste("RMSE=", RMSE))
 
 
@@ -106,4 +108,5 @@ for(k in 1:10) {
 matpoints(x,Y, type="l",lty=1,lwd=2,col="red"); 
 matplot(x,cbind(NPK,NPK_hat),type="l", lty=c(1,rep(2,10)), col=c("black", rep("blue",10)),lwd=c(2,rep(1,10))); 
 err = scale(t(NPK_hat),center=NPK,scale=FALSE); RMSE = round(sqrt(mean(err^2)),digits=3); 
+rug(x); 
 title(main=paste("RMSE=", RMSE))
