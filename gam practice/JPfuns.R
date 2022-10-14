@@ -194,7 +194,7 @@ SJP_NPkurtosis = JP_NPkurtosis;
 ## Functions for SJP distribution in (lambda, tau) parameters
 ## where lambda controls skewness and tau controls kurtosis. 
 ## In terms of the parameters of the original distribution, 
-## lambda = exp(-delta) and tau = epsilon/delta. 
+## tau = -log(delta) and lambda = epsilon/delta. 
 ##############################################################
 
 ## probability density function 

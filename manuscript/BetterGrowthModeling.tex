@@ -818,7 +818,7 @@ This research was supported by US NSF grants DEB-1933497 (SPE) and ....
 \section{The Jones-Pewsey distribution} 
 \citet{jones-pewsey-2009} introduced a simple, tractable generalization of the Normal distribution with two additional parameters determining  
 asymmetry (skewness), and tail weight (kurtosis) which can be either lighter or heavier than the Gaussian. It is defined as a transformation
-of a Normal(0,1) random variable usingthe sinh (hyperbolic sin) function and its inverse (asinh), as follows. The distribution family's base probability density  
+of a Normal(0,1) random variable usingthe hyperbolic sine function (sinh) and its inverse (asinh), as follows. The distribution family's base probability density  
 $f_{\epsilon,\delta}$  is the probability density of the random variable $X_{\epsilon,\delta}$ where  
 \be
 Z = \sinh (\delta \; \mbox{asinh}(X_{\epsilon,\delta}) - \epsilon)
@@ -865,14 +865,8 @@ Thus, the two parameterizations are related by
 The definition of $\tau$ allows it to take any real value, with negative values giving thinner than Gaussian tails and positive
 values giving fatter than Gaussian tails. $\lambda$ also can take any real value, and the distribution's skew has the same sign as $\lambda$. 
 Because the $\sinh$ function is nonlinear, it is still the case that the skew depends on $\tau$ as well as $\lambda$, but the
-``crosstalk'' between the kurtosis and skew parameters is weaker. As  a result, we found that parameter values were more reliably
-recovered from data sets generated from known values of $\tau$ and $\lambda$. 
-
-
-
-
-
-
+``crosstalk'' between the kurtosis and skew parameters is weaker. As  a result, we found that maximum likelihood estimation of parameter values was 
+generally more reliable if the distribution is parameterized in terms of $\tau$ and $\lambda$. 
 
 \section{Estimating mixed-effects models using shrinkage}
 
