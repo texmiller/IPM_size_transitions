@@ -16,12 +16,12 @@ source("../Diagnostics.R");
 
 ### Generate data from RSJP distribution
 ##  JP with mean=0, var=1, in (lambda, tau) parameters. 
-nx = 500; x = sort(2*rbeta(nx,3,3)); 
+nx = 250; x = sort(2*rbeta(nx,3,3)); 
 lambdas = 1 + (x-1); lambdas=lambdas-min(lambdas);
-lambdas = (x-1); 
+lambdas = 0.5*(x-1); 
 y = matrix(NA,nx,10); 
 for(i in 1:nx) y[i,]=rRSJP(10,lambdas[i],tau=0)     
-xydata = data.frame(x = x, y = y); 
+xydata = data.frame(x = x, y = y); ?fa
 
 ## Quantiles of the distribution 
 Y = matrix(NA,nx,3)
