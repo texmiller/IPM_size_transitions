@@ -304,19 +304,19 @@ Figure drawn by script \texttt{NPmoments.R}}
 
 We therefore use ``nonparametric'' (NP) measures of skew and kurtosis that are based on quantiles and thus  
 less sensitive to a few extreme data values. Let $q_\alpha$ denote the $\alpha$ quantile of a distribution or sample (e.g., $q_{0.05}$ 
-is the 5th percentile. For any $0 < \alpha < 0.5$ a quantile-based measure of skewness is given by \citep{mcgillivray-1986}
+is the 5th percentile. For any $0 < \alpha < 0.5$, a quantile-based measure of skewness is given by \citep{mcgillivray-1986}
 \be
 \mbox{NP Skewness} = \frac{q_\alpha + q_{1-\alpha} - 2 q_{0.5}}{q_{1-\alpha} - q_\alpha}.
 \ee
-NP Skewness is a measure of asymmetry between the tails of the distribution above and below its median. The size of the upper
-tail can be measured (for any given $\alpha$) by $\tau_U = q_{1-\alpha} - q_{0.5}$; for $\alpha=0.05$ this is the difference
+NP Skewness is a measure of asymmetry between the tails of the distribution above and below the median. The size of the upper
+tail can be measured (for any $0 < \alpha < 0.5$) by $\tau_U = q_{1-\alpha} - q_{0.5}$; for $\alpha=0.05$ this is the difference
 between the 95th percentile and the median. The lower tail size is $\tau_L = q_{0.5} - q_\alpha$. The definition above
 is equivalent to  
 \be
-\mbox{NP Skewness} = \frac{\tau_U - \tau_L}{(\tau_U + \tau_L)/2}.
+\mbox{NP Skewness} = \frac{\tau_U - \tau_L}{(\tau_U + \tau_L)}.
 \label{eqn:NPskew}
 \ee
-So an NP Skewness of $\pm 0.2$ says that the difference in tail sizes is 20\% of their average. The range of possible values 
+So an NP Skewness of $\pm 0.2$ says that the difference in tail sizes is 20\% of their total. The range of possible values 
 is -1 to 1. Both $\alpha=0.25$ (sometimes called ``Kelly's skewness'') and $\alpha=0.1$ (``Bowley's skewness'') 
 are common choices. We used $\alpha=0.1$, unless otherwise stated.  
  
@@ -326,8 +326,7 @@ An analogous quantile-based measure of kurtosis \citep{jones-etal-1994} is
 \label{eqn:NPkurt}
 \ee
 For $\alpha=0.05$, NP Kurtosis is the difference between the 95th and 5th percentiles, relative to the interquartile range. 
-The numerator in \eqref{eqn:NPkurt} is the sum of $\tau_L$ and $\tau_U$ for the chosen value of $\alpha$. 
-To facilitate interpretation, we scale NP Kurtosis relative to its value for Gaussian distribution, and substract 1. 
+To facilitate interpretation, we scale NP Kurtosis relative to its value for Gaussian distribution, and subtract 1. 
 We call this ``NP Excess Kurtosis''. The value for a Gaussian distribution is zero. A value of 0.2 means that the tails
 are (on average) 20\% broader than those of a Gaussian with the same interquartile range, and a value of -0.2 means that the tails
 are (on average) 20\% narrower than a Gaussian with the same interquartile range. We calculate NP Kurtosis using $\alpha=0.05$ 
