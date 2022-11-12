@@ -55,8 +55,24 @@ plot(CYIM_grow$logvol_t,1/CYIM_gam_pred[,2],col=alpha("blue",0.25),pch=16,cex=.5
 axis(side = 4, at = pretty(range(1/CYIM_gam_pred[,2])))
 mtext("sigma", side = 4, line = 3)
 
+## inspect residuals, scaled by sd; re-run predict now w/RFX
+fitted_sd<-1/predict(CYIM_grow_m1,type="response")[,2]
+CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="response")/fitted_sd
+
+plot(CYIM_grow$logvol_t,CYIM_grow$scaledResids,col=alpha("black",0.25),
+     xlab="Size t",ylab="Scaled residuals")
 
 
+
+## now curious to look at the outliers
+CYIM_grow %>% 
+  filter(scaledResids < -5) %>% View()
+CYIM_full %>% 
+  filter(ID==45.3) %>% View()
+
+CYIM_test<-read_csv("cactus/cholla_demography_20042018_EDI.csv")
+CYIM_test %>% 
+  filter(Plot=="3",TagID=="45") %>% View()
 
 # the basement ------------------------------------------------------------
 
