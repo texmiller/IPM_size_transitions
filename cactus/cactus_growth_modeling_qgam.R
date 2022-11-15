@@ -7,6 +7,7 @@ setwd("C:/Users/tm9/Dropbox/github/IPM_size_transitions")
 library(tidyverse)
 library(mgcv)
 library(scales)
+library(qgam)
 
 # function for converting cactus size measurements to volume
 volume <- function(h, w, p){
@@ -41,7 +42,7 @@ CYIM_full %>%
   drop_na() -> CYIM_grow
 
 ## use gam to fit Gaussian growth model with non-constant variance
-CYIM_grow_m1 <- gam(list(logvol_t1 ~ s(logvol_t) + s(plot,bs="re") + s(year_t,bs="re"), ~s(logvol_t)), 
+CYIM_grow_m1 <- gam(list(logvol_t1 ~ s(logvol_t) + s(plot,bs="re") + s(year_t,bs="re"), ~s(logvol_t,k=4)), 
                     data=CYIM_grow, gamma=2, family=gaulss())
 CYIM_gam_pred <- predict(CYIM_grow_m1,type="response",exclude=c("s(plot)","s(year_t)"))
 
@@ -61,6 +62,23 @@ CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="response")/fitted_sd
 
 plot(CYIM_grow$logvol_t,CYIM_grow$scaledResids,col=alpha("black",0.25),
      xlab="Size t",ylab="Scaled residuals")
+
+## fit qgam
+S.10<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.1,argGam=list(gamma=2)) 
+S.50<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.5,argGam=list(gamma=2)) 
+S.90<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.9,argGam=list(gamma=2)) 
+q.10<-predict(S.10);q.50<-predict(S.50);q.90<-predict(S.90)
+NPS_hat = (q.10 + q.90 - 2*q.50)/(q.90 - q.10)
+
+lines(CYIM_grow$logvol_t,q.10,col=alpha("red",0.25))
+lines(CYIM_grow$logvol_t,q.50,col=alpha("red",0.25))
+lines(CYIM_grow$logvol_t,q.90,col=alpha("red",0.25))
+
+par(new = TRUE)                           
+plot(CYIM_grow$logvol_t,NPS_hat,col=alpha("blue",0.25),pch=16,cex=.5,
+     axes = FALSE, xlab = "", ylab = "")
+axis(side = 4, at = pretty(range(NPS_hat)))
+mtext("NP Skewness", side = 4, line = 3)
 
 
 
