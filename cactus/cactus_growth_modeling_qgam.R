@@ -16,7 +16,7 @@ volume <- function(h, w, p){
 
 ## read in cactus demography data
 ## these data are published on EDI: https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-sev.323.1
-CYIM_full<-read_csv("cactus/cholla_demography_20042018_EDI.csv") %>% 
+CYIM_full<-read_csv("cactus/cholla_demography_20042018_EDI.csv")%>% 
   ## filter out transplants and drop seed addition plots (which start with letter H)
   ## also drop Year_t==2018 because I don't have 2019 size data (not entered yet). 2018 data still included in 2017-2018 transition.
   filter(Transplant == 0,
@@ -28,13 +28,20 @@ CYIM_full<-read_csv("cactus/cholla_demography_20042018_EDI.csv") %>%
          plot = as.factor(Plot),
          year_t = as.factor(Year_t),
          ID = interaction(TagID,plot)) %>%
-  select(ID,year_t,plot,vol_t,vol_t1,Survival_t1,Goodbuds_t1) %>% 
+  #select(ID,year_t,plot,vol_t,vol_t1,Survival_t1,Goodbuds_t1) %>% 
   ## sort by initial size
   arrange(vol_t) 
+
+
+## In prelim analysis I inspected several unrealistic size transitions
+## this file identifies plants to drop
+CYIM_outliers<-read_csv("cactus/CYIM_outliers.csv") %>% 
+  filter(FLAG==1) %>% select(ID) %>% unique()
 
 ## pull out and na.omit size transitions for growth modeling
 ## NAs come from new recruits (missing year_t size) and mortality (missing year_t1 size)
 CYIM_full %>% 
+  filter(!ID%in%CYIM_outliers$ID) %>% 
   mutate(logvol_t=log(vol_t),
          logvol_t1=log(vol_t1)) %>% 
   select(ID,year_t,plot,logvol_t,logvol_t1) %>% 
@@ -70,9 +77,9 @@ S.90<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.9,argGam=list(gamma=2))
 q.10<-predict(S.10);q.50<-predict(S.50);q.90<-predict(S.90)
 NPS_hat = (q.10 + q.90 - 2*q.50)/(q.90 - q.10)
 
-lines(CYIM_grow$logvol_t,q.10,col=alpha("red",0.25))
-lines(CYIM_grow$logvol_t,q.50,col=alpha("red",0.25))
-lines(CYIM_grow$logvol_t,q.90,col=alpha("red",0.25))
+lines(CYIM_grow$logvol_t,q.10,col=alpha("red",0.5))
+lines(CYIM_grow$logvol_t,q.50,col=alpha("red",0.5))
+lines(CYIM_grow$logvol_t,q.90,col=alpha("red",0.5))
 
 par(new = TRUE)                           
 plot(CYIM_grow$logvol_t,NPS_hat,col=alpha("blue",0.25),pch=16,cex=.5,
@@ -84,9 +91,17 @@ mtext("NP Skewness", side = 4, line = 3)
 
 ## now curious to look at the outliers
 CYIM_grow %>% 
-  filter(scaledResids < -5) %>% View()
-CYIM_full %>% 
-  filter(ID==45.3) %>% View()
+  filter(scaledResids < quantile(scaledResids,probs=0.025) |
+           scaledResids >  quantile(scaledResids,probs=0.975) ) %>% 
+  select(ID,year_t) %>% 
+  left_join(.,CYIM_full,
+            by=c("ID","year_t"))-> outliers
+write_csv(outliers,"cactus/CYIM_outliers.csv")
+
+separate(as.character(CYIM_grow$ID))
+
+df <- data.frame(x = c(NA, "x.y", "x.z", "y.z"))
+df %>% separate(x, c("A", "B"))
 
 CYIM_test<-read_csv("cactus/cholla_demography_20042018_EDI.csv")
 CYIM_test %>% 
