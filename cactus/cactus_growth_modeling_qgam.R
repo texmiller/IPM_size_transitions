@@ -61,32 +61,72 @@ par(new = TRUE)
 plot(CYIM_grow$logvol_t,1/CYIM_gam_pred[,2],col=alpha("blue",0.25),pch=16,cex=.5,
      axes = FALSE, xlab = "", ylab = "")
 axis(side = 4, at = pretty(range(1/CYIM_gam_pred[,2])))
-mtext("sigma", side = 4, line = 3)
+mtext("sigma", side = 4, line = 3,col="blue")
 
 ## inspect residuals, scaled by sd; re-run predict now w/RFX
 fitted_sd<-1/predict(CYIM_grow_m1,type="response")[,2]
 CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="response")/fitted_sd
 
-plot(CYIM_grow$logvol_t,CYIM_grow$scaledResids,col=alpha("black",0.25),
-     xlab="Size t",ylab="Scaled residuals")
+## fit qgam -- we will need several quantiles for skewness and kurtosis
+k_param<-4
+gamma_param<-3
+S.05<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.05,argGam=list(gamma=gamma_param)) 
+S.10<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.1,argGam=list(gamma=gamma_param)) 
+S.25<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.25,argGam=list(gamma=gamma_param)) 
+S.50<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.5,argGam=list(gamma=gamma_param)) 
+S.75<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.75,argGam=list(gamma=gamma_param)) 
+S.90<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.9,argGam=list(gamma=gamma_param)) 
+S.95<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.95,argGam=list(gamma=gamma_param)) 
 
-## fit qgam
-S.10<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.1,argGam=list(gamma=2)) 
-S.50<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.5,argGam=list(gamma=2)) 
-S.90<-qgam(scaledResids~s(logvol_t), data=CYIM_grow,qu=0.9,argGam=list(gamma=2)) 
+## NP skewness
 q.10<-predict(S.10);q.50<-predict(S.50);q.90<-predict(S.90)
 NPS_hat = (q.10 + q.90 - 2*q.50)/(q.90 - q.10)
 
-lines(CYIM_grow$logvol_t,q.10,col=alpha("red",0.5))
-lines(CYIM_grow$logvol_t,q.50,col=alpha("red",0.5))
-lines(CYIM_grow$logvol_t,q.90,col=alpha("red",0.5))
+## NP kurtosis (relative to Gaussian)
+q.05<-predict(S.05);q.25<-predict(S.25);q.75<-predict(S.75);q.95<-predict(S.95)
+qN = qnorm(c(0.05,0.25,0.75,0.95))
+KG = (qN[4]-qN[1])/(qN[3]-qN[2])
+NPK_hat = ((q.95-q.05)/(q.75-q.25))/KG - 1
 
+par(oma=c(0,0,0,4))
+plot(CYIM_grow$logvol_t,CYIM_grow$scaledResids,col=alpha("black",0.25),
+     xlab="Size t",ylab="Scaled residuals")
 par(new = TRUE)                           
 plot(CYIM_grow$logvol_t,NPS_hat,col=alpha("blue",0.25),pch=16,cex=.5,
      axes = FALSE, xlab = "", ylab = "")
-axis(side = 4, at = pretty(range(NPS_hat)))
-mtext("NP Skewness", side = 4, line = 3)
+axis(side = 4, at = pretty(range(c(NPS_hat,NPK_hat))))
+mtext("NP Skewness", side = 4, line = 2,col="blue")
+par(new = TRUE)                           
+plot(CYIM_grow$logvol_t,NPK_hat,col=alpha("red",0.25),pch=16,cex=.5,
+     axes = FALSE, xlab = "", ylab = "")
+mtext("NP Excess Kurtosis", side = 4, line =3,col="red")
 
+## given how wiggly the NPK looks I would like to see the actual qgams
+plot(CYIM_grow$logvol_t,CYIM_grow$scaledResids,col=alpha("black",0.25),
+     xlab="Size t",ylab="Scaled residuals")
+points(CYIM_grow$logvol_t,q.05,col="red",pch=".")
+points(CYIM_grow$logvol_t,q.10,col="red",pch=".")
+points(CYIM_grow$logvol_t,q.25,col="red",pch=".")
+points(CYIM_grow$logvol_t,q.50,col="red",pch=".")
+points(CYIM_grow$logvol_t,q.75,col="red",pch=".")
+points(CYIM_grow$logvol_t,q.90,col="red",pch=".")
+points(CYIM_grow$logvol_t,q.95,col="red",pch=".")
+
+# the basement ------------------------------------------------------------
+
+## test that I understand how to get sigma from the gaulss fit
+x <- runif(500,-1,1)
+y <- rnorm(500,mean=8.6+3*x,sd=exp(0.5+0.8*x))
+plot(x,y)
+testgam<-gam(list(y~s(x),~s(x)),family=gaulss())
+pred.response <- predict(testgam,type="response")
+plot(exp(0.5+0.8*x),1/pred.response[,2]);abline(0,1)
+
+pred.lpmat <- predict(testgam,type="lpmatrix")
+grow_sd_index <- which(as.factor(names(coef(testgam)))=="(Intercept).1") ## this is where the sd coefficients start
+gam_coef_length <- length(coef(testgam))
+plot(exp(0.5+0.8*x),
+exp(pred.lpmat[, grow_sd_index:length(coef(testgam))] %*% coef(testgam)[grow_sd_index:length(coef(testgam))]));abline(0,1)
 
 
 ## now curious to look at the outliers
@@ -106,19 +146,3 @@ df %>% separate(x, c("A", "B"))
 CYIM_test<-read_csv("cactus/cholla_demography_20042018_EDI.csv")
 CYIM_test %>% 
   filter(Plot=="3",TagID=="45") %>% View()
-
-# the basement ------------------------------------------------------------
-
-## test that I understand how to get sigma from the gaulss fit
-x <- runif(500,-1,1)
-y <- rnorm(500,mean=8.6+3*x,sd=exp(0.5+0.8*x))
-plot(x,y)
-testgam<-gam(list(y~s(x),~s(x)),family=gaulss())
-pred.response <- predict(testgam,type="response")
-plot(exp(0.5+0.8*x),1/pred.response[,2]);abline(0,1)
-
-pred.lpmat <- predict(testgam,type="lpmatrix")
-grow_sd_index <- which(as.factor(names(coef(testgam)))=="(Intercept).1") ## this is where the sd coefficients start
-gam_coef_length <- length(coef(testgam))
-plot(exp(0.5+0.8*x),
-exp(pred.lpmat[, grow_sd_index:length(coef(testgam))] %*% coef(testgam)[grow_sd_index:length(coef(testgam))]));abline(0,1)
