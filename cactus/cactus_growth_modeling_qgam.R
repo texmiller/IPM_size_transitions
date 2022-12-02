@@ -155,15 +155,33 @@ plot(CYIM_grow$logvol_t,CYIM_shash_pred[,3],col=alpha("red",0.25),pch=16,cex=.5)
 plot(CYIM_grow$logvol_t,exp(CYIM_shash_pred[,4]),col=alpha("red",0.25),pch=16,cex=.5)
 
 ## simulate data from fitted model and compare to real data
-sim_dat <- rSHASHo2(n=nrow(CYIM_grow),
+CYIM_grow$sim_dat <- rSHASHo2(n=nrow(CYIM_grow),
          mu=CYIM_shash_pred[,1],
          sigma=exp(CYIM_shash_pred[,2]),
          nu=CYIM_shash_pred[,3],
          tau=exp(CYIM_shash_pred[,4]))
 
 
-plot(CYIM_grow$logvol_t,sim_dat)
+plot(CYIM_grow$logvol_t,CYIM_grow$sim_dat)
 points(CYIM_grow$logvol_t,CYIM_grow$logvol_t1,col="red")
+
+testx<-runif(1000,5,800)
+mean(testx)
+q<-quantile(testx,probs=c(0.25,0.5,0.75))
+(q[1]+q[2]+q[3])/3
+
+CYIM.25<-qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.25)#,argGam=list(gamma=gamma_param)) 
+CYIM.50<-qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.5)#,argGam=list(gamma=gamma_param)) 
+CYIM.75<-qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.75)#,argGam=list(gamma=gamma_param)) 
+CYIMsim.25<-qgam(sim_dat~s(logvol_t,k=4), data=CYIM_grow,qu=0.25)#,argGam=list(gamma=gamma_param)) 
+CYIMsim.50<-qgam(sim_dat~s(logvol_t,k=4), data=CYIM_grow,qu=0.5)#,argGam=list(gamma=gamma_param)) 
+CYIMsim.75<-qgam(sim_dat~s(logvol_t,k=4), data=CYIM_grow,qu=0.75)#,argGam=list(gamma=gamma_param)) 
+
+plot(CYIM_grow$logvol_t,(predict(CYIM.25)+predict(CYIM.50)+predict(CYIM.75))/3,type="l")
+lines(CYIM_grow$logvol_t,(predict(CYIMsim.25)+predict(CYIMsim.50)+predict(CYIMsim.75))/3,type="l",col="red")
+
+plot(CYIM_grow$logvol_t,(predict(CYIM.75) - predict(CYIM.25)) / (2 * (qnorm((0.75 * nrow(CYIM_grow) - 0.125) / (nrow(CYIM_grow) + 0.25)))),type="l")
+lines(CYIM_grow$logvol_t,(predict(CYIMsim.75) - predict(CYIMsim.25)) / (2 * (qnorm((0.75 * nrow(CYIM_grow) - 0.125) / (nrow(CYIM_grow) + 0.25)))),type="l",col="red")
 
 # the basement ------------------------------------------------------------
 
