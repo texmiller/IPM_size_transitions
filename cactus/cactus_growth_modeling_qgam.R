@@ -15,6 +15,17 @@ volume <- function(h, w, p){
   (1/3)*pi*h*(((w + p)/2)/2)^2
 }
 
+## quartile-based estimates of mean and sd
+## see https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-14-135
+Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
+Q.sd<-function(q.25,q.75){(q.75-q.25)/1.35}
+Q.skewness<-function(q.10,q.50,q.90){(q.10 + q.90 - 2*q.50)/(q.90 - q.10)}
+Q.kurtosis<-function(q.05,q.25,q.75,q.95){
+  qN = qnorm(c(0.05,0.25,0.75,0.95))
+  KG = (qN[4]-qN[1])/(qN[3]-qN[2])
+  return(((q.95-q.05)/(q.75-q.25))/KG - 1)
+}
+
 ## read in cactus demography data
 ## these data are published on EDI: https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-sev.323.1
 CYIM_full<-read_csv("cactus/cholla_demography_20042018_EDI.csv")%>% 
@@ -54,16 +65,6 @@ CYIM_grow_m1 <- gam(list(logvol_t1 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_
                     data=CYIM_grow, family=gaulss())
 CYIM_gam_pred <- predict(CYIM_grow_m1,type="response",exclude=c("s(plot)","s(year_t)"))
 
-## visualize mean and variance fit
-par(mar = c(5, 4, 4, 4) + 0.3) 
-plot(CYIM_grow$logvol_t,CYIM_grow$logvol_t1,pch=1,col=alpha("black",0.25))
-points(CYIM_grow$logvol_t,CYIM_gam_pred[,1],col=alpha("red",0.25),pch=16,cex=.5)
-par(new = TRUE)                           
-plot(CYIM_grow$logvol_t,1/CYIM_gam_pred[,2],col=alpha("blue",0.25),pch=16,cex=.5,
-     axes = FALSE, xlab = "", ylab = "")
-axis(side = 4, at = pretty(range(1/CYIM_gam_pred[,2])))
-mtext("sigma", side = 4, line = 3,col="blue")
-
 ## inspect residuals, scaled by sd; re-run predict now w/RFX
 fitted_sd<-1/predict(CYIM_grow_m1,type="response")[,2]
 CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="response")/fitted_sd
@@ -88,42 +89,27 @@ qN = qnorm(c(0.05,0.25,0.75,0.95))
 KG = (qN[4]-qN[1])/(qN[3]-qN[2])
 NPK_hat = ((q.95-q.05)/(q.75-q.25))/KG - 1
 
-par(oma=c(0,0,0,4))
-plot(CYIM_grow$logvol_t,CYIM_grow$scaledResids,col=alpha("black",0.25),
-     xlab="Size t",ylab="Scaled residuals")
-par(new = TRUE)                           
-plot(CYIM_grow$logvol_t,NPS_hat,col=alpha("blue",0.25),pch=16,cex=.5,
-     axes = FALSE, xlab = "", ylab = "")
-axis(side = 4, at = pretty(range(c(NPS_hat,NPK_hat))))
-mtext("NP Skewness", side = 4, line = 2,col="blue")
-par(new = TRUE)                           
-plot(CYIM_grow$logvol_t,NPK_hat,col=alpha("red",0.25),pch=16,cex=.5,
-     axes = FALSE, xlab = "", ylab = "")
-mtext("NP Excess Kurtosis", side = 4, line =3,col="red")
-
-##I would like to see the actual qgams
-plot(CYIM_grow$logvol_t,CYIM_grow$scaledResids,col=alpha("black",0.25),
-     xlab="Size t",ylab="Scaled residuals")
-points(CYIM_grow$logvol_t,q.05,col="red",pch=".")
-points(CYIM_grow$logvol_t,q.10,col="red",pch=".")
-points(CYIM_grow$logvol_t,q.25,col="red",pch=".")
-points(CYIM_grow$logvol_t,q.50,col="red",pch=".")
-points(CYIM_grow$logvol_t,q.75,col="red",pch=".")
-points(CYIM_grow$logvol_t,q.90,col="red",pch=".")
-points(CYIM_grow$logvol_t,q.95,col="red",pch=".")
-
-## put it all together:
+## view diagnostics of scaled residuals
+pdf("./manuscript/figures/cactus_qgam_diagnostics.pdf",height = 6, width = 12,useDingbats = F)
 par(mar = c(5, 4, 2, 3), mfrow=c(1,2), oma=c(0,0,0,4)) 
-plot(CYIM_grow$logvol_t,CYIM_grow$logvol_t1,pch=1,col=alpha("black",0.25))
+plot(CYIM_grow$logvol_t,CYIM_grow$logvol_t1,pch=1,col=alpha("black",0.25),
+     xlab="size t",ylab="size t1")
 points(CYIM_grow$logvol_t,CYIM_gam_pred[,1],col=alpha("red",0.25),pch=16,cex=.5)
 par(new = TRUE)                           
 plot(CYIM_grow$logvol_t,1/CYIM_gam_pred[,2],col=alpha("blue",0.25),pch=16,cex=.5,
      axes = FALSE, xlab = "", ylab = "")
-axis(side = 4, at = pretty(range(1/CYIM_gam_pred[,2])))
+axis(side = 4, at = pretty(range(1/CYIM_gam_pred[,2])),col="blue")
 mtext("sigma", side = 4, line = 2,col="blue")
 
 plot(CYIM_grow$logvol_t,CYIM_grow$scaledResids,col=alpha("black",0.25),
-     xlab="Size t",ylab="Scaled residuals")
+     xlab="size t",ylab="Scaled residuals")
+points(CYIM_grow$logvol_t,q.05,col="black",pch=".")
+points(CYIM_grow$logvol_t,q.10,col="black",pch=".")
+points(CYIM_grow$logvol_t,q.25,col="black",pch=".")
+points(CYIM_grow$logvol_t,q.50,col="black",pch=".")
+points(CYIM_grow$logvol_t,q.75,col="black",pch=".")
+points(CYIM_grow$logvol_t,q.90,col="black",pch=".")
+points(CYIM_grow$logvol_t,q.95,col="black",pch=".")
 par(new = TRUE)                           
 plot(CYIM_grow$logvol_t,NPS_hat,col=alpha("blue",0.25),pch=16,cex=.5,
      axes = FALSE, xlab = "", ylab = "")
@@ -133,6 +119,7 @@ par(new = TRUE)
 plot(CYIM_grow$logvol_t,NPK_hat,col=alpha("red",0.25),pch=16,cex=.5,
      axes = FALSE, xlab = "", ylab = "")
 mtext("NP Excess Kurtosis", side = 4, line =3,col="red")
+dev.off()
 
 ## now I need to fit a distribution with negative skew and positive and negative excess kurtosis
 ## both skewness and kurtosis should be non-monotonic wrt size
@@ -155,33 +142,72 @@ plot(CYIM_grow$logvol_t,CYIM_shash_pred[,3],col=alpha("red",0.25),pch=16,cex=.5)
 plot(CYIM_grow$logvol_t,exp(CYIM_shash_pred[,4]),col=alpha("red",0.25),pch=16,cex=.5)
 
 ## simulate data from fitted model and compare to real data
-CYIM_grow$sim_dat <- rSHASHo2(n=nrow(CYIM_grow),
-         mu=CYIM_shash_pred[,1],
-         sigma=exp(CYIM_shash_pred[,2]),
-         nu=CYIM_shash_pred[,3],
-         tau=exp(CYIM_shash_pred[,4]))
+n_sim<-100
+sim_mean<-sim_sd<-sim_skew<-sim_kurt<-matrix(NA,nrow=nrow(CYIM_grow),ncol=n_sim)
+for(i in 1:n_sim){
+  ## add this iteration of sim data to real df
+  CYIM_grow$logvol_t1.sim <- rSHASHo2(n=nrow(CYIM_grow),
+                          mu=CYIM_shash_pred[,1],
+                          sigma=exp(CYIM_shash_pred[,2]),
+                          nu=CYIM_shash_pred[,3],
+                          tau=exp(CYIM_shash_pred[,4]))
+  ## Qreg on sim data
+  q.05<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4),data=CYIM_grow,qu=0.05)) 
+  q.10<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4), data=CYIM_grow,qu=0.10)) 
+  q.25<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4), data=CYIM_grow,qu=0.25))
+  q.50<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4), data=CYIM_grow,qu=0.5))
+  q.75<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4), data=CYIM_grow,qu=0.75)) 
+  q.90<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4), data=CYIM_grow,qu=0.90))
+  q.95<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4), data=CYIM_grow,qu=0.95))
+  
+  sim_mean[,i]<-Q.mean(q.25,q.50,q.75)
+  sim_sd[,i]<-Q.sd(q.25,q.75)
+  sim_skew[,i]<-Q.skewness(q.10,q.50,q.90)
+  sim_kurt[,i]<-Q.kurtosis(q.05,q.25,q.75,q.95)
+}
 
+## and now the real data
+q.05<-predict(qgam(logvol_t1~s(logvol_t,k=4),data=CYIM_grow,qu=0.05)) 
+q.10<-predict(qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.10)) 
+q.25<-predict(qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.25)) 
+q.50<-predict(qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.5))
+q.75<-predict(qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.75))
+q.90<-predict(qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.90))
+q.95<-predict(qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.95))
 
-plot(CYIM_grow$logvol_t,CYIM_grow$sim_dat)
-points(CYIM_grow$logvol_t,CYIM_grow$logvol_t1,col="red")
+pdf("./manuscript/figures/cactus_SHASH_fit.pdf",height = 6, width = 6,useDingbats = F)
+par(mfrow=c(2,2),mar=c(4,4,1,1))
+plot(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),type="n",
+     xlab="size t",ylab="mean size t1",ylim=c(min(sim_mean),max(sim_mean)))
+for(i in 1:n_sim){
+  lines(CYIM_grow$logvol_t,sim_mean[,i],col=alpha("black",0.25))
+}
+lines(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="red",lwd=2)
+legend("topleft",legend=c("Real data","Simulated from \nfitted SHASH gam"),
+       lty=1,col=c("red","black"),lwd=c(2,1),cex=0.8,bty="n")
 
-testx<-runif(1000,5,800)
-mean(testx)
-q<-quantile(testx,probs=c(0.25,0.5,0.75))
-(q[1]+q[2]+q[3])/3
+plot(CYIM_grow$logvol_t,Q.sd(q.25,q.75),type="n",
+     xlab="size t",ylab="sd size t1",ylim=c(min(sim_sd),max(sim_sd)))
+for(i in 1:n_sim){
+  lines(CYIM_grow$logvol_t,sim_sd[,i],col=alpha("black",0.25))
+}
+lines(CYIM_grow$logvol_t,Q.sd(q.25,q.75),col="red",lwd=2)
 
-CYIM.25<-qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.25)#,argGam=list(gamma=gamma_param)) 
-CYIM.50<-qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.5)#,argGam=list(gamma=gamma_param)) 
-CYIM.75<-qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.75)#,argGam=list(gamma=gamma_param)) 
-CYIMsim.25<-qgam(sim_dat~s(logvol_t,k=4), data=CYIM_grow,qu=0.25)#,argGam=list(gamma=gamma_param)) 
-CYIMsim.50<-qgam(sim_dat~s(logvol_t,k=4), data=CYIM_grow,qu=0.5)#,argGam=list(gamma=gamma_param)) 
-CYIMsim.75<-qgam(sim_dat~s(logvol_t,k=4), data=CYIM_grow,qu=0.75)#,argGam=list(gamma=gamma_param)) 
+plot(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),type="n",
+     xlab="size t",ylab="skewness size t1",ylim=c(min(sim_skew),max(sim_skew)))
+for(i in 1:n_sim){
+  lines(CYIM_grow$logvol_t,sim_skew[,i],col=alpha("black",0.25))
+}
+lines(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),col="red",lwd=2)
 
-plot(CYIM_grow$logvol_t,(predict(CYIM.25)+predict(CYIM.50)+predict(CYIM.75))/3,type="l")
-lines(CYIM_grow$logvol_t,(predict(CYIMsim.25)+predict(CYIMsim.50)+predict(CYIMsim.75))/3,type="l",col="red")
+plot(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
+     xlab="size t",ylab="kurtosis size t1",ylim=c(min(sim_kurt),max(sim_kurt)))
+for(i in 1:n_sim){
+  lines(CYIM_grow$logvol_t,sim_kurt[,i],col=alpha("black",0.25))
+}
+lines(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="red",lwd=2)
 
-plot(CYIM_grow$logvol_t,(predict(CYIM.75) - predict(CYIM.25)) / (2 * (qnorm((0.75 * nrow(CYIM_grow) - 0.125) / (nrow(CYIM_grow) + 0.25)))),type="l")
-lines(CYIM_grow$logvol_t,(predict(CYIMsim.75) - predict(CYIMsim.25)) / (2 * (qnorm((0.75 * nrow(CYIM_grow) - 0.125) / (nrow(CYIM_grow) + 0.25)))),type="l",col="red")
+dev.off()
 
 # the basement ------------------------------------------------------------
 
