@@ -209,6 +209,11 @@ lines(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="red",lwd=2)
 
 dev.off()
 
+
+# compare IPM results between Gaussian and SHASH growth kernel ------------
+
+
+
 # the basement ------------------------------------------------------------
 
 ## test that I understand how to get sigma from the gaulss fit
