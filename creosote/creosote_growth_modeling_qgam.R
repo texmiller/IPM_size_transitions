@@ -5,6 +5,7 @@ library(gamlss.dist)
 library(maxLik)
 library(bbmle)
 library(popbio)
+library(moments)
 
 ## grab the creosote demography data from github
 source("https://raw.githubusercontent.com/TrevorHD/LTEncroachment/master/04_CDataPrep.R")
@@ -40,19 +41,29 @@ sdloglik = function(pars) {
   dnorm(LATR_grow$resids, mean=0, sd=pars[1]*exp(pars[2]*LATR_grow$fitted),log=TRUE)
 }	
 sdfit=maxLik(logLik=sdloglik,start=c(sd(LATR_grow$resids),0)) 
-points(LATR_grow$fitted,(sdfit$estimate[1]*exp(sdfit$estimate[2]*LATR_grow$fitted))^2,col="red")
+points(LATR_grow$fitted,sdfit$estimate[1]*exp(sdfit$estimate[2]*LATR_grow$fitted),col="red")
+LATR_grow$standresids<-LATR_grow$resids/(sdfit$estimate[1]*exp(sdfit$estimate[2]*LATR_grow$fitted))
+## should be mean zero unit variance
+mean(LATR_grow$standresids);sd(LATR_grow$standresids)
+
+##are the standardized residuals gaussian? -- no
+jarque.test(LATR_grow$standresids) # normality test: FAILS, P < 0.001 
+anscombe.test(LATR_grow$standresids) # kurtosis: FAILS, P < 0.001 
+agostino.test(LATR_grow$standresids) # skewness: FAILS, P<0.001 
 
 # fit Qgams to scaled residuals wrt expected values -- some convergence warnings
-q.05<-predict(qgam(resids~s(fitted,k=4), data=LATR_grow,qu=0.05)) 
-q.10<-predict(qgam(resids~s(fitted,k=4), data=LATR_grow,qu=0.1))
-q.25<-predict(qgam(resids~s(fitted,k=4), data=LATR_grow,qu=0.25)) 
-q.50<-predict(qgam(resids~s(fitted,k=4), data=LATR_grow,qu=0.5))
-q.75<-predict(qgam(resids~s(fitted,k=4), data=LATR_grow,qu=0.75))
-q.90<-predict(qgam(resids~s(fitted,k=4), data=LATR_grow,qu=0.9)) 
-q.95<-predict(qgam(resids~s(fitted,k=4), data=LATR_grow,qu=0.95)) 
+q.05<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.05)) 
+q.10<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.1))
+q.25<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.25)) 
+q.50<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.5))
+q.75<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.75))
+q.90<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.9)) 
+q.95<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.95)) 
 
-par(mfrow=c(2,2))
-plot(LATR_grow$fitted,LATR_grow$resids,col="grey")
+pdf("./manuscript/figures/creosote_qgam_diagnostics.pdf",height = 6, width = 8,useDingbats = F)
+par(mar = c(5, 4, 2, 3), oma=c(0,0,0,4)) 
+plot(LATR_grow$fitted,LATR_grow$standresids,col=alpha("black",0.25),
+     xlab="Expected value",ylab="Scaled residuals of size at t+1")
 points(LATR_grow$fitted,q.05,col="black",pch=".")
 points(LATR_grow$fitted,q.10,col="black",pch=".")
 points(LATR_grow$fitted,q.25,col="black",pch=".")
@@ -60,10 +71,17 @@ points(LATR_grow$fitted,q.50,col="black",pch=".")
 points(LATR_grow$fitted,q.75,col="black",pch=".")
 points(LATR_grow$fitted,q.90,col="black",pch=".")
 points(LATR_grow$fitted,q.95,col="black",pch=".")
-                         
-plot(LATR_grow$fitted,Q.sd(q.25,q.75),col=alpha("blue",0.25),pch=16,cex=.5)
-plot(LATR_grow$fitted,Q.skewness(q.10,q.50,q.90),col=alpha("red",0.25),pch=16,cex=.5)
-plot(LATR_grow$fitted,Q.kurtosis(q.05,q.25,q.75,q.95),col=alpha("green",0.25),pch=16,cex=.5)
+par(new = TRUE)                           
+plot(c(LATR_grow$fitted,LATR_grow$fitted),
+     c(Q.skewness(q.10,q.50,q.90),Q.kurtosis(q.05,q.25,q.75,q.95)),
+     col=c(rep(alpha("blue",0.25),nrow(LATR_grow)),rep(alpha("red",0.25),nrow(LATR_grow))),
+     pch=16,cex=.5,axes = FALSE, xlab = "", ylab = "")
+abline(h=0,col="lightgray",lty=3)
+axis(side = 4,cex.axis=0.8,at = pretty(range(c(Q.skewness(q.10,q.50,q.90),Q.kurtosis(q.05,q.25,q.75,q.95)))))
+mtext("Skewness", side = 4, line = 2,col="blue")
+mtext("Excess Kurtosis", side = 4, line =3,col="red")
+dev.off()
+
 
 ## based on these results I will fit a JSU distribution to the residuals
 ## will need to fit variance, skew, and kurtosis as functions of the mean
