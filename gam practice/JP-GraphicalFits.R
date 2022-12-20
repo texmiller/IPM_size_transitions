@@ -16,6 +16,31 @@ graphics.off();
 #  in the (lambda, tau) parameterization 
 #########################################################
 
+graphics.off(); 
+SkewMat = KurtMat = matrix(NA,150,151);
+epsilon = seq(-2,2,length=150)
+delta= seq(0.5,3,length=151);  
+for(i in 1:150) {
+for(j in 1:151){
+    SkewMat[i,j]=JP_NPskewness(epsilon[i],delta[j]);
+    KurtMat[i,j]=JP_NPkurtosis(epsilon[i],delta[j]);
+}}
+
+dev.new(); 
+image.plot(epsilon,delta,SkewMat);  title(main="NP Skewness"); 
+contour(epsilon,delta, SkewMat,add=TRUE,labcex=1) 
+
+dev.new(); 
+image.plot(epsilon,delta,KurtMat); title(main = "NP Kurtosis"); 
+contour(epsilon, delta, KurtMat,add=TRUE,labcex=1) 
+
+
+graphics.off(); 
+##########################################################
+#  Display how NP skew and kurtosis depend on parameters
+#  in the (lambda, tau) parameterization 
+#########################################################
+
 SkewMat = KurtMat = matrix(NA,150,151);
 lambda = seq(-2,2,length=150)
 tau = seq(-1.5,1,length=151);  
@@ -32,31 +57,6 @@ contour(lambda,tau,SkewMat,add=TRUE,labcex=1)
 
 dev.new(); 
 image.plot(lambda,tau,KurtMat); title(main = "NP Kurtosis"); 
-contour(lambda,tau,KurtMat,add=TRUE,labcex=1) 
-
-
-################################################################
-#  Display how ordinary skew and kurtosis depend on parameters
-################################################################
-
-SkewMat = KurtMat = matrix(NA,70,71);
-lambda = seq(-2,2,length=70)
-tau = seq(-1.5,1,length=71);  
-for(i in 1:70) {
-for(j in 1:71){
-    delta=exp(-tau[j]); epsilon = lambda[i]*delta; 
-    out = SJP_moments(epsilon,delta); 
-    SkewMat[i,j]=out$skew;
-    KurtMat[i,j]=out$excess.kurtosis;
-}}
-
-# graphics.off(); 
-dev.new(); 
-image.plot(lambda,tau,SkewMat);  title(main="Skewness"); 
-contour(lambda,tau,SkewMat,add=TRUE,labcex=1) 
-
-dev.new(); 
-image.plot(lambda,tau,KurtMat); title(main = "Excess Kurtosis"); 
 contour(lambda,tau,KurtMat,add=TRUE,labcex=1) 
 
 

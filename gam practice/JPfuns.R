@@ -11,8 +11,8 @@
 #       give fatter than Gaussian tails, values > 1 give thinner. 
 # 
 #     Because gamlss is poorly documented, we provide here  
-#     self-contained code for the density dJP, quantile function qJP, and 
-#     random number generation rJP. 
+#     self-contained code for the density dJP, quantile 
+#     function qJP, and random number generation rJP. 
 #
 # (2) SJP is a centered and scaled version of JP, which has
 #     zero mean and unit variance for all values of epsilon and delta. 
@@ -20,13 +20,14 @@
 # (3) RSJP is the "reparameterised" SJP distribution. The parameters
 #     for RSJP are lambda = exp(-delta) and tau = epsilon/delta. 
 #     This reparameterization reduces the undesirable feature of
-#     JP and SJP that changes in the tail-weight parameter also
-#     have a large effect on the skewness, and results in more
+#     that changes in the tail-weight parameter also have a 
+#     large effect on the skewness, and results in more
 #     reliable parameter estimation.
 #  
-#  (4) CRJP is the four-parameter reparameterized JP distribution. 
-#      The (lambda, tau) parameters are used for skew and kurtosis, 
-#      while arguments mu and sigma are the actual mean and std dev. 
+#  (4) JPLS is the four-parameter reparameterized JP distribution 
+#      where "LS" stands for location-scale. (lambda, tau) 
+#      parameters are used for skew and kurtosis, while the 
+#      arguments "mean" and "sd" are the actual mean and std dev. 
 ####################################################################      
  
 #####################################################
@@ -241,37 +242,76 @@ RSJP_NPkurtosis = function(lambda=0,tau=0,p=0.05) {
 	return(u); 
 }	
 
-############################################################
-##              CSJP Distribution  
-## Four-parameter reparameterized JP distribution.  
-## The mu and sigma arguments are the actual mean and std dev. 
-## The (lambda, tau) parameters are used for skew and kurtosis
-##          !! These need to be tested !! 
-############################################################
+#########################################################################
+##         JPLS Distribution  (LS = "location-scale") 
+## Four-parameter JP distribution, reparameterized so that 
+## (1) mu and sigma are the actual mean and standard deviation.  
+## (2) The (lambda, tau) parameters control skew and kurtosis
+## In terms of the parameters of the original distribution, 
+## tau = -log(delta) and lambda = epsilon/delta. 
+## 
+## The (lambda, tau) parameterization reduces the undesirable 
+## feature of the (epsilon, delta) parameterization that changes 
+## in the tail-weight parameter also have a large effect on the 
+## skewness, and results in more reliable parameter estimation.
+#########################################################################
 
 ## probability density function 
-dCRJP = function(x, mean=0, sd=1, lambda=0, tau=0) {
+dJPLS = function(x, mean=0, sd=1, lambda=0, tau=0) {
     delta=exp(-tau); epsilon=lambda*delta;
-    return((1/sd)*dRSJP((x-mean/sd),epsilon,delta)); 
+    return((1/sd)*dSJP((x-mean)/sd,epsilon,delta)); 
 }    
 
 ## random number generation 
-rCRJP = function(n, mean=0, sd=1, lambda=0, tau=0){
+rJPLS = function(n, mean=0, sd=1, lambda=0, tau=0){
     delta=exp(-tau); epsilon=lambda*delta;
-    return(mu +sd*rRSJP(n,epsilon,delta)); 
+    return(mean +sd*rSJP(n,epsilon,delta)); 
 }
 
 #### quantile function 
-qCRJP = function(p, mean=0, sd=1, lambda=0, tau=0) {
+qJPLS = function(p, mean=0, sd=1, lambda=0, tau=0) {
     delta=exp(-tau); epsilon=lambda*delta;
-    return(mu + sigma*qRSJP(p,epsilon,delta)); 
+    return(mean + sd*qSJP(p,epsilon,delta)); 
 }
 
 #### cumulative distribution function 
-pCRJP = function (q, mean=0, sd=1, lambda=0, tau=0) {
+pJPLS = function (x, mean=0, sd=1, lambda=0, tau=0) {
     delta=exp(-tau); epsilon=lambda*delta;
-    qs = (z - mean)/sd; 
-    return(pRSJP(qs,epsilon,delta))
+    xs = (x - mean)/sd; 
+    return(pSJP(xs,epsilon,delta))
+}
+pJPLS = Vectorize(pJPLS,vectorize.args="x"); 
+
+
+TESTING=TRUE;     
+if(TESTING) {
+# Testing the moments 
+for(j in 1:10) {
+ mu = rnorm(1); sigma = exp(rnorm(1)); lambda=rnorm(1); tau = rnorm(1); 
+ u = integrate(function(x) dJPLS(x,mu,sigma,lambda,tau),-Inf,Inf)$value # should equal 1
+ v = integrate(function(x) x*dJPLS(x,mu,sigma,lambda,tau), -Inf, Inf)$value   # should equal mu 
+ z = integrate(function(x) (x^2)*dJPLS(x,mu,sigma,lambda,tau), -Inf, Inf)$value  - v^2  # should equal 1 
+cat(round(u,digits=6), round(mu-v,digits=6), round(z-sigma^2,digits=6), "\n"); 
+}
+}
+
+if(TESTING) {
+# Testing RNG and quantiles 
+for(j in 1:10) {
+ mu = rnorm(1); sigma = exp(rnorm(1)); lambda=rnorm(1); tau = rnorm(1); qu = runif(1); 
+ X = rJPLS(10^7,mu,sigma,lambda,tau); 
+ cat(round(mu-mean(X),digits=4), round(sigma-sd(X), digits=4), round(quantile(X,qu) - qJPLS(qu, mu,sigma,lambda,tau),digits=4), "\n"); 
+}
+}
+
+if(TESTING) {
+# Testing CDF 
+for(j in 1:10) {
+ mu = rnorm(1); sigma = exp(rnorm(1)); lambda=rnorm(1); tau = rnorm(1); qu = runif(1); 
+ q = qJPLS(qu, mu, sigma, lambda, tau) 
+ p = pJPLS(q, mu, sigma, lambda, tau) 
+ cat(round(qu-p,digits=6),  "\n"); 
+}
 }
 
 
