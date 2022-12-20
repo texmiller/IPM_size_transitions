@@ -5,15 +5,19 @@ setwd("C:/Users/tm9/Dropbox/github/IPM_size_transitions")
 
 ## load libraries
 library(tidyverse)
+library(lme4)
 library(mgcv)
 library(scales)
 library(qgam)
 library(gamlss.dist)
+library(popbio)
+library(moments)
 
 # function for converting cactus size measurements to volume
 volume <- function(h, w, p){
   (1/3)*pi*h*(((w + p)/2)/2)^2
 }
+invlogit<-function(x){exp(x)/(1+exp(x))}
 
 ## quartile-based estimates of mean and sd
 ## see https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-14-135
@@ -47,8 +51,8 @@ CYIM_full<-read_csv("cactus/cholla_demography_20042018_EDI.csv")%>%
 
 ## In prelim analysis I inspected several unrealistic size transitions
 ## this file identifies plants to drop
-CYIM_outliers<-read_csv("cactus/CYIM_outliers.csv") %>% 
-  filter(FLAG==1) %>% select(ID) %>% unique()
+CYIM_outliers<-read_csv("cactus/CYIM_outliers.csv")%>% 
+  filter(FLAG==1) %>% dplyr::select(ID) %>% unique()
 
 ## pull out and na.omit size transitions for growth modeling
 ## NAs come from new recruits (missing year_t size) and mortality (missing year_t1 size)
@@ -56,7 +60,7 @@ CYIM_full %>%
   filter(!ID%in%CYIM_outliers$ID) %>% 
   mutate(logvol_t=log(vol_t),
          logvol_t1=log(vol_t1)) %>% 
-  select(ID,year_t,plot,logvol_t,logvol_t1) %>% 
+  dplyr::select(ID,year_t,plot,logvol_t,logvol_t1) %>% 
   ## drop rows with NAs
   drop_na() -> CYIM_grow
 
@@ -68,6 +72,11 @@ CYIM_gam_pred <- predict(CYIM_grow_m1,type="response",exclude=c("s(plot)","s(yea
 ## inspect residuals, scaled by sd; re-run predict now w/RFX
 fitted_sd<-1/predict(CYIM_grow_m1,type="response")[,2]
 CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="response")/fitted_sd
+
+##are the standardized residuals gaussian? -- no
+jarque.test(CYIM_grow$scaledResids) # normality test: FAILS, P < 0.001 
+anscombe.test(CYIM_grow$scaledResids) # kurtosis: FAILS, P < 0.001 
+agostino.test(CYIM_grow$scaledResids) # skewness: FAILS, P<0.001 
 
 ## fit qgam -- we will need several quantiles for skewness and kurtosis
 gamma_param<-2
@@ -119,8 +128,6 @@ axis(side = 4, at = pretty(range(c(NPS_hat,NPK_hat))),cex.axis=0.8)
 mtext("Skewness", side = 4, line = 2,col="blue")
 mtext("Excess Kurtosis", side = 4, line =3,col="red")
 dev.off()
-
-plot(CYIM_grow$logvol_t,NPK_hat,col=alpha("blue",0.25),pch=16,cex=.5)
 
 ## now I need to fit a distribution with negative skew and positive excess kurtosis
 ## both skewness and kurtosis should be non-monotonic wrt size
@@ -181,33 +188,32 @@ par(mfrow=c(2,2),mar=c(4,4,1,1))
 plot(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),type="n",
      xlab="size t",ylab="mean size t1",ylim=c(min(sim_mean),max(sim_mean)))
 for(i in 1:n_sim){
-  points(CYIM_grow$logvol_t,sim_mean[,i],col=alpha("black",0.25))
+  points(CYIM_grow$logvol_t,sim_mean[,i],col=alpha("black",0.25),pch=".")
 }
-points(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="red",lwd=2)
+points(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="red",pch=".",cex=2)
 legend("topleft",legend=c("Real data","Simulated from \nfitted SHASH gam"),
        lty=1,col=c("red","black"),lwd=c(2,1),cex=0.8,bty="n")
 
 plot(CYIM_grow$logvol_t,Q.sd(q.25,q.75),type="n",
      xlab="size t",ylab="sd size t1",ylim=c(min(sim_sd),max(sim_sd)))
 for(i in 1:n_sim){
-  points(CYIM_grow$logvol_t,sim_sd[,i],col=alpha("black",0.25))
+  points(CYIM_grow$logvol_t,sim_sd[,i],col=alpha("black",0.25),pch=".")
 }
-points(CYIM_grow$logvol_t,Q.sd(q.25,q.75),col="red",lwd=2)
+points(CYIM_grow$logvol_t,Q.sd(q.25,q.75),col="red",pch=".",cex=2)
 
 plot(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),type="n",
      xlab="size t",ylab="skewness size t1",ylim=c(min(sim_skew),max(sim_skew)))
 for(i in 1:n_sim){
-  points(CYIM_grow$logvol_t,sim_skew[,i],col=alpha("black",0.25))
+  points(CYIM_grow$logvol_t,sim_skew[,i],col=alpha("black",0.25),pch=".")
 }
-points(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),col="red",lwd=2)
+points(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),col="red",pch=".",cex=2)
 
 plot(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
      xlab="size t",ylab="kurtosis size t1",ylim=c(min(sim_kurt),max(sim_kurt)))
 for(i in 1:n_sim){
-  points(CYIM_grow$logvol_t,sim_kurt[,i],col=alpha("black",0.25))
+  points(CYIM_grow$logvol_t,sim_kurt[,i],col=alpha("black",0.25),pch=".")
 }
-points(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="red",lwd=2)
-
+points(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="red",pch=".",cex=2)
 dev.off()
 
 
@@ -218,7 +224,7 @@ dev.off()
 surv_mod <- glmer(Survival_t1 ~ log(vol_t) + (1|year_t) + (1|plot), family="binomial", data=CYIM_full)
 flow_mod <- glmer(Goodbuds_t1>0 ~ log(vol_t1) + (1|year_t) + (1|plot), family="binomial", data=CYIM_full)
 fert_mod <- glmer(Goodbuds_t1 ~ log(vol_t1) + (1|year_t) + (1|plot), family="poisson", data=subset(CYIM_full,Goodbuds_t1>0))
-
+size_dum<-seq(min(log(CYIM_full$vol_t),na.rm=T),max(log(CYIM_full$vol_t),na.rm=T),0.1)
 par(mfrow=c(2,2),mar=c(4,4,2,1))
 plot(log(CYIM_full$vol_t),CYIM_full$Survival_t1,xlab="log Size_t",ylab="Survival",col=alpha("gray",0.5))
 lines(size_dum,invlogit(fixef(surv_mod)[1]+fixef(surv_mod)[2]*size_dum),lwd=3)
@@ -231,19 +237,19 @@ lines(size_dum,invlogit(fixef(flow_mod)[1]+fixef(flow_mod)[2]*size_dum),lwd=3)
 plot(log(CYIM_full$vol_t[CYIM_full$Goodbuds_t1>0]),CYIM_full$Goodbuds_t1[CYIM_full$Goodbuds_t1>0],xlab="log Size_t",ylab="Fertility",col=alpha("gray",0.5))
 lines(size_dum,exp(fixef(fert_mod)[1]+fixef(fert_mod)[2]*size_dum),lwd=3)
 
-source("cactus_IPM_source_fns.R")
+source("cactus/cactus_IPM_source_fns.R")
 
-seeds_per_fruit<-read.csv("JO_fruit_data_final_dropplant0.csv",T)  %>% drop_na() %>% 
+seeds_per_fruit<-read.csv("cactus/JO_fruit_data_final_dropplant0.csv",T)  %>% drop_na() %>% 
   summarise(seeds_per_fruit = mean(seed_count))
-seed_survival <- read.csv("FruitSurvival.csv",T) %>% drop_na() %>% mutate(fruit_frac = Fr.on.grnd.not.chewed/Fr.on.plant) %>% 
+seed_survival <- read.csv("cactus/FruitSurvival.csv",T) %>% drop_na() %>% mutate(fruit_frac = Fr.on.grnd.not.chewed/Fr.on.plant) %>% 
   summarise(seed_survival = mean(fruit_frac))
-germination <- read.csv("Germination.csv") %>% drop_na() %>% 
+germination <- read.csv("cactus/Germination.csv") %>% drop_na() %>% 
   mutate(germ1_frac = Seedlings04/Input,
          germ2_frac = Seedlings05/(Input-Seedlings04)) %>% 
   summarise(germ1 = mean(germ1_frac), germ2 = mean(germ2_frac))
-precensus_survival <- read.csv("PrecensusSurvival.csv") %>% select(survive0405) %>% drop_na() %>% 
+precensus_survival <- read.csv("cactus/PrecensusSurvival.csv") %>% dplyr::select(survive0405) %>% drop_na() %>% 
   summarise(precensus_survival = mean(survive0405))
-seedling_size <- read_csv("cholla_demography_20042018_EDI.csv") %>% 
+seedling_size <- read_csv("cactus/cholla_demography_20042018_EDI.csv") %>% 
   ## subset seed germination plots
   filter(str_sub(Plot,1,1)=="H") %>% 
   mutate(vol_t = volume(Height_t,Width_t,Perp_t)) %>% 
@@ -251,27 +257,6 @@ seedling_size <- read_csv("cholla_demography_20042018_EDI.csv") %>%
             sd_size = sd(log(vol_t),na.rm=T))
 
 cactus_params<-c()
-## skewed t growth params
-## intecept is the mean across years and plots, corresponds to lme4 coefs for other vital rates
-cactus_params$grow.mu <- mean(coefs[c(years,plots)]) 
-cactus_params$grow.bsize <- coefs["log(vol_t)"]
-cactus_params$grow.bsize2 <- coefs["I(log(vol_t)^2)"]
-cactus_params$sigma_b0 <- coefs["sigma_b0"]
-cactus_params$sigma_b1 <- coefs["sigma_b1"]
-cactus_params$sigma_b2 <- coefs["sigma_b2"]
-cactus_params$nu_b0 <- coefs["nu_b0"]
-cactus_params$nu_b1 <- coefs["nu_b1"]
-cactus_params$nu_b2 <- coefs["nu_b2"]
-cactus_params$tau_b0 <- coefs["tau_b0"]
-cactus_params$tau_b1 <- coefs["tau_b1"]
-cactus_params$tau_b2 <- coefs["tau_b2"]
-## Gaussian growth from best lme4 model
-cactus_params$grow.mu.norm <- fixef(CYIM_lmer_best)[1]
-cactus_params$grow.bsize.norm <- fixef(CYIM_lmer_best)[2]
-cactus_params$grow.bsize2.norm <- fixef(CYIM_lmer_best)[3]
-cactus_params$grow.sd.b0 <- pars[[best_model]][1]
-cactus_params$grow.sd.b1 <- pars[[best_model]][2]
-cactus_params$grow.sd.b2 <- pars[[best_model]][3]
 ## survival
 cactus_params$surv.mu <- fixef(surv_mod)[1]
 cactus_params$surv.bsize <- fixef(surv_mod)[2]
@@ -294,8 +279,8 @@ cactus_params$precenus_surv <- precensus_survival$precensus_survival
 cactus_params$mu_sdlgsize <- seedling_size$mean_size
 cactus_params$sigma_sdlgsize <- seedling_size$sd_size
 ## size bounds
-cactus_params$min.size <- log(min(CYIM$vol_t)) 
-cactus_params$max.size <- log(max(CYIM$vol_t1))
+cactus_params$min.size <- log(min(CYIM_full$vol_t,na.rm=T)) 
+cactus_params$max.size <- log(max(CYIM_full$vol_t1,na.rm=T))
 
 mat.size = 200
 lower.extension = -1
@@ -305,53 +290,40 @@ kernel_SHASH <- bigmatrix(params = cactus_params,
                           upper.extension = upper.extension,
                           mat.size = mat.size,
                           dist="SHASH")
-kernel_norm <- bigmatrix(params = cactus_params,
+lambda(kernel_SHASH$IPMmat)
+1/damping.ratio(kernel_SHASH$IPMmat)
+1/damping.ratio(kernel_GAU$IPMmat)
+
+
+kernel_GAU <- bigmatrix(params = cactus_params,
                          lower.extension = lower.extension, 
                          upper.extension = upper.extension,
                          mat.size = mat.size,
-                         dist="norm")
-
+                         dist="GAU")
+lambda(kernel_GAU$IPMmat)
 
 # And finally for IPM results. The mean model (averaging across years and plots) predicts very different growth rates:
 tibble(Growth_Dist = c("SHASH","Gaussian"),
-       lambda = c(round(lambda(kernel_SHASH$IPMmat),4),round(lambda(kernel_norm$IPMmat),4)))
+       lambda = c(round(lambda(kernel_SHASH$IPMmat),4),round(lambda(kernel_GAU$IPMmat),4)))
 
 #Also, the SSD's are very different and the observed distribution is maybe in between 
 # the two of them (in the data plot, colored bars are years). The Gaussian ssd is bi-modal but the 
 # lower mode disappears with the skewed $t$ growth kernel, probably because the big reproductive plants 
 # are rare in the ssd so you lose the signal of recruitment. 
 ssd_SHASH <- stable.stage(kernel_SHASH$IPMmat)[3:(mat.size+2)] / sum(stable.stage(kernel_SHASH$IPMmat)[3:(mat.size+2)])
-ssd_norm <- stable.stage(kernel_norm$IPMmat)[3:(mat.size+2)] / sum(stable.stage(kernel_norm$IPMmat)[3:(mat.size+2)])
-empirical_sd <- density(log(CYIM$vol_t1),n=mat.size)
+ssd_norm <- stable.stage(kernel_GAU$IPMmat)[3:(mat.size+2)] / sum(stable.stage(kernel_GAU$IPMmat)[3:(mat.size+2)])
+empirical_sd <- density(na.omit(log(CYIM_full$vol_t1)),n=mat.size)
 
-pdf("../manuscript/figures/cactus_ssd.pdf",height = 6,width = 6,useDingbats = F)
-plot(kernel_norm$meshpts,ssd_norm,type="l",lty=2,lwd=3,xlab="log volume",ylab="Density")
-lines(kernel_SHASH$meshpts,ssd_SHASH,type="l",lwd=3)
-lines(empirical_sd$x,empirical_sd$y/sum(empirical_sd$y),col="red",lwd=3)
-legend("topleft",c("Gaussian SSD","SHASH SSD", "Empirical SD"),lty=c(2,1,1),col=c("black","black","red"),lwd=3,bty="n")
+pdf("manuscript/figures/cactus_ssd.pdf",height = 6,width = 6,useDingbats = F)
+plot(kernel_GAU$meshpts,ssd_norm,type="l",lwd=3,
+     xlab="log volume",ylab="Density",col=alpha("blue",0.5))
+lines(kernel_SHASH$meshpts,ssd_SHASH,type="l",lwd=3,col=alpha("red",0.5))
+lines(empirical_sd$x,empirical_sd$y/sum(empirical_sd$y),lwd=2,lty=3)
+text(0,0.015,expression(paste(lambda[GAU],"=0.98788")),col=alpha("blue",0.5))
+text(0,0.01,expression(paste(lambda[SHASH],"=0.98818")),col=alpha("red",0.5))
+legend("topleft",c("Gaussian SSD","SHASH SSD", "Empirical SD"),lty=c(1,1,2),
+       col=c(alpha("blue",0.5),alpha("red",0.5),"black"),lwd=3,bty="n")
 dev.off()
-
-# The difference in ssd's is pretty striking, so I just wanted to have a closer look at the two 
-# growth kernels. The skewed $t$ is "peak-ier" than the Gaussian and this causes the Gaussian 
-# to allow for large increases in size that don't happen with the skewed $t$. I think that is 
-# where the big difference in SSD comes from. 
-x = c(-2,5,12)
-pdf("../manuscript/figures/cactus_growth_compare.pdf",height = 5,width = 5,useDingbats = F)
-plot(size_dum,gxy_SHASH(x=5,y=size_dum,params=cactus_params),
-     xlab="Future size",ylab="Density",type="n",ylim=c(0,1.6))
-lines(size_dum,gxy_SHASH(x=x[1],y=size_dum,params=cactus_params),lwd=2,col="tomato")
-lines(size_dum,gxy_norm(x=x[1],y=size_dum,params=cactus_params),lty=2,lwd=2,col="tomato")
-abline(v=x[1],lty=3,col="tomato")
-lines(size_dum,gxy_SHASH(x=x[2],y=size_dum,params=cactus_params),lwd=2,col="darkgrey")
-lines(size_dum,gxy_norm(x=x[2],y=size_dum,params=cactus_params),lty=2,lwd=2,col="darkgrey")
-abline(v=x[2],lty=3,col="darkgrey")
-lines(size_dum,gxy_SHASH(x=x[3],y=size_dum,params=cactus_params),lwd=2,col="dodgerblue")
-lines(size_dum,gxy_norm(x=x[3],y=size_dum,params=cactus_params),lty=2,lwd=2,col="dodgerblue")
-abline(v=x[3],lty=3,col="dodgerblue")
-legend("topleft",legend=c("SHASH","Gaussian"),lty=c(1,2),bty="n")
-dev.off()
-
-
 
 
 # the basement ------------------------------------------------------------

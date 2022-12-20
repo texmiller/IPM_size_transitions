@@ -52,13 +52,15 @@ anscombe.test(LATR_grow$standresids) # kurtosis: FAILS, P < 0.001
 agostino.test(LATR_grow$standresids) # skewness: FAILS, P<0.001 
 
 # fit Qgams to scaled residuals wrt expected values -- some convergence warnings
-q.05<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.05)) 
+q.05<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.05,argGam=list(gamma=2))) 
 q.10<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.1))
 q.25<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.25)) 
 q.50<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.5))
 q.75<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.75))
 q.90<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.9)) 
 q.95<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.95)) 
+plot(LATR_grow$fitted,LATR_grow$standresids)
+
 
 pdf("./manuscript/figures/creosote_qgam_diagnostics.pdf",height = 6, width = 8,useDingbats = F)
 par(mar = c(5, 4, 2, 3), oma=c(0,0,0,4)) 
@@ -93,7 +95,6 @@ LogLik1=function(pars){
   dJSU(LATR_grow$log_volume_t1, 
           mu=LATR_grow$fitted,
           sigma=exp(pars[1]+pars[2]*LATR_grow$fitted),
-          #nu = ifelse(LATR_grow$fitted<=pars[7],pars[3]+pars[4]*LATR_grow$fitted,pars[8]),
           nu = pars[3]+pars[4]*LATR_grow$fitted+pars[7]*LATR_grow$fitted^2,
           tau = exp(pars[5]+pars[6]*LATR_grow$fitted), log=TRUE)
 }
@@ -551,6 +552,120 @@ for(i in 1:length(dens)){
   lambda.JSU[i]<-lambda(TransMatrix(dens=dens[i],dist="JSU")$IPMmat)
 }
 
-par(mfrow=c(1,1))
-plot(dens,lambda.JSU,type="b",col="red")
-lines(dens,lambda.GAU,type="b",col="blue")
+pdf("./manuscript/figures/creosote_DD_lambda.pdf",height = 6, width = 6,useDingbats = F)
+plot(dens,lambda.JSU,type="b",col=alpha("red",0.5),pch=16,cex=1.2,
+     xlab="Weighted density",ylab=expression(paste(lambda)))
+lines(dens,lambda.GAU,type="b",col=alpha("blue",0.5),pch=16,cex=1.2)
+legend("topright",bty="n",legend=c("Gaussian","JSU"),
+       pch=16,col=c(alpha("blue",0.5),alpha("red",0.5)))
+dev.off()
+
+## wavespeed
+boot.on = FALSE
+boot.num <- 1
+boot.switch <- TRUE
+seeds <- sample.int(100000,size=boot.num)
+# "01_SeedVelocities"
+# Calculate terminal velocities of seeds and fit to distributions
+source("https://raw.githubusercontent.com/TrevorHD/LTEncroachment/master/01_SeedVelocities.R")
+# "02_WindSpeeds"
+# Load in wind speeds and fit to distributions
+source("https://raw.githubusercontent.com/TrevorHD/LTEncroachment/master/02_WindSpeeds.R")
+# "03_Dispersal"
+# Construct dispersal kernel functions for seeds
+source("https://raw.githubusercontent.com/TrevorHD/LTEncroachment/master/03_Dispersal.R")
+# "06_BootRes"
+# Run resampling subroutine for wind speeds, terminal velocities, and demography
+source("https://raw.githubusercontent.com/TrevorHD/LTEncroachment/master/06_BootRes.R")
+
+# Construct transition matrix for minimum weighted density (zero)
+TM_GAU <- TransMatrix(dens = 0, mat.size = 100,dist="GAU")
+TM_JSU <- TransMatrix(dens = 0, mat.size = 100,dist="JSU")
+#get WALD parameters from this data bootstrap - generates a list of length mat.size containing
+# plant heights and correpsonding WALD parameters
+## Function to compute the WALD mgf
+WALDmgf <- function(s,nu,lambda) {
+  t1 <- (lambda/nu) 
+  t2 <- 2*(nu^2)*s/lambda 
+  mgf <- exp(t1*(1-sqrt(1-t2)))
+  return(mgf)
+}    
+
+## Function to compute the marginalize WALD mgf
+margWALDmgf <- function(s,nu,lambda) {
+  (1/pi)*integrate(function(q) WALDmgf(s*cos(q),nu,lambda),0,pi)$value
+}
+WALD_par <- function(h=0.15,elas="none",sens="none",TM){
+  
+  # Fit equation to convert volume to height for dispersal kernel use
+  LATR_full %>%
+    dplyr::select(max.ht_t, volume_t) %>% 
+    drop_na(max.ht_t, volume_t) %>% 
+    rename("h" = max.ht_t, "v" = volume_t) %>% 
+    arrange(v) %>% 
+    nlsLM(h ~ A*v^(1/3),
+          start = list(A = 0), data = .) %>% 
+    coef() %>% 
+    as.numeric() -> A
+  
+  # Function converting volume to height (embedded here bc LATR_full will change with bootstrap iterations)
+  # returns height in centimeters
+  vol.to.height <- function(v){A*v^(1/3)}
+  
+  # size vector (log(volume))
+  zvals <- TM$meshpts
+  ## eviction problem!! if the zval is below true min or above true max, set to true min and true max
+  zvals[zvals<LATR_size_bounds$min_size]=LATR_size_bounds$min_size
+  zvals[zvals>=LATR_size_bounds$max_size]=LATR_size_bounds$max_size
+  
+  # Vector of heights across which dispersal kernel will be evaluated
+  heights <- sapply(exp(zvals), vol.to.height)/100
+  WALD.par <- vector("list",length(heights))
+  WALD.par[heights>=h] <- lapply(heights[heights>=h],WALD.b.tom,elas=elas,sens=sens)
+  
+  return(list(heights=heights,WALD.par=WALD.par))
+}
+WALD_samples<-function(N,h=0.15,elas="none",sens="none",seed=NULL,params){
+  r=matrix(0,nrow=N,ncol=length(params$heights))
+  r[,params$heights>h]=sapply(params$heights[params$heights>h],WALD.f.e.h.tom,n=N,elas=elas,sens=sens,seed=seed)
+  alpha <- matrix(runif(N*length(params$heights),0,2*pi),dim(r))
+  X=r*cos(alpha)
+  return(X)
+}
+## Function to compute wave speeds c(s)
+cs <- function(s,h=0.15,emp=F,params,D.samples,TM) {
+  # survival-growth matrix
+  P <- TM$Pmat 
+  # fertility matrix
+  Fs <- TM$Fmat 
+  for(j in 1:length(params$heights)){
+    if(params$heights[j]<h){next}
+    if(emp==F){Fs[,j] <- Fs[,j]*margWALDmgf(s,nu=params$WALD.par[[j]]$nu,lambda=params$WALD.par[[j]]$lambda)}
+    if(emp==T){Fs[,j] <- Fs[,j]*empiricalWALDmgf(s,D.samples[,j])}
+  }
+  Hs <- P+Fs 
+  L1 = abs(eigen(Hs)$values[1]); 
+  return((1/s)*log(L1))  #
+}
+
+params_GAU <- WALD_par(TM=TM_GAU)
+params_JSU <- WALD_par(TM=TM_JSU)
+#sample dispersal events for empirical MGF - generates a N*mat.size matrix
+D.samples.GAU <- WALD_samples(N=10000,seed=seeds,params=params_GAU) 
+D.samples.JSU <- WALD_samples(N=10000,seed=seeds,params=params_JSU) 
+
+# Find the asymptotic wave speed c*(s) 
+cstar_GAU <- optimize(cs,lower=0.05,upper=4,emp=F,TM=TM_GAU,
+                      params=params_GAU,D.samples=D.samples.GAU)$objective
+cstar_JSU <- optimize(cs,lower=0.05,upper=4,emp=F,TM=TM_JSU,
+                      params=params_JSU,D.samples=D.samples.JSU)$objective
+
+pdf("./manuscript/figures/creosote_DD_lambda.pdf",height = 6, width = 6,useDingbats = F)
+plot(dens,lambda.JSU,type="b",col=alpha("red",0.5),pch=16,cex=1.2,
+     xlab="Weighted density",ylab=expression(paste(lambda)))
+lines(dens,lambda.GAU,type="b",col=alpha("blue",0.5),pch=16,cex=1.2)
+legend("topright",bty="n",legend=c("Gaussian","JSU"),
+       pch=16,col=c(alpha("blue",0.5),alpha("red",0.5)))
+text(100,1.025,"c*_GAU = 0.033m/yr",col=alpha("blue",0.5))
+text(100,1.02,"c*_JSU = 0.026m/yr",col=alpha("red",0.5))
+dev.off()
