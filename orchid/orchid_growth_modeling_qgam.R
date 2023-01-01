@@ -73,7 +73,7 @@ q.95<-predict(qgam(stdresid~s(fitted,k=4,by=flowering),data=orchid_grow,qu=0.95,
 ## replot std resids w quantiles
 par(mfrow=c(2,1),mar = c(5, 4, 2, 3), oma=c(0,0,0,4))
 plot(orchid_grow$fitted[orchid_grow$flowering==0],orchid_grow$stdresid[orchid_grow$flowering==0],
-     col=alpha(1,0.5),xlim=range(orchid_grow$fitted),xlab="Fitted value",ylab="Standardized residual")
+     col=alpha("darkgrey",0.5),xlim=range(orchid_grow$fitted),xlab="Fitted value",ylab="Standardized residual")
 points(orchid_grow$fitted[orchid_grow$flowering==0],q.05[orchid_grow$flowering==0],col="black",pch=".")
 points(orchid_grow$fitted[orchid_grow$flowering==0],q.10[orchid_grow$flowering==0],col="black",pch=".")
 points(orchid_grow$fitted[orchid_grow$flowering==0],q.25[orchid_grow$flowering==0],col="black",pch=".")
@@ -113,3 +113,9 @@ abline(h=0,col="lightgray",lty=3)
 axis(side = 4,cex.axis=0.8,at = pretty(range(c(Q.skewness(q.10,q.50,q.90),Q.kurtosis(q.05,q.25,q.75,q.95)))))
 mtext("Skewness", side = 4, line = 2,col="blue")
 mtext("Excess Kurtosis", side = 4, line =3,col="red")
+
+plot(orchid_grow$fitted[orchid_grow$flowering==1],
+     Q.skewness(q.10[orchid_grow$flowering==1],q.50[orchid_grow$flowering==1],q.90[orchid_grow$flowering==1]),
+     col=c(rep(alpha("blue",0.25),length(orchid_grow$fitted[orchid_grow$flowering==1])),
+           rep(alpha("red",0.25),length(orchid_grow$fitted[orchid_grow$flowering==1]))),
+     pch=16,cex=.5,axes = T, xlab = "", ylab = "")
