@@ -71,6 +71,10 @@ q.90<-predict(qgam(stdresid~s(fitted,k=4,by=flowering),data=orchid_grow,qu=0.90,
 q.95<-predict(qgam(stdresid~s(fitted,k=4,by=flowering),data=orchid_grow,qu=0.95,argGam=list(gamma=2))) 
 
 ## replot std resids w quantiles
+## for the plot to look nice I need to create separate df's for flowering and nonflowering
+orchid_grow_flow<-orchid_grow %>% filter(flowering==1)
+orchid_grow_veg<-orchid_grow %>% filter(flowering==0)
+
 par(mfrow=c(2,1),mar = c(5, 4, 2, 3), oma=c(0,0,0,4))
 plot(orchid_grow$fitted[orchid_grow$flowering==0],orchid_grow$stdresid[orchid_grow$flowering==0],
      col=alpha("darkgrey",0.5),xlim=range(orchid_grow$fitted),xlab="Fitted value",ylab="Standardized residual")
@@ -114,8 +118,57 @@ axis(side = 4,cex.axis=0.8,at = pretty(range(c(Q.skewness(q.10,q.50,q.90),Q.kurt
 mtext("Skewness", side = 4, line = 2,col="blue")
 mtext("Excess Kurtosis", side = 4, line =3,col="red")
 
-plot(orchid_grow$fitted[orchid_grow$flowering==1],
-     Q.skewness(q.10[orchid_grow$flowering==1],q.50[orchid_grow$flowering==1],q.90[orchid_grow$flowering==1]),
-     col=c(rep(alpha("blue",0.25),length(orchid_grow$fitted[orchid_grow$flowering==1])),
-           rep(alpha("red",0.25),length(orchid_grow$fitted[orchid_grow$flowering==1]))),
-     pch=16,cex=.5,axes = T, xlab = "", ylab = "")
+## fit a distribution with left skew and positive excess kurtosis
+## I'll use the SHASH built into gam()
+orchid_gam_shash <- gam(list(log_area_t1 ~ s(log_area_t,k=4,by=flowering) + s(begin.year,bs="re"), # <- model for location 
+                           ~ s(log_area_t,k=4,by=flowering),   # <- model for log-scale
+                           ~ s(log_area_t,k=4,by=flowering),   # <- model for skewness
+                           ~ s(log_area_t,k=4,by=flowering)), # <- model for log-kurtosis
+                      data = orchid_grow, 
+                      family = shash,  
+                      optimizer = "efs")
+orchid_shash_pred <- predict(orchid_gam_shash,type="response",exclude=c("s(begin.year)"))
+
+## simulate data from fitted model and compare to real data
+n_sim<-50
+sim_mean<-sim_sd<-sim_skew<-sim_kurt<-matrix(NA,nrow=nrow(orchid_grow),ncol=n_sim)
+for(i in 1:n_sim){
+  ## add this iteration of sim data to real df
+  orchid_grow$log_area_t1.sim <- rSHASHo2(n=nrow(orchid_grow),
+                                      mu=orchid_shash_pred[,1],
+                                      sigma=exp(orchid_shash_pred[,2]),
+                                      nu=orchid_shash_pred[,3],
+                                      tau=exp(orchid_shash_pred[,4]))
+  ## Qreg on sim data
+  q.05<-predict(qgam(log_area_t1.sim~s(log_area_t,k=4,by=flowering),data=orchid_grow,qu=0.05)) 
+  q.10<-predict(qgam(log_area_t1.sim~s(log_area_t,k=4,by=flowering), data=orchid_grow,qu=0.10)) 
+  q.25<-predict(qgam(log_area_t1.sim~s(log_area_t,k=4,by=flowering), data=orchid_grow,qu=0.25))
+  q.50<-predict(qgam(log_area_t1.sim~s(log_area_t,k=4,by=flowering), data=orchid_grow,qu=0.5))
+  q.75<-predict(qgam(log_area_t1.sim~s(log_area_t,k=4,by=flowering), data=orchid_grow,qu=0.75)) 
+  q.90<-predict(qgam(log_area_t1.sim~s(log_area_t,k=4,by=flowering), data=orchid_grow,qu=0.90))
+  q.95<-predict(qgam(log_area_t1.sim~s(log_area_t,k=4,by=flowering), data=orchid_grow,qu=0.95))
+  
+  sim_mean[,i]<-Q.mean(q.25,q.50,q.75)
+  sim_sd[,i]<-Q.sd(q.25,q.75)
+  sim_skew[,i]<-Q.skewness(q.10,q.50,q.90)
+  sim_kurt[,i]<-Q.kurtosis(q.05,q.25,q.75,q.95)
+}
+
+## and now the real data
+q.05<-predict(qgam(log_area_t1~s(log_area_t,k=4,by=flowering),data=orchid_grow,qu=0.05)) 
+q.10<-predict(qgam(log_area_t1~s(log_area_t,k=4,by=flowering), data=orchid_grow,qu=0.10)) 
+q.25<-predict(qgam(log_area_t1~s(log_area_t,k=4,by=flowering), data=orchid_grow,qu=0.25)) 
+q.50<-predict(qgam(log_area_t1~s(log_area_t,k=4,by=flowering), data=orchid_grow,qu=0.5))
+q.75<-predict(qgam(log_area_t1~s(log_area_t,k=4,by=flowering), data=orchid_grow,qu=0.75))
+q.90<-predict(qgam(log_area_t1~s(log_area_t,k=4,by=flowering), data=orchid_grow,qu=0.90))
+q.95<-predict(qgam(log_area_t1~s(log_area_t,k=4,by=flowering), data=orchid_grow,qu=0.95))
+
+par(mfrow=c(2,2),mar=c(4,4,1,1))
+plot(orchid_grow$log_area_t,Q.mean(q.25,q.50,q.75),type="n",
+     xlab="size t",ylab="mean size t1",ylim=c(min(sim_mean),max(sim_mean)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,sim_mean[,i],col=alpha("black",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="red",pch=".",cex=2)
+legend("topleft",legend=c("Real data","Simulated from \nfitted SHASH gam"),
+       lty=1,col=c("red","black"),lwd=c(2,1),cex=0.8,bty="n")
