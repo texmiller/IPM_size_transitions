@@ -143,61 +143,53 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 \section*{Keywords}
 
 \newpage
-\section{Introduction}
+\section*{Introduction}
 
 Structured demographic models -- matrix and integral projection models (MPMs and IPMs) -- are powerful tools for data-driven modeling of population dynamics and viability that are widely used in basic and applied settings. 
-In contrast to MPMs for populations with discrete structure (life stage, age class, etc.), IPMs \citep{easterling2000size} readily accomodate populations structured by continuous variables, most commonly size. 
-A related \tom{innovation}{This `innovation' is not unique to IPMs but it was rare in MPMs before IPMs.} of the IPM framework is its emphasis on regression-based modeling of how each demographic rate depends on individual size.  
+In contrast to MPMs for populations with discrete structure (life stage, age class, etc.), IPMs \citep{easterling2000size} readily accommodate populations structured by continuous state variables, most commonly size. 
+A related innovation of the IPM framework is its emphasis on regression-based modeling for parameter estimation, which carries important advantages for making the most of hard-won data \citep{ellner2022critical}.  
 
-A standard workflow allows ecologists to assemble an IPM from data using familiar regression tools to statistically describe growth, survival, reprduction, and other demographic transitions as functions of size \citep{Coulson:2012fk,ellner-etal-2016}. 
-The relative ease of the regression-based approach, accomodating multiple covariates (like experimental treatment effects) and hierarchical variance structures (i.e., random effects), has facilitated a growing body of IPM literature that examines how biotic or abiotic factors affect population dynamics \citep[e.g.,][]{schultz2017native,ozgul2010coupled} and explores the consequences of demographic heterogeneity associated with spatio-temporal variation \citep[e.g.,][]{crone2016contrasting,compagnoni2016effect}. 
-The vital rate regressions are the bridge between the individual-level data and the population-level model and predictions; it is important to get them right.
+A standard workflow allows ecologists to assemble an IPM from data using familiar statistical tools to describe growth, survival, reprduction, and other demographic transitions as functions of size \citep{Coulson:2012fk,ellner-etal-2016}. 
+The relative ease of the regression-based approach, accommodating multiple covariates (e.g., environmental factors, experimental treatments) and complex variance structures (e.g., random effects, correlated errors), has facilitated a growing body of IPM literature that examines how biotic or abiotic factors affect population dynamics \citep[e.g.,][]{schultz2017native,ozgul2010coupled,louthan2022climate} and explores the consequences of demographic heterogeneity associated with spatial, temporal, and individual variation \citep[e.g.,][]{crone2016contrasting,compagnoni2016effect,plard2018sex}. 
+The vital rate regressions (or ``sub-models'') are the bridge between the individual-level data and the population-level model and its predictions; it is important to get them right.
 
 Compared to other vital rates, growth is special. 
-The regression sub-models for survival and reproduction provide the expected values of those rates as functions of size (we use ``size'' as the name
-for whatever continuous variable defines the population structure, which could instead be immune competence, mother's weight, etc.).   
+The regression sub-models for survival and reproduction provide the expected values of those rates as functions of size (we use ``size'' as the name for whatever continuous variable defines the population structure, which could instead be immune competence, mother's weight, etc.).   
 However, for modeling growth, the full probability distribution of subsequent size, conditioned on initial size, must be defined. 
-This distribution defines the growth `kernel' $G(z',z)$ that gives the probability density of future size $z'$ at time $t+1$ conditional on current
-size $z$ at time $t$. Whenever survival and reproduction are size-dependent, the entire distribution of size transitions can strongly influence IPM predictions. 
+This distribution defines the growth `kernel' $G(z',z)$ that gives the probability density of any future size $z'$ at time $t+1$ conditional on current size $z$ at time $t$. 
+Whenever survival and reproduction are size-dependent, the entire distribution of size transitions can strongly influence IPM predictions because this distribution governs how frequently size changes are much greater or much lower than average. 
 
 The original template for modeling size transitions in IPMs was provided by Easterling et al. \citeyear{easterling2000size}. 
 They first tried simple linear regression, assuming normally distributed size changes with constant variance. 
 Because the residuals from this regression exhibited non-constant variance, they used a two-step approach that estimated the size-dependence in the growth variance (better options soon became available, such as the \texttt{lme} function in R). 
 However, even after accounting for non-constant variance, growth data may still deviate from the assumption that size transitions are normally distributed.  
 Size transitions are often skewed such that large decreases are more common than large increases \citep{peterson2019improving,salguero2010keeping}, or vice versa \citep{stubberud2019effects}.
-Size transitions may also exhibit excess kurtosis (`fat tails'), where extreme growth or shrinkage is more common than predicted by the tails of the normal distribution. 
+Size transitions may also exhibit excess kurtosis (`fat tails'), where extreme growth or shrinkage is more common than predicted by the tails of the normal distribution \citep{herault2011functional}. 
 
 The observation that the normal distribution may poorly describe size transitions in real organisms has been made before,  
 and several studies have emphasized that alternative distributions should be explored \citep{easterling2000size,peterson2019improving,rees2014building,williams2012avoiding}. 
 Yet, default use of Gaussian growth distributions (often with non-constant variance) remains the standard practice. 
-An ISI Web of Knowledge search on the terms `integral projection model ecology' (DATE) returned \# IPM studies published in the past decade (2010--2020), \# of which assumed a Gaussian growth kernel\tom{}{Not sure if this is worth the trouble of doing, so I am just writing in placeholders for now. I think I know what I would find.}.
-The general state-of-the-art in the literature appears to remain where it was 15 or so years ago, using the default model without pausing to examine critically whether or not it actually provides a good description of the data. 
+\tom{An ISI Web of Knowledge search on the terms `integral projection model ecology' (DATE) returned \# IPM studies published in the past decade (2010--2020), \# of which assumed a Gaussian growth kernel.}{I still intend to do this! But it's a rabbit hole I have not gone down yet.}
+The general state-of-the-art in the literature appears to remain where it was 20 or so years ago, using the default model without pausing to examine critically whether or not it actually provides a good description of the data. 
 We are guilty of this, ourselves. 
 
 The persistence of Gaussian growth modeling is understandable. 
-There is a long tradition of statistical modeling built on the assumption of normally distributed residuals with constant variance (e.g., ANOVA).
+There is a long tradition of statistical modeling built on the assumption of normally distributed residuals with constant variance.
 Popular software pacakges such as lme4 \citep{bates2007lme4} and MCMCglmm \citep{hadfield2010mcmc} make it easy to fit growth models with potentially complex fixed- and random-effect structures, but the possible distributions of continuous responses are limited, and default to Gaussian.
 Abandoning these convenient tools for the sake of more flexible growth modeling means, it may seem, sacrificing the flexibility to rigorously model diverse and potentially complex sources of variation in growth, some of which may be the motivation driving the study in the first place.
 
-The question we address here is: how can ecologists escape the apparent trade-off between realistically capturing the 
-variance, skew, and kurtosis of size transition data on the one hand, and flexibly including the multiple covariates and random effects 
-that often have substantial impacts on demographic rates.  
+The question we address here is: how can ecologists escape the apparent trade-off between realistically capturing the variance, skew, and kurtosis of size transition data on the one hand, and flexibly including the multiple covariates and random effects that often have substantial impacts on demographic rates.  
 In this article, we offer an answer. 
 
-Our goal here is to present and illutrate a general `recipe' that moves growth modeling past the standards set over 20 years ago.
-Like any recipe, users may need to make substitutions or add flourishes to suit their situation. 
-Our approach emphasizes graphical diagnostics for developing and evaluating growth models, rather than a process 
-centered on statistical model selection. 
-Through a set of empirical case studies we demonstrate how a simple workflow, using tools 
-that were nonexistent or not readily available when IPMs first came into use, makes it straightforward and relatively 
-easy to identify when the default model is a poor fit to the data, and to then choose and fit a substantially 
-better growth model that is no harder to use in practice. 
-We illustrate our approach by revisiting four of our own, mostly published IPM analyses that assumed Gaussian growth. 
+Our goal here is to present and illustrate a general `recipe' that moves growth modeling past the standards set over 20 years ago.
+Like any recipe, users may need to make substitutions or add ingredients to suit their situation. 
+Our approach emphasizes graphical diagnostics for developing and evaluating growth models, rather than a process centered on statistical model selection. 
+Through a set of empirical case studies we demonstrate how a simple workflow, using tools that were nonexistent or not readily available when IPMs first came into use, makes it straightforward and relatively easy to identify when the default model is a poor fit to the data, and to then choose and fit a substantially better growth model that is no harder to use in practice. 
+\tom{We illustrate our approach by revisiting four of our own, mostly published IPM analyses that assumed Gaussian growth.}{Need to commit to case study choices - Steve wanted to include corals for contrast with Peterson et al.} 
 In each case, the Gaussian assumption does not stand up to close scrutiny. 
 We illustrate how we could have done better, and the consequences of ``doing better'' 
 for our ecological inferences. 
-
-All of the code and data from this article are publicly available at \url{https://github.com/texmiller/IPM_size_transitions}.
+All of our analyses may be reproduced from code and data that are publicly available (see Data accessibility statement).
 
 %The remainder of this article is structured as follows:
 %\begin{itemize}
@@ -789,6 +781,7 @@ Here are some of the issues to be discussed.
 \item{Modeling variance and higher moments as functions of covariates vs fitted values}
 \item{Choosing a better distribution -- how to make the choice}
 \item{Comparison of our method with beta regression}
+\item{We have emphasize growth but same principles apply to other continuous state transitions, eg disease IPMs.}
 
 \end{itemize}
 
@@ -799,7 +792,8 @@ This research was supported by US NSF grants DEB-1933497 (SPE) and ....
 All authors discussed all aspects of the research and contributed to developing methods, analyzing data, and writing and revising the paper.  
 
 \section{Data accessibility statement}
-No original data appear in this paper. Should the paper be accepted, all computer scripts supporting the results will be archived in an appropriate public repository such as Dryad or Figshare, with the DOI included at the end of the article.
+No original data appear in this paper. Should the paper be accepted, all computer scripts supporting the results will be archived in a Zenodo package, with the DOI included at the end of the article. 
+During peer review, our data and code are available at \url{https://github.com/texmiller/IPM_size_transitions}. 
 	
 \newpage 
 
