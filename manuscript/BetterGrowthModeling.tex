@@ -1,5 +1,5 @@
-\documentclass[11pt]{article}
-
+\documentclass[12pt]{article}
+\usepackage{setspace}
 \usepackage{amsmath,amsfonts,amssymb,graphicx,setspace,authblk}
 \usepackage{titlesec,blkarray, bm} 
 \usepackage{float,afterpage}
@@ -8,7 +8,7 @@
 \usepackage[authoryear,sort]{natbib}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{hyperref}
-
+\doublespacing
 \usepackage{enumitem}
 \setlist{topsep=.125em,itemsep=-0.15em,leftmargin=0.75cm}
 \setlength{\parindent}{0.35in}
@@ -109,12 +109,13 @@ deletekeywords={on,by,data,R,Q,mean,var,sd,log,family,na,options,q,weights,effec
 \author[a]{Tom E.X. Miller\thanks{Corresponding author. Department of BioSciences, Rice University,
 Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 \author[b]{Stephen P. Ellner}
-\affil[a]{Department of BioSciences, Rice University,Houston, TX } 
+\affil[a]{Department of BioSciences, Rice University, Houston, TX } 
 \affil[b]{Department of Ecology and Evolutionary Biology, Cornell University, Ithaca, New York} 
-
+\date{}
 \renewcommand\Authands{ and }
 
 \sloppy
+
 
 \begin{document}
 
@@ -122,23 +123,26 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 \maketitle
 
 \bigskip 
-
-\noindent \textbf{Authorship statement:} All authors discussed all aspects of the research and
-contributed to developing methods, analyzing data, and writing and revising the paper.  
-
-\bigskip 
-
-\noindent{\textbf{Data accessibility statement}: No original data appear in this paper. 
-Should the paper be accepted, all computer scripts supporting the results will be archived in an 
-appropriate public repository such as Dryad or Figshare, with the DOI included 
-at the end of the article.
+%45 character limit on running head
+\noindent\textbf{Running header:} Better growth modeling for IPMs
 
 \newpage
+\linenumbers
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \spacing{1.25} 
+%350 word limit on abstract, must be numbered 1-4
 \section*{Abstract} 
+\begin{enumerate}
+	\item 
+	\item 
+	\item 
+	\item 
+\end{enumerate}
 
+%alphabetical order not exceeding eight words or short phrases
+\section*{Keywords}
 
+\newpage
 \section{Introduction}
 
 Structured demographic models -- matrix and integral projection models (MPMs and IPMs) -- are powerful tools for data-driven modeling of population dynamics and viability that are widely used in basic and applied settings. 
@@ -791,6 +795,12 @@ Here are some of the issues to be discussed.
 \section*{Acknowledgements} 
 This research was supported by US NSF grants DEB-1933497 (SPE) and .... 
 
+\section{Authorship statement} 
+All authors discussed all aspects of the research and contributed to developing methods, analyzing data, and writing and revising the paper.  
+
+\section{Data accessibility statement}
+No original data appear in this paper. Should the paper be accepted, all computer scripts supporting the results will be archived in an appropriate public repository such as Dryad or Figshare, with the DOI included at the end of the article.
+	
 \newpage 
 
 %\bibliographystyle{EcologyLetters}
