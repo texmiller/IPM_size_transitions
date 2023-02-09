@@ -202,36 +202,34 @@ All of our analyses may be reproduced from code and data that are publicly avail
 
 \section{A general workflow for better growth modeling}
 The modeling workflow that we suggest runs as follows (Fig. \ref{fig:workflow}):
-\begin{enumerate}
+\begin{enumerate}[label=\arabic*., listparindent=1.5em]
 \item \textit{Fit a ``pilot'' model or models assuming a Gaussian distribution but allowing for non-constant variance.}
 \\ 
 This step is familiar to most IPM users, as it is the start and end of the traditional workflow. 
-A well-fitted Gaussian model accurately describes the mean and variance of future size conditional on current size and 
-possibly on other measured covariates or random effects. 
-This step may include model selection to identify which treatment effects or environmental drivers affect the mean and/or 
-variance of future size. 
-Non-constant variance is often (but not always) fitted in a two-stage process, first fitting mean growth assuming constant variance, 
-then doing a regression relating the squared residuals from the initial fit to the fitted mean. 
-However, it is better to fit the mean and variance simultaneously, as we do here, because incorrectly assuming constant variance 
-can effect the outcome of model selection for the mean.  
+A well-fitted Gaussian model accurately describes the mean and variance of future size conditional on current size and possibly on other measured covariates or random effects. 
+This step may include model selection to identify which treatment effects or environmental drivers affect the mean and/or variance of future size. 
+Non-constant variance is often fitted in a two-stage process, first fitting mean growth assuming constant variance, then doing a regression relating the squared residuals from the initial fit to the fitted mean. 
+It is sometimes better to fit size-dependence in the mean and variance simultaneously, as can be done with the R packages \textbf{mgcv} and \textbf{nmle}, because incorrectly assuming constant variance can affect the outcome of model selection for the mean. 
+One-step fitting is straightforward for simple models in which initial size is the only factor that can influence growth variance. 
+However, the two-step process fitting residuals to the expected value may be convenient when there are multiple fixed and random effects, all of which may contribute to non-constant variance, since the expected value implicitly accounts for all of them. 
+We illustrate both one-step and two-step approaches in the examples below. 
 
 Allowing non-constant variance means that it is not necessary to transform the data in a way that stabilizes the growth variance. 
-Transformation remains an option when it does not create new problems (\tom{discussed later}{I think we will need to talk about the beta regression approach in the Discussion, and that could be a place to give an example of `new problems'.}), and it may have advantages besides variance stabilization.
+Transformation remains an option when it does not create new problems (see Discussion), and it may have advantages besides variance stabilization. %beta regression
 In particular log-transformation is often appropriate for size data \citep{ellner-etal-2016}, and it helps avoid eviction at small sizes. 
-
-\item \textit{Use the fitted variance function to compute standardized residuals.}
-\\
-If the Gaussian pilot model is valid, the set of standardized residuals (standardized by the size-dependent standard deviation) should be Gaussian with mean zero and unit variance, with no skew or excess kurtosis. 
-This criterion provides a straightforward test for whether to accept a Gaussian growth model or explore alternatives. 
-If the standardized residuals are satisfactorily Gaussian, skip to the final step of the workflow. 
 
 \item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate from Gaussian, and to identify a more appropriate distribution.}
 \\
+If the Gaussian pilot model is valid, the set of standardized residuals (standardized by the standard deviation) should be Gaussian with mean zero and unit variance, with no skew or excess kurtosis. 
+This criterion provides a straightforward test for whether to accept a Gaussian growth model or explore alternatives. 
+If the standardized residuals are satisfactorily Gaussian, skip to the final step of the workflow. 
+
 There are many ways that growth data may deviate from Gaussian, and the nature of those deviations can guide the search for a better distribution. 
-However, properties of the set of all standardized residuals may be misleading, if properties such as skew and kurtosis vary with initial size. 
+Frequentist tests such as D'Agostino test of skewness \citep{d1970transformation} and the Anscombe-Glynn test of kurtosis \citep{anscombe1983distribution} could be used to diagnose whether the aggregate distribution of standardized residuals deviates from normality (R package \textbf{moments} \citep{komsta2015moments}). 
+However, properties of the aggregate distribution of standardized residuals may be misleading, if properties such as skew and kurtosis vary with initial size or expected value. 
 For example, a change in the direction of skewness from small to large sizes would require a distribution flexible enough to accommodate both positive and negative skew, such as the skewed normal or Johnson $S_{U}$ distributions. 
 Alternatively, growth data may lack skew but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
-It is therefore essential to visualize trends in distribution properties with respect to initial size. 
+It is therefore essential to visualize trends in distribution properties with respect to initial size (for simple models with only size-dependence) or fitted value (for models with multiple fixed effects that ). 
 Fig. \ref{fig:workflow} includes guidance on how the skew and kurtosis properties of the standardized residuals suggest options for 
 an appropriate growth distribution. In our case studies we take advantage of the many distributions provided in the \textbf{gamlss} R package \citep{stasinopoulos2007generalized}, but any other distributions with the necessary properties can be used.  
 
