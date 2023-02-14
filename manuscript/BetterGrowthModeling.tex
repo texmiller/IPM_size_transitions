@@ -200,7 +200,7 @@ All of our analyses may be reproduced from code and data that are publicly avail
 %\end{itemize}
 %All of the code and data from this article are publicly available at \url{https://github.com/texmiller/IPM_size_transitions}.
 
-\section{A general workflow for better growth modeling}
+\section*{A general workflow for better growth modeling}
 The modeling workflow that we suggest runs as follows (Fig. \ref{fig:workflow}):
 \begin{enumerate}[label=\arabic*., listparindent=1.5em]
 \item \textit{Fit a ``pilot'' model or models assuming a Gaussian distribution but allowing for non-constant variance.}
@@ -211,7 +211,7 @@ This step may include model selection to identify which treatment effects or env
 Non-constant variance is often fitted in a two-stage process, first fitting mean growth assuming constant variance, then doing a regression relating the squared residuals from the initial fit to the fitted mean. 
 It is sometimes better to fit size-dependence in the mean and variance simultaneously, as can be done with the R packages \textbf{mgcv} and \textbf{nmle}, because incorrectly assuming constant variance can affect the outcome of model selection for the mean. 
 One-step fitting is straightforward for simple models in which initial size is the only factor that can influence growth variance. 
-However, the two-step process fitting residuals to the expected value may be convenient when there are multiple fixed and random effects, all of which may contribute to non-constant variance, since the expected value implicitly accounts for all of them. 
+However, the two-step process fitting residuals to the fitted value (expected future size) may be convenient when there are multiple fixed and random effects, all of which may contribute to non-constant variance, since the expected value implicitly accounts for all of them. 
 We illustrate both one-step and two-step approaches in the examples below. 
 
 Allowing non-constant variance means that it is not necessary to transform the data in a way that stabilizes the growth variance. 
@@ -225,36 +225,36 @@ This criterion provides a straightforward test for whether to accept a Gaussian 
 If the standardized residuals are satisfactorily Gaussian, skip to the final step of the workflow. 
 
 There are many ways that growth data may deviate from Gaussian, and the nature of those deviations can guide the search for a better distribution. 
-Frequentist tests such as D'Agostino test of skewness \citep{d1970transformation} and the Anscombe-Glynn test of kurtosis \citep{anscombe1983distribution} could be used to diagnose whether the aggregate distribution of standardized residuals deviates from normality (R package \textbf{moments} \citep{komsta2015moments}). 
-However, properties of the aggregate distribution of standardized residuals may be misleading, if properties such as skew and kurtosis vary with initial size or expected value. 
+Frequentist tests such as the D'Agostino test of skewness \citep{d1970transformation} and the Anscombe-Glynn test of kurtosis \citep{anscombe1983distribution} could be used to diagnose whether the aggregate distribution of standardized residuals deviates from normality (R package \textbf{moments} \citep{komsta2015moments}). 
+However, the aggregate distribution of standardized residuals may be misleading if properties such as skew and kurtosis vary with initial size. 
 For example, a change in the direction of skewness from small to large sizes would require a distribution flexible enough to accommodate both positive and negative skew, such as the skewed normal or Johnson $S_{U}$ distributions. 
 Alternatively, growth data may lack skew but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
-It is therefore essential to visualize trends in distribution properties with respect to initial size (for simple models with only size-dependence) or fitted value (for models with multiple fixed effects that ). 
-Fig. \ref{fig:workflow} includes guidance on how the skew and kurtosis properties of the standardized residuals suggest options for 
-an appropriate growth distribution. In our case studies we take advantage of the many distributions provided in the \textbf{gamlss} R package \citep{stasinopoulos2007generalized}, but any other distributions with the necessary properties can be used.  
+It is therefore essential to visualize trends in distribution properties with respect to initial size (for simple models with only size-dependence) or expected value (for models with multiple fixed effects). 
+In the case studies below, we rely on quantile regression of the standardized residuals to visualize skew and kurtosis as continuous functions of size or expected value. 
+Fig. \ref{fig:workflow} includes guidance on how the skew and kurtosis properties of the standardized residuals suggest options for an appropriate growth distribution. 
+In our case studies we take advantage of the many distributions provided in the \textbf{gamlss} R package \citep{stasinopoulos2007generalized}, but any other distributions with the necessary properties can be used.  
 
 \item \textit{Refit the growth model using the chosen distribution.}
 \\
 In models with multiple covariates and/or random effects, each potentially affecting several distribution parameters (location, scale, skew, kurtosis) in
 different ways, ``refit the model'' could entail a massive model selection process to identify the ``right'' or ``best'' non-Gaussian model. 
-And with so many options, overfitting becomes a significant risk even if precautions against it are taken. 
-
-We therefore argue for adopting the more modest goal of remedying the apparent defects in the Gaussian model. Specifically, the functional forms
-for the mean and standard deviation (or location and scale parameters) should be carried over from the pilot Gaussian model. The functional forms
-for other distribution parameters can be based on graphical diagnostics regarding how they vary as a function of initial size. 
-When there are other covariates or random effects, the GLM-like alternative of making distribution parameters a function of the location parameter (the ``linear predictor'') sould also be considered. 
-How fitting is accomplished depends on features of the model, in particular whether or not it includes random effects. 
+And with so many options, model uncertainty may be overwhelming and over-fitting becomes a significant risk even if precautions against it are taken. 
+We therefore argue for adopting the more modest goal of remedying the apparent defects in the Gaussian model. 
+Conveniently, as we demonstrate below, the functional forms for the mean and standard deviation (or location and scale parameters) could be carried over from the pilot Gaussian model into a non-Gaussian distribution, leaving skew and kurtosis as the targets for improvement. 
+This step exploits the fact that parameter estimation from a Gaussian model is generally robust to deviations from normality \citep{schielzeth2020robustness}, meaning that the mean of the Gaussian model is probably a good proxy for the mean of the non-Gaussian model (and in case it is not, the next step in the workflow would catch that). 
+The functional forms for skew and kurtosis of the non-Gaussian model can be guided by the qualitative features of the graphical diagnostics (e.g., skewness switches from positive to negative with size). 
+%When there are other covariates or random effects, the GLM-like alternative of making distribution parameters a function of the location parameter (the ``linear predictor'') sould also be considered. 
+%How fitting is accomplished depends on features of the model, in particular whether or not it includes random effects. 
 
 \item \textit{Test the final model through graphical diagnostics comparing simulated and real growth data.} 
 \\
 A good model will generate simulated data that look like the real data.  
-Again, it is important to inspect the properties of simulated data conditional on present size, rather than examining the entire distribution.   
+Again, it is important to inspect the properties of simulated data conditional on present size or expected future size, rather than examining the entire distribution.   
 We provide examples below of informative comparisons between simulated and real data, based mainly on quantiles. 
 If the simulated data do not correspond well with real data, alternative (possibly more flexible) growth distributions should be explored, or more complex
 functions relating distribution parameters to current size and other covariates. 
-However, we again argue against launching a full-blown model selection exercise. 
-Instead, possible alternative models should be chosen primarily to remedy observable discrepancies between the real and simulated 
-size transition data, and at most slightly modified based on final diagnostic and statistical tests.
+However, we again caution against launching a full-blown model selection exercise. 
+Instead, possible alternative models could be chosen primarily to remedy observable discrepancies between the real and simulated size transition data, and at most slightly modified based on final diagnostic and statistical tests.
 
 \end{enumerate}
 
@@ -268,51 +268,50 @@ except for the skewed generalized $t$, which is available in the package \textbf
 \label{fig:workflow}
 \end{figure} 
 
-\section{How should skewness and kurtosis be measured?}
+\section*{How should skewness and kurtosis be measured?}
+``Improvement'' of a Gaussian model will always involve scrutiny of skewness and kurtosis, so measurement of these properties warrants some attention. 
 The standard measures of skewness and kurtosis (tail thickness) are based on the third and fourth central moments, respectively, of the distribution: 
 \be
 \mbox{Skewness} = \frac{m_3}{\sigma^3}, \quad \mbox{Excess kurtosis} = \frac{m_4}{\sigma^4}-3
 \ee
 where $m_k = \mathbb{E}(X - \bar{X})^k$ is the $k^{th}$ central moment of a random quantity $X$ 
-and $\sigma^2$ is the variance (second central moment). A Gaussian distribution has zero skewness, 
-and zero excess kurtosis. 
+and $\sigma^2$ is the variance (second central moment). 
+A Gaussian distribution has zero skewness and zero excess kurtosis. 
 
-The standard measures are easy to calculate but their use for choosing and evaluating growth models is hindered by theirB
-poor sampling properties. Because empirical estimates involve high powers of data values, it only takes a 
-a few outliers to produce a very inaccurate estimate. Figure \ref{fig:NPmoments} shows a simulated example, where the
-underlying ``data'' are a sample of size 200 from a $t$ distribution with 8 degrees of freedom; the true skew is 0, and the 
-true excess kurtosis is 1.5. The distance between the largest and smallest estimates (indicated by the dotted red
-vertical lines), relative to the distance between the 5th and 95th percentiles, shows the broad extent of 
-extreme values that can occur even with a good size sample, especially for kurtosis. 
+The standard measures are easy to calculate but their use for choosing and evaluating growth models is hindered by their poor sampling properties. 
+Because empirical estimates involve high powers of data values, it only takes a 
+a few outliers to produce a very inaccurate estimate. 
+Figure \ref{fig:NPmoments} shows a simulated example, where the underlying ``data'' are a sample of size 200 from a $t$ distribution with 8 degrees of freedom; the true skew is 0, and the true excess kurtosis is 1.5. 
+The distance between the largest and smallest estimates (indicated by the dotted red vertical lines), relative to the distance between the 5th and 95th percentiles, shows the broad extent of extreme values that can occur even with a good size sample, especially for kurtosis. 
 
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=\textwidth]{figures/NPmoments.pdf}
-\caption{Histograms of skewness and kurtosis estimates using the usual moment-based definitions, compared with the nonparametric
-skewness and kurtosis measures. Histograms are based on 5000 replicate draws of a sample of 200 independent values fron 
-a $t$ distribution with 8 degrees of freedom. Dotted red vertical lines mark the range of sample estimates, 
-and dashed blue lines show the 5th and 95th percentiles. The true value is indicated by a black dot on the $x$-axis.
+\caption{Histograms of skewness and kurtosis estimates using moment-based definitions, compared with the nonparametric measures. 
+Histograms are based on 5000 replicate draws of a sample of 200 independent values fron a $t$ distribution with 8 degrees of freedom. 
+Dotted red vertical lines mark the minimum and maximum of sample estimates, and dashed blue lines show the 5th and 95th percentiles. 
+The true value is indicated by a black dot on the $x$-axis.
 Figure drawn by script \texttt{NPmoments.R}}
 \label{fig:NPmoments}
 \end{figure} 
 
-We therefore use ``nonparametric'' (NP) measures of skew and kurtosis that are based on quantiles and thus  
-less sensitive to a few extreme data values. Let $q_\alpha$ denote the $\alpha$ quantile of a distribution or sample (e.g., $q_{0.05}$ 
-is the 5th percentile. For any $0 < \alpha < 0.5$, a quantile-based measure of skewness is given by \citep{mcgillivray-1986}
+We therefore use ``nonparametric'' (NP) measures of skew and kurtosis that are based on quantiles and thus less sensitive to a few extreme data values. 
+Let $q_\alpha$ denote the $\alpha$ quantile of a distribution or sample (e.g., $q_{0.05}$ is the 5th percentile). 
+For any $0 < \alpha < 0.5$, a quantile-based measure of skewness is given by \citep{mcgillivray-1986}
 \be
 \mbox{NP Skewness} = \frac{q_\alpha + q_{1-\alpha} - 2 q_{0.5}}{q_{1-\alpha} - q_\alpha}.
 \ee
-NP Skewness is a measure of asymmetry between the tails of the distribution above and below the median. The size of the upper
-tail can be measured (for any $0 < \alpha < 0.5$) by $\tau_U = q_{1-\alpha} - q_{0.5}$; for $\alpha=0.05$ this is the difference
-between the 95th percentile and the median. The lower tail size is $\tau_L = q_{0.5} - q_\alpha$. The definition above
-is equivalent to  
+NP Skewness is a measure of asymmetry between the tails of the distribution above and below the median. 
+The size of the upper tail can be measured (for any $0 < \alpha < 0.5$) by $\tau_U = q_{1-\alpha} - q_{0.5}$; for $\alpha=0.05$ this is the difference
+between the 95th percentile and the median. 
+The lower tail size is $\tau_L = q_{0.5} - q_\alpha$. The definition above is equivalent to  
 \be
 \mbox{NP Skewness} = \frac{\tau_U - \tau_L}{(\tau_U + \tau_L)}.
 \label{eqn:NPskew}
 \ee
-So an NP Skewness of $\pm 0.2$ says that the difference in tail sizes is 20\% of their total. The range of possible values 
-is -1 to 1. Both $\alpha=0.25$ (sometimes called ``Kelly's skewness'') and $\alpha=0.1$ (``Bowley's skewness'') 
-are common choices. We used $\alpha=0.1$, unless otherwise stated.  
+So an NP Skewness of $\pm 0.2$ says that the difference in tail sizes is 20\% of their total. 
+The range of possible values is -1 to 1. Both $\alpha=0.25$ (sometimes called ``Kelly's skewness'') and $\alpha=0.1$ (``Bowley's skewness'') are common choices. 
+We used $\alpha=0.1$, unless otherwise stated.  
  
 An analogous quantile-based measure of kurtosis \citep{jones-etal-1994} is 
 \be
@@ -321,15 +320,13 @@ An analogous quantile-based measure of kurtosis \citep{jones-etal-1994} is
 \ee
 For $\alpha=0.05$, NP Kurtosis is the difference between the 95th and 5th percentiles, relative to the interquartile range. 
 To facilitate interpretation, we scale NP Kurtosis relative to its value for Gaussian distribution, and subtract 1. 
-We call this ``NP Excess Kurtosis''. The value for a Gaussian distribution is zero. A value of 0.2 means that the tails
-are (on average) 20\% broader than those of a Gaussian with the same interquartile range, and a value of -0.2 means that the tails
-are (on average) 20\% narrower than a Gaussian with the same interquartile range. We calculate NP Kurtosis using $\alpha=0.05$ 
-unless otherwise stated, to focus on the tail edges, but again this is somewhat arbitrary. 
+We call this ``NP Excess Kurtosis''. 
+The value for a Gaussian distribution is zero. 
+A value of 0.2 means that the tails are (on average) 20\% heavier than those of a Gaussian with the same interquartile range, and a value of -0.2 means that the tails are (on average) 20\% lighter than a Gaussian with the same interquartile range. 
+We calculate NP Kurtosis using $\alpha=0.05$ unless otherwise stated, to focus on the tail edges, but again this is somewhat arbitrary. 
 
-Figure \ref{fig:NPmoments}C,D illustrate how, applied to exactly the same simulated samples, the NP measures of skewness and
-kurtosis produce a smaller fraction of highly inaccurate estimates casued by a few extreme values in the sample. But also note
-that, in contrast to the moment-based measures, numerically small values of the NP measures (e.g., 0.1 or 0.2) should not be
-disregarded, because they are both scaled so that a value of 1 indicates extremely large departures from a Gaussian distribution. 
+Figure \ref{fig:NPmoments}C,D illustrate how, applied to exactly the same simulated samples, the non-parametric measures of skewness and kurtosis produce a smaller fraction of highly inaccurate estimates caused by a few extreme values in the sample. 
+But also note that, in contrast to the moment-based measures, numerically small values of the NP measures (e.g., 0.1 or 0.2) should not be disregarded, because they are both scaled so that a value of 1 indicates extremely large departures from a Gaussian distribution. 
 
 \section{Case study: Sea fan corals, \emph{Gorgonia ventalina}}
 We begin with a simple example where current size is the only predictor of future size. \cite{bruno-etal-2011} developed
