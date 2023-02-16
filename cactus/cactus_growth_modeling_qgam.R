@@ -23,6 +23,7 @@ invlogit<-function(x){exp(x)/(1+exp(x))}
 ## see https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/1471-2288-14-135
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
 Q.sd<-function(q.25,q.75){(q.75-q.25)/1.35}
+## Steve's functions for NP skew and kurtosis
 Q.skewness<-function(q.10,q.50,q.90){(q.10 + q.90 - 2*q.50)/(q.90 - q.10)}
 Q.kurtosis<-function(q.05,q.25,q.75,q.95){
   qN = qnorm(c(0.05,0.25,0.75,0.95))
