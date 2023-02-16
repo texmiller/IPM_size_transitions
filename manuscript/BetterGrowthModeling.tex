@@ -328,6 +328,19 @@ We calculate NP Kurtosis using $\alpha=0.05$ unless otherwise stated, to focus o
 Figure \ref{fig:NPmoments}C,D illustrate how, applied to exactly the same simulated samples, the non-parametric measures of skewness and kurtosis produce a smaller fraction of highly inaccurate estimates caused by a few extreme values in the sample. 
 But also note that, in contrast to the moment-based measures, numerically small values of the NP measures (e.g., 0.1 or 0.2) should not be disregarded, because they are both scaled so that a value of 1 indicates extremely large departures from a Gaussian distribution. 
 
+Quantile-based estimation of skewness and kurtosis carries the added value that quantile regression methods may be used to derive these properties of size transitions as continuous functions of initial size or expected future size. 
+In the examples below, we use the \textbf{qgam} package to fit smooth additive quantile regression models, which have the flexibility to accommodate non-linear size-dependence in skewness and kurtosis.
+For consistency with non-parametric skewness and kurtosis, we similarly use quantile-based measures of mean and variance and quantile regression to visualize these as size-dependent. 
+Specifically, following \cite{wan2014estimating},
+\be
+\mbox{NP Mean}  = \frac{q_{0.25} + q_{0.5} + q_{0.75}}{3}
+\label{eqn:NPmean}
+\ee
+and
+\be
+\mbox{NP SD}  = \frac{q_{0.75} - q_{0.25}}{1.35}.
+\label{eqn:NPsd}
+\ee
 \section{Case study: Sea fan corals, \emph{Gorgonia ventalina}}
 We begin with a simple example where current size is the only predictor of future size. \cite{bruno-etal-2011} developed
 an IPM to understand the rise and fall of a fungal pathogen \emph{Aspergillus sydowii} in Caribbean sea fan corals 
@@ -505,13 +518,12 @@ can be fitted with parametric regression, as we illustrate in our cactus and cre
 \clearpage   
 
 \section{Case study: cactus, \emph{Cylindriopuntia imbricata}}
-The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta LTER, adds an important new
-feature on top of the simple size-dependent regressions in the previous study: random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 
-This long-term study of cactus demography was initiated in 2004 and different subsets of the data have been analyzed in various IPM studies, all using Gaussian growth kernels and often in a Bayesian framework \citep{miller2009impacts,czachurademographic,compagnoni2016effect,ohm2014balancing,elderd2016quantifying}.
+The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta Long-Term Ecological Research site in central New Mexico, adds an important new feature on top of the simple size-dependent regressions in the previous study: random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 
+This long-term study of cactus demography was initiated in 2004 and different subsets of the data have been analyzed in various IPM studies, all using Gaussian growth kernels  \citep{miller2009impacts,czachurademographic,compagnoni2016effect,ohm2014balancing,elderd2016quantifying}.
 In fact, \citep{elderd2016quantifying} presented a Gaussian growth model fit to the cactus data as an example of a well fit growth function, based on a marginal distribution of residuals that appeared approximately Gaussian and posterior predictive checks (PPCs) of a Bayesian model that suggested consistency between the real data and data simulated from the fitted model (Fig. 4 in \citep{elderd2016quantifying}). 
 While PPCs and the associated ``Bayesian P-value'' are popular diagnostic tools, they are often considered to be too conservative \citep{conn2018guide,zhang2014comparative}, failing to reject marginally bad models even though they are very effective in rejecting models that are terrible.
 The choice of discrepancy function (the statistic used to describe real and simulated data) can also be limiting: in our previous work, we used a discrepancy function focused on variance (the sum of the squared residuals), so we had a built-in blind-spot for mismatches in higher moments.
-In the clarity of hindsight, the PPC gave a false sense of security; the Gaussian was a poor choice all along -- and consequentially so.
+In the clarity of hindsight, the PPC gave a false sense of security; the Gaussian was a poor choice all along.
 
 The data for this new analysis include $5203$ size transition observations from $924$ unique individuals spanning nine transition years (2009--2017) and eight $30m$-by-$30m$ plots (we excluded earlier years of data corresponding to a different cohort of plants from a different set of locations). 
 Following previous studies, we quantified size as the natural logarithm of plant volume ($cm^3$), derived from height and width measurements. 
