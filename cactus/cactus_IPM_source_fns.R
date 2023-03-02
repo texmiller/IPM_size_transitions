@@ -15,20 +15,23 @@ gxy_JSU<-function(x,y,params){
 ## new result -- SHASH with higher moments as functions of initial size
 gxy_SHASH<-function(x,y,params){
   xb=pmin(pmax(x,params$min.size),params$max.size) #Transforms all values below/above limits in min/max size
-  return(dSHASH(x=y, 
-              mu=params$grow.mu + params$grow.bsize * xb + params$grow.bsize2 * xb^2,
-              sigma = exp(params$sigma_b0 + params$sigma_b1*xb + params$sigma_b2*xb^2), 
-              nu = exp(params$nu_b0 + params$nu_b1*xb + params$nu_b2*xb^2), 
-              tau = exp(params$tau_b0 + params$tau_b1*xb + params$tau_b2*xb^2)))
+  pred=predict(CYIM_gam_shash,
+               newdata = data.frame(logvol_t=xb,plot="1",year_t="2004"),
+               exclude=c("s(plot)","s(year_t)"))
+  return(dSHASHo2(x=y, 
+              mu=pred[,1],
+              sigma = exp(pred[,2]), 
+              nu = pred[,3], 
+              tau = exp(pred[,4])))
 }
 
 ## GROWTH - Gaussian
-gxy_norm<-function(x,y,params){
+gxy_GAU<-function(x,y,params){
   xb=pmin(pmax(x,params$min.size),params$max.size) #Transforms all values below/above limits in min/max size
-  grow_mu <- params$grow.mu.norm + params$grow.bsize.norm * xb + params$grow.bsize2.norm * xb^2
-  grow_sd <- exp(params$grow.sd.b0 + params$grow.sd.b1*grow_mu + params$grow.sd.b2*grow_mu^2)
-  return(dnorm(y,mean=grow_mu,sd=grow_sd))
-    
+  pred = predict(CYIM_grow_m1,
+               newdata = data.frame(logvol_t=xb,plot="1",year_t="2004"),
+               exclude=c("s(plot)","s(year_t)"))
+  return(dnorm(y,mean=pred[,1],sd=exp(pred[,2])))
 }
 
 ## SURVIVAL

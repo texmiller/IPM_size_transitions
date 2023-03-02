@@ -14,7 +14,7 @@ recruitSizes=c(16.7, 6.4, 10, 4.1, 4.7, 11.2, 6.3, 9.7, 5); #these are areas of 
 ##########################################################
 # Setup the main data frame: do this before any analysis
 ##########################################################
-X=read.csv("e:\\pubs\\mardis\\bruno\\data\\lesion_final_condensed2.csv",as.is=TRUE); 
+X=read.csv("lesion_final_condensed2.csv",as.is=TRUE); 
 X$Area.T5=as.numeric(X$Area.T5)
 #### NOTE: the l_f_c2 file has correct NA's for state=I and areas not measured. 
 
