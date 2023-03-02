@@ -19,12 +19,12 @@
 #
 # (3) RSJP is the "reparameterised" SJP distribution. The parameters
 #     for RSJP are lambda = exp(-delta) and tau = epsilon/delta. 
-#     This reparameterization reduces the undesirable feature of
+#     This parameterization reduces the undesirable feature of
 #     JP and SJP that changes in the tail-weight parameter also
 #     have a large effect on the skewness, and results in more
 #     reliable parameter estimation.
 #  
-#  (4) CRJP is the four-parameter reparameterized JP distribution. 
+#  (4) RJP is the four-parameter reparameterized JP distribution. 
 #      The (lambda, tau) parameters are used for skew and kurtosis, 
 #      while arguments mu and sigma are the actual mean and std dev. 
 ####################################################################      
@@ -85,21 +85,22 @@ JPvar = function(epsilon,delta) {
 
 
 TESTING=FALSE; 
-if(TESTING) { #-------------------------------------------------------
+if(TESTING) { #---- Check mean and var; compare with dSHASHo in gamlss.dist 
+  require(gamlss.dist)
 JPmean(0,1); JPvar(0,1);  # Gives N(0,1), so values should be 0, 1 
 
 x=seq(-5,5,length=100); 
-plot(x,dJP(x,1,2),type="l",lwd=2); 
+plot(x,dJP(x,1,2),type="l",lwd=1); 
 points(x,dSHASHo(x,0,1,1,2),type="p",lty=2,col="red"); # should overplot     
     
 qJP(0.26, -1, 2); qSHASHo(0.26,0,1,-1,2); 
 } #--------------------------------------------------------------------
 
-######################################################
+###############################################################
 #              SJP Distribution 
-# Functions for the standardized JP distribution,  
-# which is centered and scaled so mean=0, variance=1 
-######################################################
+# Functions for the standardized JP distribution.  
+# JP distribution is centered and scaled so mean=0, variance=1 
+###############################################################
  
 ## probability density function 
 dSJP = function(x,epsilon=0,delta=1) {
@@ -190,7 +191,7 @@ SJP_NPkurtosis = JP_NPkurtosis;
 
 ###############################################################
 ##              RSJP Distribution  
-## Reparameterized SJP distribution 
+##       Reparameterized SJP distribution 
 ## Functions for SJP distribution in (lambda, tau) parameters
 ## where lambda controls skewness and tau controls kurtosis. 
 ## In terms of the parameters of the original distribution, 
@@ -242,7 +243,7 @@ RSJP_NPkurtosis = function(lambda=0,tau=0,p=0.05) {
 }	
 
 ############################################################
-##              CSJP Distribution  
+##              RJP Distribution  
 ## Four-parameter reparameterized JP distribution.  
 ## The mu and sigma arguments are the actual mean and std dev. 
 ## The (lambda, tau) parameters are used for skew and kurtosis
@@ -250,28 +251,28 @@ RSJP_NPkurtosis = function(lambda=0,tau=0,p=0.05) {
 ############################################################
 
 ## probability density function 
-dCRJP = function(x, mean=0, sd=1, lambda=0, tau=0) {
+dRJP = function(x, mean=0, sd=1, lambda=0, tau=0) {
     delta=exp(-tau); epsilon=lambda*delta;
-    return((1/sd)*dRSJP((x-mean/sd),epsilon,delta)); 
+    return((1/sd)*dSJP((x-mean/sd),epsilon,delta)); 
 }    
 
 ## random number generation 
-rCRJP = function(n, mean=0, sd=1, lambda=0, tau=0){
+rRJP = function(n, mean=0, sd=1, lambda=0, tau=0){
     delta=exp(-tau); epsilon=lambda*delta;
-    return(mu +sd*rRSJP(n,epsilon,delta)); 
+    return(mu +sd*rSJP(n,epsilon,delta)); 
 }
 
 #### quantile function 
-qCRJP = function(p, mean=0, sd=1, lambda=0, tau=0) {
+qRJP = function(p, mean=0, sd=1, lambda=0, tau=0) {
     delta=exp(-tau); epsilon=lambda*delta;
-    return(mu + sigma*qRSJP(p,epsilon,delta)); 
+    return(mu + sigma*qSJP(p,epsilon,delta)); 
 }
 
 #### cumulative distribution function 
-pCRJP = function (q, mean=0, sd=1, lambda=0, tau=0) {
+pRJP = function (q, mean=0, sd=1, lambda=0, tau=0) {
     delta=exp(-tau); epsilon=lambda*delta;
     qs = (z - mean)/sd; 
-    return(pRSJP(qs,epsilon,delta))
+    return(pSJP(qs,epsilon,delta))
 }
 
 
