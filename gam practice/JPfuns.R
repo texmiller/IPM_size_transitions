@@ -21,14 +21,16 @@
 ##     It has zero mean and unit variance, for all values of 
 ##     epsilon and delta. 
 ##
-## (3) RSJP is the "reparameterised" SJP distribution. The parameters
+## (3) RSJP(lambda, tau) 
+##     This is the "reparameterised" SJP distribution. The parameters
 ##     for RSJP are lambda = exp(-delta) and tau = epsilon/delta. 
 ##     This reparameterization reduces the undesirable feature of
 ##     that changes in the tail-weight parameter also have a 
 ##     large effect on the skewness, and results in more
 ##     reliable parameter estimation.
 ##  
-##  (4) JPLS is the four-parameter reparameterized JP distribution,  
+##  (4) JPLS(mean,sd,lambda,tau)
+##      This is the four-parameter reparameterized JP distribution,  
 ##      where "LS" stands for location-scale. The (lambda, tau) 
 ##      parameters are used for skew and kurtosis, 
 ##            lambda = exp(-delta), tau = epsilon/delta 
@@ -173,10 +175,10 @@ fit$par;
 } 
 
 
-#####################################################
+######################################################
 # Nonparametric skew and kurtosis functions. 
 # These are the same for JP and SJP distributions. 
-#####################################################
+######################################################
 JP_NPskewness = function(epsilon,delta,p=0.1) {
 	q = qJP(c(p,0.5,1-p),epsilon,delta)
 	u = (q[3]+q[1]-2*q[2])/(q[3]-q[1]);
@@ -319,7 +321,6 @@ for(j in 1:10) {
  p = pJPLS(q, mu, sigma, lambda, tau) 
  cat(round(qu-p,digits=6),  "\n"); 
 }
->>>>>>> 029f2924c277a47ad4c081ace9dfe2191c06585a
 }
 
 
