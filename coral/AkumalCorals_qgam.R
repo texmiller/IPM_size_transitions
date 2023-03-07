@@ -11,7 +11,7 @@ setwd("c:/repos/IPM_size_transitions/coral");
 
 require(car); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(AICcmodavg); 
-require(tidyverse); require(maxLik); 
+require(tidyverse); require(maxLik); require(qgam)
 
 source("../Diagnostics.R"); 
 source("../fitChosenDists.R"); 
@@ -58,43 +58,49 @@ S.90<-qgam(scaledResids~s(logarea.t0,k=4), data=XH,qu=0.9)
 S.95<-qgam(scaledResids~s(logarea.t0,k=4), data=XH,qu=0.95)
 
 ## NP skewness
-q.10<-predict(S.10);q.50<-predict(S.50);q.90<-predict(S.90)
-NPS_hat = (q.10 + q.90 - 2*q.50)/(q.90 - q.10)
+NPS_hat = Q.skewness(q.10=predict(S.10),
+                     q.50=predict(S.50),
+                     q.90=predict(S.90))
 
 ## NP kurtosis (relative to Gaussian)
-q.05<-predict(S.05);q.25<-predict(S.25);q.75<-predict(S.75);q.95<-predict(S.95)
-qN = qnorm(c(0.05,0.25,0.75,0.95))
-KG = (qN[4]-qN[1])/(qN[3]-qN[2])
-NPK_hat = ((q.95-q.05)/(q.75-q.25))/KG - 1
+NPK_hat = Q.kurtosis(q.05=predict(S.05),
+                     q.25=predict(S.25),
+                     q.75=predict(S.75),
+                     q.95=predict(S.95))
 
 ## view diagnostics of scaled residuals
-par(mfrow=c(1,2),mar = c(5, 4, 2, 3), oma=c(0,0,0,4)) 
-plot(XH$logarea.t0,XH$logarea.t1,pch=1,col=alpha("black",0.25),
-     xlab="size t",ylab="size t1")
+pdf("../manuscript/figures/coral_qgam_diagnostics.pdf",height = 5, width = 11,useDingbats = F)
+par(mfrow=c(1,2),mar = c(5, 5, 2, 3), oma=c(0,0,0,2)) 
+plot(XH$logarea.t0,XH$logarea.t1,pch=1,col=alpha("black",0.25),cex.axis=0.8,
+     xlab="log area, time t",ylab="log area, time t+1")
 points(XH$logarea.t0,predict(fitGAU,type="response")[,1],col=alpha("red",0.25),pch=16,cex=.5)
 par(new = TRUE)                           
 plot(XH$logarea.t0,fitted_sd,col=alpha("blue",0.25),pch=16,cex=.5,
-     axes = FALSE, xlab = "", ylab = "")
-axis(side = 4, at = pretty(range(fitted_sd)),col="blue")
-mtext("sigma", side = 4, line = 2,col="blue")
+     axes = FALSE, xlab = "", ylab = "",cex.axis=0.8)
+axis(side = 4, at = pretty(range(fitted_sd)),cex.axis=0.8)
+mtext("std dev", side = 4, line = 2)
+legend("topleft",legend=c("Fitted mean","Fitted sd"),bg="white",pch=1,col=c("red","blue"),cex=0.8)
+title("A",font=3,adj=0)
 
-plot(XH$logarea.t0,XH$scaledResids,col=alpha("black",0.25),
-     xlab="Size at time t",ylab="Scaled residuals of size at t+1")
-points(XH$logarea.t0,q.05,col="black",pch=".")
-points(XH$logarea.t0,q.10,col="black",pch=".")
-points(XH$logarea.t0,q.25,col="black",pch=".")
-points(XH$logarea.t0,q.50,col="black",pch=".")
-points(XH$logarea.t0,q.75,col="black",pch=".")
-points(XH$logarea.t0,q.90,col="black",pch=".")
-points(XH$logarea.t0,q.95,col="black",pch=".")
+plot(XH$logarea.t0,XH$scaledResids,col=alpha("black",0.25),cex.axis=0.8,
+     xlab="log area, time t",ylab="Scaled residuals of size at time t+1")
+points(XH$logarea.t0,predict(S.05),col="black",pch=".")
+points(XH$logarea.t0,predict(S.10),col="black",pch=".")
+points(XH$logarea.t0,predict(S.25),col="black",pch=".")
+points(XH$logarea.t0,predict(S.50),col="black",pch=".")
+points(XH$logarea.t0,predict(S.75),col="black",pch=".")
+points(XH$logarea.t0,predict(S.90),col="black",pch=".")
+points(XH$logarea.t0,predict(S.95),col="black",pch=".")
 par(new = TRUE)                           
 plot(c(XH$logarea.t0,XH$logarea.t0),c(NPS_hat,NPK_hat),
      col=c(rep(alpha("blue",0.25),nrow(XH)),rep(alpha("red",0.25),nrow(XH))),
-     pch=16,cex=.5, axes = FALSE, xlab = "", ylab = "")
+     pch=16,cex=.5, axes = FALSE, xlab = "", ylab = "",cex.axis=0.8)
 abline(h=0,col="lightgray",lty=3)
 axis(side = 4, at = pretty(range(c(NPS_hat,NPK_hat))),cex.axis=0.8)
-mtext("Skewness", side = 4, line = 2,col="blue")
-mtext("Excess Kurtosis", side = 4, line =3,col="red")
+mtext("Skewness and kurtosis", side = 4, line = 2)
+legend("topleft",legend=c("Quantiles","NP skewness","NP excess kurtosis"),bg="white",pch=c(20,1,1),col=c("black","red","blue"),cex=0.8)
+title("B",font=3,adj=0)
+dev.off()
 
 ## compare this to the "old" way
 z = rollMomentsNP(XH$logarea.t0,XH$scaledResids,windows=8,smooth=TRUE,scaled=TRUE,xlab="Initial log area") 

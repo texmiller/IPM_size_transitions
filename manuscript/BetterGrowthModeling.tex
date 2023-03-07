@@ -226,10 +226,10 @@ If the standardized residuals are satisfactorily Gaussian, skip to the final ste
 
 There are many ways that growth data may deviate from Gaussian, and the nature of those deviations can guide the search for a better distribution. 
 Frequentist tests such as the D'Agostino test of skewness \citep{d1970transformation} and the Anscombe-Glynn test of kurtosis \citep{anscombe1983distribution} could be used to diagnose whether the aggregate distribution of standardized residuals deviates from normality (R package \textbf{moments} \citep{komsta2015moments}). 
-However, the aggregate distribution of standardized residuals may be misleading if properties such as skew and kurtosis vary with initial size. 
+However, the aggregate distribution of standardized residuals may be misleading if properties such as skew and kurtosis vary with size. 
 For example, a change in the direction of skewness from small to large sizes would require a distribution flexible enough to accommodate both positive and negative skew, such as the skewed normal or Johnson $S_{U}$ distributions. 
 Alternatively, growth data may lack skew but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
-It is therefore essential to visualize trends in distribution properties with respect to initial size (for simple models with only size-dependence) or expected value (for models with multiple fixed effects). 
+It is therefore essential to visualize trends in distribution properties with respect to size, either initial size (for simple models with only size-dependence) or expected future size (for models with multiple fixed effects). 
 In the case studies below, we rely on quantile regression of the standardized residuals to visualize skew and kurtosis as continuous functions of size or expected value. 
 Fig. \ref{fig:workflow} includes guidance on how the skew and kurtosis properties of the standardized residuals suggest options for an appropriate growth distribution. 
 In our case studies we take advantage of the many distributions provided in the \textbf{gamlss} R package \citep{stasinopoulos2007generalized}, but any other distributions with the necessary properties can be used.  
@@ -329,7 +329,9 @@ Figure \ref{fig:NPmoments}C,D illustrate how, applied to exactly the same simula
 But also note that, in contrast to the moment-based measures, numerically small values of the NP measures (e.g., 0.1 or 0.2) should not be disregarded, because they are both scaled so that a value of 1 indicates extremely large departures from a Gaussian distribution. 
 
 Quantile-based estimation of skewness and kurtosis carries the added value that quantile regression methods may be used to derive these properties of size transitions as continuous functions of initial size or expected future size. 
-In the examples below, we use the \textbf{qgam} package to fit smooth additive quantile regression models, which have the flexibility to accommodate non-linear size-dependence in skewness and kurtosis.
+In the examples below, we use the \textbf{qgam} package to fit smooth additive quantile regression models, which have the flexibility to accommodate non-linear size-dependence in skewness and kurtosis. 
+One risk of a gam-based approach is that fitted quantiles may be too ``wiggly'' without constraints on their complexity (in the examples below, we specify $k=4$ to constrain the dimension of the basis function). 
+For the gam-averse, other quantile regression models may be equally suitable. 
 For consistency with non-parametric skewness and kurtosis, we similarly use quantile-based measures of mean and variance and quantile regression to visualize these as size-dependent. 
 Specifically, following \cite{wan2014estimating},
 \be
@@ -342,44 +344,36 @@ and
 \label{eqn:NPsd}
 \ee
 \section{Case study: Sea fan corals, \emph{Gorgonia ventalina}}
-We begin with a simple example where current size is the only predictor of future size. \cite{bruno-etal-2011} developed
-an IPM to understand the rise and fall of a fungal pathogen \emph{Aspergillus sydowii} in Caribbean sea fan corals 
-\emph{G. ventalina}. The model was based on repeated observations of marked corals in permanent transects at several sites 
-near Akumal, Mexico, recording disease status (infected/uninfected) and the area of uninfected tissue. 
+We begin with a simple example where current size is the only predictor of future size. 
+\cite{bruno-etal-2011} developed an IPM to understand the rise and fall of a fungal pathogen \emph{Aspergillus sydowii} in Caribbean sea fan corals \emph{G. ventalina}. 
+The model was based on repeated observations of marked corals in permanent transects at several sites near Akumal, Mexico, recording disease status (infected/uninfected) and the area of uninfected tissue. 
 The epidemic peak had passed and disease incidence was already low, so infected fans were relatively infrequent. 
-We therefore limit the analysis here to uninfected individuals. \citet{bruno-et-al-2011} found statistically significant year
-and site effects, but as those explained a very small fraction of the variation in growth increments, they fitted a single growth
-model to data pooled across years and sites. We do the same here. The pooled data set consists of 358 observed
-size transitions. Script \text{AkumalCorals.R} contains the analysis. 
+We therefore limit the analysis here to uninfected individuals.
+\citet{bruno-etal-2011} found statistically significant year and site effects, but as those explained a very small fraction of the variation in growth increments, they fitted a single growth model to data pooled across years and sites. 
+We do the same here. 
+The pooled data set consists of 358 observed size transitions. 
+%Script \text{AkumalCorals.R} contains the analysis. 
 
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=\textwidth]{figures/AkumalPilot.pdf}
-\caption{Pilot Gaussian model for growth of uninfected sea fan corals, \emph{Gorgonia ventalina}. \textbf{A)} Untransformed
-data on size transitions, 358 observations of initial and subsequent total area. 
-\textbf{B)} Size transitions on the cube-root scale used by \citet{bruno-etal-2011}. 
-\textbf{C)} Size transitions on log scale, showing the mean (solid red curve) and mean$\pm 2$ standard deviations (blue dashed
-curves) for the pilot Gaussian model with non-constant variance. \textbf{D)} Normal quantile-quantile plot of scaled residuals
-from the pilot Gaussian model. Figure made by script \texttt{AkumalCorals.R}.}
-\label{fig:AkumalPilot}
-\end{figure} 
+%\begin{figure}[tbp]
+%\centering
+%\includegraphics[width=\textwidth]{figures/AkumalPilot.pdf}
+%\caption{Pilot Gaussian model for growth of uninfected sea fan corals, \emph{Gorgonia ventalina}. \textbf{A)} Untransformed
+%data on size transitions, 358 observations of initial and subsequent total area. 
+%\textbf{B)} Size transitions on the cube-root scale used by \citet{bruno-etal-2011}. 
+%\textbf{C)} Size transitions on log scale, showing the mean (solid red curve) and mean$\pm 2$ standard deviations (blue dashed
+%curves) for the pilot Gaussian model with non-constant variance. \textbf{D)} Normal quantile-quantile plot of scaled residuals
+%from the pilot Gaussian model. Figure made by script \texttt{AkumalCorals.R}.}
+%\label{fig:AkumalPilot}
+%\end{figure} 
 
-The data clearly exhibit size-dependent growth variance (fig. \ref{fig:AkumalPilot}A). 
-\citet{bruno-etal-2011} chose to stabilize the variance by transforming size,
-using the cube-root of total fan area as the size measure (fig. \ref{fig:AkumalPilot}B), and then fitting the standard 
-model with Gaussian growth increments. But transformation is not a complete solution: residuals from 
-the default model are non-Gaussian, with significant skew and kurtosis ($p<0.01$ in Jarque-Bera Normality test, D'Agostino skewness test, 
-and Anscombe-Glynn kurtosis test using R functions \texttt{jarque.test,agostino.test,anscombe.test} in the 
-in the \textbf{moments} package \citep{komsta-2015}). This remains true in a model with site and year effects and 
-site-year interaction. 
+The data exhibited size-dependent variance in growth (change in area, $cm^2$), which \cite{bruno-etal-2011} chose to stabilize by transforming size, using the cube-root of total fan area as the size measure (fig. \ref{fig:AkumalPilot}B), and then fitting the standard model with Gaussian growth increments. 
+%But transformation is not a complete solution: residuals from the default model are non-Gaussian, with significant skew and kurtosis ($p<0.01$ in Jarque-Bera Normality test, D'Agostino skewness test,  and Anscombe-Glynn kurtosis test using R functions \texttt{jarque.test,agostino.test,anscombe.test}). 
+%This remains true in a model with site and year effects and site-year interaction. 
+Here we take a different approach, modeling size-dependent variance explicitly rather than trying to transform it away. 
 
-We therefore develop a model using log transformation. The main benefit of log transformation is that 
-eviction at small sizes is easily prevented by using a large negative value for minimum log area. 
-
-With initial size as the only predictor, the simplest way to fit a Gaussian model with nonconstant variance is the
-\texttt{gam} function in \textbf{mgcv} library \citep{wood-2017} using the \texttt{gaulss} family. The mean and 
-standard deviation are both fitted as smoothing spline functions of initial size, and the \texttt{predict} function
-returns the fitted mean and also the inverse of the fitted standard deviations with which we can compute the scaled residuals: 
+We develop a model using natural log transformation of area. 
+With initial size as the only predictor, a simple way to fit a Gaussian model with nonconstant variance is the \texttt{gam} function in \textbf{mgcv} library \citep{wood-2017} using the \texttt{gaulss} family. 
+The mean and standard deviation are both fitted as smoothing spline functions of initial size, and the \texttt{predict} function returns the fitted mean and also the inverse of the fitted standard deviations with which we can compute the scaled residuals: 
 \begin{lstlisting}
 # XH is a data frame holding the data
 # logarea.t0, .t1 denote initial and final values of log-transformed area   
@@ -389,23 +383,30 @@ fitted_all = predict(fitGAU,type="response");
 fitted_sd = 1/fitted_all[,2]; 
 scaledResids = residuals(fitGAU,type=''response'')/fitted_sd;  
 \end{lstlisting}
-Fig. \ref{fig:AkumalPilot}C) shows the log-transformed data and Gaussian model. The mean function (solid blue curve) 
-is visually nearly linear, but the fitted nonlinear spline is strongly favored over a linear model for the mean ($\Delta AIC \approx 9$). 
-The spline for $\log \sigma$ versus initial size (not shown) is also nearly linear, and evidence for nonlinearity is present but 
-weak ($\Delta AIC <2$). 
+Fig. \ref{fig:coral_diganostics}A shows the log-transformed data and Gaussian model. 
+The mean function (solid blue curve) is visually nearly linear, but the fitted nonlinear spline is strongly favored over a linear model for the mean ($\Delta AIC \approx 9$). 
+The spline for standard deviation $\sigma$ versus initial size shows that smaller individuals exhibit greater variability in future size. 
 
-There are no blatant signs of trouble in the pilot Gaussian model, but the scaled residuals are 
-significantly non-Gaussian with deviations in both tails (fig. \ref{fig:AkumalPilot}D; $p<0.03$ Jarque-Bera test for Normality).
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/coral_qgam_diagnostics.pdf}
+	\caption{\textbf{A}, Size transition data for sea fan corals, \emph{Gorgonia ventalina}, and fitted gam with mean (red) and standard deviation (blue) of future size conditional on current size.  \textbf{B}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (red) and excess kurtosis (blue) derived from them. Black lines in \textbf{B} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. Figure made by script \texttt{AkumalCorals\_qgam.R}.}
+	\label{fig:coral_diganostics}
+\end{figure} 
+
+There are no blatant signs of trouble in the pilot Gaussian model, but quantile regressions on the scaled residuals, and the NP Skewness and Kurtosis metrics derived from them (Eq. \ref{eqn:NPskew} and \ref{eqn:NPkurt}), indicate deviations from normality (Fig. \ref{fig:coral_diganostics}B).
+Specifically, skewness swicthes from negative to positive across the size distribution, with smaller corals more likely to shrink than grow and larger corals more likely to grow than shrink. 
+Kurtosis also changes direction over the size distribution, with smaller initial sizes having thinner tails and larger initial sizes having fatter tails than Gaussian. 
 %There is little skew (skewness=0.06, $p=0.64$ D'Agostino test), but significant kurtosis (excess kurtosis 0.67, $p=0.03$ 
 %Anscome-Glynn test).\tom{}{I wonder about advocating for use of these normality tests. It deviates a bit from the messaging to not rely too much on statistical tests, and also it is testing the normality of the marginal distribution of residuals, which for reasons we've discussed is not exactly what we want.} 
 
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=0.8\textwidth]{figures/AkumalRollingResiduals.pdf}
-\caption{Rolling moments plot for scaled residuals from the pilot Gaussian model for growth of sea fan corals, \emph{Gorgonia ventalina}. 
-Figure made by scripts \texttt{AkumalCorals.R} and \texttt{Diagnostics.R}.}
-\label{fig:AkumalRollingResiduals}
-\end{figure} 
+%\begin{figure}[tbp]
+%\centering
+%\includegraphics[width=0.8\textwidth]{figures/AkumalRollingResiduals.pdf}
+%\caption{Rolling moments plot for scaled residuals from the pilot Gaussian model for growth of sea fan corals, \emph{Gorgonia ventalina}. 
+%Figure made by scripts \texttt{AkumalCorals.R} and \texttt{Diagnostics.R}.}
+%\label{fig:AkumalRollingResiduals}
+%\end{figure} 
 
 Consequently, we want to find a better fitting distribution. As noted in the \emph{Introduction} the overall properties of the scaled 
 residuals may be misleading if the growth distribution changes as a function of initial size. 
