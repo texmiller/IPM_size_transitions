@@ -104,3 +104,37 @@ dev.off()
 
 ## compare this to the "old" way
 z = rollMomentsNP(XH$logarea.t0,XH$scaledResids,windows=8,smooth=TRUE,scaled=TRUE,xlab="Initial log area") 
+
+## there is clearly some skew and kurtosis that is not accounted for in the gaussian model
+## but could the gaussian model still be a reasonable approximation for size transitions?
+## simulate data from Gaussian model
+n_sim<-100
+sim_mean<-sim_sd<-sim_skew<-sim_kurt<-matrix(NA,nrow=nrow(CYIM_grow),ncol=n_sim)
+for(i in 1:n_sim){
+  ## add this iteration of sim data to real df
+  XH$logarea.sim <- rnorm(n=nrow(XH),
+                          mean=predict(fitGAU,type="response")[,1],
+                          sd=(1/predict(fitGAU,type="response")[,2]))
+  ## Qreg on sim data
+  q.05<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.05)) 
+  q.10<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.10)) 
+  q.25<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.25))
+  q.50<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.5))
+  q.75<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.75)) 
+  q.90<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.90))
+  q.95<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.95))
+  
+  sim_mean[,i]<-Q.mean(q.25,q.50,q.75)
+  sim_sd[,i]<-Q.sd(q.25,q.75)
+  sim_skew[,i]<-Q.skewness(q.10,q.50,q.90)
+  sim_kurt[,i]<-Q.kurtosis(q.05,q.25,q.75,q.95)
+}
+
+## and now the real data
+q.05<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.05)) 
+q.10<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.10)) 
+q.25<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.25)) 
+q.50<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.5))
+q.75<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.75))
+q.90<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.90))
+q.95<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.95))
