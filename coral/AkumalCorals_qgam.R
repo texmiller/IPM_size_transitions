@@ -109,7 +109,7 @@ z = rollMomentsNP(XH$logarea.t0,XH$scaledResids,windows=8,smooth=TRUE,scaled=TRU
 ## but could the gaussian model still be a reasonable approximation for size transitions?
 ## simulate data from Gaussian model
 n_sim<-100
-sim_mean<-sim_sd<-sim_skew<-sim_kurt<-matrix(NA,nrow=nrow(CYIM_grow),ncol=n_sim)
+sim_mean<-sim_sd<-sim_skew<-sim_kurt<-matrix(NA,nrow=nrow(XH),ncol=n_sim)
 for(i in 1:n_sim){
   ## add this iteration of sim data to real df
   XH$logarea.sim <- rnorm(n=nrow(XH),
@@ -138,3 +138,35 @@ q.50<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.5))
 q.75<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.75))
 q.90<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.90))
 q.95<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.95))
+
+par(mfrow=c(2,2),mar=c(4,4,1,1))
+plot(XH$logarea.t0,Q.mean(q.25,q.50,q.75),type="n",
+     xlab="size t",ylab="mean size t1",ylim=c(min(sim_mean),max(sim_mean)))
+for(i in 1:n_sim){
+  points(XH$logarea.t0,sim_mean[,i],col=alpha("black",0.25),pch=".")
+}
+points(XH$logarea.t0,Q.mean(q.25,q.50,q.75),col="red",pch=".",cex=2)
+legend("topleft",legend=c("Real data","Simulated from \nbest Gaussian"),
+       lty=1,col=c("red","black"),lwd=c(2,1),cex=0.8,bty="n")
+
+plot(XH$logarea.t0,Q.sd(q.25,q.75),type="n",
+     xlab="size t",ylab="sd size t1",ylim=c(min(sim_sd),max(sim_sd)))
+for(i in 1:n_sim){
+  points(XH$logarea.t0,sim_sd[,i],col=alpha("black",0.25),pch=".")
+}
+points(XH$logarea.t0,Q.sd(q.25,q.75),col="red",pch=".",cex=2)
+
+plot(XH$logarea.t0,Q.skewness(q.10,q.50,q.90),type="n",
+     xlab="size t",ylab="skewness size t1",ylim=c(min(sim_skew),max(sim_skew)))
+for(i in 1:n_sim){
+  points(XH$logarea.t0,sim_skew[,i],col=alpha("black",0.25),pch=".")
+}
+points(XH$logarea.t0,Q.skewness(q.10,q.50,q.90),col="red",pch=".",cex=2)
+
+plot(XH$logarea.t0,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
+     xlab="size t",ylab="kurtosis size t1",ylim=c(min(sim_kurt),max(sim_kurt)))
+for(i in 1:n_sim){
+  points(XH$logarea.t0,sim_kurt[,i],col=alpha("black",0.25),pch=".")
+}
+points(XH$logarea.t0,Q.kurtosis(q.05,q.25,q.75,q.95),col="red",pch=".",cex=2)
+
