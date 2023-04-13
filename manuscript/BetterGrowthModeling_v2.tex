@@ -323,7 +323,7 @@ Quantile-based estimation of skewness and kurtosis carries the added value that 
 In the examples below, we use the \textbf{qgam} package to fit smooth additive quantile regression models, which have the flexibility to accommodate non-linear size-dependence in skewness and kurtosis. 
 One risk of a gam-based approach is that fitted quantiles may be too ``wiggly'' without constraints on their complexity (in the examples below, we specify $k=4$ to constrain the dimension of the basis function). 
 For the gam-averse, other quantile regression models may be equally suitable. 
-For consistency with non-parametric skewness and kurtosis, we similarly use quantile-based measures of mean and variance and quantile regression to visualize these as size-dependent. 
+For consistency with non-parametric skewness and kurtosis, we similarly use quantile-based measures of mean and variance and quantile regression to visualize these as functions of size. 
 Specifically, following \cite{wan2014estimating},
 \be
 \mbox{NP Mean}  = \frac{q_{0.25} + q_{0.5} + q_{0.75}}{3}
@@ -370,85 +370,32 @@ The spline for standard deviation $\sigma$ versus initial size shows that smalle
 \end{figure} 
 
 There are no blatant signs of trouble in the pilot Gaussian model, but quantile regressions on the scaled residuals, and the NP Skewness and Kurtosis metrics derived from them (Eq. \ref{eqn:NPskew} and \ref{eqn:NPkurt}), suggest deviations from normality (Fig. \ref{fig:coral_diganostics}B).
-Specifically, skewness swicthes from negative to positive across the size distribution, with smaller corals more likely to shrink than grow and larger corals more likely to grow than shrink. 
+Specifically, skewness switches from negative to positive across the size distribution, with smaller corals more likely to shrink than grow and larger corals more likely to grow than shrink. 
 Kurtosis also changes direction over the size distribution, with smaller initial sizes having thinner tails and larger initial sizes having fatter tails than Gaussian. 
-Are these apparent deviations from normality 
-
-Consequently, we want to find a better fitting distribution. As noted in the \emph{Introduction} the overall properties of the scaled 
-residuals may be misleading if the growth distribution changes as a function of initial size. 
-Instead, distribution choice should be guided by properties of distributions conditional on initial size. 
-Multiple observations with identical initial sizes will be rare, but we can 
-approximate conditional distributions by grouping size transitions with similar initial sizes. 
-In fig. \ref{fig:AkumalRollingResiduals}, summary statistics (mean, standard deviation, NP skewness, NP excess kurtosis) 
-are plotted (solid points) for a set of overlapping sliding windows, each containing 10\% of the scaled residuals sorted according to initial size. 
-The red dashed lines are what we would see if the pilot model were exactly right: zero mean, skewness and excess kurtosis, and 
-standard deviation equal to one. Black curves are spline regressions through the points using \texttt{gam}. Panels A) and B) are a ``sanity check'' to verify
-that the pilot model was adequate to capture the mean and variance of growth. Panel C) indicates a shift from negative
-skew at small sizes to positive skew at larger sizes. Similarly, panel D), reveals that NP kurtosis varies with initial size, 
-negative for small fans and positive at large sizes. 
-
-Fitting those properties requires a four-parameter distribution on $(-\infty, \infty)$ that allows nonzero skew and both 
-positive and negative excess kurtosis. That narrows the options considerably. 
-Of the more than 50 distributions provided in the \textbf{gamlss.dist} package, the options are 
-\texttt{EGB2, JSU, GT, SHASH} and four \texttt{SEP} distributions (four different ways of adding skew to the
-exponential power distribution). We omit \texttt{SEP2} because it is known to have poorly identified parameters
-\citep{diciccio-monti-2004}, which is problematic for choosing the non-Gaussian model structure in the way we propose.   
-
-To choose among the candidate distributions, we sorted the scaled residuals based on initial size into 8 equal-size bins, 
-and used maximum likelihood to fit all candidate distributions to each bin.\footnote{Our function \texttt{gamlssMaxlik} 
-in online script \texttt{fitChosenDists.R} is
-patterned after the \texttt{gamlss} function \texttt{gamlssML}, but uses the \texttt{maxLik} function from the \textbf{maxLik}
-package \citep{maxLik-package}, and repeated optimization from different starting values, to increase the reliability of the results.} 
-As all distributions have the same number of parameters, comparison of maximized likelihoods is equivalent to comparing AIC values. 
-With the exception of \texttt{EGB2} all distributions had very similar maximized likelihoods for all bins; the best overall (summed
-likelihood) was \texttt{SEP1}, so we proceeded with \texttt{SEP1}. With 5 bins instead of 8 the outcome was the same. 
-
-Most four-parameter distributions have the inconvenient property that their parameters are \emph{not} the mean, standard deviation, skew,
-and kurtosis of the distribution. This happens because (for example) introducing nonzero skew changes the mean and the kurtosis. 
-So to see how distribution parameters vary as a function of initial size, instead of inspecting fig. \ref{fig:AkumalRollingResiduals}, we need
-to look directly at how parameters vary as a function of initial size. As before, we did this by binning the data based on initial sizee, 
-and fitting an \texttt{SEP1} distribution to the subsequent size values in each data subset. Note, 
-in fig. \ref{fig:AkumalRollingResiduals} we used scaled residuals as the response variable, 
-to minimize how variation in mean and standard deviation within a bin would affect the skew and kurtosis. 
-Now, because all four distribution parameters interact to determine the distribution, we need to fit all 
-four simultaneously to the data in each bin. 
+The fitted nonparametric moments suggest that the upper and lower tails of size transition probabilities may differ by up to 20\%, and the weight of the tails may be \>20\% greater or less than Gaussian, depending on initial size -- not overwhelming deficiencies, but not trivial either. 
+Are these deviations from normality severe enough to warrant a second, non-Gaussian iteration of growth modeling? 
+This question may be answered by simulating data from the Gaussian model and examining whether key properties of the simulated data are consistent with those of the real data -- this is the ultimate litmus test for a growth model's adequacy and should be a standard element of IPM construction, in our opinion.
+If the simulated data are not consistent with the real data, it is time to choose a better distribution (Fig. \ref{fig:workflow}). 
+In this case, the negative skew at small sizes and excess kurtosis observed at large sizes are more extreme than what occurs across 100 random iterations of data simulation (Fig. \ref{fig:coral_fit}), suggesting that, for at least some parts of the size distribution, a non-Gaussian model would better capture size transitions. 
 
 \begin{figure}[tbp]
-\centering
-\includegraphics[width=0.8\textwidth]{figures/AkumalRollingSEP1pars.png}
-\caption{Binned data SEP1 parameter estimates for growth distributions of sea fan corals, \emph{Gorgonia ventalina}. 
-Figure made by scripts \texttt{AkumalCorals.R} and \texttt{Diagnostics.R}.}
-\label{fig:AkumalRollingSEP1pars}
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/coral_SHASH_fit.pdf}
+	\caption{Comparisons among real coral data and data simulated from Gaussian and SHASH growth models for mean, standard deviation, NP skewness, and NP kurtosis of future size conditional on current size. Figure made by script \texttt{AkumalCorals\_qgam.R}.}
+	\label{fig:coral_fit}
 \end{figure} 
 
-As expected from the pilot Gaussian fit, the location parameter $\mu$, the log of the scale parameters $\sigma$, the 
-skewness parameter $\nu$ and log of the kurtosis parameter $\tau$ all appear to vary linearly with initial size 
-(log is the default link function for $\sigma$ and $\tau$ in \texttt{SEP1} because both must be positive).
-The corresponding overall growth model is an \texttt{SEP1} distribution in 
-which $\mu, \log \sigma, \nu$ and $\log \tau$ are all linear functions of initial size.
-However, following our suggested workflow, we specify $\mu$ as a quadratic function of initial size because that relationship
-was found to be nonlinear in the pilot Gaussian model. This model is easily fitted by maximum likelihood, 
-using the pilot Gaussian fit and the values plotted in fig. \ref{fig:AkumalRollingSEP1pars} to 
-inform the starting parameter values. The quadratic term for $\mu$ proved to be highly significant
-($p<0.001$ based on the asymptotic standard error from the inverse Hessian). 
-
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=.95\textwidth]{figures/CoralMomentsComparePlot.pdf}
-\caption{Binned data comparison of moments between 500 simulations of the fitted SEP1 model (grey, black circles), 500 simulations
-of the fitted Gaussian model (light blue and blue circles), and the actual data (red diamonds) for sea fan corals \emph{G. ventalina}. 
-Grey and light blue circles show the moments for each of 500 replicate simulations,
-in which the fitted growth models were applied to all initial sizes in the empirical data sets, and black/dark blue circles are the mean
-across replicates. Red diamonds are values for the data. Bins are defined by initial size. Figure
-made by scripts \texttt{Akumal Corals.R} and \texttt{Diagnostics.R}.}
-\label{fig:CoralMomentsCompare}
-\end{figure} 
-
-The ``acid test'' of a growth model is that simulations from the fitted model should look like the real data. 
-To implement that criterion, we compared simulated and actual data with respect to moments of the distribution
-of subsequent size, again using a series of bins defined by initial size to account for how those quantiles vary
-with initial size. As a benchmark, we did the same for simulations of the pilot Gaussian model. The results, in  
-fig. \ref{fig:CoralMomentsCompare}, \new{show depressingly small differences between the Gaussian and non-Gaussian models.} 
+We sought a distribution that could accommodate the properties of the scaled residuals, specifically changes in the sign of skewness and excess kurtosis across initial sizes. 
+We chose the sinh-arcsinh (SHASH) distribution, a four-parameter distribution that, conveniently, is included in \textbf{mgcv}'s gam() function:
+\begin{lstlisting}
+	fitSHASH <- gam(list(logarea.t1 ~ s(logarea.t0,k=4), # <- location 
+	~ s(logarea.t0,k=4),   # <- log-scale
+	~ s(logarea.t0,k=4),   # <- skewness
+	~ s(logarea.t0,k=4)), # <- log-kurtosis
+	data = XH, family = shash, optimizer = "efs")
+\end{lstlisting}
+Data simulated from this model are more consistent with the real data than the Gaussian model: many of the 100 simulated SHASH data sets exhibited negative skew at small sizes and positive excess kurtosis at large sizes that were as strong or stronger than observed in the real data (Fig. \ref{fig:coral_fit}). 
+However, the Gaussian and SHASH simulated data sets are broadly over-lapping across most of the size distribution. 
  
 What, then, have we gained by fitting a better growth model? Fig. \ref{CoralKernelCompare}A
 compares the predicted distributions of subsequent size in the fitted model and Gaussian pilot models, for the median size of a new recruit 
