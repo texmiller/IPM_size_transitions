@@ -12,6 +12,7 @@ setwd("c:/repos/IPM_size_transitions/coral");
 require(car); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(AICcmodavg); 
 require(tidyverse); require(maxLik); require(qgam)
+library(gamlss.dist)
 
 source("../Diagnostics.R"); 
 source("../fitChosenDists.R"); 
@@ -109,7 +110,7 @@ z = rollMomentsNP(XH$logarea.t0,XH$scaledResids,windows=8,smooth=TRUE,scaled=TRU
 ## but could the gaussian model still be a reasonable approximation for size transitions?
 ## simulate data from Gaussian model
 n_sim<-100
-sim_mean<-sim_sd<-sim_skew<-sim_kurt<-matrix(NA,nrow=nrow(XH),ncol=n_sim)
+gau_mean<-gau_sd<-gau_skew<-gau_kurt<-matrix(NA,nrow=nrow(XH),ncol=n_sim)
 for(i in 1:n_sim){
   ## add this iteration of sim data to real df
   XH$logarea.sim <- rnorm(n=nrow(XH),
@@ -124,10 +125,10 @@ for(i in 1:n_sim){
   q.90<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.90))
   q.95<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.95))
   
-  sim_mean[,i]<-Q.mean(q.25,q.50,q.75)
-  sim_sd[,i]<-Q.sd(q.25,q.75)
-  sim_skew[,i]<-Q.skewness(q.10,q.50,q.90)
-  sim_kurt[,i]<-Q.kurtosis(q.05,q.25,q.75,q.95)
+  gau_mean[,i]<-Q.mean(q.25,q.50,q.75)
+  gau_sd[,i]<-Q.sd(q.25,q.75)
+  gau_skew[,i]<-Q.skewness(q.10,q.50,q.90)
+  gau_kurt[,i]<-Q.kurtosis(q.05,q.25,q.75,q.95)
 }
 
 ## and now the real data
@@ -143,7 +144,7 @@ par(mfrow=c(2,2),mar=c(4,4,1,1))
 plot(XH$logarea.t0,Q.mean(q.25,q.50,q.75),type="n",
      xlab="size t",ylab="mean size t1",ylim=c(min(sim_mean),max(sim_mean)))
 for(i in 1:n_sim){
-  points(XH$logarea.t0,sim_mean[,i],col=alpha("black",0.25),pch=".")
+  points(XH$logarea.t0,gau_mean[,i],col=alpha("black",0.25),pch=".")
 }
 points(XH$logarea.t0,Q.mean(q.25,q.50,q.75),col="red",pch=".",cex=2)
 legend("topleft",legend=c("Real data","Simulated from \nbest Gaussian"),
@@ -152,21 +153,112 @@ legend("topleft",legend=c("Real data","Simulated from \nbest Gaussian"),
 plot(XH$logarea.t0,Q.sd(q.25,q.75),type="n",
      xlab="size t",ylab="sd size t1",ylim=c(min(sim_sd),max(sim_sd)))
 for(i in 1:n_sim){
-  points(XH$logarea.t0,sim_sd[,i],col=alpha("black",0.25),pch=".")
+  points(XH$logarea.t0,gau_sd[,i],col=alpha("black",0.25),pch=".")
 }
 points(XH$logarea.t0,Q.sd(q.25,q.75),col="red",pch=".",cex=2)
 
 plot(XH$logarea.t0,Q.skewness(q.10,q.50,q.90),type="n",
      xlab="size t",ylab="skewness size t1",ylim=c(min(sim_skew),max(sim_skew)))
 for(i in 1:n_sim){
-  points(XH$logarea.t0,sim_skew[,i],col=alpha("black",0.25),pch=".")
+  points(XH$logarea.t0,gau_skew[,i],col=alpha("black",0.25),pch=".")
 }
 points(XH$logarea.t0,Q.skewness(q.10,q.50,q.90),col="red",pch=".",cex=2)
 
 plot(XH$logarea.t0,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
      xlab="size t",ylab="kurtosis size t1",ylim=c(min(sim_kurt),max(sim_kurt)))
 for(i in 1:n_sim){
-  points(XH$logarea.t0,sim_kurt[,i],col=alpha("black",0.25),pch=".")
+  points(XH$logarea.t0,gau_kurt[,i],col=alpha("black",0.25),pch=".")
 }
 points(XH$logarea.t0,Q.kurtosis(q.05,q.25,q.75,q.95),col="red",pch=".",cex=2)
 
+## improved model: gam SHASH
+fitSHASH <- gam(list(logarea.t1 ~ s(logarea.t0,k=4), # <- location 
+                           ~ s(logarea.t0,k=4),   # <- log-scale
+                           ~ s(logarea.t0,k=4),   # <- skewness
+                           ~ s(logarea.t0,k=4)), # <- log-kurtosis
+                      data = XH, 
+                      family = shash,  
+                      optimizer = "efs")
+SHASH_pred<-predict(fitSHASH,type="response")
+
+## simulate from fitted model and compare to Gaussian model
+n_sim<-100
+shash_mean<-shash_sd<-shash_skew<-shash_kurt<-matrix(NA,nrow=nrow(XH),ncol=n_sim)
+for(i in 1:n_sim){
+  ## add this iteration of sim data to real df
+  XH$logarea.sim <- rSHASHo2(n=nrow(XH),
+                                      mu=SHASH_pred[,1],
+                                      sigma=exp(SHASH_pred[,2]),
+                                      nu=SHASH_pred[,3],
+                                      tau=exp(SHASH_pred[,4]))
+  ## Qreg on sim data
+  q.05<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.05)) 
+  q.10<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.10)) 
+  q.25<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.25))
+  q.50<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.5))
+  q.75<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.75)) 
+  q.90<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.90))
+  q.95<-predict(qgam(logarea.sim~s(logarea.t0,k=4),data=XH,qu=0.95))
+  
+  shash_mean[,i]<-Q.mean(q.25,q.50,q.75)
+  shash_sd[,i]<-Q.sd(q.25,q.75)
+  shash_skew[,i]<-Q.skewness(q.10,q.50,q.90)
+  shash_kurt[,i]<-Q.kurtosis(q.05,q.25,q.75,q.95)
+}
+
+## and now the real data
+q.05<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.05)) 
+q.10<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.10)) 
+q.25<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.25)) 
+q.50<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.5))
+q.75<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.75))
+q.90<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.90))
+q.95<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.95))
+
+## combo GAU and SHASH figure
+alpha_scale<-0.15
+pdf("../manuscript/figures/coral_SHASH_fit.pdf",height = 6, width = 6,useDingbats = F)
+par(mfrow=c(2,2),mar=c(4,4,1,1))
+plot(XH$logarea.t0,Q.mean(q.25,q.50,q.75),type="n",
+     xlab="size t",ylab="mean size t1",ylim=c(min(sim_mean),max(sim_mean)))
+title(main="A",adj=0,font=3)
+for(i in 1:n_sim){
+  points(XH$logarea.t0,gau_mean[,i],col=alpha("tomato",alpha_scale),pch=".")
+  points(XH$logarea.t0,shash_mean[,i],col=alpha("cornflowerblue",alpha_scale),pch=".")
+}
+points(XH$logarea.t0,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
+legend("topleft",legend=c("Real data",
+                          "Simulated (Gaussian)",
+                          "Simulated (SHASH)"),
+       lty=1,col=c("black","tomato","cornflowerblue"),lwd=1,cex=0.8,bty="n")
+
+plot(XH$logarea.t0,Q.sd(q.25,q.75),type="n",
+     xlab="size t",ylab="sd size t1",ylim=c(min(sim_sd),max(sim_sd)))
+title(main="B",adj=0,font=3)
+for(i in 1:n_sim){
+  points(XH$logarea.t0,gau_sd[,i],col=alpha("tomato",alpha_scale),pch=".")
+  points(XH$logarea.t0,shash_sd[,i],col=alpha("cornflowerblue",alpha_scale),pch=".")
+}
+points(XH$logarea.t0,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
+
+plot(XH$logarea.t0,Q.skewness(q.10,q.50,q.90),type="n",
+     xlab="size t",ylab="skewness size t1",ylim=c(min(sim_skew),max(sim_skew)))
+title(main="C",adj=0,font=3)
+for(i in 1:n_sim){
+  points(XH$logarea.t0,gau_skew[,i],col=alpha("tomato",alpha_scale),pch=".")
+  points(XH$logarea.t0,shash_skew[,i],col=alpha("cornflowerblue",alpha_scale),pch=".")
+}
+points(XH$logarea.t0,Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
+
+plot(XH$logarea.t0,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
+     xlab="size t",ylab="kurtosis size t1",ylim=c(min(sim_kurt),max(sim_kurt)))
+title(main="D",adj=0,font=3)
+for(i in 1:n_sim){
+  points(XH$logarea.t0,gau_kurt[,i],col=alpha("tomato",alpha_scale),pch=".")
+  points(XH$logarea.t0,shash_kurt[,i],col=alpha("cornflowerblue",alpha_scale),pch=".")
+}
+points(XH$logarea.t0,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
+dev.off()
+
+## if one cared to know the AIC difference:
+AIC(fitGAU);AIC(fitSHASH)##shash is clear winner
