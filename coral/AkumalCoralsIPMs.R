@@ -83,6 +83,16 @@ fit = maxLik(logLik=KernelLogLik,start=fit$estimate, y=XH$logarea.t1, x=XH$logar
 growPars = fit$estimate; 
 save.image(file="AkumaCoralsIPMs.Rdata"); 
 
+#################################################################
+# Alternatively, fit SHASH gam. 
+##################################################################
+fitSHASH <- gam(list(logarea.t1 ~ s(logarea.t0,k=4), # <- location 
+                     ~ s(logarea.t0,k=4),   # <- log-scale
+                     ~ s(logarea.t0,k=4),   # <- skewness
+                     ~ s(logarea.t0,k=4)), # <- log-kurtosis
+                data = XH, 
+                family = shash,  
+                optimizer = "efs")
 
 #################################################################
 # Start here if the model is already fitted. 
@@ -134,12 +144,28 @@ meanFun = splinefun(z_vals[e],fitted_vals[e,1],method="natural");
 sigmaFun = splinefun(z_vals[e],1/fitted_vals[e,2],method="natural"); 
 
 
-####### SEP1 growth function 
+####### growth functions 
+#G_z1zPilot <- function(z1,z,pars=NULL){
+#	mu = meanFun(z)
+#	sigma = sigmaFun(z)
+#	return(dnorm(z1, mean=mu,sd=sigma))
+#}    
+
 G_z1zPilot <- function(z1,z,pars=NULL){
-	mu = meanFun(z)
-	sigma = sigmaFun(z)
-	return(dnorm(z1, mean=mu,sd=sigma))
-}    
+  pred = predict(fitGAU,
+                 newdata = data.frame(logarea.t0=z))
+  return(dnorm(z1,mean=pred[,1],sd=exp(pred[,2])))
+}  
+
+G_z1zSHASH <- function(z1,z,pars=NULL){
+  pred = predict(fitSHASH,
+                 newdata = data.frame(logarea.t0=z))
+  return(dSHASHo2(x=z1, 
+                  mu=pred[,1],
+                  sigma = exp(pred[,2]), 
+                  nu = pred[,3], 
+                  tau = exp(pred[,4])))
+} 
 
 ## Survival function, logistic regression
 s_z <- function(z) {
@@ -147,7 +173,7 @@ s_z <- function(z) {
     return(1 - mH(x))
 }    
 
-P_z1z = function(z1,z) {s_z(z) * G_z1z(z1, z)}
+P_z1zSHASH = function(z1,z) {s_z(z) * G_z1zSHASH(z1, z)}
 P_z1zPilot = function(z1,z) {s_z(z) * G_z1zPilot(z1, z)}
 
 ## larval production function, using Bruno et al. model 
@@ -171,10 +197,10 @@ mk_P_ceiling <- function(m, L, U, L1, U1, Pfun) {
 }
 
 #####################################################
-# Make the P matrix for the SEP1 model 
+# Make the P matrix for the SHASH model 
 #####################################################
 m=500; L=0; U=10; L1 = 1.35; U1 = 7.9; 
-out = mk_P_ceiling(m, L, U, L1, U1,P_z1z); 
+out = mk_P_ceiling(m, L, U, L1, U1,P_z1zSHASH); 
 Pmat = out$P; h=out$h; meshpts=out$meshpts; 
 truncMesh = pmax(pmin(meshpts,U1),L1); 
 
@@ -224,15 +250,21 @@ matplot(meshpts,cbind(Pmat[,j5],PmatPilot[,j5],Pmat[,j50],PmatPilot[,j50],Pmat[,
 col=c("black","red"),lty=c(1,2),xlab="Initial size (log area)",ylab="Subsequent size distribution",lwd=2); 
 abline(h=0,col="black",lwd=2); 
 add_panel_label("a") 
-legend("topleft",bty="n",legend=c("Fitted model","Gaussian pilot"),col=c("black","red"),lty=c(1,2),cex=1.2,lwd=2); 
+legend("topleft",bty="n",legend=c("SHASH model","Gaussian pilot"),col=c("black","red"),lty=c(1,2),cex=1.2,lwd=2); 
 
 matplot(meshpts,cbind(ss,ssPilot),type="l",lty=c(1,2),col=c("black","red"),xlab="Size (log area)",ylab="Frequency",lwd=2); 
 add_panel_label("b"); 
-dev.copy2pdf(file="../manuscript/figures/CoralKernelCompare.pdf"); 
+dev.copy2pdf(file="../manuscript/figures/CoralKernelCompare_v2.pdf"); 
 
 
-
-
+## why does the SHASH model (which includes negative skew at small sizes)
+## predict that seedlings grow a bit more than the Gaussian?
+## I think it is because modeling skew shifted the fitted mean -- visualize this
+plot(XH$logarea.t0,XH$logarea.t1,pch=1,col=alpha("black",0.25),
+     xlab="size t",ylab="size t1")
+points(XH$logarea.t0,predict(fitGAU)[,1],col=alpha("red",0.25),pch=16,cex=.5)
+points(XH$logarea.t0,predict(fitSHASH)[,1],col=alpha("blue",0.25),pch=16,cex=.5)
+## yes that's right
 
 
 
