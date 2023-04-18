@@ -177,6 +177,7 @@ fitSHASH <- gam(list(logarea.t1 ~ s(logarea.t0,k=4), # <- location
                            ~ s(logarea.t0,k=4),   # <- skewness
                            ~ s(logarea.t0,k=4)), # <- log-kurtosis
                       data = XH, 
+                      gamma=1.4,
                       family = shash,  
                       optimizer = "efs")
 SHASH_pred<-predict(fitSHASH,type="response")
