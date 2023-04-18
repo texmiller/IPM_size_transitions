@@ -397,19 +397,20 @@ We chose the sinh-arcsinh (SHASH) distribution, a four-parameter distribution th
 Data simulated from this model are more consistent with the real data than the Gaussian model: many of the 100 simulated SHASH data sets exhibited negative skew at small sizes and positive excess kurtosis at large sizes that were as strong or stronger than observed in the real data (Fig. \ref{fig:coral_fit}). 
 However, the Gaussian and SHASH simulated data sets are broadly over-lapping across most of the size distribution. 
  
-What, then, have we gained by fitting a better growth model? Fig. \ref{CoralKernelCompare}A
-compares the predicted distributions of subsequent size in the fitted model and Gaussian pilot models, for the median size of a new recruit 
-(leftmost pair of curves), the median initial size (central curves), and the 95th percentile of initial size in the data (rightmost
-curves). Differences are most pronounced for recruits, which have better odds of growing (leading to earlier reproduction and higher
-survival) in the fitted model, small at intermediate sizes where the skew and excess kurtosis are both small (fig. \ref{fig:AkumalRollingResiduals}CD),
-and larger again at high sizes where the fitted model is leptokurtic. Fig. \ref{fig:CoralKernelCompare}B shows the predicted steady-state size
-distributions resulting from a constant unit input of recruits. The main difference is that the pilot model projects fewer individuals at
-or near the modal size; overall, the fitted model predicts 7\% more individuals at steady-state. Equivalently, the fitted
-model predicts a 7\% higher mean lifespan, 19.0 years vs. 17.7 in the pilot Gaussian model. 
+What, then, have we gained by fitting a better growth model? 
+Fig. \ref{fig:CoralKernelCompare}A compares the predicted distributions of subsequent size in the fitted model and Gaussian pilot models, for the median size of a new recruit (leftmost pair of curves), the median initial size (central curves), and the 95th percentile of initial size in the data (rightmost curves). 
+The differences are small, and most pronounced for the smallest size, where recruits are predicted to grow slightly larger under the SHASH model than the Gaussian model. 
+The direction of this difference was surprising, since the SHASH accommodates negative skew at small sizes in the data. 
+However, in modeling skew appropriately, the SHASH model also gives a better prediction for mean growth at small sizes than the Gaussian model, \tom{whose mean is biased downward by negative skew (Fig. \ref{fig:coral_fit}A)}{...Contradicting the earlier assertion that parameter estimates from Gaussian models are robust to deviations from normality!}. 
+Something similar happens in the standard deviation at large sizes (log size 5--7), where excess kurtosis in the data biased the SD upward (Fig. \ref{fig:coral_fit}B). 
+Fig. \ref{fig:CoralKernelCompare}B shows the predicted steady-state size distributions resulting from a constant unit input of recruits. 
+Again, the differences are very subtle. 
+Finally, the Gaussian and SHASH growth models predict very similar mean life span (17.7 and 17.9 years, respectively).
+From these outputs, there is little evidence that improved modeling of coral growth meaningfully improved biological inferences from the IPM; one could argue that it was not worth the trouble. 
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=.9\textwidth]{figures/CoralKernelCompare.pdf}
+\includegraphics[width=.5\textwidth]{figures/CoralKernelCompare_v2.pdf}
 \caption{Comparisons between the fitted \texttt{SEP1} growth model (solid black curves) and the Gaussian pilot model (dashed red curves)
 for sea fans \emph{G. ventalina}. A) Predicted frequency distributions of size in year $t+1$ for three different values of size in 
 year $t$. The leftmost pair of curves are for initial size equal to the median size of a new recruit (data from \citep{bruno-etal-2011}); 

@@ -245,17 +245,17 @@ j5 = which.min(abs(meshpts- 1.856298))  # median size of a new recruit
 j50 = which.min(abs(meshpts-zq[2]));
 j95 = which.min(abs(meshpts-zq[3]));
 
-par(mfrow=c(2,1),yaxs="i",xaxs="i",bty="l",cex.axis=1.2,cex.lab=1.2,mar=c(4,4,2,1),mgp=c(2.2,1,0)); 
+pdf("../manuscript/figures/CoralKernelCompare_v2.pdf",height = 6, width = 4,useDingbats = F)
+par(mfrow=c(2,1),yaxs="i",xaxs="i",bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0)); 
 matplot(meshpts,cbind(Pmat[,j5],PmatPilot[,j5],Pmat[,j50],PmatPilot[,j50],Pmat[,j95],PmatPilot[,j95]),type="l",
 col=c("black","red"),lty=c(1,2),xlab="Initial size (log area)",ylab="Subsequent size distribution",lwd=2); 
 abline(h=0,col="black",lwd=2); 
 add_panel_label("a") 
-legend("topleft",bty="n",legend=c("SHASH model","Gaussian pilot"),col=c("black","red"),lty=c(1,2),cex=1.2,lwd=2); 
+legend("topleft",bty="n",legend=c("SHASH model","Gaussian pilot"),col=c("black","red"),lty=c(1,2),lwd=2); 
 
 matplot(meshpts,cbind(ss,ssPilot),type="l",lty=c(1,2),col=c("black","red"),xlab="Size (log area)",ylab="Frequency",lwd=2); 
 add_panel_label("b"); 
-dev.copy2pdf(file="../manuscript/figures/CoralKernelCompare_v2.pdf"); 
-
+dev.off()
 
 ## why does the SHASH model (which includes negative skew at small sizes)
 ## predict that seedlings grow a bit more than the Gaussian?
