@@ -100,19 +100,21 @@ KG = (qN[4]-qN[1])/(qN[3]-qN[2])
 NPK_hat = ((q.95-q.05)/(q.75-q.25))/KG - 1
 
 ## view diagnostics of scaled residuals
+pdf("./manuscript/figures/cactus_qgam_diagnostics.pdf",height = 5, width = 11,useDingbats = F)
+par(mfrow=c(1,2),mar = c(5, 5, 2, 3), oma=c(0,0,0,2)) 
 plot(CYIM_grow$logvol_t,CYIM_grow$logvol_t1,pch=1,col=alpha("black",0.25),
-     xlab="size t",ylab="size t1")
+     xlab="log volume, time t",ylab="log volume, time t+1")
 points(CYIM_grow$logvol_t,CYIM_gam_pred[,1],col=alpha("red",0.25),pch=16,cex=.5)
 par(new = TRUE)                           
 plot(CYIM_grow$logvol_t,1/CYIM_gam_pred[,2],col=alpha("blue",0.25),pch=16,cex=.5,
      axes = FALSE, xlab = "", ylab = "")
-axis(side = 4, at = pretty(range(1/CYIM_gam_pred[,2])),col="blue")
-mtext("sigma", side = 4, line = 2,col="blue")
+axis(side = 4, at = pretty(range(1/CYIM_gam_pred[,2])))
+mtext("std dev", side = 4, line = 2)
+legend("topleft",legend=c("Fitted mean","Fitted sd"),bg="white",pch=1,col=c("red","blue"),cex=0.8)
+title("A",font=3,adj=0)
 
-pdf("./manuscript/figures/cactus_qgam_diagnostics.pdf",height = 6, width = 8,useDingbats = F)
-par(mar = c(5, 4, 2, 3), oma=c(0,0,0,4)) 
 plot(CYIM_grow$logvol_t,CYIM_grow$scaledResids,col=alpha("black",0.25),
-     xlab="Size at time t",ylab="Scaled residuals of size at t+1")
+     xlab="log volume, time t",ylab="Scaled residuals of size at t+1")
 points(CYIM_grow$logvol_t,q.05,col="black",pch=".")
 points(CYIM_grow$logvol_t,q.10,col="black",pch=".")
 points(CYIM_grow$logvol_t,q.25,col="black",pch=".")
@@ -128,6 +130,7 @@ abline(h=0,col="lightgray",lty=3)
 axis(side = 4, at = pretty(range(c(NPS_hat,NPK_hat))),cex.axis=0.8)
 mtext("Skewness", side = 4, line = 2,col="blue")
 mtext("Excess Kurtosis", side = 4, line =3,col="red")
+title("B",font=3,adj=0)
 dev.off()
 
 ## now I need to fit a distribution with negative skew and positive excess kurtosis
@@ -150,29 +153,120 @@ plot(CYIM_grow$logvol_t,exp(CYIM_shash_pred[,2]),col=alpha("red",0.25),pch=16,ce
 plot(CYIM_grow$logvol_t,CYIM_shash_pred[,3],col=alpha("red",0.25),pch=16,cex=.5)
 plot(CYIM_grow$logvol_t,exp(CYIM_shash_pred[,4]),col=alpha("red",0.25),pch=16,cex=.5)
 
-## simulate data from fitted model and compare to real data
+
+# JSU alternative ---------------------------------------------------------
+## Actually I want to try a JSU instead of SHASH -- might be a more helpful demonstration to not use gam
+## use gam's mean and sd, fit new params for non-monotonic nu and tau wrt initial size
+LogLikJSU=function(pars){
+  dJSU(CYIM_grow$logvol_t1, 
+       mu=CYIM_gam_pred[,1],
+       sigma=1/CYIM_gam_pred[,2],
+       nu = pars[1]+pars[2]*CYIM_grow$logvol_t+pars[3]*CYIM_grow$logvol_t^2,
+       tau = exp(pars[4]+pars[5]*CYIM_grow$logvol_t+pars[6]*CYIM_grow$logvol_t^2), log=TRUE)
+}
+## starting parameters
+p0<-c(0,0,0,0,0,0)
+
+## pass this through several ML algorithms
+JSUout=maxLik(logLik=LogLikJSU,start=p0*exp(0.2*rnorm(length(p0))),method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE) 
+JSUout=maxLik(logLik=LogLikJSU,start=JSUout$estimate,method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE)
+JSUout=maxLik(logLik=LogLikJSU,start=JSUout$estimate,method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE)
+
+# refit SHASH -------------------------------------------------------------
+## because I am a little concerned about whether the initial gam mu might be
+## biased by skew, I am going to refit the SHASH but using the Gaussian mean and sd
+## This is what I would need to do if MGCV did not included SHASH
+LogLikSHASH=function(pars){
+  dSHASHo2(CYIM_grow$logvol_t1, 
+           mu=CYIM_gam_pred[,1],
+           sigma=1/CYIM_gam_pred[,2],
+           nu = pars[1]+pars[2]*CYIM_grow$logvol_t+pars[3]*CYIM_grow$logvol_t^2,
+           tau = exp(pars[4]+pars[5]*CYIM_grow$logvol_t+pars[6]*CYIM_grow$logvol_t^2), log=TRUE)
+}
+## starting parameters
+p0<-c(0,0,0,0,0,0)
+
+## pass this through several ML algorithms
+SHASHout=maxLik(logLik=LogLikSHASH,start=p0*exp(0.2*rnorm(length(p0))),method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE) 
+SHASHout=maxLik(logLik=LogLikSHASH,start=SHASHout$estimate,method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE)
+SHASHout=maxLik(logLik=LogLikSHASH,start=SHASHout$estimate,method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE)
+
+## simulate data from fitted model and compare the two SHASH's
 n_sim<-100
-sim_mean<-sim_sd<-sim_skew<-sim_kurt<-matrix(NA,nrow=nrow(CYIM_grow),ncol=n_sim)
+## four sets of simulated data!
+NOsim_mean<-NOsim_sd<-NOsim_skew<-NOsim_kurt<-matrix(NA,nrow=nrow(CYIM_grow),ncol=n_sim)
+JSUsim_mean<-JSUsim_sd<-JSUsim_skew<-JSUsim_kurt<-matrix(NA,nrow=nrow(CYIM_grow),ncol=n_sim)
+SHASH1sim_mean<-SHASH1sim_sd<-SHASH1sim_skew<-SHASH1sim_kurt<-matrix(NA,nrow=nrow(CYIM_grow),ncol=n_sim)
+SHASH2sim_mean<-SHASH2sim_sd<-SHASH2sim_skew<-SHASH2sim_kurt<-matrix(NA,nrow=nrow(CYIM_grow),ncol=n_sim)
+
 for(i in 1:n_sim){
   ## add this iteration of sim data to real df
-  CYIM_grow$logvol_t1.sim <- rSHASHo2(n=nrow(CYIM_grow),
+  CYIM_grow$logvol_t1.sim.NO <- rnorm(n=nrow(CYIM_grow),
+                                             mu=CYIM_gam_pred[,1],
+                                             sigma=1/CYIM_gam_pred[,2])
+  CYIM_grow$logvol_t1.sim.JSU <- rJSU(n=nrow(CYIM_grow),
+                                             mu=CYIM_gam_pred[,1],
+                                             sigma=1/CYIM_gam_pred[,2],
+                                             nu=JSUout$estimate[1]+JSUout$estimate[2]*CYIM_grow$logvol_t+JSUout$estimate[3]*CYIM_grow$logvol_t^2,
+                                             tau=exp(JSUout$estimate[4]+JSUout$estimate[5]*CYIM_grow$logvol_t+JSUout$estimate[6]*CYIM_grow$logvol_t^2))
+  CYIM_grow$logvol_t1.sim.SHASH1 <- rSHASHo2(n=nrow(CYIM_grow),
                           mu=CYIM_shash_pred[,1],
                           sigma=exp(CYIM_shash_pred[,2]),
                           nu=CYIM_shash_pred[,3],
                           tau=exp(CYIM_shash_pred[,4]))
+  CYIM_grow$logvol_t1.sim.SHASH2 <- rSHASHo2(n=nrow(CYIM_grow),
+                                             mu=CYIM_gam_pred[,1],
+                                             sigma=1/CYIM_gam_pred[,2],
+                                             nu=SHASHout$estimate[1]+SHASHout$estimate[2]*CYIM_grow$logvol_t+SHASHout$estimate[3]*CYIM_grow$logvol_t^2,
+                                             tau=exp(SHASHout$estimate[4]+SHASHout$estimate[5]*CYIM_grow$logvol_t+SHASHout$estimate[6]*CYIM_grow$logvol_t^2))
   ## Qreg on sim data
-  q.05<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4),data=CYIM_grow,qu=0.05)) 
-  q.10<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4), data=CYIM_grow,qu=0.10)) 
-  q.25<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4), data=CYIM_grow,qu=0.25))
-  q.50<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4), data=CYIM_grow,qu=0.5))
-  q.75<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4), data=CYIM_grow,qu=0.75)) 
-  q.90<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4), data=CYIM_grow,qu=0.90))
-  q.95<-predict(qgam(logvol_t1.sim~s(logvol_t,k=4), data=CYIM_grow,qu=0.95))
-  
-  sim_mean[,i]<-Q.mean(q.25,q.50,q.75)
-  sim_sd[,i]<-Q.sd(q.25,q.75)
-  sim_skew[,i]<-Q.skewness(q.10,q.50,q.90)
-  sim_kurt[,i]<-Q.kurtosis(q.05,q.25,q.75,q.95)
+  q.05.NO<-predict(qgam(logvol_t1.sim.NO~s(logvol_t,k=4),data=CYIM_grow,qu=0.05)) 
+  q.10.NO<-predict(qgam(logvol_t1.sim.NO~s(logvol_t,k=4), data=CYIM_grow,qu=0.10)) 
+  q.25.NO<-predict(qgam(logvol_t1.sim.NO~s(logvol_t,k=4), data=CYIM_grow,qu=0.25))
+  q.50.NO<-predict(qgam(logvol_t1.sim.NO~s(logvol_t,k=4), data=CYIM_grow,qu=0.5))
+  q.75.NO<-predict(qgam(logvol_t1.sim.NO~s(logvol_t,k=4), data=CYIM_grow,qu=0.75)) 
+  q.90.NO<-predict(qgam(logvol_t1.sim.NO~s(logvol_t,k=4), data=CYIM_grow,qu=0.90))
+  q.95.NO<-predict(qgam(logvol_t1.sim.NO~s(logvol_t,k=4), data=CYIM_grow,qu=0.95))
+  NOsim_mean[,i]<-Q.mean(q.25.NO,q.50.NO,q.75.NO)
+  NOsim_sd[,i]<-Q.sd(q.25.NO,q.75.NO)
+  NOsim_skew[,i]<-Q.skewness(q.10.NO,q.50.NO,q.90.NO)
+  NOsim_kurt[,i]<-Q.kurtosis(q.05.NO,q.25.NO,q.75.NO,q.95.NO)
+
+  q.05.JSU<-predict(qgam(logvol_t1.sim.JSU~s(logvol_t,k=4),data=CYIM_grow,qu=0.05)) 
+  q.10.JSU<-predict(qgam(logvol_t1.sim.JSU~s(logvol_t,k=4), data=CYIM_grow,qu=0.10)) 
+  q.25.JSU<-predict(qgam(logvol_t1.sim.JSU~s(logvol_t,k=4), data=CYIM_grow,qu=0.25))
+  q.50.JSU<-predict(qgam(logvol_t1.sim.JSU~s(logvol_t,k=4), data=CYIM_grow,qu=0.5))
+  q.75.JSU<-predict(qgam(logvol_t1.sim.JSU~s(logvol_t,k=4), data=CYIM_grow,qu=0.75)) 
+  q.90.JSU<-predict(qgam(logvol_t1.sim.JSU~s(logvol_t,k=4), data=CYIM_grow,qu=0.90))
+  q.95.JSU<-predict(qgam(logvol_t1.sim.JSU~s(logvol_t,k=4), data=CYIM_grow,qu=0.95))
+  JSUsim_mean[,i]<-Q.mean(q.25.JSU,q.50.JSU,q.75.JSU)
+  JSUsim_sd[,i]<-Q.sd(q.25.JSU,q.75.JSU)
+  JSUsim_skew[,i]<-Q.skewness(q.10.JSU,q.50.JSU,q.90.JSU)
+  JSUsim_kurt[,i]<-Q.kurtosis(q.05.JSU,q.25.JSU,q.75.JSU,q.95.JSU)
+
+  q.05.SHASH1<-predict(qgam(logvol_t1.sim.SHASH1~s(logvol_t,k=4),data=CYIM_grow,qu=0.05)) 
+  q.10.SHASH1<-predict(qgam(logvol_t1.sim.SHASH1~s(logvol_t,k=4), data=CYIM_grow,qu=0.10)) 
+  q.25.SHASH1<-predict(qgam(logvol_t1.sim.SHASH1~s(logvol_t,k=4), data=CYIM_grow,qu=0.25))
+  q.50.SHASH1<-predict(qgam(logvol_t1.sim.SHASH1~s(logvol_t,k=4), data=CYIM_grow,qu=0.5))
+  q.75.SHASH1<-predict(qgam(logvol_t1.sim.SHASH1~s(logvol_t,k=4), data=CYIM_grow,qu=0.75)) 
+  q.90.SHASH1<-predict(qgam(logvol_t1.sim.SHASH1~s(logvol_t,k=4), data=CYIM_grow,qu=0.90))
+  q.95.SHASH1<-predict(qgam(logvol_t1.sim.SHASH1~s(logvol_t,k=4), data=CYIM_grow,qu=0.95))
+  SHASH1sim_mean[,i]<-Q.mean(q.25.SHASH1,q.50.SHASH1,q.75.SHASH1)
+  SHASH1sim_sd[,i]<-Q.sd(q.25.SHASH1,q.75.SHASH1)
+  SHASH1sim_skew[,i]<-Q.skewness(q.10.SHASH1,q.50.SHASH1,q.90.SHASH1)
+  SHASH1sim_kurt[,i]<-Q.kurtosis(q.05.SHASH1,q.25.SHASH1,q.75.SHASH1,q.95.SHASH1)
+
+  q.05.SHASH2<-predict(qgam(logvol_t1.sim.SHASH2~s(logvol_t,k=4),data=CYIM_grow,qu=0.05)) 
+  q.10.SHASH2<-predict(qgam(logvol_t1.sim.SHASH2~s(logvol_t,k=4), data=CYIM_grow,qu=0.10)) 
+  q.25.SHASH2<-predict(qgam(logvol_t1.sim.SHASH2~s(logvol_t,k=4), data=CYIM_grow,qu=0.25))
+  q.50.SHASH2<-predict(qgam(logvol_t1.sim.SHASH2~s(logvol_t,k=4), data=CYIM_grow,qu=0.5))
+  q.75.SHASH2<-predict(qgam(logvol_t1.sim.SHASH2~s(logvol_t,k=4), data=CYIM_grow,qu=0.75)) 
+  q.90.SHASH2<-predict(qgam(logvol_t1.sim.SHASH2~s(logvol_t,k=4), data=CYIM_grow,qu=0.90))
+  q.95.SHASH2<-predict(qgam(logvol_t1.sim.SHASH2~s(logvol_t,k=4), data=CYIM_grow,qu=0.95))
+  SHASH2sim_mean[,i]<-Q.mean(q.25.SHASH2,q.50.SHASH2,q.75.SHASH2)
+  SHASH2sim_sd[,i]<-Q.sd(q.25.SHASH2,q.75.SHASH2)
+  SHASH2sim_skew[,i]<-Q.skewness(q.10.SHASH2,q.50.SHASH2,q.90.SHASH2)
+  SHASH2sim_kurt[,i]<-Q.kurtosis(q.05.SHASH2,q.25.SHASH2,q.75.SHASH2,q.95.SHASH2)
 }
 
 ## and now the real data
@@ -216,7 +310,6 @@ for(i in 1:n_sim){
 }
 points(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="red",pch=".",cex=2)
 dev.off()
-
 
 # compare IPM results between Gaussian and SHASH growth kernel ------------
 
