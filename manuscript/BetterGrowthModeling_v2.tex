@@ -395,7 +395,7 @@ We chose the sinh-arcsinh (SHASH) distribution, a four-parameter distribution th
 	data = XH, family = shash, optimizer = "efs")
 \end{lstlisting}
 Data simulated from this model are more consistent with the real data than the Gaussian model: many of the 100 simulated SHASH data sets exhibited negative skew at small sizes and positive excess kurtosis at large sizes that were as strong or stronger than observed in the real data (Fig. \ref{fig:coral_fit}). 
-However, the Gaussian and SHASH simulated data sets are broadly over-lapping across most of the size distribution. 
+If one cared to quantify the difference between models, the SHASH is clearly favored by AIC despite having twice as many parameters as the Gaussian ($\Delta AIC = 7.04$). 
  
 What, then, have we gained by fitting a better growth model? 
 Fig. \ref{fig:CoralKernelCompare}A compares the predicted distributions of subsequent size in the fitted model and Gaussian pilot models, for the median size of a new recruit (leftmost pair of curves), the median initial size (central curves), and the 95th percentile of initial size in the data (rightmost curves). 
@@ -422,42 +422,38 @@ of known new recruits. Figure made by script \texttt{AkumalCoralsIPMs.R}.}
 \label{fig:CoralKernelCompare}
 \end{figure}  
 
-\new{We used \texttt{gam} to fit the pilot Gaussian model because that obviated model selection on the mean and variance functions.
-However, \texttt{gam} should be used with caution. Nonparametric regression models notoriously ``wag their tails'' because the ends of 
-the fitted curve can be pulled close to the outermost data points. This is especially problematic for growth modeling, because data are typically 
-sparse near the top and bottom of the size range. To minimize the risk of overfitting we have used \texttt{gamma=1.4} to overweight
-model degrees of freedom, as suggested by \citet[][sec. 3.2]{gu-2013}. But it is always important to 
-plot the fitted splines and make sure they do not wag unrealistically. If they do, the pilot model 
-can be fitted with parametric regression, as we illustrate in our cactus and creosote bush case studies.}
+In this case study we used \texttt{gam} to fit both the Gaussian and SHASH models because that obviated model selection on functions for mean, variance, and higher moments. 
+However, \texttt{gam} should be used with caution. 
+Nonparametric regression models notoriously ``wag their tails'' because the ends of the fitted curve can be pulled close to the outermost data points. 
+This is especially problematic for growth modeling, because data are typically sparse near the top and bottom of the size range. 
+To minimize the risk of overfitting we specified the number of ``knots'' (\texttt{k=4}) and used \texttt{gamma=1.4} to overweight model degrees of freedom, as suggested by \citet[][sec. 3.2]{gu-2013}. 
+But it is always important to plot the fitted splines and make sure they do not wag unrealistically. 
+If they do, parametric regression may be a better choice. 
 
 \clearpage   
 
 \section{Case study: cactus, \emph{Cylindriopuntia imbricata}}
-The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta Long-Term Ecological Research site in central New Mexico, adds an important new feature on top of the simple size-dependent regressions in the previous study: random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 
+The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta Long-Term Ecological Research site in central New Mexico, adds a new feature on top of the simple size-dependent regressions in the previous study: random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 
 This long-term study of cactus demography was initiated in 2004 and different subsets of the data have been analyzed in various IPM studies, all using Gaussian growth kernels  \citep{miller2009impacts,czachurademographic,compagnoni2016effect,ohm2014balancing,elderd2016quantifying}.
 In fact, \citep{elderd2016quantifying} presented a Gaussian growth model fit to the cactus data as an example of a well fit growth function, based on a marginal distribution of residuals that appeared approximately Gaussian and posterior predictive checks (PPCs) of a Bayesian model that suggested consistency between the real data and data simulated from the fitted model (Fig. 4 in \citep{elderd2016quantifying}). 
 While PPCs and the associated ``Bayesian P-value'' are popular diagnostic tools, they are often considered to be too conservative \citep{conn2018guide,zhang2014comparative}, failing to reject marginally bad models even though they are very effective in rejecting models that are terrible.
-The choice of discrepancy function (the statistic used to describe real and simulated data) can also be limiting: in our previous work, we used a discrepancy function focused on variance (the sum of the squared residuals), so we had a built-in blind-spot for mismatches in higher moments.
+The choice of discrepancy function (the statistic used to compare real and simulated data) can also be limiting: in our previous work, we used a discrepancy function focused on variance (the sum of the squared residuals), so we had a built-in blind-spot for mismatches in higher moments.
 In the clarity of hindsight, the PPC gave a false sense of security; the Gaussian was a poor choice all along.
 
-The data for this new analysis include $5203$ size transition observations from $924$ unique individuals spanning nine transition years (2009--2017) and eight $30m$-by-$30m$ plots (we excluded earlier years of data corresponding to a different cohort of plants from a different set of locations). 
+The data for this new analysis include 4844 size transition observations from 929 individuals spanning 13 transition years (2004--2018) and 11 spatial replicates (three spatial blocks in years 2004--2008 and eight $30m$-by-$30m$ plots in years 2009--2018). 
+The data are provided in \cite{cactusdata}.
 Following previous studies, we quantified size as the natural logarithm of plant volume ($cm^3$), derived from height and width measurements. 
 
-\subsection{A pilot Gaussian model}
-We begin the growth modeling workflow with a simple mixed model for size in year $t+1$ as a function of size in year $t$, with random intercepts for year and plot and assuming normally distributed residuals. 
-We considered four candidate models, with and without a quadratic term in the predictor for the mean and with residual variance as a function of either initial size or the model's fitted value (which includes initial size plus the random effects).
-We allowed for non-constant variance by iterively re-fitting the models with weights based on a second-order polynomial that related the $SD$ of the residuals to initial size or fitted values. 
-We iterated until there was effectively no change in the model weights, indicating convergence on maximum likelihood parameter estimates for the coefficients of the mean and $SD$ linear predictors. 
-
-The best-fit model from this pilot analysis included the quadratic term for the mean and residual variance as a function of initial size. 
-However, while the standardized residuals from this model are approximatley mean zero and unit variance (as they should be), there are clear deviations from normality in the higher moments: negative skew (decreases in size were more common than increases, visible in the raw data [Fig. \ref{fig:cactus_kernel_gaussian}]) and positive excess kurtosis, both greater at smaller sizes and minimal at larger sizes (Fig. \ref{fig:cactus_rolling_moments}). 
-
-\begin{figure}
-\centering
-\includegraphics[width=0.75\textwidth]{figures/cactus_rolling_moments}
-\caption{Rolling-moment analysis of standardized residual from a Gaussian fit to the cactus growth data. Red dashed lines indicate the Gaussian expectation. These data show skewness and kurtosis that deviate from Gaussian.}
-\label{fig:cactus_rolling_moments}
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/cactus_qgam_diagnostics.pdf}
+	\caption{\textbf{A}, Size transition data for tree cholla cacti, \emph{Cylindriopuntia imbricata}, and fitted gam with mean (red) and standard deviation (blue) of future size conditional on current size.  \textbf{B}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (red) and excess kurtosis (blue) derived from them. Black lines in \textbf{B} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. Figure made by script \texttt{cactus\_growth\_modeling\_qgam.R}.}
+	\label{fig:cactus_diganostics}
 \end{figure} 
+
+\subsection{A pilot Gaussian model}
+We begin the growth modeling workflow, as above, with a generalized additive model with the mean and standard deviation of size in year $t+1$ modeled as function of size in year $t$, with random intercepts for year and plot and assuming normally distributed residuals (\texttt{family=gaulss()}). 
+The standardized residuals, accounting for size-dependent residual variance (Fig. \ref{fig:cactus_diganostics}A), show clear signals of negative skew and positive excess kurtosis across most of the size distribution (Fig. \ref{fig:cactus_diganostics}B). 
 
 \subsection{An improved growth model}
 To better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, but both of which may be negligible at some sizes. 
