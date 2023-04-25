@@ -12,6 +12,7 @@ library(qgam)
 library(gamlss.dist)
 library(popbio)
 library(moments)
+library(maxLik)
 
 # function for converting cactus size measurements to volume
 volume <- function(h, w, p){
@@ -191,7 +192,7 @@ SHASHout=maxLik(logLik=LogLikSHASH,start=p0*exp(0.2*rnorm(length(p0))),method="B
 SHASHout=maxLik(logLik=LogLikSHASH,start=SHASHout$estimate,method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE)
 SHASHout=maxLik(logLik=LogLikSHASH,start=SHASHout$estimate,method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE)
 
-## simulate data from fitted model and compare the two SHASH's
+## simulate data from fitted models
 n_sim<-100
 ## four sets of simulated data!
 NOsim_mean<-NOsim_sd<-NOsim_skew<-NOsim_kurt<-matrix(NA,nrow=nrow(CYIM_grow),ncol=n_sim)
@@ -202,8 +203,8 @@ SHASH2sim_mean<-SHASH2sim_sd<-SHASH2sim_skew<-SHASH2sim_kurt<-matrix(NA,nrow=nro
 for(i in 1:n_sim){
   ## add this iteration of sim data to real df
   CYIM_grow$logvol_t1.sim.NO <- rnorm(n=nrow(CYIM_grow),
-                                             mu=CYIM_gam_pred[,1],
-                                             sigma=1/CYIM_gam_pred[,2])
+                                             mean=CYIM_gam_pred[,1],
+                                             sd=1/CYIM_gam_pred[,2])
   CYIM_grow$logvol_t1.sim.JSU <- rJSU(n=nrow(CYIM_grow),
                                              mu=CYIM_gam_pred[,1],
                                              sigma=1/CYIM_gam_pred[,2],
@@ -278,38 +279,208 @@ q.75<-predict(qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.75))
 q.90<-predict(qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.90))
 q.95<-predict(qgam(logvol_t1~s(logvol_t,k=4), data=CYIM_grow,qu=0.95))
 
+## compare mean and sd across four model types
+par(mfrow=c(4,2),mar=c(4,4,1,1))
+#Gaussian mean and SD
+plot(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),type="n",
+     xlab="size t",ylab="mean size t1",ylim=c(min(NOsim_mean),max(NOsim_mean)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,NOsim_mean[,i],col=alpha("tomato",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
+title(main="Gaussian")
+plot(CYIM_grow$logvol_t,Q.sd(q.25,q.75),type="n",
+     xlab="size t",ylab="sd size t1",ylim=c(min(NOsim_sd),max(NOsim_sd)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,NOsim_sd[,i],col=alpha("tomato",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
+title(main="Gaussian")
+
+##JSU mean and SD from gam other params independently fit
+plot(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),type="n",
+     xlab="size t",ylab="mean size t1",ylim=c(min(JSUsim_mean),max(JSUsim_mean)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,JSUsim_mean[,i],col=alpha("cornflowerblue",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
+title(main="JSU")
+plot(CYIM_grow$logvol_t,Q.sd(q.25,q.75),type="n",
+     xlab="size t",ylab="sd size t1",ylim=c(min(JSUsim_sd),max(JSUsim_sd)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,JSUsim_sd[,i],col=alpha("cornflowerblue",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
+title(main="JSU")
+
+##SHASH1 mean and SD (fully fit within gam)
+plot(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),type="n",
+     xlab="size t",ylab="mean size t1",ylim=c(min(SHASH1sim_mean),max(SHASH1sim_mean)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,SHASH1sim_mean[,i],col=alpha("yellow4",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
+title(main="SHASH1")
+plot(CYIM_grow$logvol_t,Q.sd(q.25,q.75),type="n",
+     xlab="size t",ylab="sd size t1",ylim=c(min(SHASH1sim_sd),max(SHASH1sim_sd)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,SHASH1sim_sd[,i],col=alpha("yellow4",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
+title(main="SHASH1")
+
+##SHASH2 mean and SD from gam other params independently fit
+plot(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),type="n",
+     xlab="size t",ylab="mean size t1",ylim=c(min(SHASH2sim_mean),max(SHASH2sim_mean)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,SHASH2sim_mean[,i],col=alpha("pink4",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
+title(main="SHASH2")
+plot(CYIM_grow$logvol_t,Q.sd(q.25,q.75),type="n",
+     xlab="size t",ylab="sd size t1",ylim=c(min(SHASH2sim_sd),max(SHASH2sim_sd)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,SHASH2sim_sd[,i],col=alpha("pink4",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
+title(main="SHASH2")
+### why does this one look so bad???
+
+#pdf("./manuscript/figures/cactus_SHASH_fit.pdf",height = 6, width = 6,useDingbats = F)
+par(mfrow=c(2,2),mar=c(4,4,1,1))
+plot(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),type="n",
+     xlab="size t",ylab="mean size t1",ylim=c(min(NOsim_mean),max(NOsim_mean)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,NOsim_mean[,i],col=alpha("tomato",0.25),pch=".")
+  points(CYIM_grow$logvol_t,JSUsim_mean[,i],col=alpha("cornflowerblue",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
+legend("topleft",legend=c("Real data","Simulated from \nfitted NO gam",
+                          "Simulated from \nfitted JSU"),
+       lty=1,col=c("black","tomato","cornflowerblue"),cex=0.8,bty="n")
+
+plot(CYIM_grow$logvol_t,Q.sd(q.25,q.75),type="n",
+     xlab="size t",ylab="sd size t1",ylim=c(min(NOsim_sd),max(NOsim_sd)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,NOsim_sd[,i],col=alpha("tomato",0.25),pch=".")
+  points(CYIM_grow$logvol_t,JSUsim_sd[,i],col=alpha("cornflowerblue",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
+
+plot(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),type="n",
+     xlab="size t",ylab="skewness size t1",ylim=c(min(NOsim_skew),max(NOsim_skew)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,NOsim_skew[,i],col=alpha("tomato",0.25),pch=".")
+  points(CYIM_grow$logvol_t,JSUsim_skew[,i],col=alpha("cornflowerblue",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
+
+plot(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
+     xlab="size t",ylab="kurtosis size t1",ylim=c(min(NOsim_kurt),max(NOsim_kurt)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,NOsim_kurt[,i],col=alpha("tomato",0.25),pch=".")
+  points(CYIM_grow$logvol_t,JSUsim_kurt[,i],col=alpha("cornflowerblue",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
+#dev.off()
+
+## NO vs SHASH maxlik fit
+#pdf("./manuscript/figures/cactus_SHASH_fit.pdf",height = 6, width = 6,useDingbats = F)
+par(mfrow=c(2,2),mar=c(4,4,1,1))
+plot(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),type="n",
+     xlab="size t",ylab="mean size t1",ylim=c(min(NOsim_mean),max(NOsim_mean)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,NOsim_mean[,i],col=alpha("tomato",0.25),pch=".")
+  points(CYIM_grow$logvol_t,SHASH2sim_mean[,i],col=alpha("cornflowerblue",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
+legend("topleft",legend=c("Real data","Simulated from \nfitted NO gam",
+                          "Simulated from \nfitted SHASH2"),
+       lty=1,col=c("black","tomato","cornflowerblue"),cex=0.8,bty="n")
+
+plot(CYIM_grow$logvol_t,Q.sd(q.25,q.75),type="n",
+     xlab="size t",ylab="sd size t1",ylim=c(min(NOsim_sd),max(NOsim_sd)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,NOsim_sd[,i],col=alpha("tomato",0.25),pch=".")
+  points(CYIM_grow$logvol_t,SHASH2sim_sd[,i],col=alpha("cornflowerblue",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
+
+plot(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),type="n",
+     xlab="size t",ylab="skewness size t1",ylim=c(min(NOsim_skew),max(NOsim_skew)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,NOsim_skew[,i],col=alpha("tomato",0.25),pch=".")
+  points(CYIM_grow$logvol_t,SHASH2sim_skew[,i],col=alpha("cornflowerblue",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
+
+plot(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
+     xlab="size t",ylab="kurtosis size t1",ylim=c(min(NOsim_kurt),max(NOsim_kurt)))
+for(i in 1:n_sim){
+  points(CYIM_grow$logvol_t,NOsim_kurt[,i],col=alpha("tomato",0.25),pch=".")
+  points(CYIM_grow$logvol_t,SHASH2sim_kurt[,i],col=alpha("cornflowerblue",0.25),pch=".")
+}
+points(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
+#dev.off()
+
+
+## NO vs SHASH gam fit
 pdf("./manuscript/figures/cactus_SHASH_fit.pdf",height = 6, width = 6,useDingbats = F)
 par(mfrow=c(2,2),mar=c(4,4,1,1))
 plot(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),type="n",
-     xlab="size t",ylab="mean size t1",ylim=c(min(sim_mean),max(sim_mean)))
+     xlab="size t",ylab="mean size t1",ylim=c(min(NOsim_mean),max(NOsim_mean)))
+title(main="A",adj=0,font=3)
 for(i in 1:n_sim){
-  points(CYIM_grow$logvol_t,sim_mean[,i],col=alpha("black",0.25),pch=".")
+  points(CYIM_grow$logvol_t,NOsim_mean[,i],col=alpha("tomato",0.25),pch=".")
+  points(CYIM_grow$logvol_t,SHASH1sim_mean[,i],col=alpha("cornflowerblue",0.25),pch=".")
 }
-points(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="red",pch=".",cex=2)
-legend("topleft",legend=c("Real data","Simulated from \nfitted SHASH gam"),
-       lty=1,col=c("red","black"),lwd=c(2,1),cex=0.8,bty="n")
+points(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
+legend("topleft",legend=c("Real data","Simulated from Gaussian",
+                          "Simulated from SHASH"),
+       lty=1,col=c("black","tomato","cornflowerblue"),cex=0.8,bty="n")
 
 plot(CYIM_grow$logvol_t,Q.sd(q.25,q.75),type="n",
-     xlab="size t",ylab="sd size t1",ylim=c(min(sim_sd),max(sim_sd)))
+     xlab="size t",ylab="sd size t1",ylim=c(min(NOsim_sd),max(NOsim_sd)))
+title(main="B",adj=0,font=3)
 for(i in 1:n_sim){
-  points(CYIM_grow$logvol_t,sim_sd[,i],col=alpha("black",0.25),pch=".")
+  points(CYIM_grow$logvol_t,NOsim_sd[,i],col=alpha("tomato",0.25),pch=".")
+  points(CYIM_grow$logvol_t,SHASH1sim_sd[,i],col=alpha("cornflowerblue",0.25),pch=".")
 }
-points(CYIM_grow$logvol_t,Q.sd(q.25,q.75),col="red",pch=".",cex=2)
+points(CYIM_grow$logvol_t,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
 
 plot(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),type="n",
-     xlab="size t",ylab="skewness size t1",ylim=c(min(sim_skew),max(sim_skew)))
+     xlab="size t",ylab="skewness size t1",ylim=c(min(NOsim_skew),max(NOsim_skew)))
+title(main="C",adj=0,font=3)
 for(i in 1:n_sim){
-  points(CYIM_grow$logvol_t,sim_skew[,i],col=alpha("black",0.25),pch=".")
+  points(CYIM_grow$logvol_t,NOsim_skew[,i],col=alpha("tomato",0.25),pch=".")
+  points(CYIM_grow$logvol_t,SHASH1sim_skew[,i],col=alpha("cornflowerblue",0.25),pch=".")
 }
-points(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),col="red",pch=".",cex=2)
+points(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
 
 plot(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
-     xlab="size t",ylab="kurtosis size t1",ylim=c(min(sim_kurt),max(sim_kurt)))
+     xlab="size t",ylab="kurtosis size t1",ylim=c(min(NOsim_kurt),max(NOsim_kurt)))
+title(main="D",adj=0,font=3)
 for(i in 1:n_sim){
-  points(CYIM_grow$logvol_t,sim_kurt[,i],col=alpha("black",0.25),pch=".")
+  points(CYIM_grow$logvol_t,NOsim_kurt[,i],col=alpha("tomato",0.25),pch=".")
+  points(CYIM_grow$logvol_t,SHASH1sim_kurt[,i],col=alpha("cornflowerblue",0.25),pch=".")
 }
-points(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="red",pch=".",cex=2)
+points(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
 dev.off()
+
+## I am a little concerned that passing in the mean and SD from a Gaussian model
+## into a non-Gaussian one does not work when there is bad skew and kurtosis.
+## Test this with the SHASH. 
+## This is the gam version of the model fit above with maxLik, only now fitting
+## mean and SD simultaneously with other params
+CYIM_gam_shash_test <- gam(list(logvol_t1 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), # <- model for location 
+                           ~ s(logvol_t,k=4),   # <- model for log-scale
+                           ~ logvol_t + I(logvol_t)^2,   # <- model for skewness
+                           ~ logvol_t + I(logvol_t)^2), # <- model for log-kurtosis
+                      data = CYIM_grow, 
+                      family = shash,  
+                      optimizer = "efs")
+
+
 
 # compare IPM results between Gaussian and SHASH growth kernel ------------
 

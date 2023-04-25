@@ -451,78 +451,41 @@ Following previous studies, we quantified size as the natural logarithm of plant
 	\label{fig:cactus_diganostics}
 \end{figure} 
 
-\subsection{A pilot Gaussian model}
+
 We begin the growth modeling workflow, as above, with a generalized additive model with the mean and standard deviation of size in year $t+1$ modeled as function of size in year $t$, with random intercepts for year and plot and assuming normally distributed residuals (\texttt{family=gaulss()}). 
-The standardized residuals, accounting for size-dependent residual variance (Fig. \ref{fig:cactus_diganostics}A), show clear signals of negative skew and positive excess kurtosis across most of the size distribution (Fig. \ref{fig:cactus_diganostics}B). 
+The standardized residuals, accounting for size-dependent residual variance (Fig. \ref{fig:cactus_diganostics}A), show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:cactus_diganostics}B). 
 
-\subsection{An improved growth model}
-To better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, but both of which may be negligible at some sizes. 
-Appropriate candidates include Johnson's $S_{U}$ distribution, which is limited to positive excess kurtosis, and the sinh-arcsinh (SHASH) and skewed power exponential distributions, which can vary from leptokurtic to platykurtic (Fig. \ref{fig:workflow}). 
-As above, we divided the standardized residuals into discrete bins of initial size and fit competing distributions to each data subset using our function \texttt{gamlssMaxlik()}.
-We found that Johnson's $S_{U}$ distribution (\texttt{JSU} in \textbf{gamlss}) was favored over most of the size distribution, particularly the larger sizes. 
-However, at smaller sizes, the SHASH distribution was favored. 
-They are both four-parameter distributions but the SHASH is more flexible than the JSU, capable of capturing a greater range of possible kurtosis for a given amount of skew\tom{}{This comes from Steve's NPSkewKurtosisRanges.pdf}. 
-We ultimately settled on the SHASH distribution, but only after first trying the JSU and proceeding through the workflow (Fig. \ref{fig:workflow}). 
-We were unsatisfied with the correspondence between real and simulated data in the final step, so we followed the re-iteration loop back to "choose a better distribution", this time the SHASH. 
-To keep this section concise, we do not fully narrate that re-iteration loop, but we expect it will be a common feature of many growth analyses. 
+To better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, but both of which may be negligible at some sizes.
+Iterating through the workflow (Fig. \ref{fig:workflow}), we first tried Johnson's $S_{U}$ and then the skewed $t$ distributions, both of which are limited to positive excess kurtosis, but were not happy with the fit of either. 
+We arrived, again, at the SHASH distribution, which can vary from leptokurtic to platykuritic and is more flexible than the JSU and skewed $t$, capable of capturing a greater range of possible kurtosis for a given amount of skew (Steve's NPSkewKurtosisRanges.pdf). 
+Furthermore, fitting the SHASH as a generalized additive model with \textbf{mgcv} allowed for flexible, non-monotonic size-dependence in the parameters that control skewness and kurtosis that, through iterations of trial and error, we found was necessary to generate simulated data that compared favorably to the real data. 
+The other distributions that we tried are not available as \textbf{mgcv} families, so we fit these with custom maximum likelihood functions, an approach we illustrate in the next case study. 
 
-To guide the final fit, we visualized parameter estimates of the SHASH distribution across bins of initial size, which suggested second-order polynomials for the parameters that control variance, skew, and kurtosis (Fig. \ref{fig:cactus_binned_SHASH}). 
-The final likelihood model was thus:
-\begin{figure}
-\centering
-\includegraphics[width=0.75\textwidth]{figures/cactus_binned_SHASH}
-\caption{Parameter estimates of the \texttt{SHASH} distributions fit to cactus growth data in discrete bins of initial size.}
-\label{fig:cactus_binned_SHASH}
-\end{figure} 
-
-\begin{lstlisting}
-LogLik=function(pars,response,U){
-  pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
-  mu = U%*%pars1;  
-  val = dJSU(x = response, 
-             mu=mu,
-             sigma = exp(pars2[1] + pars2[2]*x + pars2[3]*x^2), 
-             nu = pars2[4] + pars2[5]*x  + pars2[3]*x^2, 
-             tau = exp(pars2[6] + pars2[7]*x + pars2[8]*x^2), log=T) 
-  return(val)
-} 
-\end{lstlisting}
-Here, \texttt{response} is future size and \texttt{U} is the model matrix for the location parameter of the SHASH, derived from the mean of the best-fit Gaussian model, but now converting random effects of years and plots to fixed effects:
-\begin{lstlisting}
-U=model.matrix(~  0 + year_t + plot + log(vol_t)+ I(log(vol_t)^2), data=CYIM)
-\end{lstlisting}
-
-We can use the `shrinkage' methods described in Appendix S.1 to estimate the variance terms associated with year and plot effects, even though they are fit here as fixed effects.
-There is a tedious but not insurmountable complication that can arise in models with multiple random effects, as in this one.
-By supressing the intercept in the model matrix (the zero after the tilde), we get parameter estimates for each year rather than offsets relative to a baseline year.
-However, because there is the additional effect of plot, all of the year effects are conditioned on the first level of the plot factor variable (plot 1) and the remaining plot coefficients are offsets of plot 1.
-The parameter estimate for plot 1 is therefore the mean of the year estimates, but there is no way to calculate its standard error. 
-We estimate the plot variance \tom{excluding plot 1}{A very unsatisfying feature of this analysis. I've tried flipping the order so that plots are conditioned on year 1, but when I do it this way \texttt{sigma2.hat} for plot is negative. Not totally unreasonable because the plot effects are small relative to year effects, but still annoying. Steve has mentioned that we might get around this by abandoning the model.matrix function but I don't see how. We cannot get unconditional estimates of plot and year effects without adding a parameter to the model, and that parameter is unidentifiable.}, a possible source of bias the variance estimate. 
-The random effects estimated via the shrinkage method correspond well with those from the original Gaussian mixed model, particularly for year effects (Fig. \ref{fig:cactus_rfx_compare}A). 
-Plot effects were less tightly correlated but there was also less variance across plots than there was across years (Fig. \ref{fig:cactus_rfx_compare}B). 
-
-\begin{figure}
-\centering
-\includegraphics[width=\textwidth]{figures/cactus_rfx_compare}
-\caption{Comparison of year (A) and plot (B) random effects from `shrinking' fixed-effect estimates (y-axes) vs. \textbf{lme4} mixed models (x-axes) for cactus data set.}
-\label{fig:cactus_rfx_compare}
-\end{figure} 
+The final SHASH model provided good correspondence between simulated and real data, and provided more compelling improvement over the Gaussian model than we saw in the coral case study (Fig. \ref{fig:cactus_fit}).  
 
 Simulations of the final SHASH model -- the final step of the workflow -- indicate that it describes the cactus growth data well (Fig. \ref{fig:cactus_sim_moments}). 
 The SHASH model did not provide a noticeable improvement over the Gaussian model in terms of mean and variance of size transitions (Fig. \ref{fig:cactus_sim_moments}A,B).
 This is expected, since an appropriately specified Gaussian model with non-constant variance should be able to accommodate this type of complexity.
 It is in skewness and kurtosis that the SHASH really shines (Fig. \ref{fig:cactus_sim_moments}C,D), effectively capturing observed trends in these features of size transitions. 
 
-\begin{figure}
-\centering
-\includegraphics[width=\textwidth]{figures/cactus_sim_moments}
-\caption{Simulated data from SHASH and Gaussian growth kernels compared to cactus growth data to which the models were fit.}
-\label{fig:cactus_sim_moments}
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/cactus_SHASH_fit.pdf}
+	\caption{Comparisons among real cactus data and data simulated from Gaussian and SHASH growth models for mean, standard deviation, NP skewness, and NP kurtosis of future size conditional on current size. Figure made by script \texttt{cactus\_growth\_modeling\_qgam.R}.}
+	\label{fig:cactus_fit}
 \end{figure} 
 
 \subsection{Consequences of improved growth modeling for IPM predictions}
 Finally, we can ask how the improvements we have made to modeling cactus growth affect inferences from the full IPM.
-Details of IPM construction and analysis are provided in Appendix \tom{\#}{Need to do. Maybe we can have one appendix for all the IPMs.}.
+Details of IPM construction and analysis are provided in Appendix XX. 
+Given the spatial and temporal heterogeneity that we explicitly modeled, we were interested in using those variance components to estimate the stochastic growth rate $\lambda_{S}$ and quantify what fraction of the sampled habitat can support viable populations ($\lambda_{S} \geq 1$). 
+As above, we can ask how improved growth modeling changes these inferences. 
+
+We estimated $\lambda_{S}$ using the `kernel resampling' simulation approach that randomly samples year-specific kernels from the fitted year random effects \citep{metcalf-etal-2015}. 
+$\lambda_{S}$ can be calculated as the long-term mean of the one-time-step growth rate:
+EQUATION
+We estimated $\lambda_{S}$ with the pilot Gaussian and final SHASH growth functions, first as a global mean across spatial replicates (plot random effect set to zero) and second as a distribution that samples across the study's 11 spatial replicates (another layer of kernel re-sampling), to inform what fraction of the landscape supports . 
+
 Our previous IPM analyses of this system have consistently shown asymptotic population growth rates below replacement-level ($\lambda < 1$).
 Our new results with the improved SHASH growth kernel are qualitatively consistent with these results.
 However the SHASH growth kernel predicts a much faster rate of decline -- a $9\%$ difference in annual change -- than the Gaussian, holding all else equal ($\lambda_{SHASH} = 0.901$ vs. $\lambda_{Gaussian} = 0.995$).
@@ -548,138 +511,6 @@ This peak disappears from the SHASH SSD because reproductive output is strongly 
 
 \clearpage   
 
-\section{Case study: bunchgrass, \emph{Pseudoroegneria spicata}}
-
-We again consider a species where one of us is the offender -- initially using the default model because 
-it was hard to do better at the time \citep{adler-etal-2010}, but sticking with it 
-\citep[e.g.,][]{Tredennick2018, Adler-2018} when it would have been easy to do better. 
-
-We used the most recently curated version of the data \citep[][at doi.org/10.5061/dryad.96dn293]{Adler-2018},
-both legacy (22 annual transitions between 1926 and 1957) and modern (8 annual transitions from
-2008 to 2016, excluding moisture manipulation treatments). We excluded seedlings, which require separate models
-\citep{Chu-2014a, Chu-2015, snyder-ellner-2018}, and individuals mapped as ``too small to measure'' that should be modeled separately
-as a discrete size category (though in the past we have not done that). The measure of plant size was log basal cover. 
-
-Based on past analyses, (1) we did not distinguish between historical and 
-modern Control treatments \citep{Adler-2018} (2) we included size by year interactions with year-specific slope and intercept
-for a linear relationship between current and future size (log basal cover); (3) Quadrat group (labeling sets of spatially
-nearby quadrats), Treatment (Control or Shrub removal) and competition with other species were included as covariates. 
-As in past models, competition was measured by distance-weighted cover of competing species, using nonparametric competition
-kernels estimated from the data \citep{Teller-2016}. 
-
-Results: \begin{enumerate}
-
-\item The Gaussian pilot model was fitted using \texttt{gam}, with spline terms for the effect of initial size on the
-mean subsequent size, and for the standard deviation. Based on past analyses, (1) the measure of size was log basal cover; 
-(2) We did not distinguish between historical and contemporary Control treatments \citep{Adler-2018}; (3) the model 
-included size by year interactions, with year-specific slope and intercept for a linear effect of current size on
-future size; (3) quadrat group (labeling sets of spatially nearby quadrats), Treatment (Control or Shrub Removal) and 
-competition with other species were included as covariates. As in past models, competition was measured by distance-weighted 
-cover of competing species, using nonparametric competition kernels estimated from the data \citep{Teller-2016}. 
-
-\item Model selection for the pilot Gaussian model was thus limited to (1) reducing the number of competition
-terms by combining or dropping species, and (2) choosing between two options for the variance: dependence on 
-initial size, or on the predicted mean subsequent size. The latter option is not directly available in \texttt{gam}, but was done
-through iterative re-fitting Model selection was based on AIC values reported by \texttt{gam}). Growth variance depending on
-the linear predictor was strongly favored ($\Delta$ AIC $\approx 50$). The selected competition model had  
-three competition covariates: (1) cover of the shrub \emph{Artemisia tripartita}, (2) cover of the other two dominant 
-bunchgrasses combined, and (3) cover of all other species combined. 
-
-\item The set of all scaled residuals was non-Gaussian, based on quantile-quantile plot, mostly in the lower tail. Statistical tests
-confirmed that the standardized residuals are non-Gaussian (all $P<0.001$). 
-
-\item Rolling moments diagnostics on the scaled residuals (Fig. \ref{fig:rollingMomentsPSSP}) confirm that the mean 
-and SD are nearly constant as a function of the fitted value, as they should be. The small trend in the mean shows that the 
-regression coefficients are slightly biased, which is not unexpected because the Gaussian assumption is violated. 
-The trends in skew and kurtosis are too big to ignore.  
-
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=.9\textwidth]{figures/RollingNPMomentsPSSP.pdf}
-\caption{Rolling moments of scaled residuals from the pilot model, as a function of fitted
-values, for \emph{P. spicata}. The dashed red lines are the value expected if the pilot model fits the
-data.}
-\label{fig:rollingMomentsPSSP}
-\end{figure} 
-
-\item What distribution families can accomodate the features in Fig. \ref{fig:rollingMomentsPSSP}?
-We need at least 4 parameters (to allow skew and excess kurtosis), and both postive and zero excess kurtosis must be 
-possible. In JSU and skew $t$ and that makes fitting problematic, because zero excess kurtosis only occurs as a limit, not at 
-any actually possible parameter values ($df \to \infty$ for $t$, and $\tau \to 0$ for JSU). Comparison was therefore limited
-to \texttt{SHASH,SHASHo,SEP1,SEP3,SEP4} -- not \texttt{SEP2} for the reasons noted above. The winner was SHASH. 
-
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=.9\textwidth]{figures/RollingSHASHparsPSSP.png}
-\caption{Binned data SHASH parameters plot for \emph{P. spicata}. }
-\label{fig:rollingSHASHparsPSSP}
-\end{figure} 
-
-\item Now we need to model the size-dependence of the SHASH distribution parameters. In the pilot model, $\sigma$ as a function
-of fitted value was strongly favored or $\sigma$ as a function of initial size. We retain that structure in the SHASH model. 
-The data were therefore binned based on fitted values of the pilot model, and a SHASH distribution was fitted to each bin. 
-fig. \ref{fig:rollingSHASHparsPSSP}. Panel A), $\mu$ as a function of the fitted values, doesn't really inform the 
-modeling, but it shows that it is safe to regard $\mu$ as equivalent to the ``fitted value'' in the pilot model. 
-The other plots tell us how the other distribution parameters should be modeled as a function of $\mu$. $\log \tau$ is quadratic,
-and $log \nu$ is linear. 
- 
-
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=.9\textwidth]{figures/QuantileComparePlotPSSP.pdf}
-\caption{Binned data comparison of distribution quantiles between simulations of the fitted SHASH model (grey, black) and the actual data (red) for 
-{P. spicata}. Individuals were binned based on their initial size. }
-\label{fig:BinnedConditionalQuantiles}
-\end{figure} 
-
-
-\begin{figure}[tbp]
-\centering
-% \includegraphics[width=.9\textwidth]{figures/MomentsComparePlotPSSP.pdf}
-\caption{Binned data comparison of moments between simulations of the fitted SHASH model (grey, black) and the actual data (red) for 
-{P. spicata}. Individuals were binned based on their initial size. }
-\label{fig:BinnedConditionalMoments}
-\end{figure} 
-
-\item The model is easy to fit by ML. Does it do a good job of fitting the data? The comparison based on binned quantiles 
-(fig. \ref{fig:BinnedConditionalQuantiles} looks pretty good except that the variation in the 5th percentile of the data
-is more wiggly than the 5th percentile of the model. To eliminate this imperfection, we could perhaps try higher-order polynomials
-for $\nu$ or $\tau$. 
-
-\item More importantly, the SHASH model is a substantial improvement over the pilot Gaussian model, as seen in the
-binned moments diagnostic plot, fig.  \ref{fig:BinnedConditionalMoments}. The fits to mean and standard deviation are
-about as good, but only the SHASH model captures the skew and kurtosis and how they vary with size. 
-
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=.9\textwidth]{figures/PSSPShrinkageTest.pdf}
-\caption{Comparison of ``true'' and estimated intercept year effects for {P. spicata}. }
-\label{fig:ShrinkageTest}
-\end{figure} 
-
-\item Finally, a simulation study was done to see how well the shrinkage approach recovers known year effects. Fig. \ref{fig:ShrinkageTest}
-illustrates the results for the intercept coefficient. Panels A,B,C,D are the fixed-effects estimates, recommended shrunk estimates,
-more strongly shrunk estimates, and estimates from \texttt{lmer} using the fitted standard deviation from the pilot Gaussian model. 
-Except for \texttt{lmer} they all look very similar, and they are. The recommended shrunk estimates had the lowest 
-mean-square error for both slope and intercept (averaged across all years), and their sample variance was closest to the across-year 
-variance in the data-generating model, but the improvement over the fixed-effects estimates was small: 
-
-Intercept: true SD =  0.497, fixed SD =  0.516, shrunk SD = 0.468, lmer SD =  0.418 \\
-Slope: True SD =  0.129, fixed SD = 0.137, shrunk SD = 0.126,  lmer SD = 0.106
- 
-Note that for both slope and intercept, the \texttt{lmer} estimates were over-smoothed (they under-estimated the
-actual between-year variance). 
-
-This study aligns with our earlier finding for IPMs with temporal random effects \citep{metcalf-etal-2015}: the simplest method (fitting as
-fixed effects) works about as well as anything else. In that study shrinkage was not helpful at all, except that the fixed-effects 
-and shrunk estimates were biased in opposite directions and therefore were useful as bounds on the truth. Here, shrinkage 
-makes a small improvment. However, the biggest improvement in random effects estimation 
-comes from using a better, non-Gaussian model for the growth distribution.  
-
-\end{enumerate} 
-
-
-\clearpage 
 
 \section{Case study: creosote bush, \emph{Larrea tridentata}}
 Our final case study comes from another perennial plant, the woody shrub \emph{Larrea tridentata}, whose dynamics we are studying at the Sevilleta LTER. 
