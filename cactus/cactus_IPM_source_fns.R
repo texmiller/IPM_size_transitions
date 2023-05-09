@@ -1,23 +1,12 @@
 invlogit<-function(x){exp(x)/(1+exp(x))}
 
 # VITAL RATE FUNCTIONS ----------------------------------------------------
-## GROWTH - JSU 
-gxy_JSU<-function(x,y,params){
-  xb=pmin(pmax(x,params$min.size),params$max.size) #Transforms all values below/above limits in min/max size
-  grow_mu <- params$grow.mu + params$grow.bsize * xb + params$grow.bsize2 * xb^2
-  return(dJSU(x=y, 
-              mu=grow_mu,
-              sigma = exp(params$sigma_b0 + params$sigma_b1*grow_mu + params$sigma_b2*grow_mu^2), 
-              nu = params$nu_b0 + params$nu_b1*grow_mu, 
-              tau = exp(params$tau_b0 + params$tau_b1*grow_mu + params$tau_b2*grow_mu^2)))
-}
 
-## new result -- SHASH with higher moments as functions of initial size
-gxy_SHASH<-function(x,y,params){
+## GROWTH - SHASH
+gxy_SHASH<-function(x,y,params,plot,year){
   xb=pmin(pmax(x,params$min.size),params$max.size) #Transforms all values below/above limits in min/max size
   pred=predict(CYIM_gam_shash,
-               newdata = data.frame(logvol_t=xb,plot="1",year_t="2004"),
-               exclude=c("s(plot)","s(year_t)"))
+               newdata = data.frame(logvol_t=xb,plot=plot,year_t=year))
   return(dSHASHo2(x=y, 
               mu=pred[,1],
               sigma = exp(pred[,2]), 
@@ -109,4 +98,36 @@ bigmatrix<-function(params,
   IPMmat<-Fmat+Tmat     #Full Kernel is simply a summation ot fertility
   #and transition matrix
   return(list(IPMmat=IPMmat,Fmat=Fmat,Tmat=Tmat,meshpts=y))
+}
+
+# lambdaS function##########################################################
+lambdaSim<-function(mat_list, ## a list of transition matrices, each corresponding to a study year
+                    max_yrs=1000 ## how many years the simulation runs (arbitrarily large)
+){
+  ## grab the dimension of the projection matrix
+  matdim<-dim(mat_list[[1]])[1]
+  ## grab the number of study years / matrices we have available
+  n_years <- length(mat_list)
+  ## vector that will hold year-by-year growth rates
+  rtracker <- rep(0,max_yrs)
+  ## initial vector of population structure -- note that this sums to one, which will be convenient
+  n0 <- rep(1/matdim,matdim)
+  for(t in 1:max_yrs){ #Start loop
+    ## for each year, randomly sample one of the matrices
+    A_t <- mat_list[[sample.int(n=n_years,size=1)]]
+    ## project the population one step forward
+    n0 <- A_t %*% n0
+    ## total population size after one year of growth
+    N  <- sum(n0)
+    ## calculate r as log(N_t+1 / N_t), note that here N_t=1
+    rtracker[t]<-log(N)
+    ## rescale population vector to sum to one, so the same trick works again next time step
+    n0 <-n0/N
+  }
+  #discard first 10% of time series
+  burnin    <- round(max_yrs*0.1)
+  #Finish and return
+  log_lambdaS <- mean(rtracker[-c(1:burnin)])
+  lambdaS<-exp(log_lambdaS)
+  return(list(log_lambdaS=log_lambdaS,lambdaS=lambdaS))
 }
