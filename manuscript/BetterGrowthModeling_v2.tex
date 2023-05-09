@@ -458,10 +458,17 @@ The standardized residuals, accounting for size-dependent residual variance (Fig
 To better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, but both of which may be negligible at some sizes.
 Iterating through the workflow (Fig. \ref{fig:workflow}), we first tried Johnson's $S_{U}$ and then the skewed $t$ distributions, both of which are limited to positive excess kurtosis, but were not happy with the fit of either. 
 We arrived, again, at the SHASH distribution, which can vary from leptokurtic to platykuritic and is more flexible than the JSU and skewed $t$, capable of capturing a greater range of possible kurtosis for a given amount of skew (Steve's NPSkewKurtosisRanges.pdf). 
-Furthermore, fitting the SHASH as a generalized additive model with \textbf{mgcv} allowed for flexible, non-monotonic size-dependence in the parameters that control skewness and kurtosis that, through iterations of trial and error, we found was necessary to generate simulated data that compared favorably to the real data. 
+Furthermore, fitting the SHASH as a generalized additive model with \textbf{mgcv} allowed for flexible, non-monotonic size-dependence in the parameters that control skewness and kurtosis; through iterations of trial and error, we found this flexibility was necessary to generate simulated data that compared favorably to the real data. 
 The other distributions that we tried are not available as \textbf{mgcv} families, so we fit these with custom maximum likelihood functions, an approach we illustrate in the next case study. 
 
-The final SHASH model provided good correspondence between simulated and real data, and provided more compelling improvement over the Gaussian model than we saw in the coral case study (Fig. \ref{fig:cactus_fit}).  
+The final SHASH model provided good correspondence between simulated and real data, and provided more compelling improvement over the Gaussian model than we saw in the coral case study by accommodating size-dependent skewness and kurtosis (Fig. \ref{fig:cactus_fit}). 
+The SHASH model over-estimated negative skew at some sizes relative to the skewness signal in the data (Fig. \ref{fig:cactus_fit}C), but the nature of size-dependent skew in the data is not very biologically plausible and may instead be driven by the tail-wagging tendency of gams. 
+As in the coral case study, we see that correctly modeling skew and kurtosis improved estimation of the mean and standard deviation (Fig. \ref{fig:cactus_fit}A,B), yielding a growth model that is clearly truer to the data than our pilot Gaussian fit. 
+
+To explore consequences of improved growth modeling, we estimated the stochastic growth rate $\lambda_S$ and its distribution across habitat heterogeneity, thus leveraging the spatial and temporal random effects estimation. 
+We did so using the `kernel selection' method, sampling transition kernels constructed with year- and plot-specific random effects, rather than sampling year and plot deviates from their fitted variances; the kernel selection approach has the advantage of retaining any spatial or temporal correlation in the vital rates. 
+
+
 
 Simulations of the final SHASH model -- the final step of the workflow -- indicate that it describes the cactus growth data well (Fig. \ref{fig:cactus_sim_moments}). 
 The SHASH model did not provide a noticeable improvement over the Gaussian model in terms of mean and variance of size transitions (Fig. \ref{fig:cactus_sim_moments}A,B).
