@@ -13,6 +13,7 @@ library(gamlss.dist)
 library(popbio)
 library(moments)
 library(maxLik)
+library(wesanderson)
 
 # function for converting cactus size measurements to volume
 volume <- function(h, w, p){
@@ -570,13 +571,13 @@ for(i in 1:n_sim){
 }
 points(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
 
-
 # compare IPM results between Gaussian and SHASH growth kernel ------------
 # Here are the size-dependent functions for survival, flowering, and flowerbud production, 
 # fit in mgcv with year and plot random effects.
 surv_mod <- gam(Survival_t1 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), family="binomial", data=CYIM_full)
-flow_mod <- gam(Goodbuds_t1>0 ~ s(logvol_t1,k=4) + s(plot,bs="re") + s(year_t,bs="re"), family="binomial", data=CYIM_full)
-fert_mod <- gam(Goodbuds_t1 ~ s(logvol_t1,k=4) + s(plot,bs="re") + s(year_t,bs="re"), family="nb", data=subset(CYIM_full,Goodbuds_t1>0))
+flow_mod <- gam(Goodbuds_t>0 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), family="binomial", data=CYIM_full)
+fert_mod <- gam(Goodbuds_t ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), family="nb", data=subset(CYIM_full,Goodbuds_t>0))
+
 ## misc parameters for seeds and seedlings
 seeds_per_fruit<-read.csv("cactus/JO_fruit_data_final_dropplant0.csv",T)  %>% drop_na() %>% 
   summarise(seeds_per_fruit = mean(seed_count))
@@ -600,19 +601,18 @@ max.size <- log(max(CYIM_full$vol_t1,na.rm=T))
 
 ## IPM source functions
 ## SURVIVAL
-sx<-function(x,year){
+sx<-function(x,exclude,year=2004,plot=1){
   xb=pmin(pmax(x,min.size),max.size)
-  pred=predict(surv_mod,
-               newdata = data.frame(logvol_t=xb,plot=1,year_t=year),
-               exclude="s(plot)")
+  pred=predict(surv_mod,newdata = data.frame(logvol_t=xb,plot=plot,year_t=year),
+                exclude=paste0("s(",exclude,")"))
   return(invlogit(pred))
 }
 ## GROWTH - SHASH
-gxy_SHASH<-function(x,y,year){
+gxy_SHASH<-function(x,y,exclude,year=2004,plot=1){
   xb=pmin(pmax(x,min.size),max.size) #Transforms all values below/above limits in min/max size
   pred=predict(CYIM_gam_shash,
-               newdata = data.frame(logvol_t=xb,plot=1,year_t=year),
-               exclude="s(plot)")
+               newdata = data.frame(logvol_t=xb,plot=plot,year_t=year),
+               exclude=paste0("s(",exclude,")"))
   return(dSHASHo2(x=y, 
                   mu=pred[,1],
                   sigma = exp(pred[,2]), 
@@ -620,45 +620,46 @@ gxy_SHASH<-function(x,y,year){
                   tau = exp(pred[,4])))
 }
 ## GROWTH - Gaussian
-gxy_GAU<-function(x,y,year){
+gxy_GAU<-function(x,y,exclude,year=2004,plot=1){
   xb=pmin(pmax(x,min.size),max.size) #Transforms all values below/above limits in min/max size
   pred = predict(CYIM_grow_m1,
-                 newdata = data.frame(logvol_t=xb,plot=1,year_t=year),
-                 exclude="s(plot)")
+                 newdata = data.frame(logvol_t=xb,plot=plot,year_t=year),
+                 exclude=paste0("s(",exclude,")"))
   return(dnorm(y,mean=pred[,1],sd=exp(pred[,2])))
 }
 ## COMBINED GROWTH_SURVIVAL
-pxy <- function(x,y,dist,year){
-  result <- sx(x,year)*do.call(paste0("gxy_",dist),list(x,y,year))
+pxy <- function(x,y,dist,exclude,year=2004,plot=1){
+  result <- sx(x,exclude,year,plot)*do.call(paste0("gxy_",dist),list(x,y,exclude,year,plot))
   return(result)
 }
 #PR FLOWERING
-flow.x <- function(x,year){
+flow.x <- function(x,exclude,year=2004,plot=1){
   xb=pmin(pmax(x,min.size),max.size)
-  pred=predict(flow_mod,
-               newdata = data.frame(logvol_t1=xb,plot=1,year_t=year),
-               exclude="s(plot)")
+  pred=predict(flow_modt1,
+               newdata = data.frame(logvol_t1=xb,plot=plot,year_t=year),
+               exclude=paste0("s(",exclude,")"))
   return(invlogit(pred))
 }
 ##FLOWERBUD PRODUCTION BY FLOWERING PLANTS
-fert.x <- function(x,year){
+fert.x <- function(x,exclude,year=2004,plot=1){
   xb=pmin(pmax(x,min.size),max.size)
-  pred=predict(fert_mod,
-               newdata = data.frame(logvol_t1=xb,plot=1,year_t=year),
-               exclude="s(plot)")
+  pred=predict(fert_modt1,
+               newdata = data.frame(logvol_t1=xb,plot=plot,year_t=year),
+               exclude=paste0("s(",exclude,")"))
   return(exp(pred))
 }
 ##SEED BANK CONTRIBUTION OF X-SIZED PLANTS
-fx<-function(x,year){
-  return(flow.x(x,year)*fert.x(x,year)*seeds_per_fruit$seeds_per_fruit*seed_survival$seed_survival)  
+fx<-function(x,exclude,year=2004,plot=1){
+  return(flow.x(x,exclude,year,plot)*fert.x(x,exclude,year,plot)*seeds_per_fruit$seeds_per_fruit*seed_survival$seed_survival)  
 }
 #SIZE DISTRIBUTION OF RECRUITS
 recruit.size<-function(y){
   dnorm(x=y,mean=seedling_size$mean_size,sd=seedling_size$sd_size)
 }
+
 #PUT IT ALL TOGETHER
 bigmatrix<-function(lower.extension = 0,upper.extension = 0,
-                    mat.size,dist,year){
+                    mat.size,dist,exclude,year=2004,plot=1){
   n<-mat.size
   L<-min.size + lower.extension
   U<-max.size + upper.extension
@@ -671,7 +672,7 @@ bigmatrix<-function(lower.extension = 0,upper.extension = 0,
   Fmat<-matrix(0,(n+2),(n+2))
   
   # 1-yo banked seeds go in top row
-  Fmat[1,3:(n+2)]<-fx(y,year=year)
+  Fmat[1,3:(n+2)]<-fx(y,exclude,year,plot)
   
   # Growth/survival transition matrix
   Tmat<-matrix(0,(n+2),(n+2))
@@ -686,44 +687,194 @@ bigmatrix<-function(lower.extension = 0,upper.extension = 0,
   Tmat[3:(n+2),2]<- germination$germ2 * precensus_survival$precensus_survival * recruit.size(y) * h  
   
   # Growth/survival transitions among cts sizes
-  Tmat[3:(n+2),3:(n+2)]<-t(outer(y,y,pxy,dist=dist,year=year)) * h 
+  Tmat[3:(n+2),3:(n+2)]<-t(outer(y,y,pxy,dist=dist,exclude=exclude,year=year,plot=plot)) * h 
   
   # Put it all together
   IPMmat<-Fmat+Tmat     #Full Kernel is simply a summation ot fertility
   #and transition matrix
   return(list(IPMmat=IPMmat,Fmat=Fmat,Tmat=Tmat,meshpts=y))
 }
+# lambdaS function##########################################################
+lambdaSim<-function(mat_list, ## a list of transition matrices, each corresponding to a study year
+                    max_yrs=1000, ## how many years the simulation runs (arbitrarily large)
+                    seed=NULL){
+  ## grab the dimension of the projection matrix
+  matdim<-dim(mat_list[[1]])[1]
+  ## grab the number of study years / matrices we have available
+  n_years <- length(mat_list)
+  ## vector that will hold year-by-year growth rates
+  rtracker <- rep(0,max_yrs)
+  ## initial vector of population structure -- note that this sums to one, which will be convenient
+  n0 <- rep(1/matdim,matdim)
+  for(t in 1:max_yrs){ #Start loop
+    ## for each year, randomly sample one of the matrices
+    if(!is.null(seed)){set.seed(seed[t])}
+    A_t <- mat_list[[sample.int(n=n_years,size=1)]]
+    ## project the population one step forward
+    n0 <- A_t %*% n0
+    ## total population size after one year of growth
+    N  <- sum(n0)
+    ## calculate r as log(N_t+1 / N_t), note that here N_t=1
+    rtracker[t]<-log(N)
+    ## rescale population vector to sum to one, so the same trick works again next time step
+    n0 <-n0/N
+  }
+  #discard first 10% of time series
+  burnin    <- round(max_yrs*0.1)
+  #Finish and return
+  log_lambdaS <- mean(rtracker[-c(1:burnin)])
+  lambdaS<-exp(log_lambdaS)
+  return(list(log_lambdaS=log_lambdaS,lambdaS=lambdaS))
+}
 
 ## create an array of projection kernels for each year
 mat.size = 200
 lower.extension = -1
 upper.extension = 1.5
+## store year-specific K's and lambda's
 studyyears<-sort(unique(CYIM_full$Year_t))
-K_t_SHASH<-K_t_GAU<-array(NA,dim=c(mat.size+2,mat.size+2,length(studyyears)))
+K_t_SHASH<-K_t_GAU<-vector("list",length=length(studyyears))
 lambda_t_SHASH<-lambda_t_GAU<-vector("numeric",length=length(studyyears))
+## loop over years for an average plot
 for(t in 1:length(studyyears)){
-  K_t_SHASH[,,t]<-bigmatrix(lower.extension = lower.extension, 
+  K_t_SHASH[[t]]<-bigmatrix(lower.extension = lower.extension, 
                       upper.extension = upper.extension,
-                      mat.size = mat.size,
+                      mat.size = mat.size,exclude="plot",
                       dist="SHASH",year=studyyears[t])$IPMmat
-  lambda_t_SHASH[t]<-lambda(K_t_SHASH[,,t])
-  K_t_GAU[,,t]<-bigmatrix(lower.extension = lower.extension, 
+  lambda_t_SHASH[t]<-lambda(K_t_SHASH[[t]])
+  K_t_GAU[[t]]<-bigmatrix(lower.extension = lower.extension, 
                             upper.extension = upper.extension,
-                            mat.size = mat.size,
+                            mat.size = mat.size,exclude="plot",
                             dist="GAU",year=studyyears[t])$IPMmat
-  lambda_t_GAU[t]<-lambda(K_t_GAU[,,t])
+  lambda_t_GAU[t]<-lambda(K_t_GAU[[t]])
 }
 
+## now the same for plots
+## store plot-specific K's and lambda's
+studyplots<-unique(CYIM_full$plot)
+K_p_SHASH<-K_p_GAU<-vector("list",length=length(studyplots))
+lambda_p_SHASH<-lambda_p_GAU<-vector("numeric",length=length(studyplots))
+## loop over plots for an average year
+for(p in 1:length(studyplots)){
+  K_p_SHASH[[p]]<-bigmatrix(lower.extension = lower.extension, 
+                            upper.extension = upper.extension,
+                            mat.size = mat.size,exclude="year",
+                            dist="SHASH",plot=studyplots[p])$IPMmat
+  lambda_p_SHASH[p]<-lambda(K_p_SHASH[[p]])
+  K_p_GAU[[p]]<-bigmatrix(lower.extension = lower.extension, 
+                          upper.extension = upper.extension,
+                          mat.size = mat.size,exclude="year",
+                          dist="GAU",plot=studyplots[p])$IPMmat
+  lambda_p_GAU[p]<-lambda(K_p_GAU[[p]])
+}
+## compare plot-specific asypmtotic growth rates
 ## compare year-specific asypmtotic growth rates
-plot(studyyears,lambda_t_SHASH,type="b",col="blue")
-lines(studyyears,lambda_t_GAU,type="b",col="red")
+cols<-wes_palette("Zissou1")
+pdf("./manuscript/figures/cactus_lambda_years_plots.pdf",height = 5, width = 10,useDingbats = F)
+par(mfrow=c(1,2),mar=c(4,5,1,1))
+plot(studyyears,lambda_t_SHASH,type="b",col=cols[1],pch=16,cex.lab=1.4,
+     xlab="Year",ylab=expression(paste(lambda[t])),cex=1.5)
+lines(studyyears,lambda_t_GAU,type="b",col=cols[5],pch=16,cex=1.5)
+title("A",adj=0,font=3)
+
+plot(as.numeric(studyplots),lambda_p_SHASH[as.numeric(studyplots)],type="n",cex.lab=1.4,
+    ylim=range(lambda_t_SHASH),xlab="Plot",ylab=expression(paste(lambda[p])))
+axis(1,at=1:11,labels=1:11)
+points(as.numeric(studyplots),lambda_p_SHASH[as.numeric(studyplots)],col=cols[1],pch=16,type="p",cex=1.5)
+points(as.numeric(studyplots),lambda_p_GAU[as.numeric(studyplots)],col=cols[5],pch=16,type="p",cex=1.5)
+title("B",adj=0,font=3)
+legend("topleft",legend=c("SHASH","Gaussian"),title="Growth function:",
+       pch=16,col=cols[c(1,5)],bty="n")
+box()
+dev.off()
 
 
+## compare stochastic growth rates for average plot
+## for fair comparison, run them through the same environments
+max_yrs<-50000
+seed<-sample.int(max_yrs)
+lambdaSim(mat_list = K_t_SHASH,max_yrs=max_yrs,seed=seed)$lambdaS
+lambdaSim(mat_list = K_t_GAU,max_yrs=max_yrs,seed=seed)$lambdaS
+## effectively identical, probably because the growth difference is swamped by 
+## size structure transients
 
+##lastly, life table response experiment for both plot and year variation
+## make a data frame of lambda_t and time-varying vital rate parameters
+## first, find the rfx in the parameter vectors
+surv_years<-which(names(surv_mod$coefficients)=="s(year_t).1"):which(names(surv_mod$coefficients)=="s(year_t).13")
+growGAU_years<-which(names(CYIM_grow_m1$coefficients)=="s(year_t).1"):which(names(CYIM_grow_m1$coefficients)=="s(year_t).13")
+growSHASH_years<-which(names(CYIM_gam_shash$coefficients)=="s(year_t).1"):which(names(CYIM_gam_shash$coefficients)=="s(year_t).13")
+flow_years<-which(names(flow_mod$coefficients)=="s(year_t).1"):which(names(flow_mod$coefficients)=="s(year_t).13")
+fert_years<-which(names(fert_mod$coefficients)=="s(year_t).1"):which(names(fert_mod$coefficients)=="s(year_t).13")
 
+year_ltre_df<-data.frame(
+  lambda_t_GAU=lambda_t_GAU,
+  lambda_t_SHASH=lambda_t_SHASH,
+  surv_t=surv_mod$coefficients[surv_years],
+  grow_t_GAU=CYIM_grow_m1$coefficients[growGAU_years],
+  grow_t_SHASH=CYIM_gam_shash$coefficients[growSHASH_years],
+  flow_t=flow_mod$coefficients[flow_years],
+  fert_t=fert_mod$coefficients[fert_years])
 
+#fit linear models for years
+fitGAU_year<-lm(lambda_t_GAU~surv_t+grow_t_GAU+flow_t+fert_t,data=year_ltre_df)
+fitSHASH_year<-lm(lambda_t_SHASH~surv_t+grow_t_SHASH+flow_t+fert_t,data=year_ltre_df)
+#use th fitted slopes to approximate a sensitivity matrix
+sensGAU_year<-outer(coef(fitGAU_year)[2:5],coef(fitGAU_year)[2:5],FUN="*")
+sensSHASH_year<-outer(coef(fitSHASH_year)[2:5],coef(fitSHASH_year)[2:5],FUN="*")
+#VcoV of vital rates
+paramcovGAU_year<-cov(year_ltre_df[,c("surv_t","grow_t_GAU","flow_t","fert_t")])
+paramcovSHASH_year<-cov(year_ltre_df[,c("surv_t","grow_t_SHASH","flow_t","fert_t")])
+#Calculate 1st order approx
+ltre_approxGAU_year <-sensGAU_year*paramcovGAU_year
+ltre_approxSHASH_year <-sensSHASH_year*paramcovSHASH_year
+#compare var(almbda) to the sum of these terms
+var(year_ltre_df$lambda_t_GAU);sum(ltre_approxGAU_year)#pretty good!
+var(year_ltre_df$lambda_t_SHASH);sum(ltre_approxSHASH_year)
+#calculate contributions (thank you Mark and Steve)
+(ltre_contGAU_year <- sort(apply(ltre_approxGAU_year,1,sum)/sum(ltre_approxGAU_year)))
+(ltre_contSHASH_year <- sort(apply(ltre_approxSHASH_year,1,sum)/sum(ltre_approxSHASH_year)))
 
+barplot(rbind(ltre_contGAU_year,ltre_contSHASH_year),beside=T)
 
+##same now for plots
+surv_plots<-which(names(surv_mod$coefficients)=="s(plot).1"):which(names(surv_mod$coefficients)=="s(plot).11")
+growGAU_plots<-which(names(CYIM_grow_m1$coefficients)=="s(plot).1"):which(names(CYIM_grow_m1$coefficients)=="s(plot).11")
+growSHASH_plots<-which(names(CYIM_gam_shash$coefficients)=="s(plot).1"):which(names(CYIM_gam_shash$coefficients)=="s(plot).11")
+flow_plots<-which(names(flow_mod$coefficients)=="s(plot).1"):which(names(flow_mod$coefficients)=="s(plot).11")
+fert_plots<-which(names(fert_mod$coefficients)=="s(plot).1"):which(names(fert_mod$coefficients)=="s(plot).11")
+
+plot_ltre_df<-data.frame(
+  lambda_p_GAU=lambda_p_GAU,
+  lambda_p_SHASH=lambda_p_SHASH,
+  surv_p=surv_mod$coefficients[surv_plots],
+  grow_p_GAU=CYIM_grow_m1$coefficients[growGAU_plots],
+  grow_p_SHASH=CYIM_gam_shash$coefficients[growSHASH_plots],
+  flow_p=flow_mod$coefficients[flow_plots],
+  fert_p=fert_mod$coefficients[fert_plots])
+
+#fit linear models for plots
+fitGAU_plot<-lm(lambda_p_GAU~surv_p+grow_p_GAU+flow_p+fert_p,data=plot_ltre_df)
+fitSHASH_plot<-lm(lambda_p_SHASH~surv_p+grow_p_SHASH+flow_p+fert_p,data=plot_ltre_df)
+#use th fitted slopes to approximate a sensitivity matrix
+sensGAU_plot<-outer(coef(fitGAU_plot)[2:5],coef(fitGAU_plot)[2:5],FUN="*")
+sensSHASH_plot<-outer(coef(fitSHASH_plot)[2:5],coef(fitSHASH_plot)[2:5],FUN="*")
+#VcoV of vital rates
+paramcovGAU_plot<-cov(plot_ltre_df[,c("surv_p","grow_p_GAU","flow_p","fert_p")])
+paramcovSHASH_plot<-cov(plot_ltre_df[,c("surv_p","grow_p_SHASH","flow_p","fert_p")])
+#Calculate 1st order approx
+ltre_approxGAU_plot <-sensGAU_plot*paramcovGAU_plot
+ltre_approxSHASH_plot <-sensSHASH_plot*paramcovSHASH_plot
+#compare var(almbda) to the sum of these terms
+var(plot_ltre_df$lambda_p_GAU);sum(ltre_approxGAU_plot)#pretty good!
+var(plot_ltre_df$lambda_p_SHASH);sum(ltre_approxSHASH_plot)
+#calculate contributions (thank you Mark and Steve)
+(ltre_contGAU_plot <- sort(apply(ltre_approxGAU_plot,1,sum)/sum(ltre_approxGAU_plot)))
+(ltre_contSHASH_plot <- sort(apply(ltre_approxSHASH_plot,1,sum)/sum(ltre_approxSHASH_plot)))
+
+barplot(rbind(ltre_contGAU_plot,ltre_contSHASH_plot),beside=T)
+## not sure I believe this -- the approximation does not work well
+## and there is not much variance in the first place
 
 # the basement ------------------------------------------------------------
 
