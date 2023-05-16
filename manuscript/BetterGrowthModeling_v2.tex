@@ -425,14 +425,14 @@ of known new recruits. Figure made by script \texttt{AkumalCoralsIPMs.R}.}
 In this case study we used \texttt{gam} to fit both the Gaussian and SHASH models because that obviated model selection on functions for mean, variance, and higher moments. 
 However, \texttt{gam} should be used with caution. 
 Nonparametric regression models notoriously ``wag their tails'' because the ends of the fitted curve can be pulled close to the outermost data points. 
-This is especially problematic for growth modeling, because data are typically sparse near the top and bottom of the size range. 
+This is especially problematic for growth modeling, because data are typically sparse near the bounds of the size distribution. 
 To minimize the risk of overfitting we specified the number of ``knots'' (\texttt{k=4}) and used \texttt{gamma=1.4} to overweight model degrees of freedom, as suggested by \citet[][sec. 3.2]{gu-2013}. 
 But it is always important to plot the fitted splines and make sure they do not wag unrealistically. 
 If they do, parametric regression may be a better choice. 
 
 \clearpage   
 
-\section{Case study: cactus, \emph{Cylindriopuntia imbricata}}
+\section{Case study: tree cholla cactus, \emph{Cylindriopuntia imbricata}}
 The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta Long-Term Ecological Research site in central New Mexico, adds a new feature on top of the simple size-dependent regressions in the previous study: random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 
 This long-term study of cactus demography was initiated in 2004 and different subsets of the data have been analyzed in various IPM studies, all using Gaussian growth kernels  \citep{miller2009impacts,czachurademographic,compagnoni2016effect,ohm2014balancing,elderd2016quantifying}.
 In fact, \citep{elderd2016quantifying} presented a Gaussian growth model fit to the cactus data as an example of a well fit growth function, based on a marginal distribution of residuals that appeared approximately Gaussian and posterior predictive checks (PPCs) of a Bayesian model that suggested consistency between the real data and data simulated from the fitted model (Fig. 4 in \citep{elderd2016quantifying}). 
@@ -456,24 +456,26 @@ We begin the growth modeling workflow, as above, with a generalized additive mod
 The standardized residuals, accounting for size-dependent residual variance (Fig. \ref{fig:cactus_diganostics}A), show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:cactus_diganostics}B). 
 
 To better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, but both of which may be negligible at some sizes.
-Iterating through the workflow (Fig. \ref{fig:workflow}), we first tried Johnson's $S_{U}$ and then the skewed $t$ distributions, both of which are limited to positive excess kurtosis, but were not happy with the fit of either. 
-We arrived, again, at the SHASH distribution, which can vary from leptokurtic to platykuritic and is more flexible than the JSU and skewed $t$, capable of capturing a greater range of possible kurtosis for a given amount of skew (Steve's NPSkewKurtosisRanges.pdf). 
-Furthermore, fitting the SHASH as a generalized additive model with \textbf{mgcv} allowed for flexible, non-monotonic size-dependence in the parameters that control skewness and kurtosis; through iterations of trial and error, we found this flexibility was necessary to generate simulated data that compared favorably to the real data. 
-The other distributions that we tried are not available as \textbf{mgcv} families, so we fit these with custom maximum likelihood functions, an approach we illustrate in the next case study. 
+We first tried Johnson's $S_{U}$ and then the skewed $t$ distributions, both of which are limited to positive excess kurtosis.
+Both distributions provided some improvement over the Gaussian, but were not happy with the fit of either. 
+Iterating through the workflow (Fig. \ref{fig:workflow}), we arrived, again, at the SHASH distribution, which is more flexible than either the JSU or skewed $t$, capable of capturing a greater range of kurtosis for a given amount of skew, and vice versa (Steve's NPSkewKurtosisRanges.pdf). 
+Furthermore, fitting the SHASH as a generalized additive model with \textbf{mgcv} allowed for flexible, non-monotonic size-dependence in skewness and kurtosis without the need for model selection on specific size-dependent functions; through iterations of trial and error, we found this flexibility was necessary to generate simulated data that compared favorably to the real data. 
+The other distributions that we tried are not available as \textbf{mgcv} families, so we fit these with custom maximum likelihood functions, an approach we illustrate in the next case study.
+The final growth model was similar to the SHASH gam in the coral case study, but with random intercepts for the location parameter, representing spatial and temporal heterogeneity:
+\begin{lstlisting}
+fit_shash <- gam(list(logvol_t1 ~ s(logvol_t,k=4) + 
+				s(plot,bs="re") + s(year_t,bs="re"), # <- model for location 
+				~ s(logvol_t,k=4),   # <- model for log-scale
+				~ s(logvol_t,k=4),   # <- model for skewness
+				~ s(logvol_t,k=4)), # <- model for log-kurtosis
+			data = CYIM_grow, 
+			family = shash,  
+			optimizer = "efs")
+\end{lstlisting}
 
-The final SHASH model provided good correspondence between simulated and real data, and provided more compelling improvement over the Gaussian model than we saw in the coral case study by accommodating size-dependent skewness and kurtosis (Fig. \ref{fig:cactus_fit}). 
-The SHASH model over-estimated negative skew at some sizes relative to the skewness signal in the data (Fig. \ref{fig:cactus_fit}C), but the nature of size-dependent skew in the data is not very biologically plausible and may instead be driven by the tail-wagging tendency of gams. 
-As in the coral case study, we see that correctly modeling skew and kurtosis improved estimation of the mean and standard deviation (Fig. \ref{fig:cactus_fit}A,B), yielding a growth model that is clearly truer to the data than our pilot Gaussian fit. 
-
-To explore consequences of improved growth modeling, we estimated the stochastic growth rate $\lambda_S$ and its distribution across habitat heterogeneity, thus leveraging the spatial and temporal random effects estimation. 
-We did so using the `kernel selection' method, sampling transition kernels constructed with year- and plot-specific random effects, rather than sampling year and plot deviates from their fitted variances; the kernel selection approach has the advantage of retaining any spatial or temporal correlation in the vital rates. 
-
-
-
-Simulations of the final SHASH model -- the final step of the workflow -- indicate that it describes the cactus growth data well (Fig. \ref{fig:cactus_sim_moments}). 
-The SHASH model did not provide a noticeable improvement over the Gaussian model in terms of mean and variance of size transitions (Fig. \ref{fig:cactus_sim_moments}A,B).
-This is expected, since an appropriately specified Gaussian model with non-constant variance should be able to accommodate this type of complexity.
-It is in skewness and kurtosis that the SHASH really shines (Fig. \ref{fig:cactus_sim_moments}C,D), effectively capturing observed trends in these features of size transitions. 
+The final SHASH model provided good correspondence between simulated and real data, and provided more compelling improvement over the Gaussian model than we saw in the coral case study (Fig. \ref{fig:cactus_fit}). 
+The SHASH model over-estimated negative skew at some sizes relative to the signal of skewness in the data (Fig. \ref{fig:cactus_fit}C), but the nature of size-dependent skew in the data is not very biologically plausible and may instead be driven by the tail-wagging tendency of gams. 
+As in the coral case study, we see that correctly modeling skewness and kurtosis improved estimation of the mean and standard deviation (Fig. \ref{fig:cactus_fit}A,B), yielding a growth model that is clearly truer to the data than the pilot Gaussian fit. 
 
 \begin{figure}[tbp]
 	\centering
@@ -482,41 +484,26 @@ It is in skewness and kurtosis that the SHASH really shines (Fig. \ref{fig:cactu
 	\label{fig:cactus_fit}
 \end{figure} 
 
-\subsection{Consequences of improved growth modeling for IPM predictions}
-Finally, we can ask how the improvements we have made to modeling cactus growth affect inferences from the full IPM.
-Details of IPM construction and analysis are provided in Appendix XX. 
-Given the spatial and temporal heterogeneity that we explicitly modeled, we were interested in using those variance components to estimate the stochastic growth rate $\lambda_{S}$ and quantify what fraction of the sampled habitat can support viable populations ($\lambda_{S} \geq 1$). 
-As above, we can ask how improved growth modeling changes these inferences. 
+We explored how improved growth modeling influenced IPM results, leveraging the plot and year structure of the study design to quantify spatial and temporal variance in fitness.
+The structure and parameterization of the full IPM are described in Appendix XX. 
+We used the fitted random effects from the vital rate models to estimate the asymptotic growth rate for each year ($\lambda_t$), centered on the average plot, and for each plot ($\lambda_p$), centered on the average year.
+This allowed us to quantify demographic variance associated with temporal and spatial heterogeneity. 
+We found that the Gaussian growth model tended to over-estimate $\lambda_t$, particularly in the harshest years (Fig. \ref{fig:cactus_lambda}A), and thus under-estimated temporal variance in fitness ($Var(\lambda_{t(Gaussian)})=0.0018$, $Var(\lambda_{t(SHASH)})=0.0023$). 
+The opposite was true for plot-to-plot variation (Fig. \ref{fig:cactus_lambda}B), where the Gaussian model under-estimated $\lambda_p$ and over-estimated spatial variance in fitness ($Var(\lambda_{p(Gaussian)})=0.00015$, $Var(\lambda_{p(SHASH)})=0.000088$). 
+Across both growth models, fluctuations in fitness were stronger through time than across space. 
+The difference in temporal variance would suggest that Gaussian growth modeling would lead to over-estimation of the stochastic growth rate $\lambda_S$, since temporal variance has a negative influence on $\lambda_S$.
+However, this was not the case: stochastic IPMs based on Gaussian and SHASH growth models had nearly identical stochastic growth rates ($\lambda_S(Gaussian)=0.9906$, $\lambda_S(Gaussian)=0.9909$). 
+This is likely because temporal fluctuations in vital rates, which is where the SHASH growth model would make a difference, have a weaker influence on $\lambda_S$ than the temporal fluctuations in size structure that they generate \citep{ellis2013role,compagnoni2016effect}. 
+Thus, depending on the target of one's analysis, modeling non-Gaussian size transitions with a Gaussian growth model could bias results in either direction, or make no difference at all. 
 
-We estimated $\lambda_{S}$ using the `kernel resampling' simulation approach that randomly samples year-specific kernels from the fitted year random effects \citep{metcalf-etal-2015}. 
-$\lambda_{S}$ can be calculated as the long-term mean of the one-time-step growth rate:
-EQUATION
-We estimated $\lambda_{S}$ with the pilot Gaussian and final SHASH growth functions, first as a global mean across spatial replicates (plot random effect set to zero) and second as a distribution that samples across the study's 11 spatial replicates (another layer of kernel re-sampling), to inform what fraction of the landscape supports . 
+%We did so using the `kernel selection' method, sampling transition kernels constructed with year- and plot-specific random effects, rather than sampling year and plot deviates from their fitted variances; the kernel selection approach has the advantage of retaining any spatial or temporal correlation in the vital rates. 
 
-Our previous IPM analyses of this system have consistently shown asymptotic population growth rates below replacement-level ($\lambda < 1$).
-Our new results with the improved SHASH growth kernel are qualitatively consistent with these results.
-However the SHASH growth kernel predicts a much faster rate of decline -- a $9\%$ difference in annual change -- than the Gaussian, holding all else equal ($\lambda_{SHASH} = 0.901$ vs. $\lambda_{Gaussian} = 0.995$).
-The SHASH also predicts a very different and much smaller stable size distribution (SSD) than does the Gaussian (Fig. \ref{fig:cactus_ssd}). 
-The observed size distribution falls in between the two predictions, suggesting that, either way, this population is not at its stable distribution. 
-The difference in predictions of the two IPMs is driven by contrasting size transitions of large plants (Fig. \ref{fig:cactus_growth_compare}).
-This contrast is driven by skew and kurtosis, since the mean and variance of the SHASH and Gaussian models were nearly identical for large sizes (Fig. \ref{fig:cactus_sim_moments}). 
-The Gaussian growth kernel over-predicts size transitions at large sizes, and this leads to the larger median size at SSD and also the smaller peak corresponding to new recruits, since reproductive output is strongly size-dependent. 
-This peak disappears from the SHASH SSD because reproductive output is strongly size dependent, and the SHASH growth kernel predicts that transitions to the largest sizes are less likely. 
-\begin{figure}
-\centering
-\includegraphics[width=0.75\textwidth]{figures/cactus_ssd}
-\caption{Predicted and observed size distributions of tree cholla cactus.}
-\label{fig:cactus_ssd}
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/cactus_lambda_years_plots.pdf}
+	\caption{.}
+	\label{fig:cactus_lambda}
 \end{figure} 
- 
- \begin{figure}
-\centering
-\includegraphics[width=0.75\textwidth]{figures/cactus_growth_compare}
-\caption{Predicted probability of future size given three initial sizes indicated by vertical lines.}
-\label{fig:cactus_growth_compare}
-\end{figure} 
-
-\clearpage   
 
 
 \section{Case study: creosote bush, \emph{Larrea tridentata}}
