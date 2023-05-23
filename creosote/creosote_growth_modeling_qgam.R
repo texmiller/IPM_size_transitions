@@ -1,6 +1,7 @@
 library(lme4)
 library(tidyverse)
 library(qgam)
+library(quantreg)
 library(gamlss.dist)
 library(maxLik)
 library(bbmle)
@@ -26,14 +27,36 @@ invlogit<-function(x){exp(x)/(1+exp(x))}
 # Prepare a data subset for growth that drops rows missing either t or t1 size data
 # Also create log_volume as a new variable because GAM doesn't like functions of variables as variables
 LATR_grow <- LATR_full %>% 
+  ## this ID will help us drop outliers below
+  mutate(ID=interaction(site,transect,actual.window,plant,year_t)) %>% 
   drop_na(volume_t, volume_t1) %>%
   mutate(log_volume_t = log(volume_t),
          log_volume_t1 = log(volume_t1))
 
 # fit gaussian growth model with size*density interactions and random transect
-LATR_m1 <- lmer(log_volume_t1 ~ log_volume_t*weighted.dens + (1|unique.transect), data=LATR_grow, REML=T)
-LATR_grow$resids <- residuals(LATR_m1)
-LATR_grow$fitted <- fitted(LATR_m1)
+LATR_m1<-list()
+LATR_m1[[1]] <- lmer(log_volume_t1 ~ log_volume_t + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_m1[[2]] <- lmer(log_volume_t1 ~ log_volume_t + weighted.dens + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_m1[[3]] <- lmer(log_volume_t1 ~ log_volume_t*weighted.dens + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_GAU <- LATR_m1[[which.min(AICctab(LATR_m1,sort=F)$dAICc)]]
+LATR_grow$resids <- residuals(LATR_GAU);hist(LATR_grow$resids)
+LATR_grow$fitted <- fitted(LATR_GAU)
+
+## inspect outliers
+outliers<-which(abs(LATR_grow$resids)>2)
+View(LATR_grow[outliers,])
+## 3,4,5,6 I do not believe -- dropping these and re-doing model selection
+LATR_grow %>% 
+  filter(!ID%in%LATR_grow$ID[outliers[3:6]])->LATR_grow
+
+## re-do model selection
+LATR_m1<-list()
+LATR_m1[[1]] <- lmer(log_volume_t1 ~ log_volume_t + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_m1[[2]] <- lmer(log_volume_t1 ~ log_volume_t + weighted.dens + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_m1[[3]] <- lmer(log_volume_t1 ~ log_volume_t*weighted.dens + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_GAU <- LATR_m1[[which.min(AICctab(LATR_m1,sort=F)$dAICc)]]
+LATR_grow$resids <- residuals(LATR_GAU)
+LATR_grow$fitted <- fitted(LATR_GAU)
 
 plot(LATR_grow$fitted,LATR_grow$resids^2)
 ## fit gaussian variance as a function of fitted value
@@ -51,16 +74,14 @@ jarque.test(LATR_grow$standresids) # normality test: FAILS, P < 0.001
 anscombe.test(LATR_grow$standresids) # kurtosis: FAILS, P < 0.001 
 agostino.test(LATR_grow$standresids) # skewness: FAILS, P<0.001 
 
-# fit Qgams to scaled residuals wrt expected values -- some convergence warnings
-q.05<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.05,argGam=list(gamma=2))) 
-q.10<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.1))
-q.25<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.25)) 
-q.50<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.5))
-q.75<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.75))
-q.90<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.9)) 
-q.95<-predict(qgam(standresids~s(fitted,k=4), data=LATR_grow,qu=0.95)) 
-plot(LATR_grow$fitted,LATR_grow$standresids)
-
+## fit quantile regression with quantreg
+q.05<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.05))) 
+q.10<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.1))) 
+q.25<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.25))) 
+q.50<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.5))) 
+q.75<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.75))) 
+q.90<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.9))) 
+q.95<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.95))) 
 
 pdf("./manuscript/figures/creosote_qgam_diagnostics.pdf",height = 6, width = 8,useDingbats = F)
 par(mar = c(5, 4, 2, 3), oma=c(0,0,0,4)) 
@@ -84,6 +105,7 @@ mtext("Skewness", side = 4, line = 2,col="blue")
 mtext("Excess Kurtosis", side = 4, line =3,col="red")
 dev.off()
 
+plot(LATR_grow$fitted,Q.sd(q.25,q.75))
 
 ## based on these results I will fit a JSU distribution to the residuals
 ## will need to fit variance, skew, and kurtosis as functions of the mean

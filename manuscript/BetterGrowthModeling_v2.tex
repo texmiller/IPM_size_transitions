@@ -506,15 +506,24 @@ Thus, depending on the target of one's analysis, modeling non-Gaussian size tran
 \end{figure} 
 
 
-\section{Case study: creosote bush, \emph{Larrea tridentata}}
-Our final case study comes from another perennial plant, the woody shrub \emph{Larrea tridentata}, whose dynamics we are studying at the Sevilleta LTER. 
-At this site as elsewhere in the Southwest US, creosote bush is invading and displacing desert grassland habitats \citep{}.
-The data described here were collected to understand patterns of density dependence in creosote bush demography, asking whether vital rates are maximized approaching zero density, at the leading edge of the expansion front (consistent with a `pulled' invasion), or whether there is a demographic advantage for shrubs at higher densities due to positive feedbacks expected for some ecosystem engineers (leading to a `pushed' invasion). 
-We step through the growth analysis following our suggested workflow and then connect the growth model to a spatial inetgral projection (SIPM)  model that allows us to ask how `improved' growth modeling changes predictions for the speed of creosotebush encroachment (T. Drees, B. Ochocki, S. Collins, T. Miller, \textit{ms in prep}). 
-The key features of this growth analysis are: initial size-dependence 
+\section{Case study: creosotebush, \emph{Larrea tridentata}}
+Our next case study comes from our studies of the woody shrub creosotebush (\emph{Larrea tridentata}) at the Sevilleta Long-Term Ecological Research (LTER) site in central New Mexico, US. 
+At this site as elsewhere in the Southwest US, creosotebush is encroaching into desert grassland habitats.
+The data described here were collected along transects spanning grass-shrub ecotones to understand patterns of density dependence in creosotebush demography.
+Specifically, we asked whether fitness is maximized approaching zero density at the leading edge of the expansion front (consistent with `pulled' expansion), or whether there is a demographic advantage for shrubs at higher density due to positive feedbacks expected for ecosystem engineers (leading to `pushed' expansion). 
+Our published study \citep{drees2023demography} used a spatial integral projection model (SIPM) to predict the speed of shrub encroachment, assuming normally-distributed size transitions. 
+Here we step through our suggested workflow to ask whether a non-Gaussian model would have been more faithful to the data, and how such an improvement would influence predictions for the speed of encroachment.
+We use this case study to illustrate several new elements and challenges, including modeling skewness and kurtosis as functions of expected future size (instead of initial size) and using distributions that are not available as \textbf{mgcv} families.
+In fact, to diversify our use of software and illustrate alternatives, we do not use gam's for any element of this case study.
 
-\subsection{A pilot Gaussian model}
+Growth data come from 522 shrubs censused longitudinally over four years (2013-2017). 
+Census individuals occurred along 12 replicate transects (200 to 600 m in length) that spanned gradients of shrub density along shrub-grass ecotones. 
+Size was measured as volume of an elliptical cone based on height and width measurements; the size variable of the IPM was the natural logarithm of volume ($cm^3$). 
+For each census individual, we recorded the size and density of all conspecifics within the five-meter transect ``window'' in which it occurred, and took the sum of all sizes within the window as a measure of local density. 
+The data are available in \cite{shrubdata}. 
 
+As an initial Gaussian approach, we first fit a set of candidate generalized linear mixed models that included fixed effects of size, size and density, and size-density interactions, all of which included transect as a random effect. 
+As in \citep{drees2023demography} we pooled data across three transition years. 
 
 \section{Discussion}
 
