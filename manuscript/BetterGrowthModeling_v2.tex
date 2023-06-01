@@ -513,7 +513,7 @@ The data described here were collected along transects spanning grass-shrub ecot
 Specifically, we asked whether fitness is maximized approaching zero density at the leading edge of the expansion front (consistent with `pulled' expansion), or whether there is a demographic advantage for shrubs at higher density due to positive feedbacks expected for ecosystem engineers (leading to `pushed' expansion). 
 Our published study \citep{drees2023demography} used a spatial integral projection model (SIPM) to predict the speed of shrub encroachment, assuming normally-distributed size transitions. 
 Here we step through our suggested workflow to ask whether a non-Gaussian model would have been more faithful to the data, and how such an improvement would influence predictions for the speed of encroachment.
-We use this case study to illustrate several new elements and challenges, including modeling skewness and kurtosis as functions of expected future size (instead of initial size) and using distributions that are not available as \textbf{mgcv} families.
+We use this case study to illustrate several new elements and challenges, including modeling skewness and kurtosis as functions of expected future size (instead of initial size) and using distributions that are not currently available as \textbf{mgcv} families.
 In fact, to diversify our use of software and illustrate alternatives, we do not use gam's for any element of this case study.
 
 Growth data come from 522 shrubs censused longitudinally over four years (2013-2017). 
@@ -522,8 +522,33 @@ Size was measured as volume of an elliptical cone based on height and width meas
 For each census individual, we recorded the size and density of all conspecifics within the five-meter transect ``window'' in which it occurred, and took the sum of all sizes within the window as a measure of local density. 
 The data are available in \cite{shrubdata}. 
 
-As an initial Gaussian approach, we first fit a set of candidate generalized linear mixed models that included fixed effects of size, size and density, and size-density interactions, all of which included transect as a random effect. 
+As an initial Gaussian approach, we first fit a set of candidate generalized linear mixed models, including transect as a random effect, that represented competing hypotheses for how size, density, and their interaction influence growth. 
+Specifically, we fit five candidate Gaussian models that included fixed effects of initial size only (model 1), size and density (model 2), and size, density, and their interaction (model 3), allowing for shrubs of different sizes to have different growth responses to local density. 
+Models 4 and 5 mirrored models 2 and 3 but included second-order terms for density, allowing for the possibility of non-monotonic density dependence. 
+\begin{lstlisting}
+	LATR_GAU<-list()
+LATR_GAU[[1]] <- lmer(log_volume_t1 ~ log_volume_t + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_GAU[[2]] <- lmer(log_volume_t1 ~ log_volume_t + dens_scaled + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_GAU[[3]] <- lmer(log_volume_t1 ~ log_volume_t*dens_scaled + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_GAU[[4]] <- lmer(log_volume_t1 ~ log_volume_t + dens_scaled + I(dens_scaled^2) + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_GAU[[5]] <- lmer(log_volume_t1 ~ log_volume_t*dens_scaled + log_volume_t*I(dens_scaled^2) + (1|unique.transect), data=LATR_grow, REML=F)
+\end{lstlisting}
 As in \citep{drees2023demography} we pooled data across three transition years. 
+Initial AIC rankings of these pilot models favor model 4 slightly over model 5 ($\Delta AIC = 0.8$) and significantly over all other models ($\Delta AIC > 2$). 
+However, these models were fit assuming constant variance, and inspection of the residuals of the best model indicate this is not a safe assumption. 
+
+Unlike our previous case studies, here we have multiple fixed effects that may influence the variance of future size conditional on current size. 
+In cases such as this, we recommend modeling variance as a function of expected future size rather than initial size, as we did with the corals and cacti. 
+The expected (or ``fitted'') values reflect the combined influence of all fixed and random effects, and are therefore a good option when there are multiple sources of variation in the variance, as we knew to be the case for creosotebush (greater growth variance at smaller size and lower density: \cite{drees2023demography}). 
+While there are several convenient software packages for simultaneously modeling Gaussian mean and variance as functions of independent variables (\textbf{mgcv} for additive models as we saw above, \textbf{nmle} for linear models), modeling variance as a function of the mean is trickier because they cannot easily be fit simultaneously. 
+Here we us an iterative approach: first fitting the mean, then the variance as a function of the mean, then re-fitting the mean with weights derived from the variance function, and repeating until the weights converge onto stable values. 
+For Gaussian models, weights $w_{i}$ can be used to indicate that the observations $y_{i}$ have different dispersion, which adjusts the variance of the noise around the mean. 
+
+
+
+
+
+
 
 \section{Discussion}
 

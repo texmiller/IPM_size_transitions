@@ -8,11 +8,6 @@ library(bbmle)
 library(popbio)
 library(moments)
 
-## grab the creosote demography data from github
-source("https://raw.githubusercontent.com/TrevorHD/LTEncroachment/master/04_CDataPrep.R")
-LATR_full <- CData %>% 
-  mutate(unique.transect = interaction(transect, site))
-
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
 Q.sd<-function(q.25,q.75){(q.75-q.25)/1.35}
@@ -24,78 +19,101 @@ Q.kurtosis<-function(q.05,q.25,q.75,q.95){
 }
 invlogit<-function(x){exp(x)/(1+exp(x))}
 
+## grab the creosote demography data from github
+source("https://raw.githubusercontent.com/TrevorHD/LTEncroachment/master/04_CDataPrep.R")
+LATR_full <- CData %>% 
+  mutate(unique.transect = interaction(transect, site))
+
 # Prepare a data subset for growth that drops rows missing either t or t1 size data
-# Also create log_volume as a new variable because GAM doesn't like functions of variables as variables
+## update to the growth data -- dropping a few unbelievable outliers following additional QA/QC
+outliers<-c("MOD.2.50.3.2016","MOD.3.200.1.2015","MOD.3.200.1.2014","PDC.2.0.5.2014")
 LATR_grow <- LATR_full %>% 
   ## this ID will help us drop outliers below
   mutate(ID=interaction(site,transect,actual.window,plant,year_t)) %>% 
   drop_na(volume_t, volume_t1) %>%
   mutate(log_volume_t = log(volume_t),
-         log_volume_t1 = log(volume_t1))
+         log_volume_t1 = log(volume_t1),
+         dens_scaled = weighted.dens/100) %>% 
+  ##need to scale weighted density because 1st and 2nd order variables were hugely different in range
+  filter(!ID%in%outliers)
 
-# fit gaussian growth model with size*density interactions and random transect
-LATR_m1<-list()
-LATR_m1[[1]] <- lmer(log_volume_t1 ~ log_volume_t + (1|unique.transect), data=LATR_grow, REML=F)
-LATR_m1[[2]] <- lmer(log_volume_t1 ~ log_volume_t + weighted.dens + (1|unique.transect), data=LATR_grow, REML=F)
-LATR_m1[[3]] <- lmer(log_volume_t1 ~ log_volume_t*weighted.dens + (1|unique.transect), data=LATR_grow, REML=F)
-LATR_GAU <- LATR_m1[[which.min(AICctab(LATR_m1,sort=F)$dAICc)]]
-LATR_grow$resids <- residuals(LATR_GAU);hist(LATR_grow$resids)
-LATR_grow$fitted <- fitted(LATR_GAU)
+# fit candidate gaussian growth models
+LATR_GAU<-list()
+LATR_GAU[[1]] <- lmer(log_volume_t1 ~ log_volume_t + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_GAU[[2]] <- lmer(log_volume_t1 ~ log_volume_t + dens_scaled + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_GAU[[3]] <- lmer(log_volume_t1 ~ log_volume_t*dens_scaled + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_GAU[[4]] <- lmer(log_volume_t1 ~ log_volume_t + dens_scaled + I(dens_scaled^2) + (1|unique.transect), data=LATR_grow, REML=F)
+LATR_GAU[[5]] <- lmer(log_volume_t1 ~ log_volume_t*dens_scaled + log_volume_t*I(dens_scaled^2) + (1|unique.transect), data=LATR_grow, REML=F)
 
-## inspect outliers
-outliers<-which(abs(LATR_grow$resids)>2)
-View(LATR_grow[outliers,])
-## 3,4,5,6 I do not believe -- dropping these and re-doing model selection
-LATR_grow %>% 
-  filter(!ID%in%LATR_grow$ID[outliers[3:6]])->LATR_grow
-
-## re-do model selection
-LATR_m1<-list()
-LATR_m1[[1]] <- lmer(log_volume_t1 ~ log_volume_t + (1|unique.transect), data=LATR_grow, REML=F)
-LATR_m1[[2]] <- lmer(log_volume_t1 ~ log_volume_t + weighted.dens + (1|unique.transect), data=LATR_grow, REML=F)
-LATR_m1[[3]] <- lmer(log_volume_t1 ~ log_volume_t*weighted.dens + (1|unique.transect), data=LATR_grow, REML=F)
-LATR_GAU <- LATR_m1[[which.min(AICctab(LATR_m1,sort=F)$dAICc)]]
-LATR_grow$resids <- residuals(LATR_GAU)
-LATR_grow$fitted <- fitted(LATR_GAU)
-
-plot(LATR_grow$fitted,LATR_grow$resids^2)
-## fit gaussian variance as a function of fitted value
+## now use iterative re-weighting to fit sd as function of expected value
 sdloglik = function(pars) {
-  dnorm(LATR_grow$resids, mean=0, sd=pars[1]*exp(pars[2]*LATR_grow$fitted),log=TRUE)
+  dnorm(resids, mean=0, sd=exp(pars[1]+pars[2]*fitted_vals),log=TRUE)
 }	
-sdfit=maxLik(logLik=sdloglik,start=c(sd(LATR_grow$resids),0)) 
-points(LATR_grow$fitted,sdfit$estimate[1]*exp(sdfit$estimate[2]*LATR_grow$fitted),col="red")
-LATR_grow$standresids<-LATR_grow$resids/(sdfit$estimate[1]*exp(sdfit$estimate[2]*LATR_grow$fitted))
+pars<-list()
+for(mod in 1:length(LATR_GAU)) {
+  err = 1; rep=0; 
+  while(err > 0.000001) {
+    rep=rep+1
+    model = LATR_GAU[[mod]]
+    fitted_vals = fitted(model)
+    resids = residuals(model) 
+    out=maxLik(logLik=sdloglik,start=c(exp(sd(resids)),0))
+    pars[[mod]]=out$estimate 
+    new_sigma = exp(pars[[mod]][1] + pars[[mod]][2]*fitted_vals)
+    new_weights = 1/((new_sigma)^2)
+    new_weights = 0.5*(weights(model) + new_weights) # cautious update 
+    new_model <- update(model,weights=new_weights) 
+    err = weights(model)-weights(new_model)
+    err=sqrt(mean(err^2))
+    cat(mod,rep,err,"\n") # check on convergence of estimated weights 
+    LATR_GAU[[mod]]<-new_model 
+  }}
+
+##re-do model selection using the best weights for all models
+best_weights<-weights(LATR_GAU[[which.min(AICctab(LATR_GAU,sort=F)$dAICc)]])
+for(mod in 1:length(LATR_GAU)) {
+  LATR_GAU[[mod]]<-update(LATR_GAU[[mod]],weights=best_weights)
+}
+AICctab(LATR_GAU,sort=F)
+
+## finally, re-fit with REML=T and best weights
+LATR_GAU_best<-update(LATR_GAU[[which.min(AICctab(LATR_GAU,sort=F)$dAICc)]],weights=best_weights,REML=T)
+best_weights<-weights(LATR_GAU_best)
+LATR_grow$GAU_fitted <- fitted(LATR_GAU_best)
+LATR_grow$GAU_resids <- residuals(LATR_GAU_best)
+LATR_grow$GAU_scaled_resids <- LATR_grow$GAU_resids*sqrt(best_weights) ##sqrt(weights)=1/sd
 ## should be mean zero unit variance
-mean(LATR_grow$standresids);sd(LATR_grow$standresids)
+mean(LATR_grow$GAU_scaled_resids);sd(LATR_grow$GAU_scaled_resids)
+## get parameters for sd as f(fitted)
+GAU_sd_coef<-maxLik(logLik=sdloglik,start=c(exp(sd(LATR_grow$GAU_resids)),0))
 
 ##are the standardized residuals gaussian? -- no
-jarque.test(LATR_grow$standresids) # normality test: FAILS, P < 0.001 
-anscombe.test(LATR_grow$standresids) # kurtosis: FAILS, P < 0.001 
-agostino.test(LATR_grow$standresids) # skewness: FAILS, P<0.001 
+jarque.test(LATR_grow$GAU_scaled_resids) # normality test: FAILS, P < 0.001 
+anscombe.test(LATR_grow$GAU_scaled_resids) # kurtosis: FAILS, P < 0.001 
+agostino.test(LATR_grow$GAU_scaled_resids) # skewness: FAILS, P<0.001 
 
 ## fit quantile regression with quantreg
-q.05<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.05))) 
-q.10<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.1))) 
-q.25<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.25))) 
-q.50<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.5))) 
-q.75<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.75))) 
-q.90<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.9))) 
-q.95<-predict(rq(standresids~fitted, data=LATR_grow,tau=c(0.95))) 
+q.05<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.05))) 
+q.10<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.1))) 
+q.25<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.25))) 
+q.50<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.5))) 
+q.75<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.75))) 
+q.90<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.9))) 
+q.95<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.95))) 
 
-pdf("./manuscript/figures/creosote_qgam_diagnostics.pdf",height = 6, width = 8,useDingbats = F)
+pdf("./manuscript/figures/creosote_diagnostics.pdf",height = 6, width = 8,useDingbats = F)
 par(mar = c(5, 4, 2, 3), oma=c(0,0,0,4)) 
-plot(LATR_grow$fitted,LATR_grow$standresids,col=alpha("black",0.25),
-     xlab="Expected value",ylab="Scaled residuals of size at t+1")
-points(LATR_grow$fitted,q.05,col="black",pch=".")
-points(LATR_grow$fitted,q.10,col="black",pch=".")
-points(LATR_grow$fitted,q.25,col="black",pch=".")
-points(LATR_grow$fitted,q.50,col="black",pch=".")
-points(LATR_grow$fitted,q.75,col="black",pch=".")
-points(LATR_grow$fitted,q.90,col="black",pch=".")
-points(LATR_grow$fitted,q.95,col="black",pch=".")
+plot(LATR_grow$GAU_fitted,LATR_grow$GAU_scaled_resids,col=alpha("black",0.25),
+     xlab="Expected size at t+1",ylab="Scaled residuals of size at t+1")
+points(LATR_grow$GAU_fitted,q.05,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.10,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.25,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.50,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.75,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.90,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.95,col="black",pch=".")
 par(new = TRUE)                           
-plot(c(LATR_grow$fitted,LATR_grow$fitted),
+plot(c(LATR_grow$GAU_fitted,LATR_grow$GAU_fitted),
      c(Q.skewness(q.10,q.50,q.90),Q.kurtosis(q.05,q.25,q.75,q.95)),
      col=c(rep(alpha("blue",0.25),nrow(LATR_grow)),rep(alpha("red",0.25),nrow(LATR_grow))),
      pch=16,cex=.5,axes = FALSE, xlab = "", ylab = "")
@@ -104,8 +122,6 @@ axis(side = 4,cex.axis=0.8,at = pretty(range(c(Q.skewness(q.10,q.50,q.90),Q.kurt
 mtext("Skewness", side = 4, line = 2,col="blue")
 mtext("Excess Kurtosis", side = 4, line =3,col="red")
 dev.off()
-
-plot(LATR_grow$fitted,Q.sd(q.25,q.75))
 
 ## based on these results I will fit a JSU distribution to the residuals
 ## will need to fit variance, skew, and kurtosis as functions of the mean
