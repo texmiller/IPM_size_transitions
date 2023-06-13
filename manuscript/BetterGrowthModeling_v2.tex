@@ -525,30 +525,81 @@ The data are available in \cite{shrubdata}.
 As an initial Gaussian approach, we first fit a set of candidate generalized linear mixed models, including transect as a random effect, that represented competing hypotheses for how size, density, and their interaction influence growth. 
 Specifically, we fit five candidate Gaussian models that included fixed effects of initial size only (model 1), size and density (model 2), and size, density, and their interaction (model 3), allowing for shrubs of different sizes to have different growth responses to local density. 
 Models 4 and 5 mirrored models 2 and 3 but included second-order terms for density, allowing for the possibility of non-monotonic density dependence. 
-\begin{lstlisting}
-	LATR_GAU<-list()
-LATR_GAU[[1]] <- lmer(log_volume_t1 ~ log_volume_t + (1|unique.transect), data=LATR_grow, REML=F)
-LATR_GAU[[2]] <- lmer(log_volume_t1 ~ log_volume_t + dens_scaled + (1|unique.transect), data=LATR_grow, REML=F)
-LATR_GAU[[3]] <- lmer(log_volume_t1 ~ log_volume_t*dens_scaled + (1|unique.transect), data=LATR_grow, REML=F)
-LATR_GAU[[4]] <- lmer(log_volume_t1 ~ log_volume_t + dens_scaled + I(dens_scaled^2) + (1|unique.transect), data=LATR_grow, REML=F)
-LATR_GAU[[5]] <- lmer(log_volume_t1 ~ log_volume_t*dens_scaled + log_volume_t*I(dens_scaled^2) + (1|unique.transect), data=LATR_grow, REML=F)
-\end{lstlisting}
 As in \citep{drees2023demography} we pooled data across three transition years. 
 Initial AIC rankings of these pilot models favor model 4 slightly over model 5 ($\Delta AIC = 0.8$) and significantly over all other models ($\Delta AIC > 2$). 
 However, these models were fit assuming constant variance, and inspection of the residuals of the best model indicate this is not a safe assumption. 
 
-Unlike our previous case studies, here we have multiple fixed effects that may influence the variance of future size conditional on current size. 
+Unlike our previous case studies, here we have multiple fixed effects that may influence the variance of future size. 
 In cases such as this, we recommend modeling variance as a function of expected future size rather than initial size, as we did with the corals and cacti. 
-The expected (or ``fitted'') values reflect the combined influence of all fixed and random effects, and are therefore a good option when there are multiple sources of variation in the variance, as we knew to be the case for creosotebush (greater growth variance at smaller size and lower density: \cite{drees2023demography}). 
+The expected (or ``fitted'') values reflect the combined influence of all fixed and random effects, and therefore implictly account for multiple sources of variation in the variance. 
 While there are several convenient software packages for simultaneously modeling Gaussian mean and variance as functions of independent variables (\textbf{mgcv} for additive models as we saw above, \textbf{nmle} for linear models), modeling variance as a function of the mean is trickier because they cannot easily be fit simultaneously. 
-Here we us an iterative approach: first fitting the mean, then the variance as a function of the mean, then re-fitting the mean with weights derived from the variance function, and repeating until the weights converge onto stable values. 
-For Gaussian models, weights $w_{i}$ can be used to indicate that the observations $y_{i}$ have different dispersion, which adjusts the variance of the noise around the mean. 
+Here we us an iterative re-weighting approach -- which is not elegant, but it works. 
+For Gaussian models, weights $w_{i}$ can be used to indicate that the observations $y_{i}$ vary in their dispersion around the mean. 
+In general, the iterative steps are: 
+\begin{enumerate}
+	\item Fit the expected value and normally-distributed residuals with constant variance:
+	$$y_{i} = \mu_{i} + \epsilon_{i}$$
+	$$\epsilon_{i} \sim N(0,\sigma)$$
+	\item Fit the standard deviation of the residuals as a function of the expected value. Weights are derived as the inverse of the fitted variance:
+	$$\epsilon_{i} \sim N(0,f(\mu_{i}))$$
+	$$w_{i}=1/{f(\mu_{i})^2}$$
+	\item Re-fit the observation model, weighting the residual variance according to step 2:
+	$$y_{i} = \mu_{i} + \epsilon_{i}$$
+	$$\epsilon_{i} \sim N(0,\sigma \times \sqrt{w_{i}})$$	
+\end{enumerate}
+We iterated steps 2 and 3 until the weights did not change. 
+In step 2, we modeled the standard deviation as a simple linear function of the expected value ($log(f(\mu_{i}))=\beta_{0}+\beta_{1}*\mu_{i}$) but other functions are possible, as is model selection among them. 
+We did this for all candidate models and, for fair AIC comparison, we re-fit all candidate models with the same weights, estimated from the top model. 
+The updated model selection continued to favor model 4, but now with a stronger improvement over the next-best model ($\Delta AIC = 3.0$). 
+The code that executes our iterative re-weighting can be found in SCRIPT. 
 
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/creosote_diagnostics.pdf}
+	\caption{}
+	\label{fig:creosote_diganostics}
+\end{figure} 
 
+The resulting Gaussian growth model accounts for non-constant variance through the fitted weights, which indicate greater dispersion for smaller values of expected size ($\beta_{1}=-0.21$). 
+Quantiles of the standardized residuals of this model indicate weak negative skew (difference in tail size is 1--2\% of their total) and positive excess kurtosis, especially at smaller expected sizes (tails are 6--10\% fatter than Gaussian) (Fig. \ref{fig:creosote_diganostics}). \tom{}{Note that there is still a variance trend in the standardized residuals--rather unsatisfying! I have been through this backwards and forwards and my take is that this is a product of the sample size imbalance between small and large plants. The quantile regression is doing it's best.}
+As a candidate for improvement, we turned to the Johnson's $S_{U}$ (JSU) distribution, a four-parameter, leptokurtic distribution capable of skew in either direction. 
+We used a parameterization of the JSU for which location parameter $\mu$ is the mean and scale parameter $\sigma$ is the standard deviation \citep{rigby2019distributions}. 
 
+Like many of the non-Gaussian candidates that we suggest (Fig. \ref{fig:workflow}), the JSU distribution is not presently available as a family option for linear mixed models in any software package, to our knowledge. 
+However, this need not be a barrier to using it for growth modeling. 
+We fit a custom maximum likelihood model that borrows the pieces of the best Gaussian model that we are happy with (mean and standard deviation), limiting estimation of free parameters to those that control the JSU's skewness and kurtosis. 
+Here is what such a hybrid likelihood model looks like in practice:
+\begin{lstlisting}
+## log_volume_t1 are the size obervations
+## GAU_fitted are the expected values of the best Gaussian models
+## pars is a vector of free parameters
+JSULogLik=function(pars){
+	dJSU(x=log_volume_t1, 
+	mu=GAU_fitted,
+	sigma=exp(GAU_sd_coef[1]+GAU_sd_coef[2]*GAU_fitted),
+	nu = pars[1]+pars[2]*GAU_fitted,
+	tau = exp(pars[3]+pars[4]*GAU_fitted), log=TRUE)
+}
+\end{lstlisting}
+The mean of the JSU is set to that of the best Gaussian model (\verb|GAU_fitted|) and the standard deviation is a function of the mean according to the coefficients (\verb|GAU_sd_coef|) estimated through iterative re-weighting. 
+Based on diagnostics of the standardized residuals (Fig. \ref{fig:creosote_diganostics}), JSU parameters that control skewness and kurtosis are defined as linear functions of the mean, and it is these coefficients that are estimated by maximum likelihood. 
+If it seems a little strange to swap in the fitted values from a Gaussian model as the mean of a non-Gaussian model -- well, it is. 
+Here we are relying on the robustness of linear models to deviations from normality. 
+Alternatively, it is possible re-fit the mean and standard deviation of the JSU, alongside skewness and kurtosis, in a maximum likelihood framework. 
+However, incorporating random effects into a custom likelihood model is non-trivial (we provide guidance on one way to do this, using the ``shrinkage'' approach, in Appendix XX). 
+Therefore a key advantage of the hybrid approach is convenient retention of the fitted random effects and associated variance components, which get shuttled from the Gaussian model into the non-Gaussian model without any fuss. 
+And, if this approach does not ``work'' (i.e., deviations from normality biased the fitted values of the Gaussian model) one would quickly find out through the simulation step of the workflow. 
+In our case, the hybrid JSU model performed well, generating simulated data that aligned with the real data better than the best Gaussian model, particularly in \tom{standard deviation}{I am a little mystified as to why the JSU is so much better. It is literally the same SD in both distributions.} and kurtosis (Fig. \ref{fig:creosote_JSU}). 
+Note that in Fig. \ref{fig:creosote_JSU} we are plotting moments of the future size distribution with respect to initial size; this distribution is also conditional on local density but initial size is by far the stronger predictor of future size, so we chose this this visualization. 
 
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/creosote_JSU_fit.pdf}
+	\caption{}
+	\label{fig:creosote_JSU}
+\end{figure} 
 
-
+\textbf{SIPM results with a better growth model.}
 
 \section{Discussion}
 
