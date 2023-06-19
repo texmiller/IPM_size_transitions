@@ -22,8 +22,7 @@ Q.kurtosis<-function(q.05,q.25,q.75,q.95){
 invlogit<-function(x){exp(x)/(1+exp(x))}
 
 ## read in demographic data provided by Hans Jacquemyn (basis for Miller et al. 2012 PRSB)
-orchid<- bind_rows(read_csv("orchid/orchis 2003-2013.csv"),
-                   read_csv("orchid/orchis 2013-2015.csv")) %>% 
+orchid<- read_csv("orchid/Orchis_IPM_data.csv") %>% 
   ## there are two sites/populations, one in light and one in shade.
   ## for the purposes of this analysis, just take the light population
   filter(light=="L") %>% 
@@ -255,7 +254,7 @@ q.75<-q.fit[,5]
 q.90<-q.fit[,6] 
 q.95<-q.fit[,7]
 
-pdf("./manuscript/figures/orchid_SST_fit.pdf",height = 6, width = 6,useDingbats = F)
+pdf("./manuscript/figures/orchid_SST_fit.pdf",height = 4, width = 8,useDingbats = F)
 par(mfrow=c(2,4),mar=c(4,4,1,1))
 plot(orchid_grow$log_area_t,Q.mean(q.25,q.50,q.75),type="n",
      xlab="size t",ylab="mean size t1",
