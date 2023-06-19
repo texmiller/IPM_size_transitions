@@ -532,7 +532,7 @@ However, these models were fit assuming constant variance, and inspection of the
 Unlike our previous case studies, here we have multiple fixed effects that may influence the variance of future size. 
 In cases such as this, we recommend modeling variance as a function of expected future size rather than initial size, as we did with the corals and cacti. 
 The expected (or ``fitted'') values reflect the combined influence of all fixed and random effects, and therefore implictly account for multiple sources of variation in the variance. 
-While there are several convenient software packages for simultaneously modeling Gaussian mean and variance as functions of independent variables (\textbf{mgcv} for additive models as we saw above, \textbf{nmle} for linear models), modeling variance as a function of the mean is trickier because they cannot easily be fit simultaneously. 
+While there are several convenient software packages for simultaneously modeling Gaussian mean and variance as functions of independent variables (\textbf{mgcv} for additive models as we saw above, \textbf{nmle} for linear models), \tom{modeling variance as a function of the mean is trickier because they cannot easily be fit simultaneously}{After I wrote this I discovered that nlme can fit residual variance as a function of fitted(.). Is there a reason you prefer iterative re-weighting over this?}. 
 Here we us an iterative re-weighting approach -- which is not elegant, but it works. 
 For Gaussian models, weights $w_{i}$ can be used to indicate that the observations $y_{i}$ vary in their dispersion around the mean. 
 In general, the iterative steps are: 
