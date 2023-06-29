@@ -9,6 +9,7 @@ library(popbio)
 library(moments)
 library(maxLik)
 library(bbmle)
+library(qpdf)
 
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
@@ -31,7 +32,7 @@ orchid<- read_csv("orchid/Orchis_IPM_data.csv") %>%
 
 ## create a data subset for growth modeling
 orchid %>% 
-  dplyr::select(log_area_t,log_area_t1,flowering,begin.year) %>% 
+  dplyr::select(individual,log_area_t,log_area_t1,flowering,begin.year) %>% 
   drop_na() -> orchid_grow
 
 ## pilot gaussian model selection
@@ -47,6 +48,8 @@ orchid_GAU_best<-orchid_GAU[[which.min(AICctab(orchid_GAU,sort=F)$dAICc)]]
 orchid_grow$GAU_fitted <- fitted(orchid_GAU_best)
 summary(orchid_GAU_best)
 
+##refit best model with REML
+orchid_GAU_best<-update(orchid_GAU_best,method="REML")
 ## fit sd as a function of initial size
 orchid_grow$GAU_resids <- residuals(orchid_GAU_best)
 ## derive sd from fitted params (see basement)
@@ -65,7 +68,8 @@ q.75<-q.fit[,5]
 q.90<-q.fit[,6] 
 q.95<-q.fit[,7]
 
-par(mar = c(5, 4, 2, 3), oma=c(0,0,0,2),mfrow=c(2,2)) 
+pdf("./manuscript/figures/orchid_diagnostics.pdf",height = 5, width = 6,useDingbats = F)
+par(mar = c(4, 4, 1, 3), oma=c(0,0,0,0),mfrow=c(2,2)) 
 plot(orchid_grow$log_area_t,orchid_grow$log_area_t1,type="n",
      xlab="Size at t",ylab="Size at t+1")
 points(orchid_grow$log_area_t[orchid_grow$flowering==0],
@@ -97,7 +101,7 @@ points(orchid_grow$log_area_t[orchid_grow$flowering==1],
        orchid_grow$GAU_sd[orchid_grow$flowering==1],
        col=alpha("blue",0.25),pch=".",cex=2)
 axis(side = 4,cex.axis=0.8,at = pretty(range(orchid_grow$GAU_sd)))
-mtext("Standard deviation", side = 4, line = 2)
+mtext("Standard deviation", side = 4, line = 2,cex=0.9)
 title("B",font=3,adj=0)
 
 plot(orchid_grow$log_area_t,orchid_grow$GAU_std_resids,type="n",
@@ -131,8 +135,7 @@ points(c(orchid_grow$log_area_t[orchid_grow$flowering==0],
      pch=16,cex=.5)
 abline(h=0,col="lightgray",lty=3)
 axis(side = 4,cex.axis=0.8,at = pretty(range(c(Q.skewness(q.10,q.50,q.90),Q.kurtosis(q.05,q.25,q.75,q.95)))))
-#mtext("Skewness", side = 4, line = 2,col="blue")
-#mtext("Excess Kurtosis", side = 4, line =3,col="red")
+legend("topleft",legend=c("Skewness","Kurtosis"),bg="white",pch=16,col=c("blue","red"),cex=0.8)
 title("C",font=3,adj=0)
 
 plot(orchid_grow$log_area_t,orchid_grow$GAU_std_resids,type="n",
@@ -166,9 +169,9 @@ points(c(orchid_grow$log_area_t[orchid_grow$flowering==1],
      pch=16,cex=.5)
 abline(h=0,col="lightgray",lty=3)
 axis(side = 4,cex.axis=0.8,at = pretty(range(c(Q.skewness(q.10,q.50,q.90),Q.kurtosis(q.05,q.25,q.75,q.95)))))
-mtext("Skewness", side = 4, line = 2,col="blue")
-mtext("Excess Kurtosis", side = 4, line =3,col="red")
+mtext("Skewness or Kurtosis", side = 4, line = 2,cex=0.9)
 title("D",font=3,adj=0)
+dev.off()
 
 ## now try JSU and skewed t, allowing skew and kurtosis to differ by flowering status
 JSULogLik=function(pars){
@@ -254,7 +257,7 @@ q.75<-q.fit[,5]
 q.90<-q.fit[,6] 
 q.95<-q.fit[,7]
 
-pdf("./manuscript/figures/orchid_SST_fit.pdf",height = 4, width = 8,useDingbats = F)
+pdf("./manuscript/figures/orchid_SST_fit.pdf",height = 4, width = 8, useDingbats = F)
 par(mfrow=c(2,4),mar=c(4,4,1,1))
 plot(orchid_grow$log_area_t,Q.mean(q.25,q.50,q.75),type="n",
      xlab="size t",ylab="mean size t1",
@@ -267,6 +270,7 @@ for(i in 1:n_sim){
 points(orchid_grow$log_area_t[orchid_grow$flowering==0],Q.mean(q.25[orchid_grow$flowering==0],
                                      q.50[orchid_grow$flowering==0],
                                      q.75[orchid_grow$flowering==0]),col="black",pch=".",cex=2)
+title("A",font=3,adj=0)
 legend("topleft",legend=c("Real data","Gaussian simulation","SST simulation"),
        lty=1,col=c("black","tomato","cornflowerblue"),cex=0.8,bty="n")
 
@@ -281,6 +285,7 @@ for(i in 1:n_sim){
 points(orchid_grow$log_area_t[orchid_grow$flowering==0],
        Q.sd(q.25[orchid_grow$flowering==0],
             q.75[orchid_grow$flowering==0]),col="black",pch=".",cex=2)
+title("B",font=3,adj=0)
 
 plot(orchid_grow$log_area_t,Q.skewness(q.10,q.50,q.90),type="n",
      xlab="size t",ylab="skewness size t1",
@@ -294,6 +299,7 @@ points(orchid_grow$log_area_t[orchid_grow$flowering==0],
        Q.skewness(q.10[orchid_grow$flowering==0],
                   q.50[orchid_grow$flowering==0],
                   q.90[orchid_grow$flowering==0]),col="black",pch=".",cex=2)
+title("C",font=3,adj=0)
 
 plot(orchid_grow$log_area_t,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
      xlab="size t",ylab="kurtosis size t1",
@@ -308,6 +314,7 @@ points(orchid_grow$log_area_t[orchid_grow$flowering==0],
                   q.25[orchid_grow$flowering==0],
                   q.75[orchid_grow$flowering==0],
                   q.95[orchid_grow$flowering==0]),col="black",pch=".",cex=2)
+title("D",font=3,adj=0)
 
 plot(orchid_grow$log_area_t,Q.mean(q.25,q.50,q.75),type="n",
      xlab="size t",ylab="mean size t1",
@@ -320,6 +327,7 @@ for(i in 1:n_sim){
 points(orchid_grow$log_area_t[orchid_grow$flowering==1],Q.mean(q.25[orchid_grow$flowering==1],
                                                                q.50[orchid_grow$flowering==1],
                                                                q.75[orchid_grow$flowering==1]),col="black",pch=".",cex=2)
+title("E",font=3,adj=0)
 plot(orchid_grow$log_area_t,Q.sd(q.25,q.75),type="n",
      xlab="size t",ylab="sd size t1",
      ylim=c(min(c(GAUsim_sd,JSUsim_sd,SSTsim_sd)),max(c(GAUsim_sd,JSUsim_sd,SSTsim_sd))))
@@ -331,6 +339,7 @@ for(i in 1:n_sim){
 points(orchid_grow$log_area_t[orchid_grow$flowering==1],
        Q.sd(q.25[orchid_grow$flowering==1],
             q.75[orchid_grow$flowering==1]),col="black",pch=".",cex=2)
+title("F",font=3,adj=0)
 
 plot(orchid_grow$log_area_t,Q.skewness(q.10,q.50,q.90),type="n",
      xlab="size t",ylab="skewness size t1",
@@ -344,6 +353,7 @@ points(orchid_grow$log_area_t[orchid_grow$flowering==1],
        Q.skewness(q.10[orchid_grow$flowering==1],
                   q.50[orchid_grow$flowering==1],
                   q.90[orchid_grow$flowering==1]),col="black",pch=".",cex=2)
+title("G",font=3,adj=0)
 
 plot(orchid_grow$log_area_t,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
      xlab="size t",ylab="kurtosis size t1",
@@ -358,7 +368,14 @@ points(orchid_grow$log_area_t[orchid_grow$flowering==1],
                   q.25[orchid_grow$flowering==1],
                   q.75[orchid_grow$flowering==1],
                   q.95[orchid_grow$flowering==1]),col="black",pch=".",cex=2)
+title("H",font=3,adj=0)
 dev.off()
+
+
+# IPM and life history analysis -------------------------------------------
+
+
+
 #### The Basement ###################################
 ## make sure I know how to use lme's variance function
 x<-runif(1000,0,10)

@@ -532,7 +532,7 @@ However, these models were fit assuming constant variance, and inspection of the
 Unlike our previous case studies, here we have multiple fixed effects that may influence the variance of future size. 
 In cases such as this, we recommend modeling variance as a function of expected future size rather than initial size, as we did with the corals and cacti. 
 The expected (or ``fitted'') values reflect the combined influence of all fixed and random effects, and therefore implictly account for multiple sources of variation in the variance. 
-While there are several convenient software packages for simultaneously modeling Gaussian mean and variance as functions of independent variables (\textbf{mgcv} for additive models as we saw above, \textbf{nmle} for linear models), \tom{modeling variance as a function of the mean is trickier because they cannot easily be fit simultaneously}{After I wrote this I discovered that nlme can fit residual variance as a function of fitted(.). Is there a reason you prefer iterative re-weighting over this?}. 
+While there are several convenient software packages for simultaneously modeling Gaussian mean and variance as functions of independent variables (\textbf{mgcv} for additive models as we saw above, \textbf{nmle} for linear models), \tom{modeling variance as a function of the mean is trickier because they cannot easily be fit simultaneously}{After I wrote this I discovered that nlme can fit residual variance as a function of fitted(.).}. 
 Here we us an iterative re-weighting approach -- which is not elegant, but it works. 
 For Gaussian models, weights $w_{i}$ can be used to indicate that the observations $y_{i}$ vary in their dispersion around the mean. 
 In general, the iterative steps are: 
@@ -561,18 +561,18 @@ The code that executes our iterative re-weighting can be found in SCRIPT.
 \end{figure} 
 
 The resulting Gaussian growth model accounts for non-constant variance through the fitted weights, which indicate greater dispersion for smaller values of expected size ($\beta_{1}=-0.21$). 
-Quantiles of the standardized residuals of this model indicate weak negative skew (difference in tail size is 1--2\% of their total) and positive excess kurtosis, especially at smaller expected sizes (tails are 6--10\% fatter than Gaussian) (Fig. \ref{fig:creosote_diganostics}). \tom{}{Note that there is still a variance trend in the standardized residuals--rather unsatisfying! I have been through this backwards and forwards and my take is that this is a product of the sample size imbalance between small and large plants. The quantile regression is doing it's best.}
+Quantiles of the standardized residuals of this model indicate weak negative skew (difference in tail size is 1--2\% of their total) and positive excess kurtosis, especially at smaller expected sizes (tails are 6--10\% fatter than Gaussian) (Fig. \ref{fig:creosote_diganostics}). \tom{}{Note that there is still a variance trend in the standardized residuals--rather unsatisfying! I have been through this backwards and forwards and my take is that this is a product of the sample size imbalance between small and large plants. The quantile regression is doing its best.}
 As a candidate for improvement, we turned to the Johnson's $S_{U}$ (JSU) distribution, a four-parameter, leptokurtic distribution capable of skew in either direction. 
 We used a parameterization of the JSU for which location parameter $\mu$ is the mean and scale parameter $\sigma$ is the standard deviation \citep{rigby2019distributions}. 
 
 Like many of the non-Gaussian candidates that we suggest (Fig. \ref{fig:workflow}), the JSU distribution is not presently available as a family option for linear mixed models in any software package, to our knowledge. 
 However, this need not be a barrier to using it for growth modeling. 
-We fit a custom maximum likelihood model that borrows the pieces of the best Gaussian model that we are happy with (mean and standard deviation), limiting estimation of free parameters to those that control the JSU's skewness and kurtosis. 
+We fit a custom maximum likelihood model that borrows the mean and standard deviation of best Gaussian model and limits estimation of free parameters to those that control the JSU's skewness and kurtosis -- effectively modeling the standardized residuals rather than sizes. 
 Here is what such a hybrid likelihood model looks like in practice:
 \begin{lstlisting}
 ## log_volume_t1 are the size obervations
-## GAU_fitted are the expected values of the best Gaussian models
-## pars is a vector of free parameters
+## GAU_fitted are the expected values of the best Gaussian model
+## pars is a vector of free parameters to be estimated
 JSULogLik=function(pars){
 	dJSU(x=log_volume_t1, 
 	mu=GAU_fitted,
@@ -583,13 +583,12 @@ JSULogLik=function(pars){
 \end{lstlisting}
 The mean of the JSU is set to that of the best Gaussian model (\verb|GAU_fitted|) and the standard deviation is a function of the mean according to the coefficients (\verb|GAU_sd_coef|) estimated through iterative re-weighting. 
 Based on diagnostics of the standardized residuals (Fig. \ref{fig:creosote_diganostics}), JSU parameters that control skewness and kurtosis are defined as linear functions of the mean, and it is these coefficients that are estimated by maximum likelihood. 
-If it seems a little strange to swap in the fitted values from a Gaussian model as the mean of a non-Gaussian model -- well, it is. 
-Here we are relying on the robustness of linear models to deviations from normality. 
-Alternatively, it is possible re-fit the mean and standard deviation of the JSU, alongside skewness and kurtosis, in a maximum likelihood framework. 
+Here we are relying on the robustness of Gaussian linear models to deviations from normality -- CITE AND DISCUSS. 
+If one is skeptical of this approach, it is possible to simultaneously re-fit all parameters of the JSU in a maximum likelihood framework, as an alternative. 
 However, incorporating random effects into a custom likelihood model is non-trivial (we provide guidance on one way to do this, using the ``shrinkage'' approach, in Appendix XX). 
-Therefore a key advantage of the hybrid approach is convenient retention of the fitted random effects and associated variance components, which get shuttled from the Gaussian model into the non-Gaussian model without any fuss. 
+Therefore a key advantage of the hybrid approach is convenient retention of the fitted random effects and associated variance components, which get shuttled from the Gaussian model into the non-Gaussian model without any fuss (it was critical that we used a parameterization of the JSU for which \verb|mu| is the mean and \verb|sigma| is the standard deviation). 
 And, if this approach does not ``work'' (i.e., deviations from normality biased the fitted values of the Gaussian model) one would quickly find out through the simulation step of the workflow. 
-In our case, the hybrid JSU model performed well, generating simulated data that aligned with the real data better than the best Gaussian model, particularly in \tom{standard deviation}{I am a little mystified as to why the JSU is so much better. It is literally the same SD in both distributions.} and kurtosis (Fig. \ref{fig:creosote_JSU}). 
+In this case, the hybrid JSU model performed well, generating simulated data that aligned with the real data better than the best Gaussian model, particularly in \tom{standard deviation}{I am a little mystified as to why the JSU is so much better. It is literally the same SD in both distributions.} and kurtosis (Fig. \ref{fig:creosote_JSU}). 
 Note that in Fig. \ref{fig:creosote_JSU} we are plotting moments of the future size distribution with respect to initial size; this distribution is also conditional on local density but initial size is by far the stronger predictor of future size, so we chose this this visualization. 
 
 \begin{figure}[tbp]
@@ -601,7 +600,82 @@ Note that in Fig. \ref{fig:creosote_JSU} we are plotting moments of the future s
 
 \textbf{SIPM results with a better growth model.}
 
+\section{Case study: lady orchid, \emph{Orchis purpurea}}
+Our final case study examines selection on life history strategies in the lady orchid \textit{Orchis purpurea}. 
+In a prior study, Miller et al. \citeyear{miller2012evolutionary} contrasted the growth trajectories from year $t$ to $t+1$ for plants that did or did not flower in year $t$, as a way to quantify costs of reproduction. 
+The different growth kernels were then used in an IPM to quantify evolutionarily stable life history strategies: the optimal flowering size that balances benefits of flowering at larger sizes against the risk of dying before reaching those sizes. 
+The original study assumed a Gaussian distribution of size transitions and allowed for non-constant variance with respect to initial size. 
+Here we re-visit that analysis applying our growth modeling workflow.  
+
+The data, originated by Dr. Hans Jacquemyn and used here with permission, come from 368 plants in a Belgian population that was censused annually from 2003 through 2011 (for this reanalysis we are using data only from the ``light'' habitat). 
+Size was measured as leaf area ($cm^3$) summed over all leaves, and we analyzed the natural logarithm of leaf area as the size variable of the IPM. 
+
+As a pilot Gaussian approach, we fit three candidate models for the mean that included effects of initial size only, independent effects of initial size and flowering status, and interaction between size and flowering. 
+All models included a random intercept for year and specified the residual variance as a function of initial size. 
+As another variation on software and an alternative to two-step fitting or iterative re-weighting, here we use \verb|nmle::lme()|, which can simultaneously fit linear predictors for mean and variance. 
+For example, model 1 was:
+\begin{lstlisting}
+orchid_GAU[[1]]<-lme(log_area_t1~log_area_t,
+	weights=varExp(form=~log_area_t),
+	random=~1|begin.year,data=orchid_grow,method="ML")
+\end{lstlisting}
+Model 3 (size $\times$ flowering) was strongly favored, consistent with prior results that non-flowering plants have a growth advantage over flowering plants. 
+Growth variance declined with initial size for both reproductive classes (Fig. \ref{fig:orchid_diagnostics}A-B) and skewness and kurtosis of the standardized residuals indicate strong deviations from normality (Fig. \ref{fig:orchid_diagnostics}C-D). 
+For most sizes, left skew and excess kurtosis were more severe for non-reproductive plants, with tail imbalance ca. 10\% of their total and tail weights 10--20\% fatter than Gaussian. 
+
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/orchid_diagnostics.pdf}
+	\caption{}
+	\label{fig:orchid_diagnostics}
+\end{figure} 
+
+As improvements, we explored the skewed $t$ and Johnson's SU distributions, both leptokurtic distributions with flexible skewness. 
+We were happier with the skewed $t$, which we fit in a similar way as we fit the JSU to the creosote data, setting the mean and standard deviation to the Gaussian fits and estimating free parameters controlling skewness and kurtosis:
+\begin{lstlisting}
+## log_area_t1 and log_area_t are the size obervations
+## flowering indicates reproductive status at time t (0 or 1)
+## GAU_fitted and GAU_sd are mean and standard deviation from lme
+## pars is a vector of free parameters to be estimated
+SSTLogLik=function(pars){
+	dSST(x=log_area_t1, 
+	mu=GAU_fitted,
+	sigma=GAU_sd,
+	nu = exp(pars[1] + pars[2]*log_area_t + pars[3]*as.logical(flowering) + pars[4]*log_area_t*as.logical(flowering)),
+	tau = exp(pars[5] + pars[6]*log_area_t + pars[7]*as.logical(flowering) + pars[8]*log_area_t*as.logical(flowering))+2, 
+	log=TRUE)
+}
+\end{lstlisting}
+\verb|gamlss.dist:dSST| is a parameterization of the skewed $t$ which \verb|mu| and \verb|sigma| are the mean and standard deviation, respectively. 
+Based on diagnostics of the standardized residuals (Fig. \ref{fig:orchid_diagnostics}) we allowed \verb|nu| and \verb|tau| to vary by size and between flowering and non-flowering plants (the \verb|tau| parameter uses a $log(x-2)$ link function). 
+Size data simulated from this model corresponded favorably to the real size data, much better than the pilot Gaussian model (Fig. \ref{fig:orchid_SST_fit}). 
+
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/orchid_SST_fit.pdf}
+	\caption{}
+	\label{fig:orchid_SST_fit}
+\end{figure} 
+
 \section{Discussion}
+Much of the appeal of integral projection models has stemmed from their embrace of continuous size structure through reliance on regression-based approaches, and the potentially complex fixed- and random-effect structures that these approaches allow. 
+Using familiar statistical tools and with relatively few parameters to estimate, IPM users can incorporate important sources of variation in demography and interrogate their influence on ecological and evolutionary dynamics. 
+With this opportunity comes the extra burden of getting it right.
+IPMs are good models of the populations they are intended represent only insofar as the statistical models provide good fits to the underlying data. 
+The growth sub-model is the trickiest part of ``getting it right'' because it defines a distribution of future size conditional on current size. 
+Distributions have many properties -- ``moments'' -- and a good growth model should recapitulate the properties of real size transitions. 
+The default assumption of normally distributed size transitions, employed overwhelmingly across 20+ years of IPM studies, is an arbitrary historical precedent. 
+In four case studies (chosen simply because we had the data at our fingertips) and, we suspect, more broadly, skewness and excess kurtosis were common features of size transition data: shrinking was more common than growing, and large changes in size were more common than a Gaussian model would predict. 
+Our most important message to readers is that the standard assumption of normally-distributed size transitions should be abandoned and a more inquisitive process of growth modeling should take its place. 
+
+We have attempted to lay out a general workflow for what that process should look like, guided by visual diagnostics of standardized residuals. 
+
+
+ 
+
+
+ and their capacity for complex fixed- and random-effect structures
+Since their inroduction to the ecological community in the early 2000's, 
 
 Here are some of the issues to be discussed.
 \begin{itemize}
