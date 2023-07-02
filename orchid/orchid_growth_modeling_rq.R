@@ -10,6 +10,7 @@ library(moments)
 library(maxLik)
 library(bbmle)
 library(qpdf)
+library(Rage)
 
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
@@ -29,6 +30,9 @@ orchid<- read_csv("orchid/Orchis_IPM_data.csv") %>%
   filter(light=="L") %>% 
   mutate(log_area_t=log(total.leaf.area),
          log_area_t1=log(end.total.leaf.area)) 
+seedlings<-read.csv("orchid/Orchis_seedlings.csv",T) %>% 
+  filter(light=="L") %>% 
+  mutate(log_area_t1=log(end.total.leaf.area)) 
 
 ## create a data subset for growth modeling
 orchid %>% 
@@ -42,6 +46,13 @@ orchid_GAU[[1]]<-lme(log_area_t1~log_area_t,weights=varExp(form=~log_area_t),
 orchid_GAU[[2]]<-lme(log_area_t1~log_area_t + as.logical(flowering),weights=varExp(form=~log_area_t),
                      random=~1|begin.year,data=orchid_grow,method="ML")
 orchid_GAU[[3]]<-lme(log_area_t1~log_area_t*as.logical(flowering),weights=varExp(form=~log_area_t),
+                     random=~1|begin.year,data=orchid_grow,method="ML")
+## same models but sd differs between veg and flow
+orchid_GAU[[4]]<-lme(log_area_t1~log_area_t,weights=varExp(form=~log_area_t*as.logical(flowering)),
+                     random=~1|begin.year,data=orchid_grow,method="ML")
+orchid_GAU[[5]]<-lme(log_area_t1~log_area_t + as.logical(flowering),weights=varExp(form=~log_area_t*as.logical(flowering)),
+                     random=~1|begin.year,data=orchid_grow,method="ML")
+orchid_GAU[[6]]<-lme(log_area_t1~log_area_t*as.logical(flowering),weights=varExp(form=~log_area_t*as.logical(flowering)),
                      random=~1|begin.year,data=orchid_grow,method="ML")
 AICtab(orchid_GAU)
 orchid_GAU_best<-orchid_GAU[[which.min(AICctab(orchid_GAU,sort=F)$dAICc)]]
@@ -373,8 +384,164 @@ dev.off()
 
 
 # IPM and life history analysis -------------------------------------------
+## here are the additional components for the IPM
+### survival (not affected by flowering)
+surv<-glmer(survival~log_area_t+(1|begin.year),family="binomial",data=orchid)
+### flowering probability
+flower<-glmer(flowering~log_area_t+(1|begin.year),data=orchid,family="binomial")
+### number of flowers produced by flowering plants
+nflowers<-glmer(number.flowers~log_area_t+(1|begin.year),data=subset(orchid,flowering==1),family="poisson")
 
+### proportion of fruits that set seed; Hans et al. used a size-dependent function
+### but I get non-significant slopes in both environments, so I will use means
+propfruit<-glmer(number.fruits/number.flowers~(1|begin.year),weights=number.flowers,data=subset(orchid,flowering==1),family="binomial")
 
+### seedling size distributions
+kidsize<-mean(seedlings$log_area_t1)
+kidsd<-sd(seedlings$log_area_t1)
+
+### seeds per fruit;see text
+seeds<-6000	
+
+### seed to protocorm transition; see text
+eta<-mean(c(0.007,0.023))
+
+### protocorm survival probability (from Eelke)
+sigmap<-0.01485249
+
+### tuber survival probability (from Eelke)
+sigmat<-0.05940997
+
+### size-dependent probability of entering dormancy
+dormancy<-glmer(dormant~log_area_t+(1|begin.year),family="binomial",data=orchid)
+
+### size distribution (mean and sd) of plants emerging from dormancy (assumed to be common across environments)
+Dsize<-mean(orchid$log_area_t1[orchid$number.leaves==0],na.rm=T)
+Dsizesd<-sd(orchid$log_area_t1[orchid$number.leaves==0],na.rm=T)
+
+### observed size limits
+minsize<-min(na.omit(c(orchid$log_area_t,orchid$log_area_t1)))
+maxsize<-max(na.omit(c(orchid$log_area_t,orchid$log_area_t1)))
+matsize<-100	##size of approximating matrix
+
+##################################################################################
+### now store parameters in vectors
+###################################################################################
+
+params<-c()
+## survival params
+params$surv.int <- fixef(surv)[1]
+params$surv.size <- fixef(surv)[2]
+## gaussian growth params
+params$grow.int <- fixef(orchid_GAU_best)[1]
+params$grow.size <- fixef(orchid_GAU_best)[2]
+params$grow.flow <- fixef(orchid_GAU_best)[3]
+params$grow.size.flow <- fixef(orchid_GAU_best)[4]
+params$growsd.int <- orchid_GAU_best$sigma
+params$growsd.size <- orchid_GAU_best$modelStruct$varStruct[1]
+## SST growth params
+params$growSST.nu.int<-SSTout$estimate[1]
+params$growSST.nu.size<-SSTout$estimate[2]
+params$growSST.nu.flow<-SSTout$estimate[3]
+params$growSST.nu.size.flow<-SSTout$estimate[4]
+params$growSST.tau.int<-SSTout$estimate[5]
+params$growSST.tau.size<-SSTout$estimate[6]
+params$growSST.tau.flow<-SSTout$estimate[7]
+params$growSST.tau.size.flow<-SSTout$estimate[8]
+## flowering params
+params$flow.int <- fixef(flower)[1]
+params$flow.size <- fixef(flower)[2]
+## fruit production
+params$flowers.int <- fixef(nflowers)[1]
+params$flowers.size <- fixef(nflowers)[2]
+## fruit set
+params$fruits<-fixef(propfruit)[1]
+## offspring
+params$seeds<-seeds
+params$kidsize<-kidsize
+params$kidsize.sd<-kidsd
+params$germ<-eta 
+params$sigmap<-sigmap 
+## dormancy
+params$dorm.int<-fixef(dormancy)[1]
+params$dorm.size<-fixef(dormancy)[2]
+params$sigmat<-sigmat 
+params$Dsize<-Dsize						
+params$Dsizesd<-Dsizesd						
+## matrix
+params$minsize<-minsize
+params$maxsize<-maxsize
+params$matsize<-matsize
+
+#IPM source functions are here:
+source("orchid/orchis.IPM.source.R")
+
+flowint<-seq(-30,0,0.1)
+R0out.beta0.GAU<-R0out.beta0.SST<-vector("numeric",length=length(flowint))
+for(i in 1:length(flowint)){
+  params$flow.int<-flowint[i]
+  R0out.beta0.GAU[i]<-returnR0(params,dist="GAU")$R0
+  R0out.beta0.SST[i]<-returnR0(params,dist="SST")$R0
+  if(i==length(flowint)){params$flow.int<-fixef(flower)[1]}
+}
+
+## compare mean life expectancy from protocorm
+mean.life.GAU<-mean.life.SST<-vector("numeric",length=params$matsize+3)
+matU.GAU<-returnR0(params=params,dist="GAU")$T
+var.life.GAU<-var.life.SST<-vector("numeric",length=params$matsize+3)
+matU.SST<-returnR0(params=params,dist="SST")$T
+meshpts<-returnR0(params=params,dist="GAU")$meshpts
+for(i in 1:length(mean.life.GAU)){
+  mean.life.GAU[i]<-life_expect_mean(matU = matU.GAU, start = i)
+  var.life.GAU[i]<-life_expect_var(matU = matU.GAU, start = i)
+  mean.life.SST[i]<-life_expect_mean(matU = matU.SST, start = i)
+  var.life.SST[i]<-life_expect_var(matU = matU.SST, start = i)
+}
+
+pdf("manuscript/figures/orchis_life_history.pdf",height=3,width=9)
+par(mar = c(5, 4, 2, 1),mfrow=c(1,3)) 
+plot(-flowint/params$flow.size,R0out.beta0.GAU,type="l",lwd=2,col="tomato",
+     xlab="log(leaf area)",ylab="R0",cex.lab=1.4)
+lines(-flowint/params$flow.size,R0out.beta0.SST,lwd=2,col="cornflowerblue")
+abline(v=-params$flow.int/params$flow.size,lty=2)
+legend("topleft",legend=c("Gaussian","Skewed t"),title="Growth model:",
+       lwd=2,col=c("tomato","cornflowerblue"),bty="n")
+title("A",adj=0,font=3)
+
+plot(c(-2.5,-2,-1.5,meshpts),mean.life.GAU,axes=F,
+     xlab=" ",ylab=" ",type="n",lwd=2,ylim=c(range(c(mean.life.GAU,mean.life.SST))))
+lines(meshpts,mean.life.GAU[-(1:3)],col="tomato",lwd=2)
+lines(meshpts,mean.life.SST[-(1:3)],col="cornflowerblue",lwd=2)
+points(c(-2.5,-2,-1.5),mean.life.GAU[1:3],pch=16,col="tomato",cex=1.5)
+points(c(-2.5,-2,-1.5),mean.life.SST[1:3],pch=16,col="cornflowerblue",cex=1.5)
+abline(v=-1)
+box()
+axis(side = 1,cex.axis=0.8,at = seq(-0.5,7.5,1))
+axis(side = 1,labels=c("protocorm","tuber","dormant"),at=c(-2.5,-2,-1.5),las=2)
+mtext("log(leaf area)", side = 1, line = 3,cex=.9)
+mtext("Mean remaining lifespan (yrs)", side = 2, line = 3,cex=.9)
+axis(side = 2,cex.axis=0.8,at = pretty(range(c(mean.life.GAU,mean.life.SST))))
+title("B",adj=0,font=3)
+
+plot(c(-2.5,-2,-1.5,meshpts),log(var.life.GAU),axes=F,
+     xlab=" ",ylab=" ",type="n",lwd=2,ylim=c(range(c(log(var.life.GAU),log(var.life.SST)))))
+lines(meshpts,log(var.life.GAU[-(1:3)]),col="tomato",lwd=2)
+lines(meshpts,log(var.life.SST[-(1:3)]),col="cornflowerblue",lwd=2)
+points(c(-2.5,-2,-1.5),log(var.life.GAU[1:3]),pch=16,col="tomato",cex=1.5)
+points(c(-2.5,-2,-1.5),log(var.life.SST[1:3]),pch=16,col="cornflowerblue",cex=1.5)
+abline(v=-1)
+box()
+axis(side = 1,cex.axis=0.8,at = seq(-0.5,7.5,1))
+axis(side = 1,labels=c("protocorm","tuber","dormant"),at=c(-2.5,-2,-1.5),las=2)
+mtext("log(leaf area)", side = 1, line = 3,cex=.9)
+mtext("log(variance of remaining lifespan)", side = 2, line = 3,cex=.9)
+axis(side = 2,cex.axis=0.8,at = pretty(range(c(log(var.life.GAU),log(var.life.SST)))))
+title("C",adj=0,font=3)
+dev.off()
+
+## by how much do the variances differ?
+maxdiff<-which.max(var.life.SST-var.life.GAU)
+(var.life.SST-var.life.GAU)[maxdiff]/var.life.SST[maxdiff]
 
 #### The Basement ###################################
 ## make sure I know how to use lme's variance function
