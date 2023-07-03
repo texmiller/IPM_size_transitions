@@ -8,6 +8,9 @@
 
 rm(list=ls(all=TRUE))
 setwd("c:/repos/IPM_size_transitions/coral"); 
+## Tom's local directory
+setwd("C:/Users/tm9/Dropbox/github/IPM_size_transitions")
+
 
 require(car); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(AICcmodavg); 
