@@ -646,15 +646,31 @@ SSTLogLik=function(pars){
 	log=TRUE)
 }
 \end{lstlisting}
-\verb|gamlss.dist:dSST| is a parameterization of the skewed $t$ which \verb|mu| and \verb|sigma| are the mean and standard deviation, respectively. 
+\verb|gamlss.dist:dSST| is a parameterization of the skewed $t$ in which \verb|mu| and \verb|sigma| are the mean and standard deviation, respectively. 
 Based on diagnostics of the standardized residuals (Fig. \ref{fig:orchid_diagnostics}) we allowed \verb|nu| and \verb|tau| to vary by size and between flowering and non-flowering plants (the \verb|tau| parameter uses a $log(x-2)$ link function). 
-Size data simulated from this model corresponded favorably to the real size data, much better than the pilot Gaussian model (Fig. \ref{fig:orchid_SST_fit}). 
+Size data simulated from this model corresponded favorably to the real size data, much better than the pilot Gaussian model, including improvements in the \tom{standard deviation}{Again, the improvement here is suprising to me and I am unsure what to say about it.}, skewness, and kurtosis of future size (Fig. \ref{fig:orchid_SST_fit}). 
 
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/orchid_SST_fit.pdf}
 	\caption{}
 	\label{fig:orchid_SST_fit}
+\end{figure} 
+
+Finally, we used the improved growth model to revisit the key result of the original study. 
+Miller et al. \citeyear{miller2012evolutionary} used the orchid IPM to estimate the evolutionarily stable strategy (ESS) as the mean size at flowering that maximizes lifetime reproductive success ($R_0$), given the constraint that flowering when small reduces growth and thus elevates mortality risk. 
+Repeating that analysis here, we found that improved growth modeling has virtually no influence on predictions for optimal life history strategies (Fig. \ref{fig:orchid_ESS}).
+ESS flowering sizes were virtually identical between IPMs with Gaussian vs skewed $t$ growth models, and aligned well with the observed mean flowering size (dashed vertical line in Fig. \ref{fig:orchid_ESS}A). 
+Extending beyond the original study, we also explored expected remaining lifespan for different ages and sizes. 
+Gaussian and skewed $t$ growth models predicted nearly identical mean remaining lifespans (Fig. \ref{fig:orchid_ESS}B).
+However, the skewed $t$ model predicted consistently greater variance in remaining lifespan, nearly 10\% greater at some sizes. 
+Again, the practical consequences of improved growth modeling may or may not be trivial depending on what one aims to learn from the IPM. 
+
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/orchis_life_history.pdf}
+	\caption{}
+	\label{fig:orchid_ESS}
 \end{figure} 
 
 \section{Discussion}
@@ -684,6 +700,7 @@ Here are some of the issues to be discussed.
 \item{Choosing a better distribution -- how to make the choice}
 \item{Comparison of our method with beta regression}
 \item{We have emphasize growth but same principles apply to other continuous state transitions, eg disease IPMs.}
+\item{Same issues apply to MPMs}
 
 \end{itemize}
 
