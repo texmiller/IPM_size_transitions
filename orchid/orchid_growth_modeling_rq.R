@@ -488,7 +488,7 @@ for(i in 1:length(flowint)){
   if(i==length(flowint)){params$flow.int<-fixef(flower)[1]}
 }
 
-## compare mean life expectancy from protocorm
+## compare mean life expectancies
 mean.life.GAU<-mean.life.SST<-vector("numeric",length=params$matsize+3)
 matU.GAU<-returnR0(params=params,dist="GAU")$T
 var.life.GAU<-var.life.SST<-vector("numeric",length=params$matsize+3)
