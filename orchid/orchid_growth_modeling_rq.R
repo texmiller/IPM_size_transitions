@@ -12,6 +12,9 @@ library(bbmle)
 library(qpdf)
 library(Rage)
 
+## Tom's local directory
+setwd("C:/Users/tm9/Dropbox/github/IPM_size_transitions")
+
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
 Q.sd<-function(q.25,q.75){(q.75-q.25)/1.35}
@@ -98,23 +101,6 @@ axis(side = 4,cex.axis=0.8,at = pretty(range(orchid_grow$GAU_sd)))
 legend("topleft",legend=c("Mean","SD"),bg="white",pch=16,col=c("red","blue"),cex=0.8)
 title("A",font=3,adj=0)
 
-plot(orchid_grow$log_area_t,orchid_grow$log_area_t1,type="n",
-     xlab="Size at t",ylab="Size at t+1")
-points(orchid_grow$log_area_t[orchid_grow$flowering==1],
-       orchid_grow$log_area_t1[orchid_grow$flowering==1],col=alpha("black",0.25))
-points(orchid_grow$log_area_t[orchid_grow$flowering==1],
-       fixef(orchid_GAU_best)[1]+fixef(orchid_GAU_best)[3]+(fixef(orchid_GAU_best)[2]+fixef(orchid_GAU_best)[4])*orchid_grow$log_area_t[orchid_grow$flowering==1],
-       col=alpha("red",0.25),pch=".",cex=2)
-par(new = TRUE) 
-plot(orchid_grow$log_area_t,orchid_grow$GAU_sd,type="n",
-     col=alpha("blue",0.25),pch=".",cex=2,axes = FALSE, xlab = "", ylab = "")
-points(orchid_grow$log_area_t[orchid_grow$flowering==1],
-       orchid_grow$GAU_sd[orchid_grow$flowering==1],
-       col=alpha("blue",0.25),pch=".",cex=2)
-axis(side = 4,cex.axis=0.8,at = pretty(range(orchid_grow$GAU_sd)))
-mtext("Standard deviation", side = 4, line = 2,cex=0.9)
-title("B",font=3,adj=0)
-
 plot(orchid_grow$log_area_t,orchid_grow$GAU_std_resids,type="n",
      xlab="Size at t+1",ylab="Scaled residuals of size at t+1")
 points(orchid_grow$log_area_t[orchid_grow$flowering==0],
@@ -147,6 +133,23 @@ points(c(orchid_grow$log_area_t[orchid_grow$flowering==0],
 abline(h=0,col="lightgray",lty=3)
 axis(side = 4,cex.axis=0.8,at = pretty(range(c(Q.skewness(q.10,q.50,q.90),Q.kurtosis(q.05,q.25,q.75,q.95)))))
 legend("topleft",legend=c("Skewness","Kurtosis"),bg="white",pch=16,col=c("blue","red"),cex=0.8)
+title("B",font=3,adj=0)
+
+plot(orchid_grow$log_area_t,orchid_grow$log_area_t1,type="n",
+     xlab="Size at t",ylab="Size at t+1")
+points(orchid_grow$log_area_t[orchid_grow$flowering==1],
+       orchid_grow$log_area_t1[orchid_grow$flowering==1],col=alpha("black",0.25))
+points(orchid_grow$log_area_t[orchid_grow$flowering==1],
+       fixef(orchid_GAU_best)[1]+fixef(orchid_GAU_best)[3]+(fixef(orchid_GAU_best)[2]+fixef(orchid_GAU_best)[4])*orchid_grow$log_area_t[orchid_grow$flowering==1],
+       col=alpha("red",0.25),pch=".",cex=2)
+par(new = TRUE) 
+plot(orchid_grow$log_area_t,orchid_grow$GAU_sd,type="n",
+     col=alpha("blue",0.25),pch=".",cex=2,axes = FALSE, xlab = "", ylab = "")
+points(orchid_grow$log_area_t[orchid_grow$flowering==1],
+       orchid_grow$GAU_sd[orchid_grow$flowering==1],
+       col=alpha("blue",0.25),pch=".",cex=2)
+axis(side = 4,cex.axis=0.8,at = pretty(range(orchid_grow$GAU_sd)))
+mtext("Standard deviation", side = 4, line = 2,cex=0.9)
 title("C",font=3,adj=0)
 
 plot(orchid_grow$log_area_t,orchid_grow$GAU_std_resids,type="n",
@@ -501,7 +504,7 @@ for(i in 1:length(mean.life.GAU)){
 pdf("manuscript/figures/orchis_life_history.pdf",height=3,width=9)
 par(mar = c(5, 4, 2, 1),mfrow=c(1,3)) 
 plot(-flowint/params$flow.size,R0out.beta0.GAU,type="l",lwd=2,col="tomato",
-     xlab="log(leaf area)",ylab="R0",cex.lab=1.4)
+     xlab="Flowering size (log leaf area)",ylab="R0",cex.lab=1.4)
 lines(-flowint/params$flow.size,R0out.beta0.SST,lwd=2,col="cornflowerblue")
 abline(v=-params$flow.int/params$flow.size,lty=2)
 legend("topleft",legend=c("Gaussian","Skewed t"),title="Growth model:",
