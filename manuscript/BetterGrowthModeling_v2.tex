@@ -501,7 +501,7 @@ Thus, depending on the target of one's analysis, modeling non-Gaussian size tran
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/cactus_lambda_years_plots.pdf}
-	\caption{.}
+	\caption{Temporal (\textbf{A}) and spatial (\textbf{B}) heterogeneity in fitness for the tree cholla cactus (\textit{Cylindriopuntia imbricata}) predicted by IPMs using Gaussian or SHASH growth models. Figure made by script \texttt{cactus\_growth\_modeling\_qgam.R}.}
 	\label{fig:cactus_lambda}
 \end{figure} 
 
@@ -551,17 +551,17 @@ We iterated steps 2 and 3 until the weights did not change.
 In step 2, we modeled the standard deviation as a simple linear function of the expected value ($log(f(\mu_{i}))=\beta_{0}+\beta_{1}*\mu_{i}$) but other functions are possible, as is model selection among them. 
 We did this for all candidate models and, for fair AIC comparison, we re-fit all candidate models with the same weights, estimated from the top model. 
 The updated model selection continued to favor model 4, but now with a stronger improvement over the next-best model ($\Delta AIC = 3.0$). 
-The code that executes our iterative re-weighting can be found in SCRIPT. 
 
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/creosote_diagnostics.pdf}
-	\caption{}
+	\caption{\textbf{A}, Creosotebush size transition data with repsect to initial size (colors) and local weighted density (sum of sizes of all plants within a five-meter transect window). Size is quantified as the natural logarithm of plant volume ($cm^3$). \textbf{B}, Standard deviation of size at time $t+1$ as a function of expected size at $t+1$ (the fitted values), estimated by iterative re-weighting. \textbf{C}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (blue) and excess kurtosis (red) derived from them. Black lines in \textbf{C} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. Figure made by script \texttt{creosote\_growth\_modeling\_qgam.R}.}
 	\label{fig:creosote_diganostics}
 \end{figure} 
 
-The resulting Gaussian growth model accounts for non-constant variance through the fitted weights, which indicate greater dispersion for smaller values of expected size ($\beta_{1}=-0.21$). 
-Quantiles of the standardized residuals of this model indicate weak negative skew (difference in tail size is 1--2\% of their total) and positive excess kurtosis, especially at smaller expected sizes (tails are 6--10\% fatter than Gaussian) (Fig. \ref{fig:creosote_diganostics}). \tom{}{Note that there is still a variance trend in the standardized residuals--rather unsatisfying! I have been through this backwards and forwards and my take is that this is a product of the sample size imbalance between small and large plants. The quantile regression is doing its best.}
+The resulting Gaussian growth model predicts strong initial size-dependence and weak and slightly nonlinear (but monotonic) negative density dependence (Fig. \ref{fig:creosote_diganostics}A). 
+The model accounts for non-constant variance through the fitted weights, which indicate greater dispersion for smaller values of expected size ($\beta_{1}=-0.21$; Fig. \ref{fig:creosote_diganostics}B). 
+Quantiles of the standardized residuals indicate weak negative skew (difference in tail size is 1--2\% of their total) and positive excess kurtosis, especially at smaller expected sizes (tails are 6--10\% fatter than Gaussian) (Fig. \ref{fig:creosote_diganostics}C). \tom{}{Note that there is still a variance trend in the standardized residuals--rather unsatisfying! I have been through this backwards and forwards and my take is that this is a product of the sample size imbalance between small and large plants. The quantile regression is doing its best.}
 As a candidate for improvement, we turned to the Johnson's $S_{U}$ (JSU) distribution, a four-parameter, leptokurtic distribution capable of skew in either direction. 
 We used a parameterization of the JSU for which location parameter $\mu$ is the mean and scale parameter $\sigma$ is the standard deviation \citep{rigby2019distributions}. 
 
@@ -594,7 +594,7 @@ Note that in Fig. \ref{fig:creosote_JSU} we are plotting moments of the future s
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/creosote_JSU_fit.pdf}
-	\caption{}
+	\caption{Comparisons between real creosotebush data and data simulated from Gaussian and JSU growth models for mean, standard deviation, NP skewness, and NP kurtosis of future size conditional on current size. Figure made by script \texttt{creosote\_growth\_modeling\_qgam.R}.}
 	\label{fig:creosote_JSU}
 \end{figure} 
 
@@ -605,13 +605,13 @@ Our final case study examines selection on life history strategies in the lady o
 In a prior study, Miller et al. \citeyear{miller2012evolutionary} contrasted the growth trajectories from year $t$ to $t+1$ for plants that did or did not flower in year $t$, as a way to quantify costs of reproduction. 
 The different growth kernels were then used in an IPM to quantify evolutionarily stable life history strategies: the optimal flowering size that balances benefits of flowering at larger sizes against the risk of dying before reaching those sizes. 
 The original study assumed a Gaussian distribution of size transitions and allowed for non-constant variance with respect to initial size. 
-Here we re-visit that analysis applying our growth modeling workflow.  
+Here we re-visit that analysis applying our growth modeling workflow to derive improved growth kernels for flowering and non-flowering orchids. 
 
 The data, originated by Dr. Hans Jacquemyn and used here with permission, come from 368 plants in a Belgian population that was censused annually from 2003 through 2011 (for this reanalysis we are using data only from the ``light'' habitat). 
-Size was measured as leaf area ($cm^3$) summed over all leaves, and we analyzed the natural logarithm of leaf area as the size variable of the IPM. 
+Size was measured as leaf area ($cm^3$) summed over all leaves, and we analyzed the natural logarithm of total leaf area as the size variable of the IPM. 
 
-As a pilot Gaussian approach, we fit three candidate models for the mean that included effects of initial size only, independent effects of initial size and flowering status, and interaction between size and flowering. 
-All models included a random intercept for year and specified the residual variance as a function of initial size. 
+As a pilot Gaussian approach, we fit six candidate models in which the mean was a function of initial size only, additive effects of initial size and flowering status, and interaction between size and flowering, and the standard deviation was a function of size only (models 1-3) or size and flowering status (models 4-6). 
+All models included a random intercept for year. 
 As another variation on software and an alternative to two-step fitting or iterative re-weighting, here we use \verb|nmle::lme()|, which can simultaneously fit linear predictors for mean and variance. 
 For example, model 1 was:
 \begin{lstlisting}
@@ -647,44 +647,53 @@ SSTLogLik=function(pars){
 }
 \end{lstlisting}
 \verb|gamlss.dist:dSST| is a parameterization of the skewed $t$ in which \verb|mu| and \verb|sigma| are the mean and standard deviation, respectively. 
-Based on diagnostics of the standardized residuals (Fig. \ref{fig:orchid_diagnostics}) we allowed \verb|nu| and \verb|tau| to vary by size and between flowering and non-flowering plants (the \verb|tau| parameter uses a $log(x-2)$ link function). 
-Size data simulated from this model corresponded favorably to the real size data, much better than the pilot Gaussian model, including improvements in the \tom{standard deviation}{Again, the improvement here is suprising to me and I am unsure what to say about it.}, skewness, and kurtosis of future size (Fig. \ref{fig:orchid_SST_fit}). 
+Based on diagnostics of the standardized residuals (Fig. \ref{fig:orchid_diagnostics}) we allowed \verb|nu| and \verb|tau| to vary by size and differ between flowering and non-flowering plants (note that the \verb|tau| parameter uses a $log(x-2)$ link function). 
+Size transition data simulated from this model corresponded favorably to the real data, much better than the pilot Gaussian model, including improvements in the \tom{standard deviation}{Again, the improvement here is suprising to me and I am unsure what to say about it.}, skewness, and kurtosis of future size (Fig. \ref{fig:orchid_SST_fit}). 
 
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/orchid_SST_fit.pdf}
-	\caption{}
+	\caption{Comparisons between real orchid data and data simulated from Gaussian and skewed $t$ growth models for mean, standard deviation, NP skewness, and NP kurtosis of future size conditional on current size. Top row (\textbf{A}-\textbf{D}) shows plants that were vegetative at the start of the transition year and bottom row (\textbf{E}-\textbf{H}) shows plants that were flowering at the start of the transition year. Figure made by script \texttt{orchid\_growth\_modeling\_rq.R}.}
 	\label{fig:orchid_SST_fit}
 \end{figure} 
 
-Finally, we used the improved growth model to revisit the key result of the original study. 
-Miller et al. \citeyear{miller2012evolutionary} used the orchid IPM to estimate the evolutionarily stable strategy (ESS) as the mean size at flowering that maximizes lifetime reproductive success ($R_0$), given the constraint that flowering when small reduces growth and thus elevates mortality risk. 
+Finally, we used the improved growth model to revisit key results of the original study. 
+Miller et al. (\citeyear{miller2012evolutionary}) used the orchid IPM to estimate the evolutionarily stable strategy (ESS) as the mean size at flowering that maximizes lifetime reproductive success ($R_0$), given the constraint that flowering when small reduces growth and thus elevates mortality risk. 
 Repeating that analysis here, we found that improved growth modeling has virtually no influence on predictions for optimal life history strategies (Fig. \ref{fig:orchid_ESS}).
-ESS flowering sizes were virtually identical between IPMs with Gaussian vs skewed $t$ growth models, and aligned well with the observed mean flowering size (dashed vertical line in Fig. \ref{fig:orchid_ESS}A). 
-Extending beyond the original study, we also explored expected remaining lifespan for different ages and sizes. 
-Gaussian and skewed $t$ growth models predicted nearly identical mean remaining lifespans (Fig. \ref{fig:orchid_ESS}B).
-However, the skewed $t$ model predicted consistently greater variance in remaining lifespan, nearly 10\% greater at some sizes. 
-Again, the practical consequences of improved growth modeling may or may not be trivial depending on what one aims to learn from the IPM. 
+ESS flowering sizes were nearly identical between IPMs with Gaussian vs skewed $t$ growth models, and both aligned well with the observed mean flowering size (dashed vertical line in Fig. \ref{fig:orchid_ESS}A). 
+Extending beyond the original study, we also explored expected remaining lifespan for different ages and sizes (R package \textbf{Rage} \citep{jones2022rcompadre}). 
+Gaussian and skewed $t$ growth models predicted nearly identical mean remaining lifespans across the stage and size distribution (Fig. \ref{fig:orchid_ESS}B).
+However, the skewed $t$ model predicted consistently greater \tom{variance}{These variances are strangely large, hence the log. I am just trusting Rage's life\_expect\_var() here, perhaps that is worth a closer look.} in remaining lifespan, nearly 10\% greater at some sizes. 
+Thus, as we have seen in other case studies, the practical consequences of improved growth modeling depend on what one aims to learn from the IPM. 
 
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/orchis_life_history.pdf}
-	\caption{}
+	\caption{Orchid life history results from IPMs using Gaussian or skewed $t$ growth models. \textbf{A}, Lifetime reproductive success ($R_0$) as a function of mean size of flowering. Dashed vertical line shows the observed mean flowering size. \textbf{B-C}, Mean and variance of remaining lifespan as a function of size or stage. The orchid IPM includes three discrete below-ground stages (protocorm, tuber, and dormant plant) in addition to continuous size of above-ground plants.}
 	\label{fig:orchid_ESS}
 \end{figure} 
 
 \section{Discussion}
 Much of the appeal of integral projection models has stemmed from their embrace of continuous size structure through reliance on regression-based approaches, and the potentially complex fixed- and random-effect structures that these approaches allow. 
 Using familiar statistical tools and with relatively few parameters to estimate, IPM users can incorporate important sources of variation in demography and interrogate their influence on ecological and evolutionary dynamics. 
-With this opportunity comes the extra burden of getting it right.
-IPMs are good models of the populations they are intended represent only insofar as the statistical models provide good fits to the underlying data. 
+With this opportunity comes the extra burden of getting it right: IPMs are good models of the populations they are intended represent only insofar as the statistical models provide good fits to the underlying data. 
 The growth sub-model is the trickiest part of ``getting it right'' because it defines a distribution of future size conditional on current size. 
 Distributions have many properties -- ``moments'' -- and a good growth model should recapitulate the properties of real size transitions. 
 The default assumption of normally distributed size transitions, employed overwhelmingly across 20+ years of IPM studies, is an arbitrary historical precedent. 
 In four case studies (chosen simply because we had the data at our fingertips) and, we suspect, more broadly, skewness and excess kurtosis were common features of size transition data: shrinking was more common than growing, and large changes in size were more common than a Gaussian model would predict. 
-Our most important message to readers is that the standard assumption of normally-distributed size transitions should be abandoned and a more inquisitive process of growth modeling should take its place. 
+Our most important message is that the standard assumption of normally-distributed size transitions should be abandoned and a more inquisitive process of growth modeling should take its place. 
 
 We have attempted to lay out a general workflow for what that process should look like, guided by visual diagnostics of standardized residuals. 
+One implication of relying on visual diagnostics is that goodness of fit is in the eye of the beholder. 
+Instead could be a big model selection exercise. 
+
+
+In all of our case studies, non-Gaussian growth models always yielded more satisfying fits to size transition data than the Gaussian models published in those papers. 
+However, much to our reief, none of them yielded a ``gotcha'' result that overturned what we thought we learned from the original study. 
+In this small sampling of IPM case studies, changes to the results due to improvements in growth modeling were small to moderate, and variable even across different outputs of the same model. 
+
+
+the pilot Gaussian models -- the models published in those papers -- 
 
 
  
