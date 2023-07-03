@@ -7,6 +7,9 @@ library(bbmle)
 library(popbio)
 library(moments)
 
+## Tom's local directory
+setwd("C:/Users/tm9/Dropbox/github/IPM_size_transitions")
+
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
 Q.sd<-function(q.25,q.75){(q.75-q.25)/1.35}
@@ -23,6 +26,9 @@ source("https://raw.githubusercontent.com/TrevorHD/LTEncroachment/master/04_CDat
 LATR_full <- CData %>% 
   mutate(unique.transect = interaction(transect, site))
 
+## color pallete for growth figure -- thanks, colorbrewer
+dens_pallete<-c("#bdd7e7","#6baed6","#2171b5")
+
 # Prepare a data subset for growth that drops rows missing either t or t1 size data
 ## update to the growth data -- dropping a few unbelievable outliers following additional QA/QC
 outliers<-c("MOD.2.50.3.2016","MOD.3.200.1.2015","MOD.3.200.1.2014","PDC.2.0.5.2014")
@@ -34,7 +40,12 @@ LATR_grow <- LATR_full %>%
          log_volume_t1 = log(volume_t1),
          dens_scaled = weighted.dens/100) %>% 
   ##need to scale weighted density because 1st and 2nd order variables were hugely different in range
-  filter(!ID%in%outliers)
+  filter(!ID%in%outliers) %>% 
+  ##bin density variation to make a nice plot
+  mutate(dens_bin=cut_interval(dens_scaled,n=length(dens_pallete),labels=F),
+         dens_col=dens_pallete[dens_bin],
+         size_bin=cut_interval(log_volume_t,n=length(dens_pallete),labels=F),
+         size_col=dens_pallete[size_bin])
 
 # fit candidate gaussian growth models
 LATR_GAU<-list()
@@ -43,7 +54,6 @@ LATR_GAU[[2]] <- lmer(log_volume_t1 ~ log_volume_t + dens_scaled + (1|unique.tra
 LATR_GAU[[3]] <- lmer(log_volume_t1 ~ log_volume_t*dens_scaled + (1|unique.transect), data=LATR_grow, REML=F)
 LATR_GAU[[4]] <- lmer(log_volume_t1 ~ log_volume_t + dens_scaled + I(dens_scaled^2) + (1|unique.transect), data=LATR_grow, REML=F)
 LATR_GAU[[5]] <- lmer(log_volume_t1 ~ log_volume_t*dens_scaled + log_volume_t*I(dens_scaled^2) + (1|unique.transect), data=LATR_grow, REML=F)
-
 AICctab(LATR_GAU,sort=F)
 
 ## now use iterative re-weighting to fit sd as function of expected value
@@ -103,11 +113,61 @@ q.75<-q.fit[,5]
 q.90<-q.fit[,6] 
 q.95<-q.fit[,7]
 
-plot(LATR_grow$log_volume_t,LATR_grow$log_volume_t1)
-plot(LATR_grow$dens_scaled*100,LATR_grow$log_volume_t1)
+size_means<-LATR_grow %>% group_by(size_bin) %>% summarise(mean=mean(log_volume_t),col=unique(size_col))
+dens_means<-LATR_grow %>% group_by(dens_bin) %>% summarise(mean=mean(dens_scaled),col=unique(dens_col))
+## make a function for plotting
+predict_size<-function(size_t,dens){
+  fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*LATR_grow$log_volume_t+
+    fixef(LATR_GAU_best)[3]*size_means$mean_size[1]+fixef(LATR_GAU_best)[4]*(size_means$mean_size[1])^2
+}
 
-pdf("./manuscript/figures/creosote_diagnostics.pdf",height = 6, width = 8,useDingbats = F)
-par(mar = c(5, 4, 2, 3), oma=c(0,0,0,4)) 
+plot(LATR_grow$log_volume_t,LATR_grow$log_volume_t1,
+     col=alpha(LATR_grow$dens_col,0.75),pch=16)
+points(LATR_grow$log_volume_t,
+      fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*LATR_grow$log_volume_t+
+        fixef(LATR_GAU_best)[3]*dens_means$mean[1]+fixef(LATR_GAU_best)[4]*(dens_means$mean[1])^2,
+      pch=".")
+points(LATR_grow$log_volume_t,
+       fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*LATR_grow$log_volume_t+
+         fixef(LATR_GAU_best)[3]*dens_means$mean[2]+fixef(LATR_GAU_best)[4]*(dens_means$mean[2])^2,
+       pch=".")
+points(LATR_grow$log_volume_t,
+       fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*LATR_grow$log_volume_t+
+         fixef(LATR_GAU_best)[3]*dens_means$mean[3]+fixef(LATR_GAU_best)[4]*(dens_means$mean[3])^2,
+       pch=".")
+
+dens_dummy<-seq(min(LATR_grow$dens_scaled),
+                max(LATR_grow$dens_scaled),0.1)
+
+
+
+
+pdf("./manuscript/figures/creosote_diagnostics.pdf",height = 3, width = 9,useDingbats = F)
+par(mar = c(5, 4, 2, 2), oma=c(0,0,0,2), mfrow=c(1,3)) 
+plot(LATR_grow$dens_scaled*100,LATR_grow$log_volume_t1,
+     col=alpha(LATR_grow$size_col,0.5),pch=16,
+     xlab="Weighted density",ylab="Size at t+1")
+lines(dens_dummy*100,
+      fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*size_means$mean[1]+
+        fixef(LATR_GAU_best)[3]*dens_dummy+fixef(LATR_GAU_best)[4]*dens_dummy^2,
+      pch=".",col=dens_means$col[1],lwd=2)
+lines(dens_dummy*100,
+      fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*size_means$mean[2]+
+        fixef(LATR_GAU_best)[3]*dens_dummy+fixef(LATR_GAU_best)[4]*dens_dummy^2,
+      pch=".",col=dens_means$col[2],lwd=2)
+lines(dens_dummy*100,
+      fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*size_means$mean[3]+
+        fixef(LATR_GAU_best)[3]*dens_dummy+fixef(LATR_GAU_best)[4]*dens_dummy^2,
+      pch=".",col=dens_means$col[3],lwd=2)
+legend("bottomright",title="Size at t",legend=round(size_means$mean,2),
+       bty="n",cex=0.8,pch=16,col=dens_pallete)
+title("A",adj=0,font=3)
+
+plot(sort(LATR_grow$GAU_fitted),
+     exp(GAU_sd_coef$estimate[1]+GAU_sd_coef$estimate[2]*sort(LATR_grow$GAU_fitted)),
+     xlab="Expected size at t+1",ylab="SD of size at t+1",type="l",lwd=3)
+title("B",adj=0,font=3)
+
 plot(LATR_grow$GAU_fitted,LATR_grow$GAU_scaled_resids,col=alpha("black",0.25),
      xlab="Expected size at t+1",ylab="Scaled residuals of size at t+1")
 points(LATR_grow$GAU_fitted,q.05,col="black",pch=".")
@@ -124,8 +184,9 @@ plot(c(LATR_grow$GAU_fitted,LATR_grow$GAU_fitted),
      pch=16,cex=.5,axes = FALSE, xlab = "", ylab = "")
 abline(h=0,col="lightgray",lty=3)
 axis(side = 4,cex.axis=0.8,at = pretty(range(c(Q.skewness(q.10,q.50,q.90),Q.kurtosis(q.05,q.25,q.75,q.95)))))
-mtext("Skewness", side = 4, line = 2,col="blue")
-mtext("Excess Kurtosis", side = 4, line =3,col="red")
+mtext("Skewness", side = 4, line = 2,col="blue",cex=0.7)
+mtext("Excess Kurtosis", side = 4, line =3,col="red",cex=0.7)
+title("C",adj=0,font=3)
 dev.off()
 
 ## based on these results I will fit a JSU distribution to the residuals
