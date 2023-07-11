@@ -133,10 +133,10 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 %350 word limit on abstract, must be numbered 1-4
 \section*{Abstract} 
 \begin{enumerate}
-	\item 
-	\item 
-	\item 
-	\item 
+	\item Integral Projection Models (IPMs) are widely used for studying the dynamics of continuously size-structure populations. IPMs require a growth sub-model that describes the probability of future size conditional on current size. Over the past two decades, most IPM studies have assumed that this probability is normally-distributed, despite repeated calls for non-Gaussian approaches that accommodate skewness and kurtosis known to occur in size transition data. %set the context for and purpose of the work
+	\item We provide a general workflow for modeling size transitions that accommodates non-Gaussian growth patterns while retaining the desirable features (ecologically important covariates and random effects) that Gaussian approaches typically provide. Our approach emphasizes visual diagnostics of residuals from pilot Gaussian models and quantile-based metrics of skewness and kurtosis that vet the fit of the Gaussian distribution and guide the selection of an alternative, if necessary. We illustrate our methods by reanalyzing size transition data from our published IPM studies, targeting a diversity of demographic quantities including population growth rate, invasion wave velocity, and evolutionarily stable life history strategies. %indicate the approach and methods
+	\item Across one coral and three plant case studies, skewness and excess kurtosis were common features of size transition data: shrinking was more common than growing, and large changes in size were more common than a Gaussian model would predict. 
+	\item %identify the conclusions and the wider implications
 \end{enumerate}
 
 %alphabetical order not exceeding eight words or short phrases
@@ -169,7 +169,6 @@ Size transitions may also exhibit excess kurtosis (`fat tails'), where extreme g
 The observation that the normal distribution may poorly describe size transitions in real organisms has been made before,  
 and several studies have emphasized that alternative distributions should be explored \citep{easterling2000size,peterson2019improving,rees2014building,williams2012avoiding}. 
 Yet, default use of Gaussian growth distributions (often with non-constant variance) remains the standard practice. 
-\tom{An ISI Web of Knowledge search on the terms `integral projection model ecology' (DATE) returned \# IPM studies published in the past decade (2010--2020), \# of which assumed a Gaussian growth kernel.}{I still intend to do this! But it's a rabbit hole I have not gone down yet.}
 The general state-of-the-art in the literature appears to remain where it was 20 or so years ago, using the default model without pausing to examine critically whether or not it actually provides a good description of the data. 
 We are guilty of this, ourselves. 
 
@@ -185,10 +184,9 @@ Our goal here is to present and illustrate a general `recipe' that moves growth 
 Like any recipe, users may need to make substitutions or add ingredients to suit their situation. 
 Our approach emphasizes graphical diagnostics for developing and evaluating growth models, rather than a process centered on statistical model selection. 
 Through a set of empirical case studies we demonstrate how a simple workflow, using tools that were nonexistent or not readily available when IPMs first came into use, makes it straightforward and relatively easy to identify when the default model is a poor fit to the data, and to then choose and fit a substantially better growth model that is no harder to use in practice. 
-\tom{We illustrate our approach by revisiting four of our own, mostly published IPM analyses that assumed Gaussian growth.}{Need to commit to case study choices - Steve wanted to include corals for contrast with Peterson et al.} 
+We illustrate our approach by revisiting four of our own, mostly published IPM analyses that assumed Gaussian growth.
 In each case, the Gaussian assumption does not stand up to close scrutiny. 
-We illustrate how we could have done better, and the consequences of ``doing better'' 
-for our ecological inferences. 
+We illustrate how we could have done better, and the consequences of ``doing better'' for our ecological inferences. 
 All of our analyses may be reproduced from code and data that are publicly available (see Data accessibility statement).
 
 \section*{A general workflow for better growth modeling}
@@ -485,7 +483,6 @@ As in the coral case study, we see that correctly modeling skewness and kurtosis
 \end{figure} 
 
 We explored how improved growth modeling influenced IPM results, leveraging the plot and year structure of the study design to quantify spatial and temporal variance in fitness.
-The structure and parameterization of the full IPM are described in Appendix XX. 
 We used the fitted random effects from the vital rate models to estimate the asymptotic growth rate for each year ($\lambda_t$), centered on the average plot, and for each plot ($\lambda_p$), centered on the average year.
 This allowed us to quantify demographic variance associated with temporal and spatial heterogeneity. 
 We found that the Gaussian growth model tended to over-estimate $\lambda_t$, particularly in the harshest years (Fig. \ref{fig:cactus_lambda}A), and thus under-estimated temporal variance in fitness ($Var(\lambda_{t(Gaussian)})=0.0018$, $Var(\lambda_{t(SHASH)})=0.0023$). 
@@ -583,13 +580,13 @@ JSULogLik=function(pars){
 \end{lstlisting}
 The mean of the JSU is set to that of the best Gaussian model (\verb|GAU_fitted|) and the standard deviation is a function of the mean according to the coefficients (\verb|GAU_sd_coef|) estimated through iterative re-weighting. 
 Based on diagnostics of the standardized residuals (Fig. \ref{fig:creosote_diganostics}), JSU parameters that control skewness and kurtosis are defined as linear functions of the mean, and it is these coefficients that are estimated by maximum likelihood. 
-Here we are relying on the robustness of Gaussian linear models to deviations from normality -- CITE AND DISCUSS. 
-If one is skeptical of this approach, it is possible to simultaneously re-fit all parameters of the JSU in a maximum likelihood framework, as an alternative. 
+Here we are relying on the robustness of Gaussian linear models to deviations from normality . 
+If one is skeptical of this approach, it is possible, as an alternative, to simultaneously re-fit all parameters of the JSU in a maximum likelihood framework. 
 However, incorporating random effects into a custom likelihood model is non-trivial (we provide guidance on one way to do this, using the ``shrinkage'' approach, in Appendix XX). 
 Therefore a key advantage of the hybrid approach is convenient retention of the fitted random effects and associated variance components, which get shuttled from the Gaussian model into the non-Gaussian model without any fuss (it was critical that we used a parameterization of the JSU for which \verb|mu| is the mean and \verb|sigma| is the standard deviation). 
 And, if this approach does not ``work'' (i.e., deviations from normality biased the fitted values of the Gaussian model) one would quickly find out through the simulation step of the workflow. 
 In this case, the hybrid JSU model performed well, generating simulated data that aligned with the real data better than the best Gaussian model, particularly in \tom{standard deviation}{I am a little mystified as to why the JSU is so much better. It is literally the same SD in both distributions.} and kurtosis (Fig. \ref{fig:creosote_JSU}). 
-Note that in Fig. \ref{fig:creosote_JSU} we are plotting moments of the future size distribution with respect to initial size; this distribution is also conditional on local density but initial size is by far the stronger predictor of future size, so we chose this this visualization. 
+Note that in Fig. \ref{fig:creosote_JSU} we are plotting moments of the future size distribution with respect to initial size; this distribution is also conditional on density but initial size is by far the stronger predictor of future size, so we chose this visualization. 
 
 \begin{figure}[tbp]
 	\centering
@@ -598,7 +595,17 @@ Note that in Fig. \ref{fig:creosote_JSU} we are plotting moments of the future s
 	\label{fig:creosote_JSU}
 \end{figure} 
 
-\textbf{SIPM results with a better growth model.}
+The improvement of the JSU over the Gaussian growth model, while visually satisfying, had virtually no influence on SIPM results. 
+Models using Gaussian or JSU growth kernels had nearly identical, monotonic decreases in $\lambda$ with increasing local density, and nearly identical wave velocities (Fig. \ref{fig:creosote_lambda_cstar}). 
+This species has very low mortality risk once established (mean remaining life expectancy of a median-sized shrub is 24,408 years) and its population growth and wave expansion are limited by very low seedling recruitment (\citep{drees2023demography}). 
+Weak size-dependence in survival likely explains why the improvement in growth modeling had little influence on SIPM predictions. 
+
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=0.5\textwidth]{figures/creosote_DD_lambda.pdf}
+	\caption{Density dependence in fitness ($\lambda$) and asymptotic velocity of the creosote encroachment wave (c*) for Gaussian and JSU growth kernels. Weighted density is the sum of sizes ($log(cm^3)$) of all conspecifics within a five-meter transect ``window''. Figure made by script \texttt{creosote\_growth\_modeling\_qgam.R}.}
+	\label{fig:creosote_lambda_cstar}
+\end{figure}
 
 \section{Case study: lady orchid, \emph{Orchis purpurea}}
 Our final case study examines selection on life history strategies in the lady orchid \textit{Orchis purpurea}. 
@@ -663,7 +670,7 @@ Repeating that analysis here, we found that improved growth modeling has virtual
 ESS flowering sizes were nearly identical between IPMs with Gaussian vs skewed $t$ growth models, and both aligned well with the observed mean flowering size (dashed vertical line in Fig. \ref{fig:orchid_ESS}A). 
 Extending beyond the original study, we also explored expected remaining lifespan for different ages and sizes (R package \textbf{Rage} \citep{jones2022rcompadre}). 
 Gaussian and skewed $t$ growth models predicted nearly identical mean remaining lifespans across the stage and size distribution (Fig. \ref{fig:orchid_ESS}B).
-However, the skewed $t$ model predicted consistently greater \tom{variance}{These variances are strangely large, hence the log. I am just trusting Rage's life\_expect\_var() here, perhaps that is worth a closer look.} in remaining lifespan, nearly 10\% greater at some sizes. 
+\tom{However, the skewed $t$ model predicted consistently greater variance in remaining lifespan, nearly 10\% greater at some sizes.}{Do not believe this result! I have left it here as a placeholder because I would like to do this correctly. But I think there are problems with Rage's life\_expect\_var() function. The predicted variance declines linearly with matrix dimension.} 
 Thus, as we have seen in other case studies, the practical consequences of improved growth modeling depend on what one aims to learn from the IPM. 
 
 \begin{figure}[tbp]
@@ -676,7 +683,7 @@ Thus, as we have seen in other case studies, the practical consequences of impro
 \section{Discussion}
 Much of the appeal of integral projection models has stemmed from their embrace of continuous size structure through reliance on regression-based approaches, and the potentially complex fixed- and random-effect structures that these approaches allow. 
 Using familiar statistical tools and with relatively few parameters to estimate, IPM users can incorporate important sources of variation in demography and interrogate their influence on ecological and evolutionary dynamics. 
-With this opportunity comes the extra burden of getting it right: IPMs are good models of the populations they are intended represent only insofar as the statistical models provide good fits to the underlying data. 
+With this opportunity comes the burden of getting it right: IPMs are good models of the populations they are intended represent only insofar as the statistical models provide good fits to the underlying data. 
 The growth sub-model is the trickiest part of ``getting it right'' because it defines a distribution of future size conditional on current size. 
 Distributions have many properties -- ``moments'' -- and a good growth model should recapitulate the properties of real size transitions. 
 The default assumption of normally distributed size transitions, employed overwhelmingly across 20+ years of IPM studies, is an arbitrary historical precedent. 
@@ -685,36 +692,32 @@ Our most important message is that the standard assumption of normally-distribut
 
 We have attempted to lay out a general workflow for what that process should look like, guided by visual diagnostics of standardized residuals. 
 One implication of relying on visual diagnostics is that goodness of fit is in the eye of the beholder. 
-Instead could be a big model selection exercise. 
-
+This approach can empower IPM users to make informed choices, but it is not very prescriptive: we have not suggested any hard rules for when one or another distribution should be used, only that a good growth model should generate data that look like the real thing. 
+Alternatively, model selection could be used to identify best-fitting growth distributions and best-fitting functions for higher moments. 
+However, model selection among growth distributions with 3-5 parameters, each of which may be functions of state variables or fitted values, can quickly explode in complexity, and we are not convinced it is worth the trouble. 
+It is possible to find a good growth model without worrying about which one is ``best''. 
 
 In all of our case studies, non-Gaussian growth models always yielded more satisfying fits to size transition data than the Gaussian models published in those papers. 
-However, much to our reief, none of them yielded a ``gotcha'' result that overturned what we thought we learned from the original study. 
-In this small sampling of IPM case studies, changes to the results due to improvements in growth modeling were small to moderate, and variable even across different outputs of the same model. 
+However, much to our relief, none of these re-analyses yielded a ``gotcha'' result that overturned results of the original study. 
+In this small sampling of case studies, improved growth modeling had only modest effects on IPM results. 
+We caution against taking too much comfort in this outcome; we can imagine other scenarios in which the choice of the growth distribution could be more consequential. 
+It is worth noting that three of our case studies focused on perennial plants and the fourth focused on corals, which are demographically similar to perennial plants (heavy losses during recruitment but high survival once established). 
+Life cycles such as these may be relatively robust to subtle features of the growth kernel. 
+More systematic comparative analyses across may provide insight into which types of species and life histories are more likely to exhibit strong skewness and kurtosis of size transitions, and the conditions under which demographic analysis is more or less sensitive to these features of size transition. 
+It is also worth noting, as we saw in several case studies, that different outputs from the same model can be more or less sensitive to the choice of growth distribution. 
 
 
-the pilot Gaussian models -- the models published in those papers -- 
-
-
- 
-
-
- and their capacity for complex fixed- and random-effect structures
-Since their inroduction to the ecological community in the early 2000's, 
-
-Here are some of the issues to be discussed.
+Some issues to be discussed.
 \begin{itemize}
-\item{Modeling the mean with gam vs glm}
-\item{Modeling variance and higher moments as functions of covariates vs fitted values}
-\item{Choosing a better distribution -- how to make the choice}
-\item{Comparison of our method with beta regression}
+\item{Many software options: lme4/maxLik, mgcv, rstan}
+\item{Comparison of our approach with beta regression method.}
 \item{We have emphasize growth but same principles apply to other continuous state transitions, eg disease IPMs.}
-\item{Same issues apply to MPMs}
+
 
 \end{itemize}
 
 \section*{Acknowledgements} 
-This research was supported by US NSF grants DEB-1933497 (SPE) and .... 
+This research was supported by US NSF grants DEB-1933497 to SPE and DEB-1754468, 2208857, and 2225027 to TEXM. 
 
 \section{Authorship statement} 
 All authors discussed all aspects of the research and contributed to developing methods, analyzing data, and writing and revising the paper.  
