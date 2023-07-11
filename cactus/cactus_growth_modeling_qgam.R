@@ -635,16 +635,16 @@ pxy <- function(x,y,dist,exclude,year=2004,plot=1){
 #PR FLOWERING
 flow.x <- function(x,exclude,year=2004,plot=1){
   xb=pmin(pmax(x,min.size),max.size)
-  pred=predict(flow_modt1,
-               newdata = data.frame(logvol_t1=xb,plot=plot,year_t=year),
+  pred=predict(flow_mod,
+               newdata = data.frame(logvol_t=xb,plot=plot,year_t=year),
                exclude=paste0("s(",exclude,")"))
   return(invlogit(pred))
 }
 ##FLOWERBUD PRODUCTION BY FLOWERING PLANTS
 fert.x <- function(x,exclude,year=2004,plot=1){
   xb=pmin(pmax(x,min.size),max.size)
-  pred=predict(fert_modt1,
-               newdata = data.frame(logvol_t1=xb,plot=plot,year_t=year),
+  pred=predict(fert_mod,
+               newdata = data.frame(logvol_t=xb,plot=plot,year_t=year),
                exclude=paste0("s(",exclude,")"))
   return(exp(pred))
 }
