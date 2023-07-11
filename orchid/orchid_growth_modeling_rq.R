@@ -552,14 +552,14 @@ for(i in 1:length(dims)){
   
   R0.GAU<-returnR0(params=params,dist="GAU")
   lambda.GAU[i]<-lambda(R0.GAU$matrix)
-  mean.life.GAU[i]<-life_expect_mean(matU = R0.GAU$Tmatrix, start = 1)
-  var.life.GAU[i]<-life_expect_var(matU = R0.GAU$Tmatrix, start = 1)
+  mean.life.GAU[i]<-life_expect_mean(matU = R0.GAU$Tmatrix, start = 10)
+  var.life.GAU[i]<-life_expect_var(matU = R0.GAU$Tmatrix, start = 10)
   mature.age.GAU[i]<-mature_age(matU = R0.GAU$Tmatrix,matR = R0.GAU$Fmatrix,1)
   
   R0.SST<-returnR0(params=params,dist="SST")
   lambda.SST[i]<-lambda(R0.SST$matrix)
-  mean.life.SST[i]<-life_expect_mean(matU = R0.SST$Tmatrix, start = 1)
-  var.life.SST[i]<-life_expect_var(matU = R0.SST$Tmatrix, start = 1)
+  mean.life.SST[i]<-life_expect_mean(matU = R0.SST$Tmatrix, start = 10)
+  var.life.SST[i]<-life_expect_var(matU = R0.SST$Tmatrix, start = 10)
   mature.age.SST[i]<-mature_age(matU = R0.SST$Tmatrix,matR = R0.SST$Fmatrix,1)
 }
 
