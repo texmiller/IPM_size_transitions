@@ -394,34 +394,25 @@ surv<-glmer(survival~log_area_t+(1|begin.year),family="binomial",data=orchid)
 flower<-glmer(flowering~log_area_t+(1|begin.year),data=orchid,family="binomial")
 ### number of flowers produced by flowering plants
 nflowers<-glmer(number.flowers~log_area_t+(1|begin.year),data=subset(orchid,flowering==1),family="poisson")
-
 ### proportion of fruits that set seed; Hans et al. used a size-dependent function
 ### but I get non-significant slopes in both environments, so I will use means
 propfruit<-glmer(number.fruits/number.flowers~(1|begin.year),weights=number.flowers,data=subset(orchid,flowering==1),family="binomial")
-
 ### seedling size distributions
 kidsize<-mean(seedlings$log_area_t1)
 kidsd<-sd(seedlings$log_area_t1)
-
 ### seeds per fruit;see text
 seeds<-6000	
-
 ### seed to protocorm transition; see text
 eta<-mean(c(0.007,0.023))
-
 ### protocorm survival probability (from Eelke)
 sigmap<-0.01485249
-
 ### tuber survival probability (from Eelke)
 sigmat<-0.05940997
-
 ### size-dependent probability of entering dormancy
 dormancy<-glmer(dormant~log_area_t+(1|begin.year),family="binomial",data=orchid)
-
 ### size distribution (mean and sd) of plants emerging from dormancy (assumed to be common across environments)
 Dsize<-mean(orchid$log_area_t1[orchid$number.leaves==0],na.rm=T)
 Dsizesd<-sd(orchid$log_area_t1[orchid$number.leaves==0],na.rm=T)
-
 ### observed size limits
 minsize<-min(na.omit(c(orchid$log_area_t,orchid$log_area_t1)))
 maxsize<-max(na.omit(c(orchid$log_area_t,orchid$log_area_t1)))
@@ -474,10 +465,13 @@ params$Dsizesd<-Dsizesd
 ## matrix
 params$minsize<-minsize
 params$maxsize<-maxsize
-params$matsize<-matsize
 
 #IPM source functions are here:
 source("orchid/orchis.IPM.source.R")
+
+
+params$matsize<-matsize
+
 
 flowint<-seq(-30,0,0.1)
 R0out.beta0.GAU<-R0out.beta0.SST<-vector("numeric",length=length(flowint))
@@ -545,6 +539,48 @@ dev.off()
 ## by how much do the variances differ?
 maxdiff<-which.max(var.life.SST-var.life.GAU)
 (var.life.SST-var.life.GAU)[maxdiff]/var.life.SST[maxdiff]
+
+## check sensitivity to matrix dimensions -- DON'T USE THE VARIANCE RESULT
+## 
+dims<-c(50,100,150,200,250,300,350,400,500,600,800)
+lambda.GAU<-lambda.SST<-c()
+mean.life.GAU<-mean.life.SST<-c()
+var.life.GAU<-var.life.SST<-c()
+mature.age.GAU<-mature.age.SST<-c()
+for(i in 1:length(dims)){
+  params$matsize<-dims[i]
+  
+  R0.GAU<-returnR0(params=params,dist="GAU")
+  lambda.GAU[i]<-lambda(R0.GAU$matrix)
+  mean.life.GAU[i]<-life_expect_mean(matU = R0.GAU$Tmatrix, start = 1)
+  var.life.GAU[i]<-life_expect_var(matU = R0.GAU$Tmatrix, start = 1)
+  mature.age.GAU[i]<-mature_age(matU = R0.GAU$Tmatrix,matR = R0.GAU$Fmatrix,1)
+  
+  R0.SST<-returnR0(params=params,dist="SST")
+  lambda.SST[i]<-lambda(R0.SST$matrix)
+  mean.life.SST[i]<-life_expect_mean(matU = R0.SST$Tmatrix, start = 1)
+  var.life.SST[i]<-life_expect_var(matU = R0.SST$Tmatrix, start = 1)
+  mature.age.SST[i]<-mature_age(matU = R0.SST$Tmatrix,matR = R0.SST$Fmatrix,1)
+}
+
+win.graph()
+par(mfrow=c(1,3))
+plot(dims,lambda.GAU,col="tomato",ylim=range(c(lambda.GAU,lambda.SST)),
+     xlab="Matrix dimension",ylab=expression(paste(lambda)),pch=16)
+points(dims,lambda.SST,col="cornflowerblue",pch=16)
+plot(dims,mean.life.GAU,col="tomato",ylim=range(c(mean.life.GAU,mean.life.SST)),
+     xlab="Matrix dimension",ylab="Mean life expectancy",pch=16)
+points(dims,mean.life.SST,col="cornflowerblue",pch=16)
+## this one is real bad
+plot(dims,var.life.GAU,col="tomato",ylim=range(c(var.life.GAU,var.life.SST)),
+     xlab="Matrix dimension",ylab="Variance in life expectancy",pch=16)
+points(dims,var.life.SST,col="cornflowerblue",pch=16)
+legend("topright",legend=c("Gaussian","Skewed t"),title="Growth model:",
+       lwd=2,col=c("tomato","cornflowerblue"),bty="n")
+
+plot(dims,mature.age.GAU,col="tomato",ylim=range(c(mature.age.GAU,mature.age.SST)))
+points(dims,mature.age.SST,col="cornflowerblue")
+
 
 #### The Basement ###################################
 ## make sure I know how to use lme's variance function
