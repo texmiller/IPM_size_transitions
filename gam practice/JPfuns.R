@@ -292,7 +292,7 @@ pJPLS = function (x, mean=0, sd=1, lambda=0, tau=0) {
 pJPLS = Vectorize(pJPLS,vectorize.args="x"); 
 
 
-TESTING=TRUE;     
+TESTING=FALSE;     
 if(TESTING) {
 # Testing the moments 
 for(j in 1:10) {

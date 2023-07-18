@@ -9,7 +9,7 @@
 rm(list=ls(all=TRUE))
 setwd("c:/repos/IPM_size_transitions/coral"); 
 ## Tom's local directory
-setwd("C:/Users/tm9/Dropbox/github/IPM_size_transitions")
+## setwd("C:/Users/tm9/Dropbox/github/IPM_size_transitions")
 
 
 require(car); require(zoo); require(moments); require(mgcv); 
@@ -73,7 +73,7 @@ NPK_hat = Q.kurtosis(q.05=predict(S.05),
                      q.95=predict(S.95))
 
 ## view diagnostics of scaled residuals
-pdf("../manuscript/figures/coral_qgam_diagnostics.pdf",height = 5, width = 11,useDingbats = F)
+# pdf("../manuscript/figures/coral_qgam_diagnostics.pdf",height = 5, width = 11,useDingbats = F)
 par(mfrow=c(1,2),mar = c(5, 5, 2, 3), oma=c(0,0,0,2)) 
 plot(XH$logarea.t0,XH$logarea.t1,pch=1,col=alpha("black",0.25),cex.axis=0.8,
      xlab="log area, time t",ylab="log area, time t+1")
@@ -104,7 +104,7 @@ axis(side = 4, at = pretty(range(c(NPS_hat,NPK_hat))),cex.axis=0.8)
 mtext("Skewness and kurtosis", side = 4, line = 2)
 legend("topleft",legend=c("Quantiles","NP skewness","NP excess kurtosis"),bg="white",pch=c(20,1,1),col=c("black","red","blue"),cex=0.8)
 title("B",font=3,adj=0)
-dev.off()
+# dev.off()
 
 ## compare this to the "old" way
 z = rollMomentsNP(XH$logarea.t0,XH$scaledResids,windows=8,smooth=TRUE,scaled=TRUE,xlab="Initial log area") 
@@ -266,3 +266,19 @@ dev.off()
 
 ## if one cared to know the AIC difference:
 AIC(fitGAU);AIC(fitSHASH)##shash is clear winner
+
+
+
+########## Compare fitted means 
+
+source("../gam practice/JPfuns.R"); 
+
+muE <- fitSHASH$fitted[ , 1]
+sigE <- exp(fitSHASH$fitted[ , 2])
+epsE <- fitSHASH$fitted[ , 3]
+delE <- exp(fitSHASH$fitted[ , 4])
+
+
+SHASH_mean = muE + sigE*JPmean(epsE,delE); 
+GAU_mean = fitGAU$fitted[,1]; 
+
