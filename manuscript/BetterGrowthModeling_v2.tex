@@ -463,13 +463,13 @@ The other distributions that we tried are not available as \textbf{mgcv} familie
 The final growth model was similar to the SHASH gam in the coral case study, but with random intercepts for the location parameter, representing spatial and temporal heterogeneity:
 \begin{lstlisting}
 fit_shash <- gam(list(logvol_t1 ~ s(logvol_t,k=4) + 
-				s(plot,bs="re") + s(year_t,bs="re"), # <- model for location 
-				~ s(logvol_t,k=4),   # <- model for log-scale
-				~ s(logvol_t,k=4),   # <- model for skewness
-				~ s(logvol_t,k=4)), # <- model for log-kurtosis
-			data = CYIM_grow, 
-			family = shash,  
-			optimizer = "efs")
+    s(plot,bs="re") + s(year_t,bs="re"), # location 
+    ~ s(logvol_t,k=4),   # log-scale
+    ~ s(logvol_t,k=4),   # skewness
+    ~ s(logvol_t,k=4)),  # log-kurtosis
+    data = CYIM_grow, 
+    family = shash,  
+    optimizer = "efs")
 \end{lstlisting}
 
 The final SHASH model provided good correspondence between simulated and real data, and provided more compelling improvement over the Gaussian model than we saw in the coral case study (Fig. \ref{fig:cactus_fit}). 

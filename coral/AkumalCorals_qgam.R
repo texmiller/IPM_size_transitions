@@ -112,9 +112,10 @@ z = rollMomentsNP(XH$logarea.t0,XH$scaledResids,windows=8,smooth=TRUE,scaled=TRU
 ## there is clearly some skew and kurtosis that is not accounted for in the gaussian model
 ## but could the gaussian model still be a reasonable approximation for size transitions?
 ## simulate data from Gaussian model
-n_sim<-100
+n_sim<-50
 gau_mean<-gau_sd<-gau_skew<-gau_kurt<-matrix(NA,nrow=nrow(XH),ncol=n_sim)
 for(i in 1:n_sim){
+   cat("############### GAUSSIAN SIMULATION ", i, "\n"); 
   ## add this iteration of sim data to real df
   XH$logarea.sim <- rnorm(n=nrow(XH),
                           mean=predict(fitGAU,type="response")[,1],
@@ -190,6 +191,7 @@ n_sim<-100
 shash_mean<-shash_sd<-shash_skew<-shash_kurt<-matrix(NA,nrow=nrow(XH),ncol=n_sim)
 for(i in 1:n_sim){
   ## add this iteration of sim data to real df
+  cat("############### SHASH SIMULATION ", i, "\n"); 
   XH$logarea.sim <- rSHASHo2(n=nrow(XH),
                                       mu=SHASH_pred[,1],
                                       sigma=exp(SHASH_pred[,2]),
@@ -221,7 +223,7 @@ q.95<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.95))
 
 ## combo GAU and SHASH figure
 alpha_scale<-0.15
-pdf("../manuscript/figures/coral_SHASH_fit.pdf",height = 6, width = 6,useDingbats = F)
+# pdf("../manuscript/figures/coral_SHASH_fit.pdf",height = 6, width = 6,useDingbats = F)
 par(mfrow=c(2,2),mar=c(4,4,1,1))
 plot(XH$logarea.t0,Q.mean(q.25,q.50,q.75),type="n",
      xlab="size t",ylab="mean size t1",ylim=c(min(sim_mean),max(sim_mean)))
@@ -262,23 +264,42 @@ for(i in 1:n_sim){
   points(XH$logarea.t0,shash_kurt[,i],col=alpha("cornflowerblue",alpha_scale),pch=".")
 }
 points(XH$logarea.t0,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
-dev.off()
+# dev.off()
 
 ## if one cared to know the AIC difference:
 AIC(fitGAU);AIC(fitSHASH)##shash is clear winner
 
 
 
-########## Compare fitted means 
+##################################################################### 
+## Compare fitted location parameters and fitted means between 
+## Gaussian and SHASH models
+## SPE, 7/18/23 
+#####################################################################
+source("../gam practice/JPfuns.R"); ## functions for SHASH distributions 
 
-source("../gam practice/JPfuns.R"); 
-
-muE <- fitSHASH$fitted[ , 1]
-sigE <- exp(fitSHASH$fitted[ , 2])
-epsE <- fitSHASH$fitted[ , 3]
-delE <- exp(fitSHASH$fitted[ , 4])
+## code modified from 
+muE <- fitSHASH$fitted[ , 1]                    # location parameter
+sigE <- exp(fitSHASH$fitted[ , 2])              # scale parameter 
+epsE <- fitSHASH$fitted[ , 3]                   # skewness parameter
+delE <- exp(fitSHASH$fitted[ , 4])              # kurtosis parameter 
 
 
 SHASH_mean = muE + sigE*JPmean(epsE,delE); 
 GAU_mean = fitGAU$fitted[,1]; 
+SHASH_NPmean = muE + sigE*(qJP(0.25,epsE,delE) + qJP(0.5,epsE,delE) + qJP(0.75,epsE,delE))/3; 
 
+graphics.off(); dev.new(width=10,height=5); 
+par(mfrow=c(1,3),cex.axis=1.3,cex.lab=1.3,mgp=c(2.1,1,0),bty="l",mar=c(4,4,2,1)); 
+
+plot(GAU_mean,muE,xlab="Gaussian mean", ylab="SHASH location parameter mu", type="p", main="SHASH location parameter"); 
+abline(0,1,col="blue",lty=2,lwd=2); 
+legend("topleft",legend = "1:1 line", lty=2, lwd=2,col="blue",cex=1.2, inset=0.1); 
+
+plot(GAU_mean,SHASH_mean,xlab="Gaussian mean", ylab="SHASH mean", type="p", main="SHASH mean"); 
+abline(0,1,col="blue",lty=2,lwd=2); 
+
+plot(GAU_mean,SHASH_NPmean,xlab="Gaussian mean", ylab="SHASH NP mean", type="p", main="SHASH NP mean"); 
+abline(0,1,col="blue",lty=2,lwd=2); 
+
+dev.copy2pdf(file = "SHASH_compare.pdf")
