@@ -116,7 +116,7 @@ z = rollMomentsNP(XH$logarea.t0,XH$scaledResids,windows=8,smooth=TRUE,scaled=TRU
 ## there is clearly some skew and kurtosis that is not accounted for in the gaussian model
 ## but could the gaussian model still be a reasonable approximation for size transitions?
 ## simulate data from Gaussian model
-n_sim<-50
+n_sim<-100
 gau_mean<-gau_sd<-gau_skew<-gau_kurt<-matrix(NA,nrow=nrow(XH),ncol=n_sim)
 for(i in 1:n_sim){
    cat("############### GAUSSIAN SIMULATION ", i, "\n"); 
@@ -219,13 +219,13 @@ for(i in 1:n_sim){
 }
 
 ## and now the real data
-q.05<-predict(qgam(logarea.t1~s(logarea.t0,k=6),data=XH,qu=0.05)) 
-q.10<-predict(qgam(logarea.t1~s(logarea.t0,k=6),data=XH,qu=0.10)) 
-q.25<-predict(qgam(logarea.t1~s(logarea.t0,k=6),data=XH,qu=0.25)) 
-q.50<-predict(qgam(logarea.t1~s(logarea.t0,k=6),data=XH,qu=0.5))
-q.75<-predict(qgam(logarea.t1~s(logarea.t0,k=6),data=XH,qu=0.75))
-q.90<-predict(qgam(logarea.t1~s(logarea.t0,k=6),data=XH,qu=0.90))
-q.95<-predict(qgam(logarea.t1~s(logarea.t0,k=6),data=XH,qu=0.95))
+q.05<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.05)) 
+q.10<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.10)) 
+q.25<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.25)) 
+q.50<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.5))
+q.75<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.75))
+q.90<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.90))
+q.95<-predict(qgam(logarea.t1~s(logarea.t0,k=4),data=XH,qu=0.95))
 
 ## combo GAU and SHASH figure
 if(PLOTTING) {
@@ -244,10 +244,10 @@ plot(XH$logarea.t0[e],Q.mean(q.25,q.50,q.75)[e],type="n",
 title(main="A",adj=0,font=3)
 for(i in 1:n_sim){
   points(XH$logarea.t0[e],gau_mean[e,i],col=alpha("tomato",alpha_scale),type="l")
-  points(XH$logarea.t0[e],1 + shash_mean[e,i],col=alpha("cornflowerblue",alpha_scale),type="l")
+  points(XH$logarea.t0[e],shash_mean[e,i],col=alpha("cornflowerblue",alpha_scale),type="l")
 }
 points(XH$logarea.t0[e],Q.mean(q.25,q.50,q.75)[e],col="black",type="l",cex=2)
-points(XH$logarea.t0[e],1 + Q.mean(q.25,q.50,q.75)[e],col="black",type="l",cex=2)
+points(XH$logarea.t0[e],Q.mean(q.25,q.50,q.75)[e],col="black",type="l",cex=2)
 
 legend("topleft",legend=c("Real data",
                           "Simulated (Gaussian)",
@@ -295,39 +295,35 @@ AIC(fitGAU);AIC(fitSHASH)##shash is clear winner
 #####################################################################
 source("../gam practice/JPfuns.R"); ## functions for SHASH distributions 
 
-## code modified from 
+## parameters of the fitted SHASH model 
 muE <- fitSHASH$fitted[ , 1]                    # location parameter
 sigE <- exp(fitSHASH$fitted[ , 2])              # scale parameter 
 epsE <- fitSHASH$fitted[ , 3]                   # skewness parameter
 delE <- exp(fitSHASH$fitted[ , 4])              # kurtosis parameter 
-
 
 SHASH_mean = muE + sigE*JPmean(epsE,delE); 
 GAU_mean = fitGAU$fitted[,1]; 
 SHASH_NPmean = muE + sigE*(qJP(0.25,epsE,delE) + qJP(0.5,epsE,delE) + qJP(0.75,epsE,delE))/3; 
 
 graphics.off(); dev.new(width=10,height=5); 
-par(mfrow=c(1,3),cex.axis=1.3,cex.lab=1.3,mgp=c(2.1,1,0),bty="l",mar=c(4,4,2,1)); 
+par(mfrow=c(1,2),cex.axis=1.3,cex.lab=1.3,mgp=c(2.1,1,0),bty="l",mar=c(4,4,2,1)); 
 
-plot(GAU_mean,muE,xlab="Gaussian mean", ylab="SHASH location parameter mu", type="p", main="SHASH location parameter"); 
-abline(0,1,col="blue",lty=2,lwd=2); 
-legend("topleft",legend = "1:1 line", lty=2, lwd=2,col="blue",cex=1.2, inset=0.1); 
+e = order(XH$logarea.t0); 
+matplot(XH$logarea.t0[e], cbind(GAU_mean[e],SHASH_mean[e],SHASH_NPmean[e]), col=c("tomato", "cornflowerblue", "cornflowerblue"), 
+xlab = "Initial size t", ylab="Mean size t+1", type="l",lty=c(1,1,2), lwd=2, ylim = c(2,5), xlim = c(2,5)); 
 
-plot(GAU_mean,SHASH_mean,xlab="Gaussian mean", ylab="SHASH mean", type="p", main="SHASH mean"); 
-abline(0,1,col="blue",lty=2,lwd=2); 
+points(XH$logarea.t0[e],Q.mean(q.25,q.50,q.75)[e],col="black",type="l",cex=2)
+legend("topleft", legend=c("Gaussian model mean", "SHASH model mean", "SHASH model NP-mean", "Data: estimate NP-mean"), 
+col=c("tomato", "cornflowerblue", "cornflowerblue","black"), lty=c(1,1,2,1), lwd=2,bty="n"); 
 
-plot(GAU_mean,SHASH_NPmean,xlab="Gaussian mean", ylab="SHASH NP mean", type="p", main="SHASH NP mean"); 
-abline(0,1,col="blue",lty=2,lwd=2); 
+plot(XH$logarea.t0[e], GAU_mean[e], type="l",col="tomato",lwd=2, xlab = "Initial size t", ylab="Mean size t+1"); 
+matpoints(XH$logarea.t0[e],gau_mean[e,],col=alpha("tomato",alpha_scale), type="l",lty=1); 
+
+points(XH$logarea.t0[e], 1 + SHASH_NPmean[e], type="l", col="cornflowerblue", lwd=2); 
+matpoints(XH$logarea.t0[e],1 + shash_mean[e,],col=alpha("cornflowerblue",alpha_scale), type="l",lty=1); 
+
+points(XH$logarea.t0[e],Q.mean(q.25,q.50,q.75)[e],col="black",type="l",lwd=1)
+points(XH$logarea.t0[e],1 + Q.mean(q.25,q.50,q.75)[e],col="black",type="l",lwd=1)
 
 dev.copy2pdf(file = "SHASH_compare.pdf")
-
-par(mfrow=c(1,2)); 
-e = order(XH$logarea.t0); 
-matplot(XH$logarea.t0[e], cbind(GAU_mean[e],SHASH_NPmean[e],SHASH_mean[e]), col=c("cornflowerblue", "tomato", "tomato"), type="l",lty=c(1,1,2), lwd=1); 
-
-plot(XH$logarea.t0[e], GAU_mean[e], type="l"); 
-matpoints(XH$logarea.t0[e],gau_mean[e,],col=alpha("cornflowerblue",alpha_scale), type="l",lty=1); 
-
-points(XH$logarea.t0[e], 1 + SHASH_NPmean[e], type="l"); 
-matpoints(XH$logarea.t0[e],1 + shash_mean[e,],col=alpha("tomato",alpha_scale), type="l",lty=1); 
 
