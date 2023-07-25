@@ -269,10 +269,11 @@ and $\sigma^2$ is the variance (second central moment).
 A Gaussian distribution has zero skewness and zero excess kurtosis. 
 
 The standard measures are easy to calculate but their use for choosing and evaluating growth models is hindered by their poor sampling properties. 
-Because empirical estimates involve high powers of data values, it only takes a 
-a few outliers to produce a very inaccurate estimate. 
-Figure \ref{fig:NPmoments} shows a simulated example, where the underlying ``data'' are a sample of size 200 from a $t$ distribution with 8 degrees of freedom; the true skew is 0, and the true excess kurtosis is 1.5. 
-The distance between the largest and smallest estimates (indicated by the dotted red vertical lines), relative to the distance between the 5th and 95th percentiles, shows the broad extent of extreme values that can occur even with a good size sample, especially for kurtosis. 
+Because empirical estimates involve high powers of data values, a few outliers can produce very inaccurate estimates. 
+Figure \ref{fig:NPmoments} shows a simulated example, where the underlying ``data'' are a sample of size 200 from a $t$ distribution with 
+8 degrees of freedom; the true skew is 0, and the true excess kurtosis is 1.5. 
+The distance between the largest and smallest estimates (indicated by the dotted red vertical lines), relative to the distance 
+between the 5th and 95th percentiles, shows the broad extent of extreme values that can occur even with a large sample, especially for kurtosis. 
 
 \begin{figure}[tbp]
 \centering
@@ -358,8 +359,8 @@ fitted_sd = 1/fitted_all[,2];
 scaledResids = residuals(fitGAU,type=''response'')/fitted_sd;  
 \end{lstlisting}
 Fig. \ref{fig:coral_diganostics}A shows the log-transformed data and Gaussian model. 
-The mean function (solid blue curve) is visually nearly linear, but the fitted nonlinear spline is strongly favored over a linear model for the mean ($\Delta AIC \approx 9$). 
-The spline for standard deviation $\sigma$ versus initial size shows that smaller individuals exhibit greater variability in future size. 
+The mean function (solid red curve) is visually nearly linear, but the fitted spline is strongly favored over a linear model for the mean ($\Delta AIC \approx 9$). 
+The spline for standard deviation $\sigma$ versus initial size reflects the evident greater variability in growth at smaller sizes.  
 
 \begin{figure}[tbp]
 	\centering
@@ -369,58 +370,65 @@ The spline for standard deviation $\sigma$ versus initial size shows that smalle
 \end{figure} 
 
 There are no blatant signs of trouble in the pilot Gaussian model, but quantile regressions on the scaled residuals, and the NP Skewness and Kurtosis metrics derived from them (Eq. \ref{eqn:NPskew} and \ref{eqn:NPkurt}), suggest deviations from normality (Fig. \ref{fig:coral_diganostics}B).
-Specifically, skewness switches from negative to positive across the size range, with smaller corals more likely to shrink than grow and larger corals more likely to grow than shrink. 
-Kurtosis also changes direction over the size distribution, with smaller initial sizes having thinner tails and larger initial sizes having fatter tails than Gaussian. 
+Specifically, skewness switches from negative to positive across the size range, with smaller corals more prone to extreme shrinkage and larger corals more prone to extreme growth.  
+Kurtosis also changes direction over the size distribution, with thinner tails than Gaussian at small sizes and fatter tails at large sizes. 
 The fitted nonparametric moments suggest that the upper and lower tails of size transition probabilities may differ by up to 20\%, and the weight of the tails may be \>20\% greater or less than Gaussian, depending on initial size -- not overwhelming deficiencies, but not trivial either. 
 Are these deviations from normality severe enough to warrant a second, non-Gaussian iteration of growth modeling? 
-This question may be answered by simulating data from the Gaussian model and examining whether key properties of the simulated data are consistent with those of the real data -- this is the ultimate litmus test for a growth model's adequacy and should be a standard element of IPM construction, in our opinion.
+To answer that question, we simulated data from the fitted Gaussian model and examined whether key properties of the simulated data are consistent with those of the real data -- this is the ultimate litmus test for a growth model's adequacy and should be a standard element of IPM construction, in our opinion.
 If the simulated data are not consistent with the real data, it is time to choose a better distribution (Fig. \ref{fig:workflow}). 
-In this case, the negative skew at small sizes and excess kurtosis observed at large sizes are more extreme than what occurs across 100 random iterations of data simulation (Fig. \ref{fig:coral_fit}), suggesting that, for at least some parts of the size distribution, a non-Gaussian model would better capture size transitions. 
+In this case, most of 100 Gaussian model simulations are out of line with the skew at smallest sizes and largest sizes, and the excess kurtosis observed at moderately large sizes (Fig. \ref{fig:coral_fit}~CD). For at least some parts of the size distribution, a non-Gaussian model would better capture size transitions. 
 
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/coral_SHASH_fit.pdf}
 	\caption{Comparisons among real coral data and data simulated from Gaussian and SHASH growth models for mean, 
-	standard deviation, NP skewness, and NP kurtosis of future size conditional on current size. Figure made by script \texttt{AkumalCorals\_qgam.R}.}
+	standard deviation, NP skewness, and NP kurtosis of future size conditional on current size. Note that plotted values for the SHASH are offset by one unit to allow comparisons. 
+	In the skewness and kurtosis panels, the darker solid curves show the values for the fitted growth models. 
+	Figure made by script \texttt{AkumalCorals\_qgam.R}.}
 	\label{fig:coral_fit}
 \end{figure} 
 
-We sought a distribution that could accommodate the properties of the scaled residuals, specifically changes in the sign of skewness and excess kurtosis across initial sizes. 
-We chose the sinh-arcsinh (SHASH) distribution, a four-parameter distribution that, conveniently, is included in \textbf{mgcv}'s gam() function:
+We sought a distribution that could accommodate the observed changes in the sign of skewness and excess kurtosis. We chose the sinh-arcsinh (SHASH) distribution, a four-parameter distribution that, 
+conveniently, is included in \textbf{mgcv}'s gam() function: \comment{SPE: I made the SHASH model consistent with the Gaussian for location and scale, removing the specification of k.} 
 \begin{lstlisting}
-	fitSHASH <- gam(list(logarea.t1 ~ s(logarea.t0,k=4), # <- location 
-	~ s(logarea.t0,k=4),   # <- log-scale
+	fitSHASH <- gam(list(logarea.t1 ~ s(logarea.t0), # <- location 
+	~ s(logarea.t0),   # <- log-scale
 	~ s(logarea.t0,k=4),   # <- skewness
 	~ s(logarea.t0,k=4)), # <- log-kurtosis
-	data = XH, family = shash, optimizer = "efs")
+	data = XH, gamma = 1.4, family = shash, optimizer = "efs")
 \end{lstlisting}
-Data simulated from this model are more consistent with the real data than the Gaussian model: many of the 100 simulated SHASH data sets exhibited negative skew at small sizes and positive excess kurtosis at large sizes that were as strong or stronger than observed in the real data (Fig. \ref{fig:coral_fit}). 
-If one cared to quantify the difference between models, the SHASH is clearly favored by AIC despite having twice as many parameters as the Gaussian ($\Delta AIC = 7.04$). 
+The fitted model's mean and variance are nearly identical to the Gaussian (Fig. \ref{fig:coral_fit}AB), and the fitted trends in skewness and kurtosis are much less ``wiggly'' than the estimate from the data (Fig. \ref{fig:coral_fit}CD). 
+Nonetheless, data simulated from the SHASH model are more consistent with the real data, with more SHASH data sets matching or exceeding the largest skewness and kurtosis values observed (Fig. \ref{fig:coral_fit}CD). 
+If one cares to quantify the difference between models, the SHASH model is clearly favored by AIC ($\Delta AIC = 5.45$) despite having twice as many parameters to fit. 
  
-What, then, have we gained by fitting a better growth model? 
-Fig. \ref{fig:CoralKernelCompare}A compares the predicted distributions of subsequent size in the fitted model and Gaussian pilot models, for the median size of a new recruit (leftmost pair of curves), the median initial size (central curves), and the 95th percentile of initial size in the data (rightmost curves). 
-The differences are small, and most pronounced for the smallest size, where recruits are predicted to grow slightly larger under the SHASH model than the Gaussian model. 
-The direction of this difference was surprising, since the SHASH accommodates negative skew at small sizes in the data. 
-However, in modeling skew appropriately, the SHASH model also gives a better prediction for mean growth at small sizes than the Gaussian model, \tom{whose mean is biased downward by negative skew (Fig. \ref{fig:coral_fit}A)}{...Contradicting the earlier assertion that parameter estimates from Gaussian models are robust to deviations from normality!}. 
-Something similar happens in the standard deviation at large sizes (log size 5--7), where excess kurtosis in the data biased the SD upward (Fig. \ref{fig:coral_fit}B). 
-Fig. \ref{fig:CoralKernelCompare}B shows the predicted steady-state size distributions resulting from a constant unit input of recruits. 
-Again, the differences are very subtle. 
-Finally, the Gaussian and SHASH growth models predict very similar mean life span (17.7 and 17.9 years, respectively).
-From these outputs, there is little evidence that improved modeling of coral growth meaningfully improved biological inferences from the IPM; one could argue that it was not worth the trouble. 
-
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=.5\textwidth]{figures/CoralKernelCompare_v2.pdf}
-\caption{Comparisons between the fitted \texttt{SEP1} growth model (solid black curves) and the Gaussian pilot model (dashed red curves)
+\includegraphics[width=0.95\textwidth]{figures/CoralKernelCompare_v2.pdf}
+\caption{Comparisons between the fitted \texttt{SHASH} growth model (solid black curves) and the Gaussian pilot model (dashed red curves)
 for sea fans \emph{G. ventalina}. A) Predicted frequency distributions of size in year $t+1$ for three different values of size in 
 year $t$. The leftmost pair of curves are for initial size equal to the median size of a new recruit (data from \citep{bruno-etal-2011}); 
 central pair is for the median initial size of uninfected individuals; rightmost pair are for the 95th percentile initial size for uninfected
 individuals. B) Steady-state size distributions resulting from a constant unit input of new recruits. As in \citet{bruno-etal-2011} we
 assume that larvae are very widely dispersed, so that the number of recruits arriving at any one location is independent of the local population
-abundance or structure. Size distribution of recruits was described by a kernel density estimate based on the (sadly, only $n=9$) measured sizes
-of known new recruits. Figure made by script \texttt{AkumalCoralsIPMs.R}.}
+abundance or structure. Size distribution of recruits was described by a kernel density estimate based on the measured sizes
+of known new recruits ($n=9$). Figure made by script \texttt{AkumalCoralsIPMs.R}.}
 \label{fig:CoralKernelCompare}
-\end{figure}  
+\end{figure}   
+ 
+What, then, have we gained by fitting a better growth model? 
+Fig. \ref{fig:CoralKernelCompare}A compares the predicted distributions of subsequent size in the fitted model and Gaussian pilot models, for the median size of a new recruit (leftmost pair of curves), the median initial size (central curves), and the 95th percentile of initial size in the data (rightmost curves). 
+The differences are small, and most pronounced for the smallest size, where recruits are predicted to grow slightly larger under the SHASH model than the Gaussian model. 
+The direction of this difference was surprising, because the SHASH has negative skew at small sizes in the data. 
+However, the SHASH model also gives a better prediction of mean growth at small sizes than the Gaussian model. At intermediate sizes the predictions are nearly identical; at large sizes
+the SHASH has slightly lower standard deviation, but fatter tails (excess kurtosis).  
+Fig. \ref{fig:CoralKernelCompare}B shows the predicted steady-state size distributions resulting from a constant unit input of recruits. 
+Again, the differences are very subtle. 
+Finally, the Gaussian and SHASH growth models predict very similar mean life span (17.7 and 17.9 years, respectively).
+
+From these outputs, there is little evidence that improved modeling of coral growth meaningfully improved biological inferences from the IPM. 
+One could argue that it was not worth the trouble. 
+But it was almost no trouble at all, because building an IPM with a SHASH model is almost line-by-line identical to using a Gaussian model. 
+And without fitting the SHASH model, it is not possible to know whether or not it would have made a difference.
 
 In this case study we used \texttt{gam} to fit both the Gaussian and SHASH models because that obviated model selection on functions for mean, variance, and higher moments. 
 However, \texttt{gam} should be used with caution. 
@@ -429,8 +437,6 @@ This is especially problematic for growth modeling, because data are typically s
 To minimize the risk of overfitting we specified the number of ``knots'' (\texttt{k=4}) and used \texttt{gamma=1.4} to overweight model degrees of freedom, as suggested by \citet[][sec. 3.2]{gu-2013}. 
 But it is always important to plot the fitted splines and make sure they do not wag unrealistically. 
 If they do, parametric regression may be a better choice. 
-
-\clearpage   
 
 \section{Case study: tree cholla cactus, \emph{Cylindriopuntia imbricata}}
 The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta Long-Term Ecological Research site in central New Mexico, adds a new feature on top of the simple size-dependent regressions in the previous study: random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 

@@ -86,11 +86,11 @@ save.image(file="AkumaCoralsIPMs.Rdata");
 #################################################################
 # Alternatively, fit SHASH gam. 
 ##################################################################
-fitSHASH <- gam(list(logarea.t1 ~ s(logarea.t0,k=4), # <- location 
-                     ~ s(logarea.t0,k=4),   # <- log-scale
+fitSHASH <- gam(list(logarea.t1 ~ s(logarea.t0), # <- location 
+                     ~ s(logarea.t0),   # <- log-scale
                      ~ s(logarea.t0,k=4),   # <- skewness
                      ~ s(logarea.t0,k=4)), # <- log-kurtosis
-                data = XH, 
+                data = XH, gamma=1.4, 
                 family = shash,  
                 optimizer = "efs")
 
@@ -245,8 +245,8 @@ j5 = which.min(abs(meshpts- 1.856298))  # median size of a new recruit
 j50 = which.min(abs(meshpts-zq[2]));
 j95 = which.min(abs(meshpts-zq[3]));
 
-pdf("../manuscript/figures/CoralKernelCompare_v2.pdf",height = 6, width = 4,useDingbats = F)
-par(mfrow=c(2,1),yaxs="i",xaxs="i",bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0)); 
+pdf("../manuscript/figures/CoralKernelCompare_v2.pdf",height = 4, width = 9,useDingbats = F)
+par(mfrow=c(1,2),yaxs="i",xaxs="i",bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.lab=1.3); 
 matplot(meshpts,cbind(Pmat[,j5],PmatPilot[,j5],Pmat[,j50],PmatPilot[,j50],Pmat[,j95],PmatPilot[,j95]),type="l",
 col=c("black","red"),lty=c(1,2),xlab="Initial size (log area)",ylab="Subsequent size distribution",lwd=2); 
 abline(h=0,col="black",lwd=2); 
