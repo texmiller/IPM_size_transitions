@@ -1,7 +1,10 @@
 ## Returning to cactus growth, now estimating skew and kurtosis by quantile regression
 
-## setwd
-setwd("C:/Users/tm9/Dropbox/github/IPM_size_transitions")
+### move to the right local directory 
+tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
+steve = "c:/repos/IPM_size_transitions" 
+home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
+setwd(home); setwd("cactus"); 
 
 ## load libraries
 library(tidyverse)
@@ -35,7 +38,7 @@ Q.kurtosis<-function(q.05,q.25,q.75,q.95){
 
 ## read in cactus demography data
 ## these data are published on EDI: https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-sev.323.1
-CYIM_full<-read_csv("cactus/cholla_demography_20042018_EDI.csv")%>% 
+CYIM_full<-read_csv("cholla_demography_20042018_EDI.csv")%>% 
   ## filter out transplants and drop seed addition plots (which start with letter H)
   ## also drop Year_t==2018 because I don't have 2019 size data (not entered yet). 2018 data still included in 2017-2018 transition.
   filter(Transplant == 0,
@@ -54,7 +57,7 @@ CYIM_full<-read_csv("cactus/cholla_demography_20042018_EDI.csv")%>%
 
 ## In prelim analysis I inspected several unrealistic size transitions
 ## this file identifies plants to drop
-CYIM_outliers<-read_csv("cactus/CYIM_outliers.csv")%>% 
+CYIM_outliers<-read_csv("CYIM_outliers.csv")%>% 
   filter(FLAG==1) %>% dplyr::select(ID) %>% unique()
 ## drop outliers and create log size variables
 CYIM_full %<>% 
@@ -104,7 +107,7 @@ KG = (qN[4]-qN[1])/(qN[3]-qN[2])
 NPK_hat = ((q.95-q.05)/(q.75-q.25))/KG - 1
 
 ## view diagnostics of scaled residuals
-pdf("./manuscript/figures/cactus_qgam_diagnostics.pdf",height = 5, width = 11,useDingbats = F)
+pdf("../manuscript/figures/cactus_qgam_diagnostics.pdf",height = 5, width = 11,useDingbats = F)
 par(mfrow=c(1,2),mar = c(5, 5, 2, 3), oma=c(0,0,0,2)) 
 plot(CYIM_grow$logvol_t,CYIM_grow$logvol_t1,pch=1,col=alpha("black",0.25),
      xlab="log volume, time t",ylab="log volume, time t+1")
@@ -180,6 +183,8 @@ JSUout=maxLik(logLik=LogLikJSU,start=JSUout$estimate,method="BHHH",control=list(
 ## because I am a little concerned about whether the initial gam mu might be
 ## biased by skew, I am going to refit the SHASH but using the Gaussian mean and sd
 ## This is what I would need to do if MGCV did not included SHASH
+## !! NOTE: you can't actually do this, because mu is not actually the mean, and sigma is not
+##    actually the SD, in the dSHASHo2 distribution. 
 LogLikSHASH=function(pars){
   dSHASHo2(CYIM_grow$logvol_t1, 
            mu=CYIM_gam_pred[,1],
@@ -204,6 +209,7 @@ SHASH1sim_mean<-SHASH1sim_sd<-SHASH1sim_skew<-SHASH1sim_kurt<-matrix(NA,nrow=nro
 SHASH2sim_mean<-SHASH2sim_sd<-SHASH2sim_skew<-SHASH2sim_kurt<-matrix(NA,nrow=nrow(CYIM_grow),ncol=n_sim)
 
 for(i in 1:n_sim){
+  cat("################# Simulation number ", i, "\n") 
   ## add this iteration of sim data to real df
   CYIM_grow$logvol_t1.sim.NO <- rnorm(n=nrow(CYIM_grow),
                                              mean=CYIM_gam_pred[,1],
@@ -428,47 +434,42 @@ points(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",ce
 
 
 ## NO vs SHASH gam fit
-pdf("./manuscript/figures/cactus_SHASH_fit.pdf",height = 6, width = 6,useDingbats = F)
-par(mfrow=c(2,2),mar=c(4,4,1,1))
+#pdf("../manuscript/figures/cactus_SHASH_fit.pdf",height = 6, width = 6,useDingbats = F)
+# jpeg("../manuscript/figures/cactus_SHASH_fit.jpg",height = 1200, width = 1200)
+dev.new(width=7,height=7); 
+par(mfrow=c(2,2),mar=c(4,4,1,1),cex.lab=1.25,mgp=c(2.1,1,0))
 plot(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),type="n",
-     xlab="size t",ylab="mean size t1",ylim=c(min(NOsim_mean),max(NOsim_mean)))
+     xlab="Size(t)",ylab="Mean size(t+1)",ylim=c(min(NOsim_mean),max(NOsim_mean)))
 title(main="A",adj=0,font=3)
-for(i in 1:n_sim){
-  points(CYIM_grow$logvol_t,NOsim_mean[,i],col=alpha("tomato",0.25),pch=".")
-  points(CYIM_grow$logvol_t,SHASH1sim_mean[,i],col=alpha("cornflowerblue",0.25),pch=".")
-}
-points(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
+  matpoints(CYIM_grow$logvol_t,NOsim_mean,col=alpha("tomato",0.25),type="l",lty=1)
+  matpoints(CYIM_grow$logvol_t,SHASH1sim_mean,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+  points(CYIM_grow$logvol_t,Q.mean(q.25,q.50,q.75),col="black",type="l",lty=1)
 legend("topleft",legend=c("Real data","Simulated from Gaussian",
                           "Simulated from SHASH"),
-       lty=1,col=c("black","tomato","cornflowerblue"),cex=0.8,bty="n")
+       lty=1,col=c("black","tomato","cornflowerblue"),cex=0.9,bty="n")
+   # rug(CYIM_grow$logvol_t)   
 
 plot(CYIM_grow$logvol_t,Q.sd(q.25,q.75),type="n",
-     xlab="size t",ylab="sd size t1",ylim=c(min(NOsim_sd),max(NOsim_sd)))
+     xlab="Size(t)",ylab="SD size(t+1)",ylim=c(min(NOsim_sd),max(NOsim_sd)))
 title(main="B",adj=0,font=3)
-for(i in 1:n_sim){
-  points(CYIM_grow$logvol_t,NOsim_sd[,i],col=alpha("tomato",0.25),pch=".")
-  points(CYIM_grow$logvol_t,SHASH1sim_sd[,i],col=alpha("cornflowerblue",0.25),pch=".")
-}
-points(CYIM_grow$logvol_t,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
+  matpoints(CYIM_grow$logvol_t,NOsim_sd,col=alpha("tomato",0.25),type="l",lty=1)
+  matpoints(CYIM_grow$logvol_t,SHASH1sim_sd,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+  points(CYIM_grow$logvol_t,Q.sd(q.25,q.75),col="black",lty=1,type="l")
 
-plot(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),type="n",
-     xlab="size t",ylab="skewness size t1",ylim=c(min(NOsim_skew),max(NOsim_skew)))
+plot(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90), type="n", 
+     xlab="Size(t)",ylab="Skewness size(t+1)",ylim=c(min(NOsim_skew),max(NOsim_skew)))
 title(main="C",adj=0,font=3)
-for(i in 1:n_sim){
-  points(CYIM_grow$logvol_t,NOsim_skew[,i],col=alpha("tomato",0.25),pch=".")
-  points(CYIM_grow$logvol_t,SHASH1sim_skew[,i],col=alpha("cornflowerblue",0.25),pch=".")
-}
-points(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
+matpoints(CYIM_grow$logvol_t,NOsim_skew,col=alpha("tomato",0.25),type="l",lty=1)
+matpoints(CYIM_grow$logvol_t,SHASH1sim_skew,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+points(CYIM_grow$logvol_t,Q.skewness(q.10,q.50,q.90),col="black",type="l",lty=1)
 
 plot(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
-     xlab="size t",ylab="kurtosis size t1",ylim=c(min(NOsim_kurt),max(NOsim_kurt)))
+    xlab="Size(t)",ylab="Kurtosis size(t+1)",ylim=c(min(NOsim_kurt),max(NOsim_kurt)))
 title(main="D",adj=0,font=3)
-for(i in 1:n_sim){
-  points(CYIM_grow$logvol_t,NOsim_kurt[,i],col=alpha("tomato",0.25),pch=".")
-  points(CYIM_grow$logvol_t,SHASH1sim_kurt[,i],col=alpha("cornflowerblue",0.25),pch=".")
-}
-points(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
-dev.off()
+  matpoints(CYIM_grow$logvol_t,NOsim_kurt,col=alpha("tomato",0.25),type="l",lty=1)
+  matpoints(CYIM_grow$logvol_t,SHASH1sim_kurt,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+  points(CYIM_grow$logvol_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",type="l",lty=1)
+# dev.off()
 
 ## I am a little concerned that passing in the mean and SD from a Gaussian model
 ## into a non-Gaussian one does not work when there is bad skew and kurtosis.

@@ -434,7 +434,7 @@ In this case study we used \texttt{gam} to fit both the Gaussian and SHASH model
 However, \texttt{gam} should be used with caution. 
 Nonparametric regression models notoriously ``wag their tails'' because the ends of the fitted curve can be pulled close to the outermost data points. 
 This is especially problematic for growth modeling, because data are typically sparse near the bounds of the size distribution. 
-To minimize the risk of overfitting we specified the number of ``knots'' (\texttt{k=4}) and used \texttt{gamma=1.4} to overweight model degrees of freedom, as suggested by \citet[][sec. 3.2]{gu-2013}. 
+To minimize the risk of overfitting we specified the number of ``knots'' (\texttt{k=4}) and used \texttt{gamma=1.4} to overweight model degrees of freedom as suggested by \citet[][sec. 3.2]{gu-2013}. 
 But it is always important to plot the fitted splines and make sure they do not wag unrealistically. 
 If they do, parametric regression may be a better choice. 
 
@@ -442,6 +442,7 @@ If they do, parametric regression may be a better choice.
 The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta Long-Term Ecological Research site in central New Mexico, adds a new feature on top of the simple size-dependent regressions in the previous study: random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 
 This long-term study of cactus demography was initiated in 2004 and different subsets of the data have been analyzed in various IPM studies, all using Gaussian growth kernels  \citep{miller2009impacts,czachurademographic,compagnoni2016effect,ohm2014balancing,elderd2016quantifying}.
 In fact, \citep{elderd2016quantifying} presented a Gaussian growth model fit to the cactus data as an example of a well fit growth function, based on a marginal distribution of residuals that appeared approximately Gaussian and posterior predictive checks (PPCs) of a Bayesian model that suggested consistency between the real data and data simulated from the fitted model (Fig. 4 in \citep{elderd2016quantifying}). 
+
 While PPCs and the associated ``Bayesian P-value'' are popular diagnostic tools, they are often considered to be too conservative \citep{conn2018guide,zhang2014comparative}, failing to reject marginally bad models even though they are very effective in rejecting models that are terrible.
 The choice of discrepancy function (the statistic used to compare real and simulated data) can also be limiting: in our previous work, we used a discrepancy function focused on variance (the sum of the squared residuals), so we had a built-in blind-spot for mismatches in higher moments.
 In the clarity of hindsight, the PPC gave a false sense of security; the Gaussian was a poor choice all along.
@@ -485,7 +486,7 @@ As in the coral case study, we see that correctly modeling skewness and kurtosis
 
 \begin{figure}[tbp]
 	\centering
-	\includegraphics[width=1.0\textwidth]{figures/cactus_SHASH_fit.pdf}
+	\includegraphics[width=1.0\textwidth]{figures/cactus_SHASH_fit.jpg}
 	\caption{Comparisons among real cactus data and data simulated from Gaussian and SHASH growth models for mean, standard deviation, NP skewness, and NP kurtosis of future size conditional on current size. Figure made by script \texttt{cactus\_growth\_modeling\_qgam.R}.}
 	\label{fig:cactus_fit}
 \end{figure} 
