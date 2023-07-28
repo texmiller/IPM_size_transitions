@@ -12,8 +12,12 @@ library(sqldf)
 library(SuppDists)
 library(Rage)
 
-## Tom's local directory
-setwd("C:/Users/tm9/Dropbox/github/IPM_size_transitions")
+
+### move to the right local directory 
+tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
+steve = "c:/repos/IPM_size_transitions" 
+home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
+setwd(home); 
 
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
@@ -90,7 +94,21 @@ best_weights<-weights(LATR_GAU[[which.min(AICctab(LATR_GAU,sort=F)$dAICc)]])
 for(mod in 1:length(LATR_GAU)) {
   LATR_GAU[[mod]]<-update(LATR_GAU[[mod]],weights=best_weights)
 }
-AICctab(LATR_GAU,sort=F)
+
+### SPE: how good is that log-linear model for the standard deviation? 
+LATR_GAU[[6]] <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(log_volume_t)), 
+    family="gaulss", data=LATR_grow, method="ML",gamma=1.4) 
+
+### SPE: not very good. The gam winds by 33 AIC units. 
+AICctab(LATR_GAU,sort=F); 
+
+### SPE: let's see what the gam says about standard deviation vs. fitted 
+out = predict(LATR_GAU[[6]],type="response"); 
+plot(out[,1],1/out[,2]); 
+
+### SPE: back to using the log-linear model for SD. 
+
+LATR_GAU[[6]] = LATR_GAU[[1]]   # kludge, so the gam isn't selected as the best model below 
 
 ## finally, re-fit with REML=T and best weights
 LATR_GAU_best<-update(LATR_GAU[[which.min(AICctab(LATR_GAU,sort=F)$dAICc)]],weights=best_weights,REML=T)
@@ -98,10 +116,15 @@ best_weights<-weights(LATR_GAU_best)
 LATR_grow$GAU_fitted <- fitted(LATR_GAU_best)
 LATR_grow$GAU_resids <- residuals(LATR_GAU_best)
 LATR_grow$GAU_scaled_resids <- LATR_grow$GAU_resids*sqrt(best_weights) ##sqrt(weights)=1/sd
+
+LATR_grow$GAU_scaled_resids = rstandard(LATR_GAU_best);  ### 
+
 ## should be mean zero unit variance
 mean(LATR_grow$GAU_scaled_resids);sd(LATR_grow$GAU_scaled_resids)
+
 ## get parameters for sd as f(fitted)
-GAU_sd_coef<-maxLik(logLik=sdloglik,start=c(exp(sd(LATR_grow$GAU_resids)),0))
+## not using these (SPE) -- so don't compute themm and see what fails. 
+GAU_sd_coef<-maxLik(logLik=sdloglik,start=c(exp(sd(LATR_grow$GAU_resids)),0))  
 
 ##are the standardized residuals gaussian? -- no
 jarque.test(LATR_grow$GAU_scaled_resids) # normality test: FAILS, P < 0.001 
@@ -143,9 +166,6 @@ points(LATR_grow$log_volume_t,
 
 dens_dummy<-seq(min(LATR_grow$dens_scaled),
                 max(LATR_grow$dens_scaled),0.1)
-
-
-
 
 pdf("./manuscript/figures/creosote_diagnostics.pdf",height = 3, width = 9,useDingbats = F)
 par(mar = c(5, 4, 2, 2), oma=c(0,0,0,2), mfrow=c(1,3)) 
@@ -193,6 +213,103 @@ mtext("Skewness", side = 4, line = 2,col="blue",cex=0.7)
 mtext("Excess Kurtosis", side = 4, line =3,col="red",cex=0.7)
 title("C",adj=0,font=3)
 dev.off()
+
+##################################################################################################
+### SPE: let's make the diagnostics figure again, using the spline function for SD 
+best_weights = out[,2]^2; 
+
+## finally, re-fit with REML=T and best weights
+LATR_GAU_best<-update(LATR_GAU[[which.min(AICctab(LATR_GAU,sort=F)$dAICc)]],weights=best_weights,REML=T)
+LATR_grow$GAU_fitted <- fitted(LATR_GAU_best)
+LATR_grow$GAU_resids <- residuals(LATR_GAU_best)
+LATR_grow$GAU_scaled_resids <- LATR_grow$GAU_resids*sqrt(best_weights) ##sqrt(weights)=1/sd
+## should be mean zero unit variance
+mean(LATR_grow$GAU_scaled_resids);sd(LATR_grow$GAU_scaled_resids)
+
+## fit quantile regression with quantreg
+q.fit<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.05,0.1,0.25,0.5,0.75,0.9,0.95)))
+q.05<-q.fit[,1]
+q.10<-q.fit[,2] 
+q.25<-q.fit[,3] 
+q.50<-q.fit[,4]
+q.75<-q.fit[,5]
+q.90<-q.fit[,6] 
+q.95<-q.fit[,7]
+
+size_means<-LATR_grow %>% group_by(size_bin) %>% summarise(mean=mean(log_volume_t),col=unique(size_col))
+dens_means<-LATR_grow %>% group_by(dens_bin) %>% summarise(mean=mean(dens_scaled),col=unique(dens_col))
+## make a function for plotting
+predict_size<-function(size_t,dens){
+  fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*LATR_grow$log_volume_t+
+    fixef(LATR_GAU_best)[3]*size_means$mean_size[1]+fixef(LATR_GAU_best)[4]*(size_means$mean_size[1])^2
+}
+
+plot(LATR_grow$log_volume_t,LATR_grow$log_volume_t1,
+     col=alpha(LATR_grow$dens_col,0.75),pch=16)
+points(LATR_grow$log_volume_t,
+      fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*LATR_grow$log_volume_t+
+        fixef(LATR_GAU_best)[3]*dens_means$mean[1]+fixef(LATR_GAU_best)[4]*(dens_means$mean[1])^2,
+      pch=".")
+points(LATR_grow$log_volume_t,
+       fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*LATR_grow$log_volume_t+
+         fixef(LATR_GAU_best)[3]*dens_means$mean[2]+fixef(LATR_GAU_best)[4]*(dens_means$mean[2])^2,
+       pch=".")
+points(LATR_grow$log_volume_t,
+       fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*LATR_grow$log_volume_t+
+         fixef(LATR_GAU_best)[3]*dens_means$mean[3]+fixef(LATR_GAU_best)[4]*(dens_means$mean[3])^2,
+       pch=".")
+
+dens_dummy<-seq(min(LATR_grow$dens_scaled),
+                max(LATR_grow$dens_scaled),0.1)
+
+pdf("./manuscript/figures/creosote_diagnostics_gamSD.pdf",height = 3, width = 9,useDingbats = F)
+par(mar = c(5, 4, 2, 2), oma=c(0,0,0,2), mfrow=c(1,3)) 
+plot(LATR_grow$dens_scaled*100,LATR_grow$log_volume_t1,
+     col=alpha(LATR_grow$size_col,0.5),pch=16,
+     xlab="Weighted density",ylab="Size at t+1")
+lines(dens_dummy*100,
+      fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*size_means$mean[1]+
+        fixef(LATR_GAU_best)[3]*dens_dummy+fixef(LATR_GAU_best)[4]*dens_dummy^2,
+      pch=".",col=dens_means$col[1],lwd=2)
+lines(dens_dummy*100,
+      fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*size_means$mean[2]+
+        fixef(LATR_GAU_best)[3]*dens_dummy+fixef(LATR_GAU_best)[4]*dens_dummy^2,
+      pch=".",col=dens_means$col[2],lwd=2)
+lines(dens_dummy*100,
+      fixef(LATR_GAU_best)[1]+fixef(LATR_GAU_best)[2]*size_means$mean[3]+
+        fixef(LATR_GAU_best)[3]*dens_dummy+fixef(LATR_GAU_best)[4]*dens_dummy^2,
+      pch=".",col=dens_means$col[3],lwd=2)
+legend("bottomright",title="Size at t",legend=round(size_means$mean,2),
+       bty="n",cex=0.8,pch=16,col=dens_pallete)
+title("A",adj=0,font=3)
+
+e = order(out[,1]); 
+plot(out[e,1], 1/out[e,2],
+     xlab="Expected size at t+1",ylab="SD of size at t+1",type="l",lwd=3)
+title("B",adj=0,font=3)
+
+plot(LATR_grow$GAU_fitted,LATR_grow$GAU_scaled_resids,col=alpha("black",0.25),
+     xlab="Expected size at t+1",ylab="Scaled residuals of size at t+1")
+points(LATR_grow$GAU_fitted,q.05,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.10,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.25,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.50,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.75,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.90,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.95,col="black",pch=".")
+par(new = TRUE)                           
+plot(c(LATR_grow$GAU_fitted,LATR_grow$GAU_fitted),
+     c(Q.skewness(q.10,q.50,q.90),Q.kurtosis(q.05,q.25,q.75,q.95)),
+     col=c(rep(alpha("blue",0.25),nrow(LATR_grow)),rep(alpha("red",0.25),nrow(LATR_grow))),
+     pch=16,cex=.5,axes = FALSE, xlab = "", ylab = "")
+abline(h=0,col="lightgray",lty=3)
+axis(side = 4,cex.axis=0.8,at = pretty(range(c(Q.skewness(q.10,q.50,q.90),Q.kurtosis(q.05,q.25,q.75,q.95)))))
+mtext("Skewness", side = 4, line = 2,col="blue",cex=0.7)
+mtext("Excess Kurtosis", side = 4, line =3,col="red",cex=0.7)
+title("C",adj=0,font=3)
+dev.off()
+########################## END of re-making the diagnostics graph 
+
 
 ## based on these results I will fit a JSU distribution to the residuals
 ## will need to fit variance, skew, and kurtosis as functions of the mean

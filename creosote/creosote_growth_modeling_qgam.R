@@ -74,7 +74,21 @@ best_weights<-weights(LATR_GAU[[which.min(AICctab(LATR_GAU,sort=F)$dAICc)]])
 for(mod in 1:length(LATR_GAU)) {
   LATR_GAU[[mod]]<-update(LATR_GAU[[mod]],weights=best_weights)
 }
-AICctab(LATR_GAU,sort=F)
+
+### SPE: how good is that log-linear model for the standard deviation? 
+LATR_GAU[[6]] <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(log_volume_t)), 
+    family="gaulss", data=LATR_grow, method="ML",gamma=1.2) 
+
+### SPE: not very good. The gam winds by 33 AIC units. 
+AICctab(LATR_GAU,sort=F); 
+
+### SPE: so let's redefine best_weights
+out = predict(LATR_GAU[[6]],type="response"); 
+plot(out[,1],1/out[,2]); 
+
+best_weights = out[,2]^2; 
+
+LATR_GAU[[6]] = LATR_GAU[[1]]   # kludge, so the gam isn't selected as the best model below 
 
 ## finally, re-fit with REML=T and best weights
 LATR_GAU_best<-update(LATR_GAU[[which.min(AICctab(LATR_GAU,sort=F)$dAICc)]],weights=best_weights,REML=T)
@@ -84,8 +98,9 @@ LATR_grow$GAU_resids <- residuals(LATR_GAU_best)
 LATR_grow$GAU_scaled_resids <- LATR_grow$GAU_resids*sqrt(best_weights) ##sqrt(weights)=1/sd
 ## should be mean zero unit variance
 mean(LATR_grow$GAU_scaled_resids);sd(LATR_grow$GAU_scaled_resids)
+
 ## get parameters for sd as f(fitted)
-GAU_sd_coef<-maxLik(logLik=sdloglik,start=c(exp(sd(LATR_grow$GAU_resids)),0))
+## GAU_sd_coef<-maxLik(logLik=sdloglik,start=c(exp(sd(LATR_grow$GAU_resids)),0))
 
 ##are the standardized residuals gaussian? -- no
 jarque.test(LATR_grow$GAU_scaled_resids) # normality test: FAILS, P < 0.001 
