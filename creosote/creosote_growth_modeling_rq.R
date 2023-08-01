@@ -332,7 +332,6 @@ title("C",adj=0,font=3)
 dev.off()
 ########################## END of re-making the diagnostics graph 
 
-
 ##################################################################################################
 ### SPE: what about **studentized** residuals rather than scaled residuals? 
 ### The punchline is: ALMOST NO DIFFERENCE, with this sample size no points have especially high leverage.  
@@ -348,6 +347,16 @@ LATR_grow$GAU_scaled_resids <- rstudent(LATR_GAU_best);
 
 plot(LATR_grow$GAU_scaled_resids, LATR_grow$GAU_scaled_resids1); abline(0,1); 
 ########################## END of studentized residuals 
+
+
+##################################################################################################
+### SPE: let's make the last panel again, using the spline model throughout 
+
+
+
+
+
+
 
 
 ## based on these results I will fit a JSU distribution to the residuals
