@@ -12,7 +12,6 @@ library(sqldf)
 library(SuppDists)
 library(Rage)
 
-
 ### move to the right local directory 
 tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
 steve = "c:/repos/IPM_size_transitions" 
@@ -102,12 +101,35 @@ LATR_GAU[[6]] <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique
 ### SPE: not very good. The gam winds by 33 AIC units. 
 AICctab(LATR_GAU,sort=F); 
 
+### Now use iterative re-weighting to fit gam model with SD=f(fitted) 
+  fit_gaulss = LATR_GAU[[6]]
+  fitted_all = predict(fit_gaulss,type="response",data=LATR_grow);                  
+  new_fitted_vals = fitted_all[,1];
+  LATR_grow$fitted_vals = new_fitted_vals; 
+  weights = fitted_all[,2]; # what I call "weights" here are 1/sigma values; see ?gaulss for details.
+  fit_gaulss = gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(fitted_vals)), 
+    family="gaulss", data=LATR_grow, method="ML",gamma=1.4) 
+  
+  err=100; k=0; 
+  while(err>10^(-6)) {
+    LATR_grow$fitted_vals = new_fitted_vals; 
+    fit_gaulss <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(fitted_vals)), 
+    family="gaulss", data=LATR_grow, method="ML",gamma=1.4)  
+    fitted_all = predict(fit_gaulss,type="response",data=LATR_grow);   
+    new_fitted_vals = fitted_all[,1]; new_weights = fitted_all[,2];
+    err = weights - new_weights; err=sqrt(mean(err^2)); 
+    weights = new_weights; 
+    k=k+1; cat(k,err,"\n"); 
+  }   
+LATR_GAU[[6]] = fit_gaulss; 
+AICctab(LATR_GAU,sort=F); 
+
+
 ### SPE: let's see what the gam says about standard deviation vs. fitted 
 out = predict(LATR_GAU[[6]],type="response"); 
 plot(out[,1],1/out[,2]); 
 
 ### SPE: back to using the log-linear model for SD. 
-
 LATR_GAU[[6]] = LATR_GAU[[1]]   # kludge, so the gam isn't selected as the best model below 
 
 ## finally, re-fit with REML=T and best weights
@@ -116,8 +138,6 @@ best_weights<-weights(LATR_GAU_best)
 LATR_grow$GAU_fitted <- fitted(LATR_GAU_best)
 LATR_grow$GAU_resids <- residuals(LATR_GAU_best)
 LATR_grow$GAU_scaled_resids <- LATR_grow$GAU_resids*sqrt(best_weights) ##sqrt(weights)=1/sd
-
-LATR_grow$GAU_scaled_resids = rstandard(LATR_GAU_best);  ### 
 
 ## should be mean zero unit variance
 mean(LATR_grow$GAU_scaled_resids);sd(LATR_grow$GAU_scaled_resids)
@@ -216,6 +236,8 @@ dev.off()
 
 ##################################################################################################
 ### SPE: let's make the diagnostics figure again, using the spline function for SD 
+###      but sticking to the lmer() model
+
 best_weights = out[,2]^2; 
 
 ## finally, re-fit with REML=T and best weights
@@ -309,6 +331,23 @@ mtext("Excess Kurtosis", side = 4, line =3,col="red",cex=0.7)
 title("C",adj=0,font=3)
 dev.off()
 ########################## END of re-making the diagnostics graph 
+
+
+##################################################################################################
+### SPE: what about **studentized** residuals rather than scaled residuals? 
+### The punchline is: ALMOST NO DIFFERENCE, with this sample size no points have especially high leverage.  
+best_weights = out[,2]^2; 
+
+## finally, re-fit with REML=T and best weights
+LATR_GAU_best<-update(LATR_GAU[[which.min(AICctab(LATR_GAU,sort=F)$dAICc)]],weights=best_weights,REML=T)
+
+LATR_grow$GAU_resids <- residuals(LATR_GAU_best)
+
+LATR_grow$GAU_scaled_resids1 <- LATR_grow$GAU_resids*sqrt(best_weights) ##sqrt(weights)=1/sd
+LATR_grow$GAU_scaled_resids <- rstudent(LATR_GAU_best);
+
+plot(LATR_grow$GAU_scaled_resids, LATR_grow$GAU_scaled_resids1); abline(0,1); 
+########################## END of studentized residuals 
 
 
 ## based on these results I will fit a JSU distribution to the residuals

@@ -560,8 +560,8 @@ The updated model selection continued to favor model 4, but now with a stronger 
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/creosote_diagnostics.pdf}
 	\includegraphics[width=1.0\textwidth]{figures/creosote_diagnostics_gamSD.pdf}
-	\caption{Two versions of the same figure. TOP, log-linear model for SD as a function of fitted. BOTTOM, spline model for SD as a function of fitted; not sure what the wiggles in B are about. 
-		\textbf{A}, Creosotebush size transition data with respect to initial size (colors) and local weighted density (sum of sizes of all plants within a five-meter transect window). Size is quantified as the natural logarithm of plant volume ($cm^3$). \textbf{B}, Standard deviation of size at time $t+1$ as a function of expected size at $t+1$ (the fitted values), estimated by iterative re-weighting. \textbf{C}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (blue) and excess kurtosis (red) derived from them. Black lines in \textbf{C} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. Figure made by script \texttt{creosote\_growth\_modeling\_rq.R}.}
+	\caption{Two versions of the same figure. TOP, log-linear model for SD as a function of fitted using gaulss. BOTTOM, spline model for SD as a function of fitted. 
+		\textbf{A}, Creosotebush size transition data with respect to initial size (colors) and local weighted density (sum of sizes of all plants within a five-meter transect window). Size is quantified as the natural logarithm of plant volume ($cm^3$). \textbf{B}, Standard deviation of size at time $t+1$ as a function of expected size at $t+1$ (the fitted values), estimated by iterative re-weighting. \textbf{C}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (blue) and excess kurtosis (red) derived from them. Black lines in \textbf{C} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. Both figures made by script \texttt{creosote\_growth\_modeling\_rq.R}.}
 	\label{fig:creosote_diganostics}
 \end{figure} 
 

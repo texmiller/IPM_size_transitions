@@ -8,6 +8,12 @@ library(bbmle)
 library(popbio)
 library(moments)
 
+### move to the right local directory 
+tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
+steve = "c:/repos/IPM_size_transitions" 
+home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
+setwd(home); 
+
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
 Q.sd<-function(q.25,q.75){(q.75-q.25)/1.35}
@@ -76,7 +82,7 @@ for(mod in 1:length(LATR_GAU)) {
 }
 
 ### SPE: how good is that log-linear model for the standard deviation? 
-LATR_GAU[[6]] <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(log_volume_t)), 
+LATR_GAU[[6]] <- gam(list(log_volume_t1 ~ log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"), ~s(log_volume_t)), 
     family="gaulss", data=LATR_grow, method="ML",gamma=1.2) 
 
 ### SPE: not very good. The gam winds by 33 AIC units. 
@@ -84,8 +90,6 @@ AICctab(LATR_GAU,sort=F);
 
 ### SPE: so let's redefine best_weights
 out = predict(LATR_GAU[[6]],type="response"); 
-plot(out[,1],1/out[,2]); 
-
 best_weights = out[,2]^2; 
 
 LATR_GAU[[6]] = LATR_GAU[[1]]   # kludge, so the gam isn't selected as the best model below 
@@ -97,7 +101,7 @@ LATR_grow$GAU_fitted <- fitted(LATR_GAU_best)
 LATR_grow$GAU_resids <- residuals(LATR_GAU_best)
 LATR_grow$GAU_scaled_resids <- LATR_grow$GAU_resids*sqrt(best_weights) ##sqrt(weights)=1/sd
 ## should be mean zero unit variance
-mean(LATR_grow$GAU_scaled_resids);sd(LATR_grow$GAU_scaled_resids)
+mean(LATR_grow$GAU_scaled_resids); sd(LATR_grow$GAU_scaled_resids)
 
 ## get parameters for sd as f(fitted)
 ## GAU_sd_coef<-maxLik(logLik=sdloglik,start=c(exp(sd(LATR_grow$GAU_resids)),0))
@@ -107,6 +111,27 @@ jarque.test(LATR_grow$GAU_scaled_resids) # normality test: FAILS, P < 0.001
 anscombe.test(LATR_grow$GAU_scaled_resids) # kurtosis: FAILS, P < 0.001 
 agostino.test(LATR_grow$GAU_scaled_resids) # skewness: FAILS, P<0.001 
 
+#### Fit quantile regression with qgam 
+gamma_param<-2
+S.05<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.05)  #,argGam=list(gamma=gamma_param)) 
+S.10<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.1)   #,argGam=list(gamma=gamma_param)) 
+S.25<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.25)  #,argGam=list(gamma=gamma_param)) 
+S.50<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.5)   #,argGam=list(gamma=gamma_param)) 
+S.75<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.75)  #,argGam=list(gamma=gamma_param)) 
+S.90<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.9)   #,argGam=list(gamma=gamma_param)) 
+S.95<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.95)  #,argGam=list(gamma=gamma_param)) 
+
+## NP skewness
+q.10<-predict(S.10);q.50<-predict(S.50);q.90<-predict(S.90)
+NPS_hat = (q.10 + q.90 - 2*q.50)/(q.90 - q.10)
+
+## NP kurtosis (relative to Gaussian)
+q.05<-predict(S.05);q.25<-predict(S.25);q.75<-predict(S.75);q.95<-predict(S.95)
+qN = qnorm(c(0.05,0.25,0.75,0.95))
+KG = (qN[4]-qN[1])/(qN[3]-qN[2])
+NPK_hat = ((q.95-q.05)/(q.75-q.25))/KG - 1
+
+if(FALSE){
 ## fit quantile regression with quantreg
 q.05<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.05))) 
 q.10<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.1))) 
@@ -115,8 +140,9 @@ q.50<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.5)))
 q.75<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.75))) 
 q.90<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.9))) 
 q.95<-predict(rq(GAU_scaled_resids~GAU_fitted, data=LATR_grow,tau=c(0.95))) 
+}
 
-pdf("./manuscript/figures/creosote_diagnostics.pdf",height = 6, width = 8,useDingbats = F)
+pdf("./manuscript/figures/creosote_diagnostics_qgam.pdf",height = 6, width = 8,useDingbats = F)
 par(mar = c(5, 4, 2, 3), oma=c(0,0,0,4)) 
 plot(LATR_grow$GAU_fitted,LATR_grow$GAU_scaled_resids,col=alpha("black",0.25),
      xlab="Expected size at t+1",ylab="Scaled residuals of size at t+1")
@@ -137,6 +163,7 @@ axis(side = 4,cex.axis=0.8,at = pretty(range(c(Q.skewness(q.10,q.50,q.90),Q.kurt
 mtext("Skewness", side = 4, line = 2,col="blue")
 mtext("Excess Kurtosis", side = 4, line =3,col="red")
 dev.off()
+
 
 ## based on these results I will fit a JSU distribution to the residuals
 ## will need to fit variance, skew, and kurtosis as functions of the mean
