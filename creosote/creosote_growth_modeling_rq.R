@@ -10,7 +10,7 @@ library(moments)
 library(minpack.lm)
 library(sqldf)
 library(SuppDists)
-library(Rage)
+# library(Rage)
 
 ### move to the right local directory 
 tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
@@ -54,6 +54,9 @@ LATR_grow <- LATR_full %>%
          dens_col=dens_pallete[dens_bin],
          size_bin=cut_interval(log_volume_t,n=length(dens_pallete),labels=F),
          size_col=dens_pallete[size_bin])
+
+e = order(LATR_grow$log_volume_t); 
+LATR = LATR[e,]; 
 
 # fit candidate gaussian growth models
 LATR_GAU<-list()
@@ -351,7 +354,7 @@ plot(LATR_grow$GAU_scaled_resids, LATR_grow$GAU_scaled_resids1); abline(0,1);
 
 ##################################################################################################
 ### SPE: let's make the last panel again, using the spline model throughout 
-
+##########
 
 
 
@@ -385,6 +388,7 @@ n_sim<-100
 JSUsim_mean<-JSUsim_sd<-JSUsim_skew<-JSUsim_kurt<-matrix(NA,nrow=nrow(LATR_grow),ncol=n_sim)
 GAUsim_mean<-GAUsim_sd<-GAUsim_skew<-GAUsim_kurt<-matrix(NA,nrow=nrow(LATR_grow),ncol=n_sim)
 for(i in 1:n_sim){
+  cat(" --------------- Simulation number", i, "\n"); 
   LATR_grow$log_volume_t1.simJSU <- rJSU(n=nrow(LATR_grow),
                                       mu=LATR_grow$GAU_fitted,
                                       sigma=exp(GAU_sd_coef$estimate[1]+GAU_sd_coef$estimate[2]*LATR_grow$GAU_fitted),
@@ -417,44 +421,41 @@ q.90<-q.fit[,6]
 q.95<-q.fit[,7]
 
 pdf("./manuscript/figures/creosote_JSU_fit.pdf",height = 6, width = 6,useDingbats = F)
-par(mfrow=c(2,2),mar=c(4,4,1,1))
+par(mfrow=c(2,2),mar=c(4,4,1,1),mgp=c(2.1,1,0),cex.lab=1.2); 
 plot(LATR_grow$log_volume_t,Q.mean(q.25,q.50,q.75),type="n",
-     xlab="size t",ylab="mean size t1",
-     ylim=c(min(c(GAUsim_mean,JSUsim_mean)),max(c(GAUsim_mean,JSUsim_mean))))
-for(i in 1:n_sim){
-  points(LATR_grow$log_volume_t,GAUsim_mean[,i],col=alpha("tomato",0.25),pch=".")
-  points(LATR_grow$log_volume_t,JSUsim_mean[,i],col=alpha("cornflowerblue",0.25),pch=".")
-}
+     xlab="Size(t)",ylab="NP mean size(t+1)",
+     ylim=c(min(c(GAUsim_mean,JSUsim_mean)),1 + max(c(GAUsim_mean,JSUsim_mean))))
+     matpoints(LATR_grow$log_volume_t,GAUsim_mean,col=alpha("tomato",0.25),pch=".",cex=2)
+     matpoints(LATR_grow$log_volume_t,1 + JSUsim_mean,col=alpha("cornflowerblue",0.25),pch=".",cex=2)
 points(LATR_grow$log_volume_t,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
-legend("topleft",legend=c("Real data","Gaussian simulation","JSU simulation"),
+points(LATR_grow$log_volume_t,1 + Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
+legend("topleft",legend=c("Real data","Gaussian simulation","JSU simulation + offset"),
        lty=1,col=c("black","tomato","cornflowerblue"),cex=0.8,bty="n")
 
 plot(LATR_grow$log_volume_t,Q.sd(q.25,q.75),type="n",
-     xlab="size t",ylab="sd size t1",
-     ylim=c(min(c(GAUsim_sd,JSUsim_sd)),max(c(GAUsim_sd,JSUsim_sd))))
-for(i in 1:n_sim){
-  points(LATR_grow$log_volume_t,GAUsim_sd[,i],col=alpha("tomato",0.25),pch=".")
-  points(LATR_grow$log_volume_t,JSUsim_sd[,i],col=alpha("cornflowerblue",0.25),pch=".")
-}
+     xlab="Size(t)",ylab="NP SD Size(t+1)",
+     ylim=c(min(c(GAUsim_sd,JSUsim_sd)),1 + max(c(GAUsim_sd,JSUsim_sd))))
+     matpoints(LATR_grow$log_volume_t,GAUsim_sd,col=alpha("tomato",0.25),pch=".",cex=2)
+     matpoints(LATR_grow$log_volume_t,1 + JSUsim_sd,col=alpha("cornflowerblue",0.25),pch=".",cex=2)
 points(LATR_grow$log_volume_t,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
+points(LATR_grow$log_volume_t,1 + Q.sd(q.25,q.75),col="black",pch=".",cex=2)
 
 plot(LATR_grow$log_volume_t,Q.skewness(q.10,q.50,q.90),type="n",
-     xlab="size t",ylab="skewness size t1",
-     ylim=c(min(c(GAUsim_skew,JSUsim_skew)),max(c(GAUsim_skew,JSUsim_skew))))
-for(i in 1:n_sim){
-  points(LATR_grow$log_volume_t,GAUsim_skew[,i],col=alpha("tomato",0.25),pch=".")
-  points(LATR_grow$log_volume_t,JSUsim_skew[,i],col=alpha("cornflowerblue",0.25),pch=".")
-}
-points(LATR_grow$log_volume_t,Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
+     xlab="Size(t)",ylab="NP skewness size(t+1)",
+     ylim=c(min(c(GAUsim_skew,JSUsim_skew)),1 + max(c(GAUsim_skew,JSUsim_skew))))
+     matpoints(LATR_grow$log_volume_t,GAUsim_skew,col=alpha("tomato",0.25),pch=".",cex=2)
+     matpoints(LATR_grow$log_volume_t,1+ JSUsim_skew,col=alpha("cornflowerblue",0.25),pch=".",cex=2)
+    points(LATR_grow$log_volume_t,Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
+    points(LATR_grow$log_volume_t,1 + Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
 
 plot(LATR_grow$log_volume_t,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
-     xlab="size t",ylab="kurtosis size t1",
-     ylim=c(min(GAUsim_kurt,JSUsim_kurt),max(GAUsim_kurt,JSUsim_kurt)))
-for(i in 1:n_sim){
-  points(LATR_grow$log_volume_t,GAUsim_kurt[,i],col=alpha("tomato",0.25),pch=".")
-  points(LATR_grow$log_volume_t,JSUsim_kurt[,i],col=alpha("cornflowerblue",0.25),pch=".")
-}
+     xlab="Size(t)",ylab="NP kurtosis size(t+1)",
+     ylim=c(min(GAUsim_kurt,JSUsim_kurt),1 + max(GAUsim_kurt,JSUsim_kurt)))
+     matpoints(LATR_grow$log_volume_t,GAUsim_kurt,col=alpha("tomato",0.25),pch=".",cex=2)
+     matpoints(LATR_grow$log_volume_t,1 + JSUsim_kurt,col=alpha("cornflowerblue",0.25),pch=".",cex=2)
 points(LATR_grow$log_volume_t,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
+points(LATR_grow$log_volume_t,1 + Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
+
 dev.off()
 
 
