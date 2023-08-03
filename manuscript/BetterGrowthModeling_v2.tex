@@ -277,8 +277,9 @@ between the 5th and 95th percentiles, shows the broad extent of extreme values t
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=\textwidth]{figures/NPmoments.pdf}
-\caption{Histograms of skewness and kurtosis estimates using moment-based definitions (top two panels), compared with the nonparametric measures based on quantiles (bottom two panels). Note the differences in scale. Histograms are based on 5000 replicate draws 
-of a sample of 200 independent values fron a $t$ distribution with 8 degrees of freedom. 
+\caption{Histograms of skewness and kurtosis estimates using moment-based definitions (top two panels), compared with the nonparametric measures based on quantiles (bottom two panels). 
+Note the very large differences in scale. Histograms are based on 5000 replicate draws 
+of a sample of 200 independent values, from a $t$ distribution with 8 degrees of freedom. 
 Dotted red vertical lines mark the minimum and maximum of sample estimates, and dashed blue lines show the 5th and 95th percentiles. 
 The true value is indicated by a black dot on the $x$-axis.
 Figure drawn by script \texttt{NPmoments.R}}
@@ -291,7 +292,7 @@ For any $0 < \alpha < 0.5$, a quantile-based measure of skewness is given by \ci
 \be
 \mbox{NP Skewness} = \frac{q_\alpha + q_{1-\alpha} - 2 q_{0.5}}{q_{1-\alpha} - q_\alpha}.
 \ee
-NP Skewness is a measure of asymmetry between the tails of the distribution above and below the median. 
+NP Skewness measures the asymmetry between the tails of the distribution above and below the median. 
 The size of the upper tail can be measured (for any $0 < \alpha < 0.5$) by $\tau_U = q_{1-\alpha} - q_{0.5}$; for $\alpha=0.05$ this is the difference
 between the 95th percentile and the median. 
 The lower tail size is $\tau_L = q_{0.5} - q_\alpha$. The definition above is equivalent to  
@@ -299,7 +300,7 @@ The lower tail size is $\tau_L = q_{0.5} - q_\alpha$. The definition above is eq
 \mbox{NP Skewness} = \frac{\tau_U - \tau_L}{(\tau_U + \tau_L)}.
 \label{eqn:NPskew}
 \ee
-So an NP Skewness of $\pm 0.2$ says that the difference in tail sizes is 20\% of their total. 
+An NP Skewness of $\pm 0.2$ says that the difference in tail sizes is 20\% of their total. 
 The range of possible values is -1 to 1. Both $\alpha=0.25$ (sometimes called ``Kelly's skewness'') and $\alpha=0.1$ (``Bowley's skewness'') are common choices. 
 We used $\alpha=0.1$, unless otherwise stated.  
  
@@ -309,20 +310,20 @@ An analogous quantile-based measure of kurtosis \citep{jones-etal-1994} is
 \label{eqn:NPkurt}
 \ee
 For $\alpha=0.05$, NP Kurtosis is the difference between the 95th and 5th percentiles, relative to the interquartile range. 
-To facilitate interpretation, we scale NP Kurtosis relative to its value for Gaussian distribution, and subtract 1. 
+To facilitate interpretation, we scale NP Kurtosis relative to its value for Gaussian distribution, and subtract 1 so that the value for a Gaussian is zero. 
 We call this ``NP Excess Kurtosis''. 
 The value for a Gaussian distribution is zero. 
-A value of 0.2 means that the tails are (on average) 20\% heavier than those of a Gaussian with the same interquartile range, and a value of -0.2 means that the tails are (on average) 20\% lighter than a Gaussian with the same interquartile range. 
+A value of $\pm 0.2$ means that the tails are on average 20\% heavier (or lighter) than those of a Gaussian with the same interquartile range. 
 We calculate NP Kurtosis using $\alpha=0.05$ unless otherwise stated, to focus on the tail edges, but again this is somewhat arbitrary. 
 
-Figure \ref{fig:NPmoments}C,D illustrate how, applied to exactly the same simulated samples, the non-parametric measures of skewness and kurtosis produce a smaller fraction of highly inaccurate estimates caused by a few extreme values in the sample. 
-But also note that, in contrast to the moment-based measures, numerically small values of the NP measures (e.g., 0.1 or 0.2) should not be disregarded, because they are both scaled so that a value of 1 indicates extremely large departures from a Gaussian distribution. 
+Figure \ref{fig:NPmoments}C,D illustrate how, applied to exactly the same simulated samples, the nonparametric measures produce a smaller fraction of highly inaccurate estimates caused by a few extreme values in the sample. 
+But also note that, in contrast to the moment-based measures, numerically small values of the nonparametric measures (e.g., 0.1 or 0.2) should not be disregarded, because they are both scaled so that a value of 1 indicates extremely large departures from a Gaussian distribution. 
 
 Quantile-based estimation of skewness and kurtosis carries the added value that quantile regression methods may be used to derive these properties of size transitions as continuous functions of initial size or expected future size. 
-In the examples below, we use the \textbf{qgam} package to fit smooth additive quantile regression models, which have the flexibility to accommodate non-linear size-dependence in skewness and kurtosis. 
-One risk of a gam-based approach is that fitted quantiles may be too ``wiggly'' without constraints on their complexity (in the examples below, we specify fitting a spline with $k=4$ basis functions). 
+In the examples below, we sometimes use the \textbf{qgam} package to fit smooth additive quantile regression models, which have the flexibility to accommodate nonlinear size-dependence in skewness and kurtosis. 
+One risk of a gam-based approach is that fitted quantiles may be too ``wiggly'' without constraints on their complexity. In the examples below, we limit complexity by fitting splines with $k=4$ or $k=6$ basis functions. 
 For the gam-averse, other quantile regression models may be equally suitable. 
-For consistency with non-parametric skewness and kurtosis, we similarly use quantile-based measures of location and scale, and use quantile regression to visualize these as functions of size. 
+For consistency with nonparametric skewness and kurtosis, we similarly use quantile-based measures of location and scale, and use quantile regression to visualize these as functions of size. 
 Specifically, following \cite{wan2014estimating},
 \be
 \mbox{NP Mean}  = \frac{q_{0.25} + q_{0.5} + q_{0.75}}{3}
@@ -357,7 +358,7 @@ fitted_all = predict(fitGAU,type="response");
 fitted_sd = 1/fitted_all[,2]; 
 scaledResids = residuals(fitGAU,type=''response'')/fitted_sd;  
 \end{lstlisting}
-Fig. \ref{fig:coral_diganostics}A shows the log-transformed data and Gaussian model. 
+Fig. \ref{fig:coral_diagnostics}A shows the log-transformed data and Gaussian model. 
 The mean function (solid red curve) is visually nearly linear, but the fitted spline is strongly favored over a linear model for the mean ($\Delta AIC \approx 9$). 
 The spline for standard deviation $\sigma$ versus initial size reflects the evident greater variability in growth at smaller sizes.  
 
@@ -365,10 +366,10 @@ The spline for standard deviation $\sigma$ versus initial size reflects the evid
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/coral_qgam_diagnostics.pdf}
 	\caption{\textbf{A}, Size transition data for sea fan corals, \emph{Gorgonia ventalina}, and fitted gam with mean (red) and standard deviation (blue) of future size conditional on current size.  \textbf{B}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (red) and excess kurtosis (blue) derived from them. Black lines in \textbf{B} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. Figure made by script \texttt{AkumalCorals\_qgam.R}.}
-	\label{fig:coral_diganostics}
+	\label{fig:coral_diagnostics}
 \end{figure} 
 
-There are no blatant signs of trouble in the pilot Gaussian model, but quantile regressions on the scaled residuals, and the NP Skewness and Kurtosis metrics derived from them (Eq. \ref{eqn:NPskew} and \ref{eqn:NPkurt}), suggest deviations from normality (Fig. \ref{fig:coral_diganostics}B).
+There are no blatant signs of trouble in the pilot Gaussian model, but quantile regressions on the scaled residuals, and the NP Skewness and Kurtosis metrics derived from them (Eq. \ref{eqn:NPskew} and \ref{eqn:NPkurt}), suggest deviations from normality (Fig. \ref{fig:coral_diagnostics}B).
 Specifically, skewness switches from negative to positive across the size range, with smaller corals more prone to extreme shrinkage and larger corals more prone to extreme growth.  
 Kurtosis also changes direction over the size distribution, with thinner tails than Gaussian at small sizes and fatter tails at large sizes. 
 The fitted nonparametric moments suggest that the upper and lower tails of size transition probabilities may differ by up to 20\%, and the weight of the tails may be \>20\% greater or less than Gaussian, depending on initial size -- not overwhelming deficiencies, but not trivial either. 
@@ -381,7 +382,7 @@ In this case, most of 100 Gaussian model simulations are out of line with the sk
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/coral_SHASH_fit.pdf}
 	\caption{Comparisons among real coral data and data simulated from Gaussian and SHASH growth models for mean, 
-	standard deviation, NP skewness, and NP kurtosis of future size conditional on current size. Note that plotted values for the SHASH are offset by one unit to allow comparisons. 
+	standard deviation, NP skewness, and NP excess kurtosis of future size conditional on current size. Note that plotted values for the SHASH are offset by one unit to allow comparisons. 
 	In the skewness and kurtosis panels, the darker solid curves show the values for the fitted growth models. 
 	Figure made by script \texttt{AkumalCorals\_qgam.R}.}
 	\label{fig:coral_fit}
@@ -453,12 +454,12 @@ Following previous studies, we quantified size as the natural logarithm of plant
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/cactus_qgam_diagnostics.pdf}
 	\caption{\textbf{A}, Size transition data for tree cholla cacti, \emph{Cylindriopuntia imbricata}, and fitted gam with mean (red) and standard deviation (blue) of future size conditional on current size.  \textbf{B}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (red) and excess kurtosis (blue) derived from them. Black lines in \textbf{B} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. Figure made by script \texttt{cactus\_growth\_modeling\_qgam.R}.}
-	\label{fig:cactus_diganostics}
+	\label{fig:cactus_diagnostics}
 \end{figure} 
 
 
 We begin the growth modeling workflow, as above, with a generalized additive model with the mean and standard deviation of size in year $t+1$ modeled as function of size in year $t$, with random intercepts for year and plot and assuming normally distributed residuals (\texttt{family=gaulss()}). 
-The standardized residuals, accounting for size-dependent residual variance (Fig. \ref{fig:cactus_diganostics}A), show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:cactus_diganostics}B). 
+The standardized residuals, accounting for size-dependent residual variance (Fig. \ref{fig:cactus_diagnostics}A), show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:cactus_diagnostics}B). 
 
 To better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, but both of which may be negligible at some sizes.
 We first tried Johnson's $S_{U}$ and then the skewed $t$ distributions, both of which are limited to positive excess kurtosis.
@@ -485,7 +486,7 @@ As in the coral case study, we see that correctly modeling skewness and kurtosis
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/cactus_SHASH_fit.jpg}
-	\caption{Comparisons among real cactus data and data simulated from Gaussian and SHASH growth models for mean, standard deviation, NP skewness, and NP kurtosis of future size conditional on current size. Figure made by script \texttt{cactus\_growth\_modeling\_qgam.R}.}
+	\caption{Comparisons among real cactus data and data simulated from Gaussian and SHASH growth models for mean, standard deviation, NP skewness, and NP excess kurtosis of future size conditional on current size. Figure made by script \texttt{cactus\_growth\_modeling\_qgam.R}.}
 	\label{fig:cactus_fit}
 \end{figure} 
 
@@ -560,27 +561,28 @@ The updated model selection continued to favor model 4, but now with a stronger 
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/creosote_diagnostics.pdf}
 	\includegraphics[width=1.0\textwidth]{figures/creosote_diagnostics_gamSD.pdf}
-	\caption{Two versions of the same figure. TOP, log-linear model for SD as a function of fitted using gaulss. BOTTOM, spline model for SD as a function of fitted. 
-		\textbf{A}, Creosotebush size transition data with respect to initial size (colors) and local weighted density (sum of sizes of all plants within a five-meter transect window). Size is quantified as the natural logarithm of plant volume ($cm^3$). \textbf{B}, Standard deviation of size at time $t+1$ as a function of expected size at $t+1$ (the fitted values), estimated by iterative re-weighting. \textbf{C}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (blue) and excess kurtosis (red) derived from them. Black lines in \textbf{C} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. Both figures made by script \texttt{creosote\_growth\_modeling\_rq.R}.}
-	\label{fig:creosote_diganostics}
+	\centerline{\includegraphics[width = 0.33\textwidth]{figures/creosote_diagnostics_gaulss_qgam.pdf}}
+	\caption{Two and 1/3 versions of the same figure. TOP, lmer growth model with log-linear model for SD as a function of fitted. MIDDLE, lmer growth model with spline SD as a function of fitted using gaulss, 
+	quantiles from rq (parametric). Bottom: rightmost panel redrawn with spline model for growth and SD using gaulss, and qgam fitting of residual quantiles. 
+		\textbf{A}, Creosotebush size transition data with respect to initial size (colors) and local weighted density (sum of sizes of all plants within a five-meter transect window). Size is quantified as the natural logarithm of plant volume ($cm^3$). \textbf{B}, Standard deviation of size at time $t+1$ as a function of expected size at $t+1$ (the fitted values), estimated by iterative re-weighting. \textbf{C}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (blue) and excess kurtosis (red) derived from them. Black lines in \textbf{C} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. All figures made by script \texttt{creosote\_growth\_modeling\_rq.R}.}
+	\label{fig:creosote_diagnostics}
 \end{figure} 
 
-The resulting Gaussian growth model predicts strong initial size-dependence and weak and slightly nonlinear (but monotonic) negative density dependence (Fig. \ref{fig:creosote_diganostics}A). 
-The model accounts for non-constant variance through the fitted weights, which indicate greater dispersion for smaller values of expected size ($\beta_{1}=-0.21$; Fig. \ref{fig:creosote_diganostics}B). 
-Quantiles of the standardized residuals indicate weak negative skew (difference in tail size is 1--2\% of their total) and positive excess kurtosis, especially at smaller expected sizes (tails are 6--10\% fatter than Gaussian) (Fig. \ref{fig:creosote_diganostics}C). \tom{}{Note that there is still a variance trend in the standardized residuals--rather unsatisfying! I have been through this backwards and forwards and my take is that this is a product of the sample size imbalance between small and large plants. The quantile regression is doing its best. SPE: I think it has to do with the fitted SD function. gam(family=``gaulss'') says
-the standard deviation flattens out near the bottom, and that reduces the variance trend in the standardized residuals.} 
+The resulting Gaussian growth model predicts strong initial size-dependence and weak and slightly nonlinear (but monotonic) negative density dependence (Fig. \ref{fig:creosote_diagnostics}A). 
+The model accounts for non-constant variance through the fitted weights, which indicate greater dispersion for smaller values of expected size ($\beta_{1}=-0.21$; Fig. \ref{fig:creosote_diagnostics}B). mostly 
+Quantiles of the standardized residuals indicate size-dependent mostly negative skew and positive excess kurtosis, especially at smaller expected sizes (Fig. \ref{fig:creosote_diagnostics}C).\tom{}{Note that there is still a variance trend in the standardized residuals--rather unsatisfying! I have been through this backwards and forwards and my take is that this is a product of the sample size imbalance between small and large plants. The quantile regression is doing its best. SPE: I think a lot of it has to do with the fitted SD function. gam(family=``gaulss'') says
+the standard deviation flattens out near the bottom, and using that SD function there is a smaller (but still unsatisfying) variance trend in the standardized residuals.} 
 As a candidate for improvement, we turned to the Johnson's $S_{U}$ (JSU) distribution, a four-parameter, leptokurtic distribution capable of skew in either direction. 
 
-%Like many of the non-Gaussian candidates that we suggest (Fig. \ref{fig:workflow}), the JSU distribution is not presently available as an option for mixed models in any software package, to our knowledge. 
-%However, this need not be a barrier to using it for growth modeling. 
-Following our suggested workflow, rather than re-fitting a JSU model from scratch, the goal is a model where the residuals from the Gaussian ``pilot'' model are fitted by a JSU distribution. 
+Following our suggested workflow, rather than re-fitting a JSU model from scratch, we parameterize a model a model where the residuals from the Gaussian ``pilot'' model are fitted by a JSU distribution. 
 This relatively easy because the \textbf{gamlss.dist} package provides a parameterization of the JSU in which 
 the location parameter $\mu$ is the mean and scale parameter $\sigma$ is the standard deviation \citep{rigby2019distributions}. 
-Using that, we wrote a custom likelihood function that borrows the mean and standard deviation of best Gaussian model, and limits parameter estimation to those that control skewness and kurtosis, thereby modeling the standardized residuals rather than sizes. 
-The ``hybrid'' likelihood looks like this in practice:
+Using that, we fitted the ``hybrid'' model by writing a likelihood function that uses the fitted mean and standard deviation functions from Gaussian pilot model, and estimates the parameters that control skewness and kurtosis
+as linear functions of predicted future size.   
+The ``hybrid'' likelihood looks like this \comment{SPE: if we are going to use the spline SD function, this will need to change}:
 \begin{lstlisting}
 ## log_volume_t1 are the size obervations
-## GAU_fitted are the expected values of the best Gaussian model
+## GAU_fitted are the predicted future size from the best Gaussian model
 ## pars is a vector of free parameters to be estimated
 JSULogLik=function(pars){
 	dJSU(x=log_volume_t1, 
@@ -591,20 +593,22 @@ JSULogLik=function(pars){
 }
 \end{lstlisting}
 The mean of the JSU is set to that of the best Gaussian model (\verb|GAU_fitted|) and the standard deviation is a function of the mean according to the coefficients (\verb|GAU_sd_coef|) estimated through iterative re-weighting. 
-Based on diagnostics of the standardized residuals (Fig. \ref{fig:creosote_diganostics}), JSU parameters that control skewness and kurtosis are defined as linear functions of the mean, and those coefficients are estimated by maximum likelihood. 
+Based on diagnostics of the standardized residuals (Fig. \ref{fig:creosote_diagnostics}), JSU parameters that control skewness and kurtosis are defined as linear functions of the mean, and those coefficients are estimated by maximum likelihood. 
 This approach relies on the robustness of Gaussian models fitted mean and variance to deviations from normality. 
 If one is skeptical of this approach, it is possible to simultaneously re-fit all parameters of the JSU in a maximum likelihood framework. 
 However, incorporating random effects into a custom likelihood model is non-trivial (we provide guidance on one way to do this, using the ``shrinkage'' approach, in Appendix XX). 
 Therefore a key advantage of the hybrid approach is convenient retention of the fitted random effects and associated variance components, which get shuttled from the Gaussian model into the non-Gaussian model without any fuss (it was critical that we used a parameterization of the JSU for which \verb|mu| is the mean and \verb|sigma| is the standard deviation). 
 And, if this approach does not ``work'' (i.e., deviations from normality biased the fitted values of the Gaussian model) one would quickly find out through the simulation step of the workflow. 
 In this case, the hybrid JSU model performed well, generating simulated data that aligned with the real data better than the best Gaussian model, particularly in \tom{standard deviation}{I am a little mystified as to why the JSU is so much better. It is literally the same SD in both distributions. SPE: it's the same SD but not the same quantile-based nonparametric SD, and the JSU gets the nonparametric SD better. With the curves offset, you can see that in also does
-better at the NP mean.} and kurtosis (Fig. \ref{fig:creosote_JSU}). 
-Note that in Fig. \ref{fig:creosote_JSU} we are plotting moments of the future size distribution with respect to initial size; this distribution is also conditional on density but initial size is by far the stronger predictor of future size, so we chose this visualization. 
+better at the NP mean.} and kurtosis (Fig. \ref{fig:creosote_JSU}). \new{The JSU model has exactly the same mean and standard deviation of future size as the Gaussian, but Fig. \ref{fig:creosote_diagnostics} uses the quantile-based 
+nonparametric mean and standard deviation. The results show that even though the JSU was not fitted to match those, it comes closer than the Gaussian model as a result of accounting for the skew and kurtosis.} 
 
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/creosote_JSU_fit.pdf}
-	\caption{Comparisons between real creosotebush data and data simulated from Gaussian and JSU growth models for mean, standard deviation, NP skewness, and NP kurtosis of future size conditional on current size. Figure made by script \texttt{creosote\_growth\_modeling\_qgam.R}.}
+	\caption{Comparisons between real creosotebush data and data simulated from Gaussian and JSU growth models for mean, standard deviation, NP skewness, and NP excess kurtosis of future size conditional on current size. 
+	Moments of the future size distribution are plotted with respect to initial size; their distribution is also conditional on density but initial size is by far the stronger predictor of future size, so we chose this visualization. 
+	Values for the JSU model (and the corresponding ``real data'' values) are offset vertically by one unit for comparison. Figure made by script \texttt{creosote\_growth\_modeling\_qgam.R}.}
 	\label{fig:creosote_JSU}
 \end{figure} 
 
@@ -619,6 +623,8 @@ Weak size-dependence in survival likely explains why the improvement in growth m
 	\caption{Density dependence in fitness ($\lambda$) and asymptotic velocity of the creosote encroachment wave (c*) for Gaussian and JSU growth kernels. Weighted density is the sum of sizes ($log(cm^3)$) of all conspecifics within a five-meter transect ``window''. Figure made by script \texttt{creosote\_growth\_modeling\_qgam.R}.}
 	\label{fig:creosote_lambda_cstar}
 \end{figure}
+
+\clearpage 
 
 \section{Case study: lady orchid, \emph{Orchis purpurea}}
 Our final case study examines selection on life history strategies in the lady orchid \textit{Orchis purpurea}. 

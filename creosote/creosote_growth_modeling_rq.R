@@ -1,3 +1,9 @@
+### move to the right local directory 
+tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
+steve = "c:/repos/IPM_size_transitions" 
+home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
+setwd(home); setwd("creosote"); 
+
 library(lme4)
 library(mgcv)
 library(tidyverse)
@@ -10,13 +16,7 @@ library(moments)
 library(minpack.lm)
 library(sqldf)
 library(SuppDists)
-# library(Rage)
-
-### move to the right local directory 
-tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
-steve = "c:/repos/IPM_size_transitions" 
-home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
-setwd(home); 
+library(Rage)
 
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
@@ -126,6 +126,7 @@ AICctab(LATR_GAU,sort=F);
   }   
 LATR_GAU[[6]] = fit_gaulss; 
 AICctab(LATR_GAU,sort=F); 
+## the gam wins by 30.7 AIC units 
 
 
 ### SPE: let's see what the gam says about standard deviation vs. fitted 
@@ -240,6 +241,7 @@ dev.off()
 ##################################################################################################
 ### SPE: let's make the diagnostics figure again, using the spline function for SD 
 ###      but sticking to the lmer() model
+##################################################################################################
 
 best_weights = out[,2]^2; 
 
@@ -337,7 +339,9 @@ dev.off()
 
 ##################################################################################################
 ### SPE: what about **studentized** residuals rather than scaled residuals? 
-### The punchline is: ALMOST NO DIFFERENCE, with this sample size no points have especially high leverage.  
+### The punchline is: ALMOST NO DIFFERENCE, with this sample size no points 
+###      have especially high leverage.  
+###################################################################################################
 best_weights = out[,2]^2; 
 
 ## finally, re-fit with REML=T and best weights
@@ -353,8 +357,80 @@ plot(LATR_grow$GAU_scaled_resids, LATR_grow$GAU_scaled_resids1); abline(0,1);
 
 
 ##################################################################################################
-### SPE: let's make the last panel again, using the spline model throughout 
-##########
+### SPE: let's make the last panel again, using the spline model throughout.  
+### Prereq: run lines 1 - 130. Loads data and creates the spline model, fit_gaulss. 
+### This has SD as a function of fitted, through iterative refitting. 
+### Be careful to get the right type of residuals! See ?residuals.gam  
+###################################################################################################
+out = predict(fit_gaulss,type="response"); 
+e = order(out[,1]); plot(out[e,1], 1/out[e,2],type="p"); 
+best_weights = out[,2]^2; 
+
+LATR_grow$GAU_fitted <- out[,1]; 
+LATR_grow$GAU_resids <- residuals(fit_gaulss,type="response")
+LATR_grow$GAU_scaled_resids <- LATR_grow$GAU_resids*sqrt(best_weights) 
+## should be mean zero, unit variance
+mean(LATR_grow$GAU_scaled_resids);sd(LATR_grow$GAU_scaled_resids)
+
+######### gam() will do the scaling for us! 
+pearson_resids = residuals(fit_gaulss,type="pearson");
+range(LATR_grow$GAU_scaled_resids - pearson_resids); 
+
+require(qgam); 
+S.05<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.05)  
+S.10<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.1)   
+S.25<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.25) 
+S.50<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.5)   
+S.75<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.75) 
+S.90<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.9)   
+S.95<-qgam(GAU_scaled_resids~s(GAU_fitted,k=6), data=LATR_grow,qu=0.95)  
+
+## NP skewness
+q.10<-predict(S.10);q.50<-predict(S.50);q.90<-predict(S.90)
+NPS_hat = (q.10 + q.90 - 2*q.50)/(q.90 - q.10)
+
+## NP kurtosis (relative to Gaussian)
+q.05<-predict(S.05);q.25<-predict(S.25);q.75<-predict(S.75);q.95<-predict(S.95)
+qN = qnorm(c(0.05,0.25,0.75,0.95))
+KG = (qN[4]-qN[1])/(qN[3]-qN[2])
+NPK_hat = ((q.95-q.05)/(q.75-q.25))/KG - 1
+
+pdf("../manuscript/figures/creosote_diagnostics_gaulss_qgam.pdf",height = 6, width = 8,useDingbats = F)
+par(mar = c(5, 4, 2, 3), oma=c(0,0,0,4)) 
+plot(LATR_grow$GAU_fitted,LATR_grow$GAU_scaled_resids,col=alpha("black",0.25),
+     xlab="Expected size at t+1",ylab="Scaled residuals of size at t+1")
+points(LATR_grow$GAU_fitted,q.05,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.10,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.25,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.50,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.75,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.90,col="black",pch=".")
+points(LATR_grow$GAU_fitted,q.95,col="black",pch=".")
+par(new = TRUE)                           
+plot(c(LATR_grow$GAU_fitted,LATR_grow$GAU_fitted),
+     c(Q.skewness(q.10,q.50,q.90),Q.kurtosis(q.05,q.25,q.75,q.95)),
+     col=c(rep(alpha("blue",0.25),nrow(LATR_grow)),rep(alpha("red",0.25),nrow(LATR_grow))),
+     pch=16,cex=.5,axes = FALSE, xlab = "", ylab = "")
+abline(h=0,col="lightgray",lty=3)
+axis(side = 4,cex.axis=0.8,at = pretty(range(c(Q.skewness(q.10,q.50,q.90),Q.kurtosis(q.05,q.25,q.75,q.95)))))
+mtext("Skewness", side = 4, line = 2,col="blue")
+mtext("Excess Kurtosis", side = 4, line =3,col="red")
+dev.off()
+
+
+######### END of re-making the diagnostics graph with gam and qgam. 
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
