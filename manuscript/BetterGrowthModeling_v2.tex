@@ -674,7 +674,7 @@ SSTLogLik=function(pars){
 \end{lstlisting}
 \verb|gamlss.dist:dSST| is a parameterization of the skewed $t$ in which \verb|mu| and \verb|sigma| are the mean and standard deviation, respectively. 
 Based on diagnostics of the standardized residuals (Fig. \ref{fig:orchid_diagnostics}) we allowed \verb|nu| and \verb|tau| to vary by size and differ between flowering and non-flowering plants (note that the \verb|tau| parameter uses a $log(x-2)$ link function). 
-Size transition data simulated from this model corresponded favorably to the real data, much better than the pilot Gaussian model, including improvements in the \tom{standard deviation}{Again, the improvement here is suprising to me and I am unsure what to say about it.}, skewness, and kurtosis of future size (Fig. \ref{fig:orchid_SST_fit}). 
+Size transition data simulated from this model corresponded favorably to the real data, much better than the pilot Gaussian model, including improvements in the \tom{standard deviation}{Again, the improvement here is suprising to me and I am unsure what to say about it. SPE: again, it's probably about the ``usual'' mean and SD versus the quantile-based NP versions.}, skewness, and kurtosis of future size (Fig. \ref{fig:orchid_SST_fit}). 
 
 \begin{figure}[tbp]
 	\centering
@@ -695,7 +695,9 @@ Thus, as we have seen in other case studies, the practical consequences of impro
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/orchis_life_history.pdf}
-	\caption{Orchid life history results from IPMs using Gaussian or skewed $t$ growth models. \textbf{A}, Lifetime reproductive success ($R_0$) as a function of mean size of flowering. Dashed vertical line shows the observed mean flowering size. \textbf{B-C}, Mean and variance of remaining lifespan as a function of size or stage. The orchid IPM includes three discrete below-ground stages (protocorm, tuber, and dormant plant) in addition to continuous size of above-ground plants.}
+	\caption{Orchid life history results from IPMs using Gaussian or skewed $t$ growth models. \textbf{A}, Lifetime reproductive success ($R_0$) as a function of mean size of flowering. Dashed vertical line shows the observed mean flowering size. \textbf{B-C}, Mean and variance of remaining lifespan as a function of size or stage. The orchid IPM includes three discrete below-ground stages (protocorm, tuber, and dormant plant) in addition to continuous size of above-ground plants.
+	\comment{SPE: the variance of lifespan results are now correct, using Chrissy Hernandez's functions instead of RAGE. And the result is, non-Gaussian again has no effect.} 
+	}
 	\label{fig:orchid_ESS}
 \end{figure} 
 

@@ -10,10 +10,13 @@ library(moments)
 library(maxLik)
 library(bbmle)
 library(qpdf)
-library(Rage)
+# library(Rage)
 
-## Tom's local directory
-setwd("C:/Users/tm9/Dropbox/github/IPM_size_transitions")
+### move to the right local directory 
+tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
+steve = "c:/repos/IPM_size_transitions" 
+home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
+setwd(home); 
 
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
@@ -225,6 +228,7 @@ JSUsim_mean<-JSUsim_sd<-JSUsim_skew<-JSUsim_kurt<-matrix(NA,nrow=nrow(orchid_gro
 SSTsim_mean<-SSTsim_sd<-SSTsim_skew<-SSTsim_kurt<-matrix(NA,nrow=nrow(orchid_grow),ncol=n_sim)
 GAUsim_mean<-GAUsim_sd<-GAUsim_skew<-GAUsim_kurt<-matrix(NA,nrow=nrow(orchid_grow),ncol=n_sim)
 for(i in 1:n_sim){
+  cat("Simulation ",i, "\n"); 
   orchid_grow$log_area_t1.simJSU <- rJSU(n=nrow(orchid_grow),
                                          mu=orchid_grow$GAU_fitted,
                                          sigma=orchid_grow$GAU_sd,
@@ -482,17 +486,31 @@ for(i in 1:length(flowint)){
   if(i==length(flowint)){params$flow.int<-fixef(flower)[1]}
 }
 
-## compare mean life expectancies
+## compare mean and variance of life expectancies
+## use Chrissy's variance function instead of RAGE. 
+source("lifespan_moments_CMH.R"); 
+
+
 mean.life.GAU<-mean.life.SST<-vector("numeric",length=params$matsize+3)
 matU.GAU<-returnR0(params=params,dist="GAU")$T
 var.life.GAU<-var.life.SST<-vector("numeric",length=params$matsize+3)
 matU.SST<-returnR0(params=params,dist="SST")$T
 meshpts<-returnR0(params=params,dist="GAU")$meshpts
 for(i in 1:length(mean.life.GAU)){
-  mean.life.GAU[i]<-life_expect_mean(matU = matU.GAU, start = i)
-  var.life.GAU[i]<-life_expect_var(matU = matU.GAU, start = i)
-  mean.life.SST[i]<-life_expect_mean(matU = matU.SST, start = i)
-  var.life.SST[i]<-life_expect_var(matU = matU.SST, start = i)
+  mixdist = rep(0,ncol(matU.GAU));  mixdist[i]=1; 
+  
+  mean.life.GAU[i]<-mean_lifespan(matU.GAU, mixdist)
+  mean.life.SST[i]<-mean_lifespan(matU.SST, mixdist)
+
+  #mean.life.GAU[i]<-life_expect_mean(matU = matU.GAU, start = i)
+  #mean.life.SST[i]<-life_expect_mean(matU = matU.SST, start = i)
+
+
+   var.life.GAU[i]<-var_lifespan(matU.GAU, mixdist)
+   var.life.SST[i]<-var_lifespan(matU.SST, mixdist)
+#  var.life.GAU[i]<-life_expect_var(matU = matU.GAU, start = i)
+#  var.life.SST[i]<-life_expect_var(matU = matU.SST, start = i)
+
 }
 
 pdf("manuscript/figures/orchis_life_history.pdf",height=3,width=9)
