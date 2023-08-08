@@ -15,10 +15,9 @@ rm(list=ls(all=TRUE));
 setwd("c:/repos/IPM_size_transitions/idaho"); 
 
 require(car); require(zoo); require(moments); require(mgcv); 
-require(gamlss); require(gamlss.tr); require(AICcmodavg); 
+require(gamlss); require(AICcmodavg); 
 require(tidyverse); require(maxLik); 
 
-source("Utilities.R");
 source("../Diagnostics.R"); 
 
 ##############################################################
@@ -30,13 +29,17 @@ allD$year <- factor(allD$year);
 ######################################################################
 # Clean up the data
 ######################################################################
-library(tidyverse)
+if(FALSE) {
+    library(tidyverse)
 ## drop out these arbitrarily small individuals
-e = which(abs(allD$area.t0-0.25)<0.001); 
-dropD = allD[-e,]; 
-e = which(abs(dropD$area.t1-0.25)<0.001); 
-dropD = dropD[-e,]; 
-plot(dropD$logarea.t0, dropD$logarea.t1) 
+    e = which(abs(allD$area.t0-0.25)<0.001); 
+    dropD = allD[-e,]; 
+    e = which(abs(dropD$area.t1-0.25)<0.001); 
+    dropD = dropD[-e,]; 
+    plot(dropD$logarea.t0, dropD$logarea.t1) 
+} else {
+    dropD = allD
+}    
 
 # condense treatments based on prior analysis: no difference between
 # historical and modern control quadrats 
@@ -55,21 +58,23 @@ dropD = droplevels(dropD);
 ########################################################################## 
 log_models <- list()
 dropD$sigma_covar = dropD$logarea.t0; 
+dropD$clogarea.t0 = dropD$logarea.t0 - mean(dropD$logarea.t0); 
 log_models[[1]] <- gam(list(logarea.t1~ s(logarea.t0) + W.ARTR + W.HECO + W.POSE + W.PSSP+  W.allcov + W.allpts + Treatment + 
-             Group + s(year,bs="re") + s(logarea.t0,year,bs="re"), ~s(sigma_covar)), family=gaulss,gamma=1.4,data=dropD);  
+             Group + s(year,bs="re") + s(clogarea.t0,year,bs="re"), ~s(sigma_covar,k=6)), family=gaulss,gamma=1.4,data=dropD);  
 
 ## coefficients on HECO and POSE are nearly identical, so group them: deltaAIC = 2, i.e. no change at all in logLik.   
 log_models[[2]] <- gam(list(logarea.t1~ s(logarea.t0) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allcov + W.allpts + Treatment + 
-             Group + s(year,bs="re") + s(logarea.t0,year,bs="re"), ~s(sigma_covar)), family=gaulss,gamma=1.4,data=dropD);  
+             Group + s(year,bs="re") + s(clogarea.t0,year,bs="re"), ~s(sigma_covar,k=6)), family=gaulss,gamma=1.4,data=dropD);  
 
 ## W.allpts is non-significant. Consider two options: drop, group with all other cover 
 log_models[[3]] <- 	gam(list(logarea.t1~ s(logarea.t0) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  W.allpts + Treatment + 
-             Group + s(year,bs="re") + s(logarea.t0,year,bs="re"), ~s(sigma_covar)), family=gaulss,gamma=1.4,data=dropD);  	 
+             Group + s(year,bs="re") + s(clogarea.t0,year,bs="re"), ~s(sigma_covar,k=6)), family=gaulss,gamma=1.4,data=dropD);  	 
 
 ## Based on AIC, the winner by a hair is to group all heterospecific grasses, and group all cover besides the 'big 4'
-log_models[[4]] <- gam(list(logarea.t1~ s(logarea.t0) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP+  I(W.allcov + W.allpts) + Treatment + 
-             Group + s(year,bs="re") + s(logarea.t0,year,bs="re"), ~s(sigma_covar)), family=gaulss,gamma=1.4,data=dropD);  
+log_models[[4]] <- gam(list(logarea.t1~ s(logarea.t0) + W.ARTR + I(W.HECO + W.POSE) + W.PSSP +  I(W.allcov + W.allpts) + Treatment + 
+             Group + s(year,bs="re") + s(clogarea.t0,year,bs="re"), ~s(sigma_covar,k=6)), family=gaulss,gamma=1.4,data=dropD);  
 
+                   
 for(j in 1:4) cat(j, AIC(log_models[[j]]), "\n"); # model 4, by a hair 
 
 ### Save these models, for AIC comparison with models where sigma depends on the fitted value  
