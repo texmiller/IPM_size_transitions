@@ -56,7 +56,7 @@ LATR_grow <- LATR_full %>%
          size_col=dens_pallete[size_bin])
 
 e = order(LATR_grow$log_volume_t); 
-LATR = LATR[e,]; 
+LATR_grow = LATR_grow[e,]; 
 
 # fit candidate gaussian growth models
 LATR_GAU<-list()
@@ -100,33 +100,45 @@ for(mod in 1:length(LATR_GAU)) {
 ### SPE: how good is that log-linear model for the standard deviation? 
 LATR_GAU[[6]] <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(log_volume_t)), 
     family="gaulss", data=LATR_grow, method="ML",gamma=1.4) 
+## TM: model 6 has smooth terms for both density and SD(size). 
+## Try a model with only smooth term for SD, same linear model for mean
+LATR_GAU[[7]] <- gam(list(log_volume_t1~log_volume_t + dens_scaled + I(dens_scaled^2) + s(unique.transect,bs="re"),~s(log_volume_t)), 
+                     family="gaulss", data=LATR_grow, method="ML",gamma=1.4) 
 
 ### SPE: not very good. The gam winds by 33 AIC units. 
 AICctab(LATR_GAU,sort=F); 
 
-### Now use iterative re-weighting to fit gam model with SD=f(fitted) 
-  fit_gaulss = LATR_GAU[[6]]
+### Now use iterative re-weighting to fit gam model with SD=f(fitted)
+for(i in 6:7){
+  fit_gaulss = LATR_GAU[[i]]
   fitted_all = predict(fit_gaulss,type="response",data=LATR_grow);                  
   new_fitted_vals = fitted_all[,1];
   LATR_grow$fitted_vals = new_fitted_vals; 
   weights = fitted_all[,2]; # what I call "weights" here are 1/sigma values; see ?gaulss for details.
-  fit_gaulss = gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(fitted_vals)), 
-    family="gaulss", data=LATR_grow, method="ML",gamma=1.4) 
-  
+  if(i==6){fit_gaulss = gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(fitted_vals)), 
+    family="gaulss", data=LATR_grow, method="ML",gamma=1.4) }
+  if(i==7){fit_gaulss = gam(list(log_volume_t1~log_volume_t + dens_scaled + I(dens_scaled^2) + s(unique.transect,bs="re"),~s(fitted_vals)), 
+                            family="gaulss", data=LATR_grow, method="ML",gamma=1.4) }  
   err=100; k=0; 
   while(err>10^(-6)) {
     LATR_grow$fitted_vals = new_fitted_vals; 
-    fit_gaulss <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(fitted_vals)), 
-    family="gaulss", data=LATR_grow, method="ML",gamma=1.4)  
+    #fit_gaulss <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(fitted_vals)), 
+    #family="gaulss", data=LATR_grow, method="ML",gamma=1.4)  
+    fit_gaulss<-update(fit_gaulss)
     fitted_all = predict(fit_gaulss,type="response",data=LATR_grow);   
     new_fitted_vals = fitted_all[,1]; new_weights = fitted_all[,2];
     err = weights - new_weights; err=sqrt(mean(err^2)); 
     weights = new_weights; 
     k=k+1; cat(k,err,"\n"); 
   }   
-LATR_GAU[[6]] = fit_gaulss; 
+LATR_GAU[[i]] = fit_gaulss; 
+}
+
 AICctab(LATR_GAU,sort=F); 
 ## the gam wins by 30.7 AIC units 
+## TM: yes, looks like the smooth for SD(size) is much better
+## I'm curious what the density smooth looks like
+plot(LATR_grow$dens_scaled,predict.gam(LATR_GAU[[6]],type="terms",terms="s(dens_scaled)"))
 
 
 ### SPE: let's see what the gam says about standard deviation vs. fitted 
@@ -135,6 +147,7 @@ plot(out[,1],1/out[,2]);
 
 ### SPE: back to using the log-linear model for SD. 
 LATR_GAU[[6]] = LATR_GAU[[1]]   # kludge, so the gam isn't selected as the best model below 
+## TM: not sure what Steve is doing here
 
 ## finally, re-fit with REML=T and best weights
 LATR_GAU_best<-update(LATR_GAU[[which.min(AICctab(LATR_GAU,sort=F)$dAICc)]],weights=best_weights,REML=T)
@@ -395,7 +408,7 @@ qN = qnorm(c(0.05,0.25,0.75,0.95))
 KG = (qN[4]-qN[1])/(qN[3]-qN[2])
 NPK_hat = ((q.95-q.05)/(q.75-q.25))/KG - 1
 
-pdf("../manuscript/figures/creosote_diagnostics_gaulss_qgam.pdf",height = 6, width = 8,useDingbats = F)
+pdf("./manuscript/figures/creosote_diagnostics_gaulss_qgam.pdf",height = 6, width = 8,useDingbats = F)
 par(mar = c(5, 4, 2, 3), oma=c(0,0,0,4)) 
 plot(LATR_grow$GAU_fitted,LATR_grow$GAU_scaled_resids,col=alpha("black",0.25),
      xlab="Expected size at t+1",ylab="Scaled residuals of size at t+1")
