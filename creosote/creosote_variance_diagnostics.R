@@ -58,6 +58,11 @@ LATR_grow <- LATR_full %>%
 e = order(LATR_grow$log_volume_t); 
 LATR_grow = LATR_grow[e,]; 
 
+
+###################################################################################
+############### lmer fit with nonconstant variance
+###################################################################################
+
 # fit candidate gaussian growth models
 LATR_GAU<-list()
 LATR_GAU[[1]] <- lmer(log_volume_t1 ~ log_volume_t + (1|unique.transect), data=LATR_grow, REML=F)
@@ -91,6 +96,8 @@ for(mod in 1:length(LATR_GAU)) {
     LATR_GAU[[mod]]<-new_model 
   }}
 
+AICctab(LATR_GAU,sort=F); ## Model 4 wins by a hair 
+
 ##re-do model selection using the best weights for all models
 best_weights<-weights(LATR_GAU[[which.min(AICctab(LATR_GAU,sort=F)$dAICc)]])
 for(mod in 1:length(LATR_GAU)) {
@@ -110,31 +117,12 @@ LATR_grow$GAU_scaled_resids <- LATR_grow$GAU_resids*sqrt(best_weights) ##sqrt(we
 mean(LATR_grow$GAU_scaled_resids);
 sd(LATR_grow$GAU_scaled_resids);
 
-###################################################################################
-############### Residual diagnostics on the lmer fit with nonconstant variance.  
-###################################################################################
-library(car); 
-
-gvals = seq(5,20,by=1);
-pvals = numeric(length(gvals)); 
-
-for(j in 1:length(pvals)) {
-    e = order(LATR_grow$GAU_fitted); 
-    sresids = LATR_grow$GAU_scaled_resids[e]; 
-    indexx = c(1:length(sresids)); 
-    u = gvals[j]*indexx/(1 + max(indexx)); 
-    u = floor(u); u = factor(u); 
-    out = leveneTest(sresids,u,center=median)
-    pvals[j] = as.numeric(out["Pr(>F)"][[1]][1]) 
-   
-}    
 
 ###################################################################################
-############### Residual diagnostics on gam fit, family = gaulss.  
+############### Do a gam fit with family = gaulss, sigma = s(fitted) 
 ###################################################################################
-
-fig_gaulss <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(log_volume_t)), 
-    family="gaulss", data=LATR_grow, method="REML",gamma=1) 
+fit_gaulss <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(log_volume_t)), 
+    family="gaulss", data=LATR_grow, method="REML",gamma=1.2) 
 
 ## Now use iterative re-fitting to fit gam model with SD=f(fitted)
   fitted_all = predict(fit_gaulss,type="response",data=LATR_grow);                  
@@ -158,20 +146,88 @@ fig_gaulss <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.tr
 out = predict(fit_gaulss,type="response"); 
 plot(out[,1],1/out[,2]); 
 
-pvals2 = numeric(length(gvals)); 
-for(j in 1:length(pvals)) {
-    x = predict(fit_gaulss,type="response",data=LATR_grow)[,1];  
-    sresids = residuals(fit_gaulss,type="pearson") ## equivalent to our scaling 
-    e = order(x); sresids = sresids[e]; 
-    indexx = c(1:length(sresids)); 
-    u = gvals[j]*indexx/(1 + max(indexx)); 
-    u = floor(u); u = factor(u); 
-    out = leveneTest(sresids,u,center=median); 
-    pvals2[j] = as.numeric(out["Pr(>F)"][[1]][1]) 
-}  
-matplot(gvals,cbind(pvals,pvals2),type="o",lty=1,col=c("black","red")); 
-abline(h=0.05,lty=2, col="blue"); 
+###################################################################################
+############### Residual diagnostics on the lmer fit with nonconstant variance  
+###################################################################################
+library(car); 
 
+nbins = 10; 
+################################################################
+##     Levene Test, binning by percentiles of the data
+##          u is a factor variable to indicate bin membership 
+##############################################################
+
+## sort the fitted values and residuals 
+e = order(LATR_grow$GAU_fitted); 
+GAU_fitted = LATR_grow$GAU_fitted[e]
+GAU_scaled_resids = LATR_grow$GAU_scaled_resids[e]; 
+
+indexx = c(1:length(GAU_fitted)); 
+u = nbins*indexx/(1 + max(indexx)); 
+u = floor(u); u = factor(u); unique(u); 
+leveneTest(GAU_scaled_resids,u,center=median); 
+
+##############################################################################
+##### Breusch-Pagan test, using spline covariates to test for missed patterns 
+##############################################################################
+library(splines); 
+X = bs(GAU_fitted,df=nbins); matplot(GAU_fitted,X,type="l",lty=1)
+lmfit = lm(GAU_scaled_resids~GAU_fitted); 
+out = ncvTest(lmfit, ~X-1); out; 
+
+##### Better: B-P-like test by randomization of the residuals 
+fit_true = lm(I(GAU_scaled_resids^2) ~ X-1) 
+chisq_true = length(GAU_scaled_resids)*summary(fit_true)$r.squared; 
+
+chisq_ran = numeric(1000); 
+for(j in 1:1000) {
+    yj = sample(GAU_scaled_resids); 
+    fit_ran = lm(I(yj^2) ~ X-1) 
+    chisq_ran[j] = length(GAU_scaled_resids)*summary(fit_ran)$r.squared; 
+}    
+hist(log(chisq_ran)); abline(v=log(chisq_true));
+mean(chisq_ran>chisq_true); 
+
+
+###################################################################################
+############### Residual diagnostics on the gam fit with nonconstant variance  
+###################################################################################
+nbins = 7; 
+
+gam_fitted = predict(fit_gaulss,type="response",data=LATR_grow)[,1];  
+gam_scaled_resids = residuals(fit_gaulss,type="pearson") ## equivalent to our scaling 
+e = order(gam_fitted); 
+gam_fitted = gam_fitted[e]; 
+gam_scaled_resids = gam_scaled_resids[e]; 
+
+## Levine test, binning by percentiles of the data 
+indexx = c(1:length(gam_fitted)); 
+u = nbins*indexx/(1 + max(indexx)); 
+u = floor(u); u = factor(u); unique(u); 
+out = leveneTest(gam_scaled_resids,u,center=median); out; 
+
+## Breusch-Pagan test, using spline covariates to test for missed patterns 
+library(splines); 
+X = bs(gam_fitted,df=nbins,intercept=TRUE); matplot(gam_fitted,X,type="l",lty=1)
+lmfit = lm(gam_scaled_resids~gam_fitted); matplot(gam_fitted,X,type="l",lty=1)
+out = ncvTest(lmfit, ~X); out; 
+
+## Better: B-P test by randomization of the residuals 
+X = bs(gam_fitted,intercept=TRUE,knots=seq(min(gam_fitted),max(gam_fitted),length=nbins)); 
+matplot(gam_fitted,X,type="l",lty=1)
+lmfit = lm(gam_scaled_resids~gam_fitted); 
+out = ncvTest(lmfit, ~X); 
+chisq_true = out$ChiSquare; 
+
+chisq_ran = numeric(1000); 
+for(j in 1:1000) {
+    yj = sample(gam_scaled_resids); 
+    lmfit = lm(yj~gam_fitted);
+    out = ncvTest(lmfit, ~X); 
+    chisq_ran[j] = out$ChiSquare; 
+}    
+hist(log(chisq_ran)); abline(v=log(chisq_true));
+mean(chisq_ran>chisq_true); 
 
 
 
