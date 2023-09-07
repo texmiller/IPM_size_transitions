@@ -7,16 +7,9 @@ setwd(home); setwd("creosote");
 library(lme4)
 library(mgcv)
 library(tidyverse)
-library(quantreg)
-library(gamlss.dist)
 library(maxLik)
 library(bbmle)
-library(popbio)
-library(moments)
-library(minpack.lm)
-library(sqldf)
-library(SuppDists)
-library(Rage)
+
 
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
@@ -60,8 +53,10 @@ LATR_grow = LATR_grow[e,];
 
 
 ###################################################################################
-# fit candidate gaussian growth models using lmer 
+############### lmer fit with nonconstant variance
 ###################################################################################
+
+# fit candidate gaussian growth models
 LATR_GAU<-list()
 LATR_GAU[[1]] <- lmer(log_volume_t1 ~ log_volume_t + (1|unique.transect), data=LATR_grow, REML=F)
 LATR_GAU[[2]] <- lmer(log_volume_t1 ~ log_volume_t + dens_scaled + (1|unique.transect), data=LATR_grow, REML=F)
@@ -94,6 +89,8 @@ for(mod in 1:length(LATR_GAU)) {
     LATR_GAU[[mod]]<-new_model 
   }}
 
+AICctab(LATR_GAU,sort=F); ## Model 4 wins by a hair 
+
 ##re-do model selection using the best weights for all models
 best_weights<-weights(LATR_GAU[[which.min(AICctab(LATR_GAU,sort=F)$dAICc)]])
 for(mod in 1:length(LATR_GAU)) {
@@ -113,30 +110,12 @@ LATR_grow$GAU_scaled_resids <- LATR_grow$GAU_resids*sqrt(best_weights) ##sqrt(we
 mean(LATR_grow$GAU_scaled_resids);
 sd(LATR_grow$GAU_scaled_resids);
 
-###################################################################################
-############### Residual diagnostics on the lmer fit with nonconstant variance.  
-###################################################################################
-library(car); 
-
-gvals = seq(5,20,by=1);
-pvals = numeric(length(gvals)); 
-
-e = order(LATR_grow$GAU_fitted); 
-sresids = LATR_grow$GAU_scaled_resids[e]; 
-x = LATR_grow$GAU_fitted[e]; 
-lmfit = lm(sresids~x); 
-
-for(j in 1:length(pvals)) {
-    X = bs(x,df=gvals[j]);  
-    out = ncvTest(lmfit, ~X)
-   pvals[j] = as.numeric(out$p) 
-}    
 
 ###################################################################################
-############### Residual diagnostics on gam fit, family = gaulss.  
+############### Do a gam fit with family = gaulss, sigma = s(fitted) 
 ###################################################################################
 fit_gaulss <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(log_volume_t)), 
-    family="gaulss", data=LATR_grow, method="REML",gamma=1) 
+    family="gaulss", data=LATR_grow, method="REML",gamma=1.2) 
 
 ## Now use iterative re-fitting to fit gam model with SD=f(fitted)
   fitted_all = predict(fit_gaulss,type="response",data=LATR_grow);                  
@@ -160,22 +139,14 @@ fit_gaulss <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.tr
 out = predict(fit_gaulss,type="response"); 
 plot(out[,1],1/out[,2]); 
 
+###################################################################################
+############### Residual diagnostics on the lmer fit with nonconstant variance  
+###################################################################################
+library(randomForest); 
 
-gvals = seq(5,20,by=1);
-pvals = numeric(length(gvals)); 
+## sort the fitted values and residuals 
+e = order(LATR_grow$GAU_fitted); 
+GAU_fitted = LATR_grow$GAU_fitted[e]
+GAU_scaled_resids = LATR_grow$GAU_scaled_resids[e]; 
 
-e = order(LATR_grow$fitted_vals); 
-x = LATR_grow$fitted_vals[e]; 
-x = x + seq(min(x),max(x),length=length(x));
-sresids = residuals(fit_gaulss,type="pearson")[e]; 
-
-lmfit = lm(sresids~x); 
-
-for(j in 1:length(pvals)) {
-    X = bs(x,df=gvals[j]);  
-    out = ncvTest(lmfit, ~X)
-   pvals[j] = as.numeric(out$p) 
-}    
-
-
-
+fit_true = randomForest(matrix(GAU_scaled_resids^2,ncol=1)~matrix(GAU_fitted,ncol=1),mtry=1)

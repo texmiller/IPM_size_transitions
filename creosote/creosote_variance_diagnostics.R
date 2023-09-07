@@ -7,16 +7,8 @@ setwd(home); setwd("creosote");
 library(lme4)
 library(mgcv)
 library(tidyverse)
-library(quantreg)
-library(gamlss.dist)
 library(maxLik)
 library(bbmle)
-library(popbio)
-library(moments)
-library(minpack.lm)
-library(sqldf)
-library(SuppDists)
-library(Rage)
 
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
@@ -146,53 +138,83 @@ fit_gaulss <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.tr
 out = predict(fit_gaulss,type="response"); 
 plot(out[,1],1/out[,2]); 
 
+#################################################################################
+##  Comparison plot of the two standard deviation estimates 
+#################################################################################
+par(mfrow=c(2,1)); 
+out = predict(fit_gaulss,type="response"); 
+e1 = order(out[,1]);  
+e2 = order(LATR_grow$GAU_fitted)
+matplot(cbind(out[e1,1],LATR_grow$GAU_fitted[e2]),cbind(1/out[e1,2], 1/sqrt(weights(LATR_GAU_best)[e2])),
+type="l",col=c("blue","red"),lty=1,lwd=2, xlab="Fitted value", ylab="Estimated Std Dev"); 
+hist(LATR_grow$GAU_fitted); 
+
 ###################################################################################
 ############### Residual diagnostics on the lmer fit with nonconstant variance  
 ###################################################################################
 library(car); 
 
-nbins = 10; 
-################################################################
-##     Levene Test, binning by percentiles of the data
-##          u is a factor variable to indicate bin membership 
-##############################################################
+#############################################################
+##  Levene Test, binning by percentiles of the data
+##  u is a factor variable to indicate bin membership 
+##  p-value from randomization of scaled residuals 
+#############################################################
 
 ## sort the fitted values and residuals 
 e = order(LATR_grow$GAU_fitted); 
 GAU_fitted = LATR_grow$GAU_fitted[e]
 GAU_scaled_resids = LATR_grow$GAU_scaled_resids[e]; 
 
-indexx = c(1:length(GAU_fitted)); 
-u = nbins*indexx/(1 + max(indexx)); 
-u = floor(u); u = factor(u); unique(u); 
-leveneTest(GAU_scaled_resids,u,center=median); 
+indexx = c(1:length(GAU_fitted)); p_vals = numeric(0); 
+for(nbins in 3:10){
+    u = nbins*indexx/(1 + max(indexx)); 
+    u = floor(u); u = factor(u); unique(u); 
+    p_true = leveneTest(GAU_scaled_resids,u,center=mean, trim = 0.1)$"Pr(>F)"[[1]]
+    p_ran = numeric(2500)
+    for(j in 1:2500) {
+        p_ran[j] = leveneTest(sample(GAU_scaled_resids),u,center=mean, trim = 0.1)$"Pr(>F)"[[1]]
+    }
+    hist(p_ran);  abline(v=p_true);
+    vars = numeric(nbins); for(k in 1:nbins) vars[k]=var(GAU_scaled_resids[u==(k-1)]); 
+    cat(nbins, mean(p_ran < p_true), "    ", signif(vars,3),"\n"); 
+    p_vals = c(p_vals,mean(p_ran < p_true)); 
+}
+p.adjust(p_vals,method="hommel"); 
 
-##############################################################################
-##### Breusch-Pagan test, using spline covariates to test for missed patterns 
-##############################################################################
+############################################################
+## Breusch-Pagan-like test using spline covariates 
+## to test for missed patterns. Randomization p-value 
+## based on shuffling scaled residuals.  
+############################################################
 library(splines); 
-X = bs(GAU_fitted,df=nbins); matplot(GAU_fitted,X,type="l",lty=1)
-lmfit = lm(GAU_scaled_resids~GAU_fitted); 
-out = ncvTest(lmfit, ~X-1); out; 
 
-##### Better: B-P-like test by randomization of the residuals 
-fit_true = lm(I(GAU_scaled_resids^2) ~ X-1) 
-chisq_true = length(GAU_scaled_resids)*summary(fit_true)$r.squared; 
+e = order(LATR_grow$GAU_fitted); 
+GAU_fitted = LATR_grow$GAU_fitted[e]
+GAU_scaled_resids = LATR_grow$GAU_scaled_resids[e]; 
 
-chisq_ran = numeric(1000); 
-for(j in 1:1000) {
-    yj = sample(GAU_scaled_resids); 
-    fit_ran = lm(I(yj^2) ~ X-1) 
-    chisq_ran[j] = length(GAU_scaled_resids)*summary(fit_ran)$r.squared; 
-}    
-hist(log(chisq_ran)); abline(v=log(chisq_true));
-mean(chisq_ran>chisq_true); 
+p_vals = numeric(0); 
+for(df in 4:10) {
+    X = bs(GAU_fitted,df=df,intercept=TRUE); 
+    matplot(GAU_fitted,X,type="l",lty=1)
 
+    fit_true = lm(I(GAU_scaled_resids^2) ~ X-1) 
+    rsq_true = summary(fit_true)$r.squared; 
+
+    rsq_ran = numeric(2500); 
+    for(j in 1:2500) {
+        yj = sample(GAU_scaled_resids); 
+        fit_ran = lm(I(yj^2) ~ X-1) 
+        rsq_ran[j] = summary(fit_ran)$r.squared; 
+    }    
+    hist(log(rsq_ran)); abline(v=log(rsq_true));
+    cat(df, mean(rsq_ran>rsq_true), "\n"); 
+    p_vals = c(p_vals,mean(rsq_ran > rsq_true)); 
+}
+p.adjust(p_vals,method="hommel"); 
 
 ###################################################################################
 ############### Residual diagnostics on the gam fit with nonconstant variance  
 ###################################################################################
-nbins = 7; 
 
 gam_fitted = predict(fit_gaulss,type="response",data=LATR_grow)[,1];  
 gam_scaled_resids = residuals(fit_gaulss,type="pearson") ## equivalent to our scaling 
@@ -200,34 +222,49 @@ e = order(gam_fitted);
 gam_fitted = gam_fitted[e]; 
 gam_scaled_resids = gam_scaled_resids[e]; 
 
-## Levine test, binning by percentiles of the data 
-indexx = c(1:length(gam_fitted)); 
-u = nbins*indexx/(1 + max(indexx)); 
-u = floor(u); u = factor(u); unique(u); 
-out = leveneTest(gam_scaled_resids,u,center=median); out; 
+################################################################
+##   Levene Test, binning by percentiles of the data
+##   p-value from randomization of scaled residuals 
+##############################################################
 
+indexx = c(1:length(gam_fitted)); p_vals = numeric(0); 
+for(nbins in 3:10){
+    u = nbins*indexx/(1 + max(indexx)); 
+    u = floor(u); u = factor(u); unique(u); 
+    p_true = leveneTest(gam_scaled_resids,u,center=mean, trim = 0.1)$"Pr(>F)"[[1]]
+    p_ran = numeric(2500)
+    for(j in 1:2500) {
+        p_ran[j] = leveneTest(sample(gam_scaled_resids),u,center=mean, trim = 0.1)$"Pr(>F)"[[1]]
+    }
+    hist(p_ran);  abline(v=p_true);
+    vars = numeric(nbins); for(k in 1:nbins) vars[k]=var(gam_scaled_resids[u==(k-1)]); 
+    cat(nbins, mean(p_ran < p_true), "    ", signif(vars,3),"\n"); 
+    p_vals = c(p_vals, mean(p_ran<p_true)); 
+}
+p.adjust(p_vals,method="hommel"); 
+
+###############################################################################
 ## Breusch-Pagan test, using spline covariates to test for missed patterns 
+###############################################################################
 library(splines); 
-X = bs(gam_fitted,df=nbins,intercept=TRUE); matplot(gam_fitted,X,type="l",lty=1)
-lmfit = lm(gam_scaled_resids~gam_fitted); matplot(gam_fitted,X,type="l",lty=1)
-out = ncvTest(lmfit, ~X); out; 
 
-## Better: B-P test by randomization of the residuals 
-X = bs(gam_fitted,intercept=TRUE,knots=seq(min(gam_fitted),max(gam_fitted),length=nbins)); 
-matplot(gam_fitted,X,type="l",lty=1)
-lmfit = lm(gam_scaled_resids~gam_fitted); 
-out = ncvTest(lmfit, ~X); 
-chisq_true = out$ChiSquare; 
+## B-P-like test by randomization of the residuals 
+p_vals = numeric(0); 
+for(df in 4:10) {
+    X = bs(gam_fitted,df=df,intercept=TRUE); 
+    matplot(gam_fitted,X,type="l",lty=1)
 
-chisq_ran = numeric(1000); 
-for(j in 1:1000) {
-    yj = sample(gam_scaled_resids); 
-    lmfit = lm(yj~gam_fitted);
-    out = ncvTest(lmfit, ~X); 
-    chisq_ran[j] = out$ChiSquare; 
-}    
-hist(log(chisq_ran)); abline(v=log(chisq_true));
-mean(chisq_ran>chisq_true); 
+    fit_true = lm(I(gam_scaled_resids^2) ~ X-1) 
+    rsq_true = summary(fit_true)$r.squared; 
 
-
-
+    rsq_ran = numeric(2500); 
+    for(j in 1:2500) {
+        yj = sample(gam_scaled_resids); 
+        fit_ran = lm(I(yj^2) ~ X-1) 
+        rsq_ran[j] = summary(fit_ran)$r.squared; 
+    }    
+    hist(log(rsq_ran)); abline(v=log(rsq_true));
+    cat(df, mean(rsq_ran>rsq_true), "\n"); 
+    p_vals = c(p_vals,mean(rsq_ran > rsq_true)); 
+}
+p.adjust(p_vals,method="hommel"); 
