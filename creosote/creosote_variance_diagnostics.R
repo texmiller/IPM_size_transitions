@@ -9,6 +9,9 @@ library(mgcv)
 library(tidyverse)
 library(maxLik)
 library(bbmle)
+require(splines); 
+
+TESTING=FALSE; source("test_variance_diagnostics.R"); 
 
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
@@ -152,65 +155,32 @@ hist(LATR_grow$GAU_fitted);
 ###################################################################################
 ############### Residual diagnostics on the lmer fit with nonconstant variance  
 ###################################################################################
-library(car); 
-
-#############################################################
-##  Levene Test, binning by percentiles of the data
-##  u is a factor variable to indicate bin membership 
-##  p-value from randomization of scaled residuals 
-#############################################################
-
-## sort the fitted values and residuals 
-e = order(LATR_grow$GAU_fitted); 
-GAU_fitted = LATR_grow$GAU_fitted[e]
-GAU_scaled_resids = LATR_grow$GAU_scaled_resids[e]; 
-
-indexx = c(1:length(GAU_fitted)); p_vals = numeric(0); 
-for(nbins in 3:10){
-    u = nbins*indexx/(1 + max(indexx)); 
-    u = floor(u); u = factor(u); unique(u); 
-    p_true = leveneTest(GAU_scaled_resids,u,center=mean, trim = 0.1)$"Pr(>F)"[[1]]
-    p_ran = numeric(2500)
-    for(j in 1:2500) {
-        p_ran[j] = leveneTest(sample(GAU_scaled_resids),u,center=mean, trim = 0.1)$"Pr(>F)"[[1]]
-    }
-    hist(p_ran);  abline(v=p_true);
-    vars = numeric(nbins); for(k in 1:nbins) vars[k]=var(GAU_scaled_resids[u==(k-1)]); 
-    cat(nbins, mean(p_ran < p_true), "    ", signif(vars,3),"\n"); 
-    p_vals = c(p_vals,mean(p_ran < p_true)); 
-}
-p.adjust(p_vals,method="hommel"); 
-
-############################################################
-## Breusch-Pagan-like test using spline covariates 
-## to test for missed patterns. Randomization p-value 
-## based on shuffling scaled residuals.  
-############################################################
-library(splines); 
+stopCluster(c1); 
+c1<- makeCluster(8); 
+registerDoParallel(c1);
 
 e = order(LATR_grow$GAU_fitted); 
 GAU_fitted = LATR_grow$GAU_fitted[e]
 GAU_scaled_resids = LATR_grow$GAU_scaled_resids[e]; 
 
-p_vals = numeric(0); 
-for(df in 4:10) {
-    X = bs(GAU_fitted,df=df,intercept=TRUE); 
-    matplot(GAU_fitted,X,type="l",lty=1)
+### Levene test based on among-bin variances. 
+levene_GAU = multiple_levene_test(GAU_fitted, GAU_scaled_resids, 3, 8, 2500); 
+levene_GAU$p_value; levene_GAU$bins_min_true; 
 
-    fit_true = lm(I(GAU_scaled_resids^2) ~ X-1) 
-    rsq_true = summary(fit_true)$r.squared; 
+### where is the problem? 
+par(mfrow=c(2,1)); 
+nbins = levene_GAU$bins_min_true; 
+indexx = seq_along(GAU_fitted); 
+u = nbins*indexx/(1 + max(indexx)); 
+u = 1+ floor(u); u = factor(u); 
+for(j in 1:nbins) cat(j, var(GAU_scaled_resids[u==j]),"\n");  
+bad_bin = range(GAU_fitted[u==3]); 
+plot(GAU_fitted,GAU_scaled_resids); abline(v=bad_bin,lty=2,col="blue"); 
 
-    rsq_ran = numeric(2500); 
-    for(j in 1:2500) {
-        yj = sample(GAU_scaled_resids); 
-        fit_ran = lm(I(yj^2) ~ X-1) 
-        rsq_ran[j] = summary(fit_ran)$r.squared; 
-    }    
-    hist(log(rsq_ran)); abline(v=log(rsq_true));
-    cat(df, mean(rsq_ran>rsq_true), "\n"); 
-    p_vals = c(p_vals,mean(rsq_ran > rsq_true)); 
-}
-p.adjust(p_vals,method="hommel"); 
+### Breusch-Pagan type test using B-spline regression 
+bs_GAU = multiple_bs_test(GAU_fitted, GAU_scaled_resids, 4, 9, 2500); 
+bs_GAU$p_value; bs_GAU$df_max_true; 
+
 
 ###################################################################################
 ############### Residual diagnostics on the gam fit with nonconstant variance  
@@ -222,49 +192,18 @@ e = order(gam_fitted);
 gam_fitted = gam_fitted[e]; 
 gam_scaled_resids = gam_scaled_resids[e]; 
 
-################################################################
-##   Levene Test, binning by percentiles of the data
-##   p-value from randomization of scaled residuals 
-##############################################################
+levene_gam = multiple_levene_test(gam_fitted, gam_scaled_resids, 3, 12, 2500); 
+levene_gam$p_value; levene_gam$bins_min_true; 
 
-indexx = c(1:length(gam_fitted)); p_vals = numeric(0); 
-for(nbins in 3:10){
-    u = nbins*indexx/(1 + max(indexx)); 
-    u = floor(u); u = factor(u); unique(u); 
-    p_true = leveneTest(gam_scaled_resids,u,center=mean, trim = 0.1)$"Pr(>F)"[[1]]
-    p_ran = numeric(2500)
-    for(j in 1:2500) {
-        p_ran[j] = leveneTest(sample(gam_scaled_resids),u,center=mean, trim = 0.1)$"Pr(>F)"[[1]]
-    }
-    hist(p_ran);  abline(v=p_true);
-    vars = numeric(nbins); for(k in 1:nbins) vars[k]=var(gam_scaled_resids[u==(k-1)]); 
-    cat(nbins, mean(p_ran < p_true), "    ", signif(vars,3),"\n"); 
-    p_vals = c(p_vals, mean(p_ran<p_true)); 
-}
-p.adjust(p_vals,method="hommel"); 
+### where is the biggest problem? 
+bins = levene_gam$bins_min_true; 
+indexx = seq_along(gam_fitted); 
+u = nbins*indexx/(1 + max(indexx)); 
+u = 1+ floor(u); u = factor(u); 
+for(j in 1:nbins) cat(j, var(gam_scaled_resids[u==j]),"\n");  
+bad_bin = range(gam_fitted[u==3]); 
+plot(gam_fitted,gam_scaled_resids); abline(v=bad_bin,lty=2,col="blue"); 
 
-###############################################################################
-## Breusch-Pagan test, using spline covariates to test for missed patterns 
-###############################################################################
-library(splines); 
+bs_gam = multiple_bs_test(gam_fitted, gam_scaled_resids, 4, 9, 2500); 
+bs_gam$p_value; bs_gam$df_max_true; 
 
-## B-P-like test by randomization of the residuals 
-p_vals = numeric(0); 
-for(df in 4:10) {
-    X = bs(gam_fitted,df=df,intercept=TRUE); 
-    matplot(gam_fitted,X,type="l",lty=1)
-
-    fit_true = lm(I(gam_scaled_resids^2) ~ X-1) 
-    rsq_true = summary(fit_true)$r.squared; 
-
-    rsq_ran = numeric(2500); 
-    for(j in 1:2500) {
-        yj = sample(gam_scaled_resids); 
-        fit_ran = lm(I(yj^2) ~ X-1) 
-        rsq_ran[j] = summary(fit_ran)$r.squared; 
-    }    
-    hist(log(rsq_ran)); abline(v=log(rsq_true));
-    cat(df, mean(rsq_ran>rsq_true), "\n"); 
-    p_vals = c(p_vals,mean(rsq_ran > rsq_true)); 
-}
-p.adjust(p_vals,method="hommel"); 
