@@ -79,7 +79,7 @@ for(mod in 1:length(LATR_GAU)) {
     model = LATR_GAU[[mod]]
     fitted_vals = fitted(model)
     resids = residuals(model) 
-    out=maxLik(logLik=sdloglik,start=c(exp(sd(resids)),0))
+    out=maxLik(logLik=sdloglik,start=c(log(sd(resids)),0))
     pars[[mod]]=out$estimate 
     new_sigma = exp(pars[[mod]][1] + pars[[mod]][2]*fitted_vals)
     new_weights = 1/((new_sigma)^2)

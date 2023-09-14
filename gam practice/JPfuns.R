@@ -38,6 +38,41 @@
 ##      The "mean" and "sd" arguments are the actual mean and std dev. 
 ######################################################################      
  
+ 
+ ###############################################################
+ ## The mgcv parameterization for gam.family 'shash'
+ ## mu and sigma control location and scale, epsilon determines
+ ## skewness (same sign as epsilon), and delta > 0 controls tail
+ ## weight. Tails are heavier than Gaussian for delta>1, lighter
+ ## for delta < 1. 
+ ###############################################################
+dshash_mgcv = function(x,mu=0,sigma=1,epsilon=0,delta=1) {  
+	z = (x - mu)/(sigma*delta); 
+	Sz = sinh(delta*asinh(z) - epsilon); 
+	Cz = sqrt( 1 + Sz^2 )
+	fac = 1/sqrt(2*pi*(1+z^2));
+	return(Cz*exp(-0.5*Sz^2)*fac/sigma)
+}	
+
+COMPARING = TRUE; 
+if(COMPARING) {
+mu = rnorm(1); sigma=runif(1)*5; epsilon=rnorm(1); delta=exp(rnorm(1)); 
+integrate(function(x) dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+
+m1 = integrate(function(x) x*dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+m2 =  integrate(function(x) (x^2)*dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+m3 = integrate(function(x) ((x-m1)^3)*dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+m4 = integrate(function(x) ((x-m1)^4)*dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+cat(mu, sigma, m1, sqrt(m2-m1^2), m3, m4,"\n"); 
+
+require(gamlss.dist); 
+m1 = integrate(function(x) x*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+m2 =  integrate(function(x) (x^2)*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+m3 = integrate(function(x) ((x-m1)^3)*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+m4 = integrate(function(x) ((x-m1)^4)*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+cat(mu, sigma, m1, sqrt(m2-m1^2), m3, m4,"\n"); 
+} 
+ 
 ##########################################################
 ##              JP Distribution 
 ## Functions for the two-parameter JP distribution 
