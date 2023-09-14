@@ -11,7 +11,7 @@ library(maxLik)
 library(bbmle)
 require(splines); 
 
-TESTING=FALSE; source("test_variance_diagnostics.R"); 
+source("../code/variance_diagnostics.R"); 
 
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}

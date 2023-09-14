@@ -40,7 +40,7 @@
  
  
  ###############################################################
- ## The mgcv parameterization for gam.family 'shash'
+ ## The mgcv parameterization for gam family 'shash'. 
  ## mu and sigma control location and scale, epsilon determines
  ## skewness (same sign as epsilon), and delta > 0 controls tail
  ## weight. Tails are heavier than Gaussian for delta>1, lighter
@@ -71,6 +71,20 @@ m2 =  integrate(function(x) (x^2)*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)
 m3 = integrate(function(x) ((x-m1)^3)*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
 m4 = integrate(function(x) ((x-m1)^4)*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
 cat(mu, sigma, m1, sqrt(m2-m1^2), m3, m4,"\n"); 
+
+x = 2*rbeta(25000,3,3); x = sort(x); 
+y = rSHASHo2(25000,mu = 1 + x + x^2, sigma = 0.5*exp(x/2), 0.5, 0.7); 
+plot(x,y); 
+require(mgcv); 
+fit.gam = gam(list(y~s(x),~s(x), ~1, ~1),family="shash"); 
+out = predict(fit.gam,type="response");  
+par(mfrow=c(2,1)); 
+plot(x,out[,1]) 
+points(x,1+x+x^2,type="l",col="red",lwd=2); 
+plot(x,exp(out[,2])); 
+points(x,0.5*exp(x/2),type="l",col="red",lwd=2); 
+
+
 } 
  
 ##########################################################
