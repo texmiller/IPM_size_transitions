@@ -34,13 +34,51 @@ Q.kurtosis<-function(q.05,q.25,q.75,q.95){
   return(((q.95-q.05)/(q.75-q.25))/KG - 1)
 }
 
-
+################# Read in data 
 XH = read.csv("Vulpicida raw data.csv"); 
-XH = XH[XH$survival==1,]; 
 e = order(XH$t0); XH = XH[e,]; 
 
+
+############### Survival modeling 
+plot(XH$t0,XH$survival); 
+
+fit1 = glm(survival~sqrt(t0),data=XH,family="binomial"); 
+fit2 = glm(survival~sqrt(t0) + t0,data=XH,family="binomial"); 
+fit3 = gam(survival~s(sqrt(t0)),data=XH,family="binomial"); 
+## AIC goes for fit2, by a hair. 
+#(Intercept)    sqrt(t0)          t0 
+#  -1.649455    5.363115   -1.249375 
+
+sx = function(x)  {
+	u1 = -1.649455  + 5.363115*sqrt(x) - 1.249375*x 
+	u2 = 0.0954 + 2.252*sqrt(x); 
+	p1 = exp(u1)/(1+exp(u1)); 	p2 = exp(u1)/(1+exp(u1)); 
+	return( 0.2*p1 + 0.8*p2 )
+}	
+
+nbins = 12; 
+indexx = seq_along(XH$t0)
+u = nbins*indexx/(1 + max(indexx)); 
+u = floor(u); pbar = tbar = numeric(nbins); 
+for(j in 1:nbins) {pbar[j] = mean(XH$survival[u==j]); tbar[j]=mean(XH$t0[u==j])}
+plot(tbar,pbar,pch=16,xlim=range(XH$t0),ylim=c(0.9,1)); 
+points(XH$t0,sx(XH$t0),type="l",lty=1); 
+
+############### Fecundity function
+fx = function(x) {
+		r = sqrt(x/pi);
+		u = 2*pi*r; 
+		return(0.047*u)
+}		
+
+########################################################################
+#  Growth modeling 
+########################################################################
+
+XH = XH[XH$survival==1,]; 
+
 fitGAU <- gam(list(t1~s(t0),~s(t0)), data=XH, gamma=1.4,family=gaulss())
-summary(fitGAU); plot(fitGAU); 
+summary(fitGAU); # plot(fitGAU); 
 
 ## the mean looks almost linear; is there evidence against this? 
 fitGAU0 <- gam(list(t1~t0,~s(t0)), data=XH, gamma=1.4, family=gaulss())
@@ -71,6 +109,7 @@ points(XH$t0, log( 1/predict(fitGAU,type="response")[,2]), col="red" )
 
 ####################### Save the best-fitting Gaussian 
 fitGAU = fitGAU22; rm(fitGAU22); rm(fitGAU0); rm(fitGAU00);  
+
 
 ################# diagnostics on fitted std. dev. function 
 stopCluster(c1); 
@@ -136,7 +175,7 @@ legend("topleft",legend=c("Quantiles","NP skewness","NP excess kurtosis"),bg="wh
 title("B",font=3,adj=0)
 dev.off()
 
-## improved model: gam SHASH
+###### improved model: gam SHASH
 fitSHASH <- gam(list(t1 ~ s(t0), # <- location 
                         ~ s(t0),  # <- log-scale
                         ~ s(t0),  # <- skewness
@@ -152,6 +191,68 @@ fitSHASH2 <- gam(list(t1 ~ t0 + I(t0^2), # <- location
                         ~ s(t0),  # <- skewness
                         ~ 1), # <- log-kurtosis
                       data = XH, gamma=1.4, family = shash,  optimizer = "efs")
-SHASH_pred<-predict(fitSHASH,type="response")
-plot(fitSHASH2,scale=FALSE); 
+SHASH_pred2<-predict(fitSHASH,type="response")
+# plot(fitSHASH2,scale=FALSE); 
+
+fitSHASH3 <- gam(list(t1 ~ t0 + I(t0^2), # <- location 
+                        ~ t0 + I(t0^2),  # <- log-scale
+                        ~ t0+ I(t0^2),  # <- skewness
+                        ~ 1), # <- log-kurtosis
+                      data = XH, gamma=1.4, family = shash,  optimizer = "efs")
+SHASH_pred3<-predict(fitSHASH3,type="response")
+
+
+AIC(fitSHASH,fitSHASH2,fitSHASH3); # Number 2 is the winner. 
+
+muE <- fitSHASH2$fitted[ , 1]
+sigE <- exp(fitSHASH2$fitted[ , 2])
+epsE <- fitSHASH2$fitted[ , 3]
+delE <- exp(fitSHASH2$fitted[ , 4])
+
+graphics.off(); 
+par(mfrow=c(2,2)); plot(XH$t0,muE); plot(XH$t0,sigE); plot(XH$t0,epsE); plot(XH$t0,delE); 
+
+############# Overlay quantiles on the data 
+dev.new(); par(mfrow=c(2,1));  
+Y = cbind(qSHASHo2(0.01,muE,sigE,epsE,delE), qSHASHo2(0.25,muE,sigE,epsE,delE), qSHASHo2(0.5,muE,sigE,epsE,delE), 
+			qSHASHo2(0.75,muE,sigE,epsE,delE), qSHASHo2(0.99,muE,sigE,epsE,delE)) 
+matplot(XH$t0,Y,type="l",lty=1,col="black"); 
+points(XH$t0,XH$t1); 
+
+mE <- fitGAU$fitted[ , 1]
+sE <- sqrt(1/(fitGAU$fitted[ , 2]))
+Y = cbind(qnorm(0.01,mE,sE), qnorm(0.25,mE,sE), qnorm(0.5,mE,sE), 
+			qnorm(0.75,mE,sE), qnorm(0.99,mE,sE)) 
+matplot(XH$t0,Y,type="l",lty=1,col="black"); 
+points(XH$t0,XH$t1); 
+
+
+############### Make the IPMs 
+
+#coef(fitGAU)
+# (Intercept)            t0       I(t0^2) (Intercept).1          t0.1     I(t0^2).1 
+#   0.07053852    1.03383973   -0.01763714   -2.28977280    0.74370780   -0.05767208 
+
+mu_G = function(x) {0.07053852  +  1.03383973*x  - 0.01763714*x^2} 
+sd_G = function(x) {exp(-2.28977280   + 0.74370780*x - 0.05767208*x^2)}  
+G_z1z_G = function(z1,z) {sx(z)*dnorm(z1,mu_G(z),sd_G(z)) }
+
+
+mk_K_G <- function(m, L, U) {
+	# mesh points 
+	h <- (U - L)/m
+	meshpts <- L + ((1:m) - 1/2) * h
+	K <- P <- h * (outer(meshpts, meshpts, G_z1z_G))
+	K[1,] = K[1,] + matrix(fx(meshpts),nrow=1); F = K - P; 
+	return(list(K = K, meshpts = meshpts, P = P, F = F))
+}
+out_G = mk_K_G(50,0,10); eigen(out_G$K)$values[1];
+
+plot(out_G$meshpts,sx(out_G$meshpts)); 
+points(out_G$meshpts,apply(out_G$P,2,sum)); 
+
+
+
+
+
 
