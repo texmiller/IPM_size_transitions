@@ -208,6 +208,9 @@ muE <- fitSHASH2$fitted[ , 1]
 sigE <- exp(fitSHASH2$fitted[ , 2])
 epsE <- fitSHASH2$fitted[ , 3]
 delE <- exp(fitSHASH2$fitted[ , 4])
+t0 <- XH$t0; 
+save(muE,sigE,epsE,delE,t0,file="SHASHfuns.Rdata"); 
+
 
 graphics.off(); 
 par(mfrow=c(2,2)); plot(XH$t0,muE); plot(XH$t0,sigE); plot(XH$t0,epsE); plot(XH$t0,delE); 
@@ -217,39 +220,120 @@ dev.new(); par(mfrow=c(2,1));
 Y = cbind(qSHASHo2(0.01,muE,sigE,epsE,delE), qSHASHo2(0.25,muE,sigE,epsE,delE), qSHASHo2(0.5,muE,sigE,epsE,delE), 
 			qSHASHo2(0.75,muE,sigE,epsE,delE), qSHASHo2(0.99,muE,sigE,epsE,delE)) 
 matplot(XH$t0,Y,type="l",lty=1,col="black"); 
-points(XH$t0,XH$t1); 
+points(XH$t0,XH$t1); title(main="SHASH"); 
 
 mE <- fitGAU$fitted[ , 1]
 sE <- sqrt(1/(fitGAU$fitted[ , 2]))
 Y = cbind(qnorm(0.01,mE,sE), qnorm(0.25,mE,sE), qnorm(0.5,mE,sE), 
 			qnorm(0.75,mE,sE), qnorm(0.99,mE,sE)) 
 matplot(XH$t0,Y,type="l",lty=1,col="black"); 
-points(XH$t0,XH$t1); 
+points(XH$t0,XH$t1); title(main="Gaussian"); 
+dev.copy2pdf(file="Compare_quantiles.pdf")
 
 
-############### Make the IPMs 
+################################################################# 
+## Make the IPMs 
+#################################################################
+
+### move to the right local directory 
+tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
+steve = "c:/repos/IPM_size_transitions" 
+home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
+setwd(home); setwd("lichen"); 
+
+library(gamlss.dist); load(file="SHASHfuns.Rdata")
+
+########################################### 
+## GAUSSIAN
+###########################################
+graphics.off(); par(mfrow=c(2,1)); 
+L=0; U=10; L1 = 0.2; U1 = 7; 
 
 #coef(fitGAU)
 # (Intercept)            t0       I(t0^2) (Intercept).1          t0.1     I(t0^2).1 
 #   0.07053852    1.03383973   -0.01763714   -2.28977280    0.74370780   -0.05767208 
-
 mu_G = function(x) {0.07053852  +  1.03383973*x  - 0.01763714*x^2} 
 sd_G = function(x) {exp(-2.28977280   + 0.74370780*x - 0.05767208*x^2)}  
 G_z1z_G = function(z1,z) {sx(z)*dnorm(z1,mu_G(z),sd_G(z)) }
 
-
-mk_K_G <- function(m, L, U) {
+mk_K_G <- function(m, L, U, L1, U1) {
 	# mesh points 
 	h <- (U - L)/m
 	meshpts <- L + ((1:m) - 1/2) * h
-	K <- P <- h * (outer(meshpts, meshpts, G_z1z_G))
+	K <- P <- h * (outer(meshpts, pmax(pmin(meshpts, U1),L1), G_z1z_G))
 	K[1,] = K[1,] + matrix(fx(meshpts),nrow=1); F = K - P; 
 	return(list(K = K, meshpts = meshpts, P = P, F = F))
 }
-out_G = mk_K_G(50,0,10); eigen(out_G$K)$values[1];
+IPM_G = mk_K_G(200,L=L,U=U,L1 = L1, U1 = U1); Re(eigen(IPM_G$K)$values[1]);
+chop_meshpts = pmax(pmin(IPM_G$meshpts,U1),L1) 
+plot(IPM_G$meshpts,apply(IPM_G$P,2,sum)/sx(chop_meshpts), type="l",lty=1,col=c("black","red")); 
+abline(v=c(L1,U1));  
 
-plot(out_G$meshpts,sx(out_G$meshpts)); 
-points(out_G$meshpts,apply(out_G$P,2,sum)); 
+########################################### 
+## SHASH 
+###########################################
+muE_fun <- splinefun(t0,muE, method="natural")
+sigE_fun <- splinefun(t0,sigE, method="natural")
+epsE_fun <- splinefun(t0,epsE, method="natural")
+delE_fun <- splinefun(t0,delE, method="natural")
+
+G_z1z_S = function(z1,z) {sx(z)*dSHASHo2(z1,muE_fun(z),sigE_fun(z),epsE_fun(z),delE_fun(z))}
+
+mk_K_S <- function(m, L, U, L1, U1) {
+	# mesh points 
+	h <- (U - L)/m
+	meshpts <- L + ((1:m) - 1/2) * h
+	K <- P <- h * (outer(meshpts, pmax(pmin(meshpts, U1),L1),G_z1z_S))
+	K[1,] = K[1,] + matrix(fx(meshpts),nrow=1); F = K - P; 
+	return(list(K = K, meshpts = meshpts, P = P, F = F))
+}
+IPM_S =mk_K_S(200,L=L,U=U,L1 = L1, U1 = U1); Re(eigen(IPM_S$K)$values[1]);
+
+chop_meshpts = pmax(pmin(IPM_S$meshpts,U1),L1)
+plot(IPM_S$meshpts,apply(IPM_S$P,2,sum)/sx(chop_meshpts), type="l",lty=1,col=c("black","red")); 
+abline(v=c(L1,U1)); 
+
+source("../code/matrixImage.R"); 
+graphics.off(); 
+dev.new(); matrix.image((IPM_G$K)^0.25, IPM_G$meshpts, IPM_G$meshpts, main="Gaussian"); 
+dev.new(); matrix.image((IPM_S$K)^0.25, IPM_S$meshpts, IPM_S$meshpts,main ="SHASH"); 
+
+################################################################# 
+## Life history attributes 
+#################################################################
+
+source("../code/metaluck_fns_CMH.R"); 
+### Gaussian
+matU = IPM_G$P; matF = IPM_G$F; c0 = rep(0,nrow(matU)); c0[1]=1; 
+mean_lifespan(matU, mixdist=c0);
+var_lifespan(matU, mixdist=c0)^0.5
+skew_lifespan(matU, mixdist=c0);
+mean_LRO(matU,matF,mixdist=c0); 
+var_LRO_mcr(matU,matF,mixdist=c0)^0.5;
+skew_LRO(matU,matF,mixdist=c0); 
+prob_repro(matU,matF)[1]; 
+mean_age_repro(matU,matF,mixdist=c0); 
+lifespan_reproducers(matU,matF,mixdist=c0); 
+gen_time_Ta(matU,matF); 
+gen_time_mu1_v(matU,matF); 
+gen_time_R0(matU,matF); 
+
+### SHASH
+matU = IPM_S$P; matF = IPM_S$F; c0 = rep(0,nrow(matU)); c0[1]=1; 
+mean_lifespan(matU, mixdist=c0)
+var_lifespan(matU, mixdist=c0)^0.5
+skew_lifespan(matU, mixdist=c0)
+mean_LRO(matU,matF,mixdist=c0); 
+var_LRO_mcr(matU,matF,mixdist=c0)^0.5;
+skew_LRO(matU,matF,mixdist=c0); 
+prob_repro(matU,matF)[1]; 
+mean_age_repro(matU,matF,mixdist=c0); 
+lifespan_reproducers(matU,matF,mixdist=c0); 
+gen_time_Ta(matU,matF); 
+gen_time_mu1_v(matU,matF);
+gen_time_R0(matU,matF); 
+
+
 
 
 
