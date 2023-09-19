@@ -217,15 +217,15 @@ save(muE,sigE,epsE,delE,t0,file="SHASHfuns.Rdata");
 dev.new(); par(mfrow=c(2,1));  
 Y = cbind(qSHASHo2(0.01,muE,sigE,epsE,delE), qSHASHo2(0.25,muE,sigE,epsE,delE), qSHASHo2(0.5,muE,sigE,epsE,delE), 
 			qSHASHo2(0.75,muE,sigE,epsE,delE), qSHASHo2(0.99,muE,sigE,epsE,delE)) 
-matplot(XH$t0,Y,type="l",lty=1,col="black"); 
-points(XH$t0,XH$t1); title(main="SHASH"); 
+matplot(XH$t0,Y,type="l",lty=1,col="black",xlab="Area t", ylab = "Area t+1"); 
+points(XH$t0,XH$t1); title(main="SHASH percentiles 1, 25, 50, 75, 99"); 
 
 mE <- fitGAU$fitted[ , 1]
 sE <- sqrt(1/(fitGAU$fitted[ , 2]))
 Y = cbind(qnorm(0.01,mE,sE), qnorm(0.25,mE,sE), qnorm(0.5,mE,sE), 
 			qnorm(0.75,mE,sE), qnorm(0.99,mE,sE)) 
-matplot(XH$t0,Y,type="l",lty=1,col="black"); 
-points(XH$t0,XH$t1); title(main="Gaussian"); 
+matplot(XH$t0,Y,type="l",lty=1,col="black", xlab="Area t", ylab = "Area t+1"); 
+points(XH$t0,XH$t1); title(main="Gaussian  percentiles 1, 25, 50, 75, 99"); 
 dev.copy2pdf(file="Compare_quantiles.pdf")
 
 
@@ -301,36 +301,48 @@ dev.new(); matrix.image((IPM_S$K)^0.25, IPM_S$meshpts, IPM_S$meshpts,main ="SHAS
 #################################################################
 
 source("../code/metaluck_fns_CMH.R"); 
+
+X = matrix(NA, 2,12); 
+
 ### Gaussian
 matU = IPM_G$P; matF = IPM_G$F; c0 = rep(0,nrow(matU)); c0[1]=1; 
-mean_lifespan(matU, mixdist=c0);
-var_lifespan(matU, mixdist=c0)^0.5
-skew_lifespan(matU, mixdist=c0);
-mean_LRO(matU,matF,mixdist=c0); 
-var_LRO_mcr(matU,matF,mixdist=c0)^0.5;
-skew_LRO(matU,matF,mixdist=c0); 
-prob_repro(matU,matF)[1]; 
-mean_age_repro(matU,matF,mixdist=c0); 
-lifespan_reproducers(matU,matF,mixdist=c0); 
-gen_time_Ta(matU,matF); 
-gen_time_mu1_v(matU,matF); 
-gen_time_R0(matU,matF); 
+X[1,] = c(mean_lifespan(matU, mixdist=c0),
+var_lifespan(matU, mixdist=c0)^0.5,
+skew_lifespan(matU, mixdist=c0),
+mean_LRO(matU,matF,mixdist=c0), 
+var_LRO_mcr(matU,matF,mixdist=c0)^0.5,
+skew_LRO(matU,matF,mixdist=c0), 
+prob_repro(matU,matF)[1], 
+mean_age_repro(matU,matF,mixdist=c0), 
+lifespan_reproducers(matU,matF,mixdist=c0), 
+gen_time_Ta(matU,matF), 
+gen_time_mu1_v(matU,matF), 
+gen_time_R0(matU,matF))  
+
 
 ### SHASH
 matU = IPM_S$P; matF = IPM_S$F; c0 = rep(0,nrow(matU)); c0[1]=1; 
-mean_lifespan(matU, mixdist=c0)
-var_lifespan(matU, mixdist=c0)^0.5
-skew_lifespan(matU, mixdist=c0)
-mean_LRO(matU,matF,mixdist=c0); 
-var_LRO_mcr(matU,matF,mixdist=c0)^0.5;
-skew_LRO(matU,matF,mixdist=c0); 
-prob_repro(matU,matF)[1]; 
-mean_age_repro(matU,matF,mixdist=c0); 
-lifespan_reproducers(matU,matF,mixdist=c0); 
-gen_time_Ta(matU,matF); 
-gen_time_mu1_v(matU,matF);
-gen_time_R0(matU,matF); 
 
+X[2,] = c(
+mean_lifespan(matU, mixdist=c0),
+var_lifespan(matU, mixdist=c0)^0.5,
+skew_lifespan(matU, mixdist=c0),
+mean_LRO(matU,matF,mixdist=c0), 
+var_LRO_mcr(matU,matF,mixdist=c0)^0.5,
+skew_LRO(matU,matF,mixdist=c0), 
+prob_repro(matU,matF)[1], 
+mean_age_repro(matU,matF,mixdist=c0), 
+lifespan_reproducers(matU,matF,mixdist=c0), 
+gen_time_Ta(matU,matF), 
+gen_time_mu1_v(matU,matF), 
+gen_time_R0(matU,matF))  
+
+X = data.frame(round(X,digits=2)); 
+names(X) = c("Mean lifespan", "SD lifespan", "Skew lifespan", "Mean LRO", "SD LRO", "Skew LRO", "Prob repro", "Mean age repro", "Conditional lifespan", 
+"Gen time Ta", "Gen time mu1(v)", "Gen time R0"); 
+row.names(X) = c("Gaussian", "SHASH"); 
+
+View(X); 
 
 ##########################################################################
 ##  Simulate discrete population dynamics and compare extinction risk
