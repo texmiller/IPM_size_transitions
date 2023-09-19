@@ -64,9 +64,9 @@ for(j in 1:nbins) {pbar[j] = mean(XH$survival[u==j]); tbar[j]=mean(XH$t0[u==j])}
 plot(tbar,pbar,pch=16,xlim=range(XH$t0),ylim=c(0.9,1)); 
 points(XH$t0,sx(XH$t0),type="l",lty=1); 
 
-############### Fecundity function
-fx = function(x) {
-		r = sqrt(x/pi);
+############### Fecundity function (from Shriver et al. model) 
+fx = function(Area) {
+		r = sqrt(Area/pi);
 		u = 2*pi*r; 
 		return(0.047*u)
 }		
@@ -75,12 +75,12 @@ fx = function(x) {
 #  Growth modeling 
 ########################################################################
 
-XH = XH[XH$survival==1,]; 
+XH = XH[XH$survival==1,]; ## discard the dead 
 
 fitGAU <- gam(list(t1~s(t0),~s(t0)), data=XH, gamma=1.4,family=gaulss())
 summary(fitGAU); # plot(fitGAU); 
 
-## the mean looks almost linear; is there evidence against this? 
+## The mean looks almost linear; is there evidence against this? 
 fitGAU0 <- gam(list(t1~t0,~s(t0)), data=XH, gamma=1.4, family=gaulss())
 AIC(fitGAU); AIC(fitGAU0); # Somewhat, Delta AIC of about 4 in favor of the spline 
 
@@ -94,7 +94,7 @@ AIC(fitGAU); AIC(fitGAU01);  # Delta AIC about 1
 
 ## what about quadratic for the mean, as well? 
 fitGAU22 <- gam(list(t1~t0 + I(t0^2), ~t0 + I(t0^2)), data=XH, gamma=1.4,family=gaulss())
-AIC(fitGAU); AIC(fitGAU22);  # the quadratic-quadratic wins by a hair, Delta AIC \approx 1 .  
+AIC(fitGAU); AIC(fitGAU22);  # the quadratic-quadratic wins by a hair, Delta AIC about 1.  
 
 ## proceeding with fitGAU22 as "best" Gaussian model
 XH$fitted_sd <- 1/predict(fitGAU22,type="response")[,2]
@@ -110,8 +110,7 @@ points(XH$t0, log( 1/predict(fitGAU,type="response")[,2]), col="red" )
 ####################### Save the best-fitting Gaussian 
 fitGAU = fitGAU22; rm(fitGAU22); rm(fitGAU0); rm(fitGAU00);  
 
-
-################# diagnostics on fitted std. dev. function 
+######### Diagnostics on fitted parametric SD function: no problems! 
 stopCluster(c1); 
 c1<- makeCluster(8); 
 registerDoParallel(c1);
@@ -142,7 +141,7 @@ NPK_hat = Q.kurtosis(q.05=predict(S.05),
                      q.75=predict(S.75),
                      q.95=predict(S.95))
 
-## view diagnostics of scaled residuals
+## view quantile diagnostics of scaled residuals
 pdf("lichen_qgam_diagnostics.pdf",height = 5, width = 11,useDingbats = F)
 par(mfrow=c(1,2),mar = c(5, 5, 2, 3), oma=c(0,0,0,2)) 
 plot(XH$t0,XH$t1,pch=1,col=alpha("black",0.25),cex.axis=0.8,
@@ -182,8 +181,7 @@ fitSHASH <- gam(list(t1 ~ s(t0), # <- location
                         ~ 1), # <- log-kurtosis
                       data = XH, gamma=1.4, family = shash,  optimizer = "efs")
 SHASH_pred<-predict(fitSHASH,type="response")
-plot(fitSHASH,scale=FALSE); 
-
+# plot(fitSHASH,scale=FALSE); 
 AIC(fitGAU,fitSHASH); 
 
 fitSHASH2 <- gam(list(t1 ~ t0 + I(t0^2), # <- location 
@@ -204,6 +202,7 @@ SHASH_pred3<-predict(fitSHASH3,type="response")
 
 AIC(fitSHASH,fitSHASH2,fitSHASH3); # Number 2 is the winner. 
 
+## Save the fitted size-dependent parameters of the best SHASH model. 
 muE <- fitSHASH2$fitted[ , 1]
 sigE <- exp(fitSHASH2$fitted[ , 2])
 epsE <- fitSHASH2$fitted[ , 3]
@@ -211,11 +210,10 @@ delE <- exp(fitSHASH2$fitted[ , 4])
 t0 <- XH$t0; 
 save(muE,sigE,epsE,delE,t0,file="SHASHfuns.Rdata"); 
 
+##########################################################
+# Compare quantiles of the two growth models 
+##########################################################
 
-graphics.off(); 
-par(mfrow=c(2,2)); plot(XH$t0,muE); plot(XH$t0,sigE); plot(XH$t0,epsE); plot(XH$t0,delE); 
-
-############# Overlay quantiles on the data 
 dev.new(); par(mfrow=c(2,1));  
 Y = cbind(qSHASHo2(0.01,muE,sigE,epsE,delE), qSHASHo2(0.25,muE,sigE,epsE,delE), qSHASHo2(0.5,muE,sigE,epsE,delE), 
 			qSHASHo2(0.75,muE,sigE,epsE,delE), qSHASHo2(0.99,muE,sigE,epsE,delE)) 
@@ -247,7 +245,7 @@ library(gamlss.dist); load(file="SHASHfuns.Rdata")
 ## GAUSSIAN
 ###########################################
 graphics.off(); par(mfrow=c(2,1)); 
-L=0; U=10; L1 = 0.2; U1 = 7; 
+L=0; U=10; L1 = 0.2; U1 = 7; # limits of the data for eviction-prevention 
 
 #coef(fitGAU)
 # (Intercept)            t0       I(t0^2) (Intercept).1          t0.1     I(t0^2).1 
@@ -299,7 +297,7 @@ dev.new(); matrix.image((IPM_G$K)^0.25, IPM_G$meshpts, IPM_G$meshpts, main="Gaus
 dev.new(); matrix.image((IPM_S$K)^0.25, IPM_S$meshpts, IPM_S$meshpts,main ="SHASH"); 
 
 ################################################################# 
-## Life history attributes 
+## Compare life history attributes 
 #################################################################
 
 source("../code/metaluck_fns_CMH.R"); 
@@ -334,9 +332,55 @@ gen_time_mu1_v(matU,matF);
 gen_time_R0(matU,matF); 
 
 
+##########################################################################
+##  Simulate discrete population dynamics and compare extinction risk
+##########################################################################
+update_pop = function(sizes,SHASH=TRUE) {
+  N = length(sizes); 
+  if(N==0){
+	return(sizes); 
+  }else{
+	new_sizes = numeric(0); 
+	total_F = sum(fx(sizes)); 
+	kids = rpois(1,total_F);
+	if(kids>0) new_sizes = rep(L1,kids)
+
+	survival_probs = sx(sizes); 
+	live = which(runif(N)<survival_probs) 
+	if(length(live)>0) {
+		living = sizes[live];
+		if(SHASH) {
+			surv_sizes = rSHASHo2(length(living), muE_fun(living),sigE_fun(living),epsE_fun(living),delE_fun(living) ) 
+		}else{
+			surv_sizes = rnorm(length(living), mu_G(living),sd_G(living))
+        }			
+		surv_sizes = pmax(pmin(surv_sizes, U1),L1)
+		new_sizes = c(new_sizes,surv_sizes)
+	}
+	return(new_sizes) 
+  }
+}	
+	
+	
+popsize_S = popsize_G =matrix(NA,100,5000);
+for(k in 1:5000) {
+sizes_S = sizes_G = runif(12,L1,2*L1); 
+for(j in 1:100) {
+		sizes_G=update_pop(sizes_G,SHASH=FALSE);
+		popsize_G[j,k]=length(sizes_G);
+		sizes_S=update_pop(sizes_S,SHASH=TRUE);
+		popsize_S[j,k]=length(sizes_S);
+}		
+if(k%%100==0) cat(k,"\n"); 
+}
+extinct_SHASH = apply(popsize_S,1,function(x) sum(x==0)); 
+extinct_GAU =  apply(popsize_G,1,function(x) sum(x==0)); 
 
 
-
-
+dev.new(width=8,height=6); par(bty="l",cex.axis=1.3,cex.lab=1.3,mgp=c(2.1,1,0)); 
+matplot(1:100,cbind(extinct_SHASH,extinct_GAU)/5000,col=c("black","red"),type="l",lty=1,
+	xlab="Years", ylab="Extinction probability",lwd=2); 
+legend("topleft",legend = c("SHASH", "Gaussian"), col=c("black","red"),lty=1,lwd=2,inset=0.03)
+dev.copy2pdf(file="exctinction_risk.pdf"); 
 
 
