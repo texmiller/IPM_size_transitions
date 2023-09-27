@@ -97,6 +97,7 @@ par(new = TRUE)
 plot(pike_final$log_t0,1/pike_gau_pred[,2],col="blue",pch=16,cex=.5,
      axes = FALSE, xlab = "", ylab = "",type="l")
 axis(side = 4, at = pretty(range(1/pike_gau_pred[,2])))
+abline(0,1)
 
 ## scaled residuals plot
 par(mar = c(5, 5, 2, 3), oma=c(0,0,0,2)) 
