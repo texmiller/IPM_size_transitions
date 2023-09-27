@@ -17,6 +17,7 @@ library(gamlss.dist)
 library(popbio)
 library(moments)
 library(maxLik)
+library(exactLTRE)
 
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
@@ -51,7 +52,8 @@ for(i in 3:(ncol(pike_wide)-1)){
 pike_trans_year %>% filter(!is.na(t0) & !is.na(t1)) %>% 
   mutate(log_t0 = log(t0),
          log_t1 = log(t1),
-         growth = log_t1 - log_t0) %>% 
+         growth = t1-t0,
+         log_growth = log_t1 - log_t0) %>% 
   arrange(log_t0,log_t1)-> pike_final
 
 
@@ -60,7 +62,7 @@ plot(pike_final$log_t0,pike_final$log_t1)
 abline(0,1)
 
 ## pilot gaussian with mgcv
-pike_gau<-gam(list(log_t1 ~ s(log_t0,k=4), ~s(t0,k=4)), data=pike_final, family=gaulss())
+pike_gau<-gam(list(log_t1 ~ s(log_t0,k=4), ~s(log_t0,k=4)), data=pike_final, family=gaulss())
 pike_gau_pred<-predict(pike_gau,type="response")
 ## scale residuals by fitted sd
 fitted_sd<-1/pike_gau_pred[,2]
@@ -110,11 +112,12 @@ lines(pike_final$log_t0,q.95,col="black",pch=".")
 par(new = TRUE)                           
 plot(c(pike_final$log_t0,pike_final$log_t0),c(NPS_hat,NPK_hat),
      col=c(rep(alpha("blue",0.25),nrow(pike_final)),rep(alpha("red",0.25),nrow(pike_final))),
-     type="l",cex=.5, axes = FALSE, xlab = "", ylab = "")
+     type="p",pch=16,cex=.5, axes = FALSE, xlab = "", ylab = "")
 abline(h=0,col="lightgray",lty=3)
 axis(side = 4, at = pretty(range(c(NPS_hat,NPK_hat))),cex.axis=0.8)
 mtext("Skewness", side = 4, line = 2,col="blue")
 mtext("Excess Kurtosis", side = 4, line =3,col="red")
+
 
 ## gonna try a gam shash (bc that's what's easy in mgcv)
 pike_gam_shash <- gam(list(log_t1 ~ s(log_t0,k=4), # <- model for location 
@@ -124,19 +127,21 @@ pike_gam_shash <- gam(list(log_t1 ~ s(log_t0,k=4), # <- model for location
                       data = pike_final, 
                       family = shash,  
                       optimizer = "efs")
+
 pike_shash_pred <- predict(pike_gam_shash,type="response")
 
 ## also, out of curiosity, gonna fit a gamma to growth data (they can only increase)
-pike_gam_gamma <- gam(list(growth ~ s(log_t0),
-                           ~ s(log_t0)),
+pike_gam_gamma <- gam(list(log_growth+0.0001 ~ s(log_t0,k=4), ~ s(t0,k=4)),
                       data=pike_final,family=gammals)
-## I don't know why this is not working, but F it
+plot(pike_final$t0,pike_final$log_growth+0.0001)
+points(pike_final$t0,predict(pike_gam_gamma,type="response")[,1],col="red")
 
 ## simulate data from fitted models
 n_sim<-10
 ## four sets of simulated data!
 GAUsim_mean<-GAUsim_sd<-GAUsim_skew<-GAUsim_kurt<-matrix(NA,nrow=nrow(pike_final),ncol=n_sim)
 SHASHsim_mean<-SHASHsim_sd<-SHASHsim_skew<-SHASHsim_kurt<-matrix(NA,nrow=nrow(pike_final),ncol=n_sim)
+GAMMAsim_mean<-GAMMAsim_sd<-GAMMAsim_skew<-GAMMAsim_kurt<-matrix(NA,nrow=nrow(pike_final),ncol=n_sim)
 
 for(i in 1:n_sim){
   cat("################# Simulation number ", i, "\n") 
@@ -149,6 +154,10 @@ for(i in 1:n_sim){
                                              sigma=exp(pike_shash_pred[,2]),
                                              nu=pike_shash_pred[,3],
                                              tau=exp(pike_shash_pred[,4]))
+  
+  pike_final$log_t1.sim.GAMMA <- pike_final$log_t0 + 
+    rgamma(n=nrow(pike_final),shape=1/exp(fitted(pike_gam_gamma)[,2]),scale=fitted(pike_gam_gamma)[,1]*exp(fitted(pike_gam_gamma)[,2]))
+  
   ## Qreg on sim data
   q.05.GAU<-predict(qgam(log_t1.sim.GAU~s(log_t0,k=4),data=pike_final,qu=0.05)) 
   q.10.GAU<-predict(qgam(log_t1.sim.GAU~s(log_t0,k=4), data=pike_final,qu=0.10)) 
@@ -173,6 +182,18 @@ for(i in 1:n_sim){
   SHASHsim_sd[,i]<-Q.sd(q.25.SHASH,q.75.SHASH)
   SHASHsim_skew[,i]<-Q.skewness(q.10.SHASH,q.50.SHASH,q.90.SHASH)
   SHASHsim_kurt[,i]<-Q.kurtosis(q.05.SHASH,q.25.SHASH,q.75.SHASH,q.95.SHASH)
+
+  q.05.GAMMA<-predict(qgam(log_t1.sim.GAMMA~s(log_t0,k=4),data=pike_final,qu=0.05)) 
+  q.10.GAMMA<-predict(qgam(log_t1.sim.GAMMA~s(log_t0,k=4), data=pike_final,qu=0.10)) 
+  q.25.GAMMA<-predict(qgam(log_t1.sim.GAMMA~s(log_t0,k=4), data=pike_final,qu=0.25))
+  q.50.GAMMA<-predict(qgam(log_t1.sim.GAMMA~s(log_t0,k=4), data=pike_final,qu=0.5))
+  q.75.GAMMA<-predict(qgam(log_t1.sim.GAMMA~s(log_t0,k=4), data=pike_final,qu=0.75)) 
+  q.90.GAMMA<-predict(qgam(log_t1.sim.GAMMA~s(log_t0,k=4), data=pike_final,qu=0.90))
+  q.95.GAMMA<-predict(qgam(log_t1.sim.GAMMA~s(log_t0,k=4), data=pike_final,qu=0.95))
+  GAMMAsim_mean[,i]<-Q.mean(q.25.GAMMA,q.50.GAMMA,q.75.GAMMA)
+  GAMMAsim_sd[,i]<-Q.sd(q.25.GAMMA,q.75.GAMMA)
+  GAMMAsim_skew[,i]<-Q.skewness(q.10.GAMMA,q.50.GAMMA,q.90.GAMMA)
+  GAMMAsim_kurt[,i]<-Q.kurtosis(q.05.GAMMA,q.25.GAMMA,q.75.GAMMA,q.95.GAMMA)
 }
 
 ## and now the real data
@@ -190,17 +211,20 @@ plot(pike_final$log_t0,Q.mean(q.25,q.50,q.75),type="n",
 for(i in 1:n_sim){
   lines(pike_final$log_t0,GAUsim_mean[,i],col=alpha("tomato",0.25),pch=".")
   lines(pike_final$log_t0,SHASHsim_mean[,i],col=alpha("cornflowerblue",0.25),pch=".")
+  lines(pike_final$log_t0,GAMMAsim_mean[,i],col=alpha("green",0.25),pch=".")
 }
 lines(pike_final$log_t0,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
 legend("topleft",legend=c("Real data","Simulated from \nfitted NO gam",
-                          "Simulated from \nfitted SHASH2"),
-       lty=1,col=c("black","tomato","cornflowerblue"),cex=0.8,bty="n")
+                          "Simulated from \nfitted SHASH2",
+                          "Simulated from \nfitted GAMMA"),
+       lty=1,col=c("black","tomato","cornflowerblue","green"),cex=0.8,bty="n")
 
 plot(pike_final$log_t0,Q.sd(q.25,q.75),type="n",
      xlab="size t",ylab="sd size t1",ylim=c(min(GAUsim_sd),max(GAUsim_sd)))
 for(i in 1:n_sim){
   lines(pike_final$log_t0,GAUsim_sd[,i],col=alpha("tomato",0.25),pch=".")
   lines(pike_final$log_t0,SHASHsim_sd[,i],col=alpha("cornflowerblue",0.25),pch=".")
+  lines(pike_final$log_t0,GAMMAsim_sd[,i],col=alpha("green",0.25),pch=".")
 }
 lines(pike_final$log_t0,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
 
@@ -209,6 +233,7 @@ plot(pike_final$log_t0,Q.skewness(q.10,q.50,q.90),type="n",
 for(i in 1:n_sim){
   lines(pike_final$log_t0,GAUsim_skew[,i],col=alpha("tomato",0.25),pch=".")
   lines(pike_final$log_t0,SHASHsim_skew[,i],col=alpha("cornflowerblue",0.25),pch=".")
+  lines(pike_final$log_t0,GAMMAsim_skew[,i],col=alpha("green",0.25),pch=".")
 }
 lines(pike_final$log_t0,Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
 
@@ -217,6 +242,202 @@ plot(pike_final$log_t0,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
 for(i in 1:n_sim){
   lines(pike_final$log_t0,GAUsim_kurt[,i],col=alpha("tomato",0.25),pch=".")
   lines(pike_final$log_t0,SHASHsim_kurt[,i],col=alpha("cornflowerblue",0.25),pch=".")
+  lines(pike_final$log_t0,GAMMAsim_kurt[,i],col=alpha("green",0.25),pch=".")
 }
 lines(pike_final$log_t0,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
 
+## looks like it's going to be a SHASH IPM
+## fit recruit size distribution (assuming fish that did not have a previous size are recruits)
+pike_trans_year %>% filter(is.na(t0) & !is.na(t1)) %>% 
+  mutate(log_t1 = log(t1)) %>% 
+  arrange(log_t1)-> pike_recruits
+
+pike_recruitsize_shash <- gam(list(log_t1 ~ 1, # <- model for location 
+                           ~ 1,   # <- model for log-scale
+                           ~ 1,   # <- model for skewness
+                           ~ 1), # <- model for log-kurtosis
+                      data = pike_recruits, 
+                      family = shash,  
+                      optimizer = "efs")
+pike_recruitsize_gau <- gam(list(log_t1 ~ 1, # <- model for mean 
+                                   ~ 1), # <- model for sd
+                              data = pike_recruits, 
+                              family = gaulss(),  
+                              optimizer = "efs")
+AIC(pike_recruitsize_shash);AIC(pike_recruitsize_gau)
+## Gaussian recruit size is better
+
+## survival data and gam fit
+pike_surv <- read_csv("pike/data/PikeSurvivalData1953_1990.csv") %>% 
+  mutate(log_t0 = log(Length)) %>% 
+  arrange(log_t0)
+
+pike_surv_gam <- gam(Survival ~ s(log_t0,k=4),data = pike_surv,family = binomial)
+plot(pike_surv$log_t0,pike_surv$Survival)
+lines(pike_surv$log_t0,fitted(pike_surv_gam))
+
+## fertility data and gam fit
+pike_fert <- read_csv("pike/data/FecundityData1963_2002.csv") %>% 
+  mutate(log_t0 = log(Length),
+         log_eggs = log(Eggs)) %>% 
+  arrange(log_t0)
+pike_fert_gam <- gam(Eggs ~ s(log_t0,k=4),data = pike_fert,family = nb)
+plot(pike_fert$log_t0,pike_fert$Eggs)
+lines(pike_fert$log_t0,fitted(pike_fert_gam))
+
+
+# IPM ---------------------------------------------------------------------
+## GROWTH - SHASH
+gxy_SHASH<-function(x,y){
+  xb=pmin(pmax(x,min(pike_final$log_t0)),max(pike_final$log_t1)) 
+  pred=predict(pike_gam_shash,
+               newdata = data.frame(log_t0=xb))
+  return(dSHASHo2(x=y, 
+                  mu=pred[,1],
+                  sigma = exp(pred[,2]), 
+                  nu = pred[,3], 
+                  tau = exp(pred[,4])))
+}
+
+## GROWTH - Gaussian
+gxy_GAU<-function(x,y){
+  xb=pmin(pmax(x,min(pike_final$log_t0)),max(pike_final$log_t1)) 
+  pred = predict(pike_gau,newdata = data.frame(log_t0=xb))
+  return(dnorm(y,mean=pred[,1],sd=exp(pred[,2])))
+}
+
+## SURVIVAL
+sx<-function(x){
+  xb=pmin(pmax(x,min(pike_final$log_t0)),max(pike_final$log_t1)) 
+  pred = predict(pike_surv_gam,newdata = data.frame(log_t0=xb),type="response")
+  return(pred)
+}
+
+## COMBINED GROWTH_SURVIVAL
+pxy <- function(x,y,dist){
+  result <- sx(x)*do.call(paste0("gxy_",dist),list(x,y))
+  return(result)
+}
+
+## FERTILITY
+## these parameter values come from Table 2
+r<-0.9 #fertilization probability
+q<-0.5 #fraction female
+S1<-0.000623 #survival from fertilized egg to 1yo
+
+fx<-function(x){
+  xb=pmin(pmax(x,min(pike_final$log_t0)),max(pike_final$log_t1)) 
+  eggs=predict(pike_fert_gam,newdata = data.frame(log_t0=xb),type="response")
+  return(eggs*r*q*S1)  
+}
+
+#SIZE DISTRIBUTION OF RECRUITS
+recruit.size<-function(y){
+  dnorm(x=y,
+        mean=pike_recruitsize_gau$coefficients[1],
+        sd=exp(pike_recruitsize_gau$coefficients[2]))
+}
+
+##COMBINED FERTILITY/RECRUITMENT
+fxy<-function(x,y){
+  return(fx(x)*recruit.size(y))
+}
+
+##PUT IT ALL TOGETHER
+## defaults here come from experimentation in the basement
+ApproxMatrix <- function(ext.lower=0,ext.upper=0.1,mat.size=600,dist){
+  # Matrix size and size extensions (upper and lower integration limits)
+  n <- mat.size
+  L <- min(pike_final$log_t0) - ext.lower
+  U <- max(pike_final$log_t0) + ext.upper
+  # Bin size for n bins
+  h <- (U - L)/n
+  # Lower boundaries of bins 
+  b <- L + c(0:n)*h
+  # Bin midpoints
+  y <- 0.5*(b[1:n] + b[2:(n + 1)])
+  
+  # Growth/Survival matrix
+  Pmat <- t(outer(y, y, pxy, dist=dist)) * h 
+  # Fertility/Recruitment matrix
+  Fmat <- t(outer(y, y, fxy)) * h 
+  # Put it all together
+  IPMmat <- Pmat + Fmat
+  
+  return(list(IPMmat = IPMmat, Fmat = Fmat, Pmat = Pmat, meshpts = y))
+}
+
+GAU_IPM<-ApproxMatrix(dist="GAU")
+SHASH_IPM<-ApproxMatrix(dist="SHASH")
+
+
+## source Steve/Chrissy's life history functions
+source("code/metaluck_fns_CMH.R")
+X = matrix(NA, 2,13)
+
+### Gaussian
+matU = GAU_IPM$Pmat; matF = GAU_IPM$Fmat; c0 = rep(0,nrow(matU)); c0[1]=1; 
+X[1,] = c(lambda(GAU_IPM$IPMmat),
+          mean_lifespan(matU, mixdist=c0),
+          var_lifespan(matU, mixdist=c0)^0.5,
+          skew_lifespan(matU, mixdist=c0),
+          mean_LRO(matU,matF,mixdist=c0), 
+          var_LRO_mcr(matU,matF,mixdist=c0)^0.5,
+          skew_LRO(matU,matF,mixdist=c0), 
+          prob_repro(matU,matF)[1], 
+          mean_age_repro(matU,matF,mixdist=c0), 
+          lifespan_reproducers(matU,matF,mixdist=c0), 
+          gen_time_Ta(matU,matF), 
+          gen_time_mu1_v(matU,matF), 
+          gen_time_R0(matU,matF))  
+
+
+### SHASH
+matU = SHASH_IPM$Pmat; matF = SHASH_IPM$Fmat; c0 = rep(0,nrow(matU)); c0[1]=1; 
+
+X[2,] = c(
+  lambda(SHASH_IPM$IPMmat),
+  mean_lifespan(matU, mixdist=c0),
+  var_lifespan(matU, mixdist=c0)^0.5,
+  skew_lifespan(matU, mixdist=c0),
+  mean_LRO(matU,matF,mixdist=c0), 
+  var_LRO_mcr(matU,matF,mixdist=c0)^0.5,
+  skew_LRO(matU,matF,mixdist=c0), 
+  prob_repro(matU,matF)[1], 
+  mean_age_repro(matU,matF,mixdist=c0), 
+  lifespan_reproducers(matU,matF,mixdist=c0), 
+  gen_time_Ta(matU,matF), 
+  gen_time_mu1_v(matU,matF), 
+  gen_time_R0(matU,matF))  
+
+X = data.frame(round(X,digits=4)); 
+names(X) = c("lambda","Mean lifespan", "SD lifespan", "Skew lifespan", "Mean LRO", "SD LRO", "Skew LRO", "Prob repro", "Mean age repro", "Conditional lifespan", 
+             "Gen time Ta", "Gen time mu1(v)", "Gen time R0"); 
+row.names(X) = c("Gaussian", "SHASH"); 
+
+View(X); 
+
+# basement ----------------------------------------------------------------
+
+## play with eviction
+n <- 600
+L <- min(pike_final$log_t0)
+U <- max(pike_final$log_t0)+0.1
+# Bin size for n bins
+h <- (U - L)/n
+# Lower boundaries of bins 
+b <- L + c(0:n)*h
+# Bin midpoints
+y <- 0.5*(b[1:n] + b[2:(n + 1)])
+
+plot(y,gxy_GAU(x=min(pike_final$log_t0),y=y))
+plot(y,gxy_SHASH(x=min(pike_final$log_t0),y=y))
+
+plot(y,gxy_GAU(x=mean(pike_final$log_t0),y=y))
+plot(y,gxy_SHASH(x=mean(pike_final$log_t0),y=y))
+
+plot(y,gxy_GAU(x=max(pike_final$log_t0),y=y))
+plot(y,gxy_SHASH(x=max(pike_final$log_t0),y=y))
+
+colSums(t(outer(y, y, gxy_GAU)) * h)
+colSums(t(outer(y, y, gxy_SHASH)) * h)
