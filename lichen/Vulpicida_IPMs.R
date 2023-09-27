@@ -388,7 +388,6 @@ if(k%%100==0) cat(k,"\n");
 extinct_SHASH = apply(popsize_S,1,function(x) sum(x==0)); 
 extinct_GAU =  apply(popsize_G,1,function(x) sum(x==0)); 
 
-
 dev.new(width=8,height=6); par(bty="l",cex.axis=1.3,cex.lab=1.3,mgp=c(2.1,1,0)); 
 matplot(1:100,cbind(extinct_SHASH,extinct_GAU)/5000,col=c("black","red"),type="l",lty=1,
 	xlab="Years", ylab="Extinction probability",lwd=2); 
