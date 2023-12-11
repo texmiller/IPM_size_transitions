@@ -12,7 +12,7 @@ setwd(home); setwd("lichen");
 
 require(car); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(AICcmodavg); 
-require(tidyverse); require(maxLik); require(qgam)
+require(tidyverse); require(maxLik); require(qgam); require(exactLTRE)
 library(gamlss.dist)
 
 source("../code/Diagnostics.R"); 
@@ -52,7 +52,7 @@ fit3 = gam(survival~s(sqrt(t0)),data=XH,family="binomial");
 sx = function(x)  {
 	u1 = -1.649455  + 5.363115*sqrt(x) - 1.249375*x 
 	u2 = 0.0954 + 2.252*sqrt(x); 
-	p1 = exp(u1)/(1+exp(u1)); 	p2 = exp(u1)/(1+exp(u1)); 
+	p1 = exp(u1)/(1+exp(u1)); 	p2 = exp(u1)/(1+exp(u1)); ##<--what's going on here?
 	return( 0.2*p1 + 0.8*p2 )
 }	
 
@@ -111,7 +111,7 @@ points(XH$t0, log( 1/predict(fitGAU,type="response")[,2]), col="red" )
 fitGAU = fitGAU22; rm(fitGAU22); rm(fitGAU0); rm(fitGAU00);  
 
 ######### Diagnostics on fitted parametric SD function: no problems! 
-stopCluster(c1); 
+stopCluster(c1); ##<--c1 not defined
 c1<- makeCluster(8); 
 registerDoParallel(c1);
 out = multiple_levene_test(XH$fitted, XH$scaledResids, 3, 8, 2000);
