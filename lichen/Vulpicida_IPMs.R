@@ -111,7 +111,7 @@ points(XH$t0, log( 1/predict(fitGAU,type="response")[,2]), col="red" )
 fitGAU = fitGAU22; rm(fitGAU22); rm(fitGAU0); rm(fitGAU00);  
 
 ######### Diagnostics on fitted parametric SD function: no problems! 
-stopCluster(c1); ##<--c1 not defined
+#stopCluster(c1); ##<--c1 not defined
 c1<- makeCluster(8); 
 registerDoParallel(c1);
 out = multiple_levene_test(XH$fitted, XH$scaledResids, 3, 8, 2000);
@@ -175,6 +175,7 @@ title("B",font=3,adj=0)
 dev.off()
 
 ###### improved model: gam SHASH
+## TM: why assume kurtosis is constant?
 fitSHASH <- gam(list(t1 ~ s(t0), # <- location 
                         ~ s(t0),  # <- log-scale
                         ~ s(t0),  # <- skewness
@@ -199,8 +200,25 @@ fitSHASH3 <- gam(list(t1 ~ t0 + I(t0^2), # <- location
                       data = XH, gamma=1.4, family = shash,  optimizer = "efs")
 SHASH_pred3<-predict(fitSHASH3,type="response")
 
+## add spline for log-kurtosis
+fitSHASH4 <- gam(list(t1 ~ t0 + I(t0^2), # <- location 
+                      ~ s(t0),  # <- log-scale
+                      ~ s(t0),  # <- skewness
+                      ~ s(t0)), # <- log-kurtosis
+                 data = XH, gamma=1.4, family = shash,  optimizer = "efs")
+SHASH_pred4<-predict(fitSHASH4,type="response")
 
-AIC(fitSHASH,fitSHASH2,fitSHASH3); # Number 2 is the winner. 
+## or linear effect of size
+fitSHASH5 <- gam(list(t1 ~ t0 + I(t0^2), # <- location 
+                      ~ s(t0),  # <- log-scale
+                      ~ s(t0),  # <- skewness
+                      ~ t0), # <- log-kurtosis
+                 data = XH, gamma=1.4, family = shash,  optimizer = "efs")
+SHASH_pred5<-predict(fitSHASH5,type="response")
+
+
+AIC(fitSHASH,fitSHASH2,fitSHASH3,fitSHASH4,fitSHASH5); # Number 2 is still the winner. 
+
 
 ## Save the fitted size-dependent parameters of the best SHASH model. 
 muE <- fitSHASH2$fitted[ , 1]
@@ -274,6 +292,12 @@ muE_fun <- splinefun(t0,muE, method="natural")
 sigE_fun <- splinefun(t0,sigE, method="natural")
 epsE_fun <- splinefun(t0,epsE, method="natural")
 delE_fun <- splinefun(t0,delE, method="natural")
+
+## how well to these splines reproduce the fits? -- very well
+plot(t0,muE);lines(t0,muE_fun(t0),col="red")
+plot(t0,sigE);lines(t0,sigE_fun(t0),col="red")
+plot(t0,epsE);lines(t0,epsE_fun(t0),col="red")
+plot(t0,delE);lines(t0,delE_fun(t0),col="red")
 
 G_z1z_S = function(z1,z) {sx(z)*dSHASHo2(z1,muE_fun(z),sigE_fun(z),epsE_fun(z),delE_fun(z))}
 
