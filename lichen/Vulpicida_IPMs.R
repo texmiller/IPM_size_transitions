@@ -142,7 +142,7 @@ NPK_hat = Q.kurtosis(q.05=predict(S.05),
                      q.95=predict(S.95))
 
 ## view quantile diagnostics of scaled residuals
-pdf("lichen_qgam_diagnostics.pdf",height = 5, width = 11,useDingbats = F)
+pdf("../manuscript/figures/lichen_qgam_diagnostics.pdf",height = 5, width = 11,useDingbats = F)
 par(mfrow=c(1,2),mar = c(5, 5, 2, 3), oma=c(0,0,0,2)) 
 plot(XH$t0,XH$t1,pch=1,col=alpha("black",0.25),cex.axis=0.8,
      xlab="log area, time t",ylab="log area, time t+1")
@@ -216,9 +216,14 @@ fitSHASH5 <- gam(list(t1 ~ t0 + I(t0^2), # <- location
                  data = XH, gamma=1.4, family = shash,  optimizer = "efs")
 SHASH_pred5<-predict(fitSHASH5,type="response")
 
+fitSHASH6 <- gam(list(t1 ~ t0 + I(t0^2), # <- location 
+                      ~ t0 + I(t0^2),  # <- log-scale
+                      ~ s(t0),  # <- skewness
+                      ~ 1), # <- log-kurtosis
+                 data = XH, gamma=1.4, family = shash,  optimizer = "efs")
+SHASH_pred6<-predict(fitSHASH6,type="response")
 
-AIC(fitSHASH,fitSHASH2,fitSHASH3,fitSHASH4,fitSHASH5); # Number 2 is still the winner. 
-
+AIC(fitSHASH,fitSHASH2,fitSHASH3,fitSHASH4,fitSHASH5,fitSHASH6); # Number 2 is still the winner. 
 
 ## Save the fitted size-dependent parameters of the best SHASH model. 
 muE <- fitSHASH2$fitted[ , 1]
@@ -232,7 +237,7 @@ save(muE,sigE,epsE,delE,t0,file="SHASHfuns.Rdata");
 # Compare quantiles of the two growth models 
 ##########################################################
 
-dev.new(); par(mfrow=c(2,1));  
+par(mfrow=c(2,1))
 Y = cbind(qSHASHo2(0.01,muE,sigE,epsE,delE), qSHASHo2(0.25,muE,sigE,epsE,delE), qSHASHo2(0.5,muE,sigE,epsE,delE), 
 			qSHASHo2(0.75,muE,sigE,epsE,delE), qSHASHo2(0.99,muE,sigE,epsE,delE)) 
 matplot(XH$t0,Y,type="l",lty=1,col="black",xlab="Area t", ylab = "Area t+1"); 
@@ -418,4 +423,76 @@ matplot(1:100,cbind(extinct_SHASH,extinct_GAU)/5000,col=c("black","red"),type="l
 legend("topleft",legend = c("SHASH", "Gaussian"), col=c("black","red"),lty=1,lwd=2,inset=0.03)
 dev.copy2pdf(file="exctinction_risk.pdf"); 
 
+###################################################################
+## Exploring the JSU as an alternative
+###################################################################
+## since kurtosis is constant, let's to fit a JSU as a more natural alternative?
+## we could hold over the mean and sd from pilot gaussian because in this parameterization mu and sigma are mean and sd
+## however, I would like to compare to SHASH, and we cannot make this transfer so cleanly with SHASH
+## therefore re-fitting polynomials for mean and sd
+LogLikJSU=function(pars,response){
+  dJSU(response, 
+       mu=pars[1]+pars[2]*XH$t0+pars[3]*(XH$t0^2),
+       sigma=exp(pars[4]+pars[5]*XH$t0+pars[6]*(XH$t0^2)),
+       nu = pars[7]+pars[8]*XH$t0,
+       tau = exp(pars[9]), log=TRUE)
+}
+## compare to SHASH
+LogLikSHASH=function(pars,response){
+  dSHASHo2(response, 
+           mu=pars[1]+pars[2]*XH$t0+pars[3]*(XH$t0^2),
+           sigma=exp(pars[4]+pars[5]*XH$t0+pars[6]*(XH$t0^2)),
+           nu = pars[7]+pars[8]*XH$t0,
+           tau = exp(pars[9]), log=TRUE)
+}
 
+## starting parameters
+p0<-c(coef(fitGAU22)[1:6],0,0,0)
+## fit with maxlik
+outJSU=maxLik(logLik=LogLikJSU,start=p0*exp(0.2*rnorm(length(p0))), response=XH$t1,
+              method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
+outJSU=maxLik(logLik=LogLikJSU,start=outJSU$estimate,response=XH$t1,
+              method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+outJSU=maxLik(logLik=LogLikJSU,start=outJSU$estimate,response=XH$t1,
+              method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
+
+outSHASH=maxLik(logLik=LogLikSHASH,start=p0*exp(0.2*rnorm(length(p0))), response=XH$t1,
+                method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
+outSHASH=maxLik(logLik=LogLikSHASH,start=outSHASH$estimate,response=XH$t1,
+                method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE); 
+outSHASH=maxLik(logLik=LogLikSHASH,start=outSHASH$estimate,response=XH$t1,
+                method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
+
+AIC(outJSU);AIC(outSHASH) ##looks like JSU is the winner
+
+##########################################################
+# Compare quantiles
+##########################################################
+muE_SHASH <- outSHASH$estimate[1]+outSHASH$estimate[2]*XH$t0+outSHASH$estimate[3]*(XH$t0^2)
+sigE_SHASH <- exp(outSHASH$estimate[4]+outSHASH$estimate[5]*XH$t0+outSHASH$estimate[6]*(XH$t0^2))
+epsE_SHASH <- outSHASH$estimate[7]+outSHASH$estimate[8]*XH$t0
+delE_SHASH <- exp(outSHASH$estimate[9])
+Y_SHASH = cbind(qSHASHo2(0.01,muE_SHASH,sigE_SHASH,epsE_SHASH,delE_SHASH), qSHASHo2(0.25,muE_SHASH,sigE_SHASH,epsE_SHASH,delE_SHASH), qSHASHo2(0.5,muE_SHASH,sigE_SHASH,epsE_SHASH,delE_SHASH), 
+                qSHASHo2(0.75,muE_SHASH,sigE_SHASH,epsE_SHASH,delE_SHASH), qSHASHo2(0.99,muE_SHASH,sigE_SHASH,epsE_SHASH,delE_SHASH)) 
+
+muE_JSU <- outJSU$estimate[1]+outJSU$estimate[2]*XH$t0+outJSU$estimate[3]*(XH$t0^2)
+sigE_JSU <- exp(outJSU$estimate[4]+outJSU$estimate[5]*XH$t0+outJSU$estimate[6]*(XH$t0^2))
+epsE_JSU <- outJSU$estimate[7]+outJSU$estimate[8]*XH$t0
+delE_JSU <- exp(outJSU$estimate[9])
+Y_JSU = cbind(qJSU(0.01,muE_JSU,sigE_JSU,epsE_JSU,delE_JSU), qJSU(0.25,muE_JSU,sigE_JSU,epsE_JSU,delE_JSU), qJSU(0.5,muE_JSU,sigE_JSU,epsE_JSU,delE_JSU), 
+              qJSU(0.75,muE_JSU,sigE_JSU,epsE_JSU,delE_JSU), qJSU(0.99,muE_JSU,sigE_JSU,epsE_JSU,delE_JSU)) 
+
+
+mE <- fitGAU$fitted[ , 1]
+sE <- sqrt(1/(fitGAU$fitted[ , 2]))
+Y_GAU = cbind(qnorm(0.01,mE,sE), qnorm(0.25,mE,sE), qnorm(0.5,mE,sE), 
+          qnorm(0.75,mE,sE), qnorm(0.99,mE,sE)) 
+
+
+par(mfrow=c(2,1));  
+matplot(XH$t0,Y_SHASH,type="l",lty=1,col="black",xlab="Area t", ylab = "Area t+1"); 
+matplot(XH$t0,Y_JSU,type="l",lty=1,col="red",xlab="Area t", ylab = "Area t+1",add=T); 
+points(XH$t0,XH$t1); title(main="SHASH percentiles 1, 25, 50, 75, 99"); 
+
+matplot(XH$t0,Y_GAU,type="l",lty=1,col="black", xlab="Area t", ylab = "Area t+1"); 
+points(XH$t0,XH$t1); title(main="Gaussian  percentiles 1, 25, 50, 75, 99")
