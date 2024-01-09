@@ -464,7 +464,7 @@ outSHASH=maxLik(logLik=LogLikSHASH,start=outSHASH$estimate,response=XH$t1,
                 method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
 
 AIC(outJSU);AIC(outSHASH) ##looks like JSU is the winner
-
+AIC(fitSHASH2) ##it's also better than the best gam SHASH
 ##########################################################
 # Compare quantiles
 ##########################################################
@@ -496,3 +496,118 @@ points(XH$t0,XH$t1); title(main="SHASH percentiles 1, 25, 50, 75, 99");
 
 matplot(XH$t0,Y_GAU,type="l",lty=1,col="black", xlab="Area t", ylab = "Area t+1"); 
 points(XH$t0,XH$t1); title(main="Gaussian  percentiles 1, 25, 50, 75, 99")
+
+
+## just out of curiosity, what would happen if I fixed JSU mean and sd at GAU?
+LogLikJSU2=function(pars,response){
+  dJSU(response, 
+       mu=XH$fitted,
+       sigma=XH$fitted_sd,
+       nu = pars[1]+pars[2]*XH$t0,
+       tau = exp(pars[3]), log=TRUE)
+}
+p0<-c(0,0,0)
+## fit with maxlik
+outJSU2=maxLik(logLik=LogLikJSU2,start=p0*exp(0.2*rnorm(length(p0))), response=XH$t1,
+              method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE) 
+outJSU2=maxLik(logLik=LogLikJSU2,start=outJSU2$estimate,response=XH$t1,
+              method="NM",control=list(iterlim=5000,printLevel=1),finalHessian=FALSE) 
+outJSU2=maxLik(logLik=LogLikJSU2,start=outJSU2$estimate,response=XH$t1,
+              method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE) 
+
+## compare nu and tau params
+outJSU$estimate[7:9];outJSU2$estimate ##different!
+muE_JSU2 <- XH$fitted
+sigE_JSU2 <- XH$fitted_sd
+epsE_JSU2 <- outJSU2$estimate[1]+outJSU2$estimate[2]*XH$t0
+delE_JSU2 <- exp(outJSU2$estimate[3])
+Y_JSU2 = cbind(qJSU(0.01,muE_JSU2,sigE_JSU2,epsE_JSU2,delE_JSU2), qJSU(0.25,muE_JSU2,sigE_JSU2,epsE_JSU2,delE_JSU2), qJSU(0.5,muE_JSU2,sigE_JSU2,epsE_JSU2,delE_JSU2), 
+              qJSU(0.75,muE_JSU2,sigE_JSU2,epsE_JSU2,delE_JSU2), qJSU(0.99,muE_JSU2,sigE_JSU2,epsE_JSU2,delE_JSU2)) 
+
+matplot(XH$t0,Y_JSU,type="l",lty=1,col="black",xlab="Area t", ylab = "Area t+1"); 
+matplot(XH$t0,Y_JSU2,type="l",lty=1,col="red",xlab="Area t", ylab = "Area t+1",add=T); 
+points(XH$t0,XH$t1) 
+
+##########################################################
+# Compare real and simulated data
+##########################################################
+n_sim<-100
+GAUsim_mean<-GAUsim_sd<-GAUsim_skew<-GAUsim_kurt<-matrix(NA,nrow=nrow(XH),ncol=n_sim)
+JSUsim_mean<-JSUsim_sd<-JSUsim_skew<-JSUsim_kurt<-matrix(NA,nrow=nrow(XH),ncol=n_sim)
+for(i in 1:n_sim){
+  ## add this iteration of sim data to real df
+  XH$t1.simGAU <- rnorm(n=nrow(XH),mean=XH$fitted,sd=XH$fitted_sd)
+  XH$t1.simJSU <- rJSU(n=nrow(XH),mu=muE_JSU,sigma=sigE_JSU,nu=epsE_JSU,tau=delE_JSU)
+  ## Qreg on simGAU data
+  q.05<-predict(qgam(t1.simGAU~s(t0,k=4),data=XH,qu=0.05)) 
+  q.10<-predict(qgam(t1.simGAU~s(t0,k=4),data=XH,qu=0.10)) 
+  q.25<-predict(qgam(t1.simGAU~s(t0,k=4),data=XH,qu=0.25))
+  q.50<-predict(qgam(t1.simGAU~s(t0,k=4),data=XH,qu=0.5))
+  q.75<-predict(qgam(t1.simGAU~s(t0,k=4),data=XH,qu=0.75)) 
+  q.90<-predict(qgam(t1.simGAU~s(t0,k=4),data=XH,qu=0.90))
+  q.95<-predict(qgam(t1.simGAU~s(t0,k=4),data=XH,qu=0.95))
+  GAUsim_mean[,i]<-Q.mean(q.25,q.50,q.75)
+  GAUsim_sd[,i]<-Q.sd(q.25,q.75)
+  GAUsim_skew[,i]<-Q.skewness(q.10,q.50,q.90)
+  GAUsim_kurt[,i]<-Q.kurtosis(q.05,q.25,q.75,q.95)
+  
+  ## same on simJSU data (writing over the q objects)
+  q.05<-predict(qgam(t1.simJSU~s(t0,k=4),data=XH,qu=0.05)) 
+  q.10<-predict(qgam(t1.simJSU~s(t0,k=4),data=XH,qu=0.10)) 
+  q.25<-predict(qgam(t1.simJSU~s(t0,k=4),data=XH,qu=0.25))
+  q.50<-predict(qgam(t1.simJSU~s(t0,k=4),data=XH,qu=0.5))
+  q.75<-predict(qgam(t1.simJSU~s(t0,k=4),data=XH,qu=0.75)) 
+  q.90<-predict(qgam(t1.simJSU~s(t0,k=4),data=XH,qu=0.90))
+  q.95<-predict(qgam(t1.simJSU~s(t0,k=4),data=XH,qu=0.95))
+  JSUsim_mean[,i]<-Q.mean(q.25,q.50,q.75)
+  JSUsim_sd[,i]<-Q.sd(q.25,q.75)
+  JSUsim_skew[,i]<-Q.skewness(q.10,q.50,q.90)
+  JSUsim_kurt[,i]<-Q.kurtosis(q.05,q.25,q.75,q.95)
+}
+
+## and now the real data
+q.05<-predict(qgam(t1~s(t0,k=4),data=XH,qu=0.05)) 
+q.10<-predict(qgam(t1~s(t0,k=4),data=XH,qu=0.10)) 
+q.25<-predict(qgam(t1~s(t0,k=4),data=XH,qu=0.25)) 
+q.50<-predict(qgam(t1~s(t0,k=4),data=XH,qu=0.5))
+q.75<-predict(qgam(t1~s(t0,k=4),data=XH,qu=0.75))
+q.90<-predict(qgam(t1~s(t0,k=4),data=XH,qu=0.90))
+q.95<-predict(qgam(t1~s(t0,k=4),data=XH,qu=0.95))
+
+pdf("../manuscript/figures/lichen_JSU_fit.pdf",height = 6, width = 6,useDingbats = F)
+par(mfrow=c(2,2),mar=c(4,4,1,1),mgp=c(2.1,1,0),cex.lab=1.2); 
+plot(XH$t0,Q.mean(q.25,q.50,q.75),type="n",
+     xlab="Size(t)",ylab="NP mean size(t+1)",
+     ylim=c(min(c(GAUsim_mean,JSUsim_mean)),1 + max(c(GAUsim_mean,JSUsim_mean))))
+matpoints(XH$t0,GAUsim_mean,col=alpha("tomato",0.25),pch=".",cex=2)
+matpoints(XH$t0,1 + JSUsim_mean,col=alpha("cornflowerblue",0.25),pch=".",cex=2)
+points(XH$t0,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
+points(XH$t0,1 + Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
+legend("topleft",legend=c("Real data","Gaussian simulation","JSU simulation + offset"),
+       lty=1,col=c("black","tomato","cornflowerblue"),cex=0.8,bty="n")
+
+plot(XH$t0,Q.sd(q.25,q.75),type="n",
+     xlab="Size(t)",ylab="NP SD Size(t+1)",
+     ylim=c(min(c(GAUsim_sd,JSUsim_sd)),1 + max(c(GAUsim_sd,JSUsim_sd))))
+matpoints(XH$t0,GAUsim_sd,col=alpha("tomato",0.25),pch=".",cex=2)
+matpoints(XH$t0,1 + JSUsim_sd,col=alpha("cornflowerblue",0.25),pch=".",cex=2)
+points(XH$t0,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
+points(XH$t0,1 + Q.sd(q.25,q.75),col="black",pch=".",cex=2)
+
+plot(XH$t0,Q.skewness(q.10,q.50,q.90),type="n",
+     xlab="Size(t)",ylab="NP skewness size(t+1)",
+     ylim=c(min(c(GAUsim_skew,JSUsim_skew)),1 + max(c(GAUsim_skew,JSUsim_skew))))
+matpoints(XH$t0,GAUsim_skew,col=alpha("tomato",0.25),pch=".",cex=2)
+matpoints(XH$t0,1+ JSUsim_skew,col=alpha("cornflowerblue",0.25),pch=".",cex=2)
+points(XH$t0,Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
+points(XH$t0,1 + Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
+
+plot(XH$t0,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
+     xlab="Size(t)",ylab="NP kurtosis size(t+1)",
+     ylim=c(min(GAUsim_kurt,JSUsim_kurt),1 + max(GAUsim_kurt,JSUsim_kurt)))
+matpoints(XH$t0,GAUsim_kurt,col=alpha("tomato",0.25),pch=".",cex=2)
+matpoints(XH$t0,1 + JSUsim_kurt,col=alpha("cornflowerblue",0.25),pch=".",cex=2)
+points(XH$t0,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
+points(XH$t0,1 + Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
+dev.off()
+
