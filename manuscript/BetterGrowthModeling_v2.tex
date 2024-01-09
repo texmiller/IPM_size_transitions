@@ -445,7 +445,14 @@ The authors of the original study used a mixture distribution that separated ``n
 We aimed to fit a single, flexible growth model that could realistically accommodate both types of size transition without requiring \emph{ad hoc} decisions about which observations were or were not ``extreme''.
 The data set includes $1,542$ inter-annual transitions in thallus area ($cm^2$) observed from 2004 to 2009 in Kennicott Valley, AK. 
 
-
+For a pilot Gaussian model, following a bit of model selection, we again used the \texttt{gaulss} family in \textbf{mgcv} to fit the mean and standard deviation of future size as second-order polynomials of current size. 
+As expected based on previous analyses, visual analysis of the standardized residuals indicated negative skew, especially at larger sizes, and positive excess kurtosis (Fig. \ref{fig:lichen_diagnostics}). 
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/lichen_qgam_diagnostics.pdf}
+	\caption{\textbf{A}, Size transition data for lichens, \emph{Gorgonia ventalina}, and fitted gam with mean (red) and standard deviation (blue) of future size conditional on current size.  \textbf{B}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (red) and excess kurtosis (blue) derived from them. Black lines in \textbf{B} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. Figure made by script \texttt{Vulpicida\_IPMS.R}.}
+	\label{fig:lichen_diagnostics}
+\end{figure}
 
 \section{Case study: tree cholla cactus, \emph{Cylindriopuntia imbricata}}
 The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta Long-Term Ecological Research site in central New Mexico, adds a new feature on top of the simple size-dependent regressions in the previous study: random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 
