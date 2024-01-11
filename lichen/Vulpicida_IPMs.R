@@ -49,10 +49,12 @@ fit3 = gam(survival~s(sqrt(t0)),data=XH,family="binomial");
 #(Intercept)    sqrt(t0)          t0 
 #  -1.649455    5.363115   -1.249375 
 
+## rig this up so that area can be negative and function evaluates at zero
 sx = function(x)  {
-	u1 = -1.649455  + 5.363115*sqrt(x) - 1.249375*x 
-	u2 = 0.0954 + 2.252*sqrt(x); 
-	p1 = exp(u1)/(1+exp(u1)); 	p2 = exp(u1)/(1+exp(u1)); ##<--what's going on here?
+  a = pmax(0,x)
+	u1 = -1.649455  + 5.363115*sqrt(a) - 1.249375*a 
+	u2 = 0.0954 + 2.252*sqrt(a); ##<--where do these parameter values come from?
+	p1 = exp(u1)/(1+exp(u1)); 	p2 = exp(u1)/(1+exp(u1)); 
 	return( 0.2*p1 + 0.8*p2 )
 }	
 
@@ -65,8 +67,10 @@ plot(tbar,pbar,pch=16,xlim=range(XH$t0),ylim=c(0.9,1));
 points(XH$t0,sx(XH$t0),type="l",lty=1); 
 
 ############### Fecundity function (from Shriver et al. model) 
+## rig this up so that area can be negative and function evaluates at zero
 fx = function(Area) {
-		r = sqrt(Area/pi);
+    a = pmax(0,Area)
+		r = sqrt(a/pi);
 		u = 2*pi*r; 
 		return(0.047*u)
 }		
@@ -100,6 +104,9 @@ AIC(fitGAU); AIC(fitGAU22);  # the quadratic-quadratic wins by a hair, Delta AIC
 XH$fitted_sd <- 1/predict(fitGAU22,type="response")[,2]
 XH$fitted = predict(fitGAU22,type="response")[,1]
 XH$scaledResids=residuals(fitGAU22,type="pearson")
+
+plot(residuals(fitGAU22,type="response"),XH$t1-XH$fitted)
+plot(XH$scaledResids,residuals(fitGAU22,type="response")/XH$fitted_sd)
 
 mean(XH$scaledResids); sd(XH$scaledResids); ## all good 
 
@@ -145,10 +152,10 @@ NPK_hat = Q.kurtosis(q.05=predict(S.05),
 pdf("../manuscript/figures/lichen_qgam_diagnostics.pdf",height = 5, width = 11,useDingbats = F)
 par(mfrow=c(1,2),mar = c(5, 5, 2, 3), oma=c(0,0,0,2)) 
 plot(XH$t0,XH$t1,pch=1,col=alpha("black",0.25),cex.axis=0.8,
-     xlab="log area, time t",ylab="log area, time t+1")
-points(XH$t0,predict(fitGAU,type="response")[,1],col=alpha("red",0.25),pch=16,cex=.5)
+     xlab="area, time t",ylab="area, time t+1")
+lines(XH$t0,predict(fitGAU,type="response")[,1],col="red",lwd=2)
 par(new = TRUE)                           
-plot(XH$t0,XH$fitted_sd,col=alpha("blue",0.25),pch=16,cex=.5,
+plot(XH$t0,XH$fitted_sd,col="blue",type="l",lwd=2,
      axes = FALSE, xlab = "", ylab = "",cex.axis=0.8)
 axis(side = 4, at = pretty(range(XH$fitted_sd)),cex.axis=0.8)
 mtext("std dev", side = 4, line = 2)
@@ -156,7 +163,7 @@ legend("topleft",legend=c("Fitted mean","Fitted sd"),bg="white",pch=1,col=c("red
 title("A",font=3,adj=0)
 
 plot(XH$t0,XH$scaledResids,col=alpha("black",0.25),cex.axis=0.8,
-     xlab="log area, time t",ylab="Scaled residuals of size at time t+1")
+     xlab="area, time t",ylab="Scaled residuals of size at time t+1")
 points(XH$t0,predict(S.05),col="black",pch=".")
 points(XH$t0,predict(S.10),col="black",pch=".")
 points(XH$t0,predict(S.25),col="black",pch=".")
@@ -165,7 +172,7 @@ points(XH$t0,predict(S.75),col="black",pch=".")
 points(XH$t0,predict(S.90),col="black",pch=".")
 points(XH$t0,predict(S.95),col="black",pch=".")
 par(new = TRUE)                           
-matplot(cbind(XH$t0,XH$t0),cbind(NPS_hat,NPK_hat), type="l",
+matplot(cbind(XH$t0,XH$t0),cbind(NPS_hat,NPK_hat), type="l",lwd=2,
      col=c("blue","red"), lty=1, axes = FALSE, xlab = "", ylab = "",cex.axis=0.8)
 abline(h=0,col="lightgray",lty=3)
 axis(side = 4, at = pretty(range(c(NPS_hat,NPK_hat))),cex.axis=0.8)
@@ -273,8 +280,8 @@ L=0; U=10; L1 = 0.2; U1 = 7; # limits of the data for eviction-prevention
 #coef(fitGAU)
 # (Intercept)            t0       I(t0^2) (Intercept).1          t0.1     I(t0^2).1 
 #   0.07053852    1.03383973   -0.01763714   -2.28977280    0.74370780   -0.05767208 
-mu_G = function(x) {0.07053852  +  1.03383973*x  - 0.01763714*x^2} 
-sd_G = function(x) {exp(-2.28977280   + 0.74370780*x - 0.05767208*x^2)}  
+mu_G = function(x) {coef(fitGAU)[1]  +  coef(fitGAU)[2]*x  + coef(fitGAU)[3]*x^2} 
+sd_G = function(x) {exp(coef(fitGAU)[4]   + coef(fitGAU)[5]*x + coef(fitGAU)[6]*x^2)}  
 G_z1z_G = function(z1,z) {sx(z)*dnorm(z1,mu_G(z),sd_G(z)) }
 
 mk_K_G <- function(m, L, U, L1, U1) {
@@ -314,8 +321,8 @@ mk_K_S <- function(m, L, U, L1, U1) {
 	K[1,] = K[1,] + matrix(fx(meshpts),nrow=1); F = K - P; 
 	return(list(K = K, meshpts = meshpts, P = P, F = F))
 }
-IPM_S =mk_K_S(200,L=L,U=U,L1 = L1, U1 = U1); Re(eigen(IPM_S$K)$values[1]);
 
+IPM_S =mk_K_S(200,L=L,U=U,L1 = L1, U1 = U1); Re(eigen(IPM_S$K)$values[1]);
 chop_meshpts = pmax(pmin(IPM_S$meshpts,U1),L1)
 plot(IPM_S$meshpts,apply(IPM_S$P,2,sum)/sx(chop_meshpts), type="l",lty=1,col=c("black","red")); 
 abline(v=c(L1,U1)); 
@@ -331,7 +338,7 @@ dev.new(); matrix.image((IPM_S$K)^0.25, IPM_S$meshpts, IPM_S$meshpts,main ="SHAS
 
 source("../code/metaluck_fns_CMH.R"); 
 
-X = matrix(NA, 2,12); 
+X = matrix(NA, 3,12); 
 
 ### Gaussian
 matU = IPM_G$P; matF = IPM_G$F; c0 = rep(0,nrow(matU)); c0[1]=1; 
@@ -579,35 +586,135 @@ par(mfrow=c(2,2),mar=c(4,4,1,1),mgp=c(2.1,1,0),cex.lab=1.2);
 plot(XH$t0,Q.mean(q.25,q.50,q.75),type="n",
      xlab="Size(t)",ylab="NP mean size(t+1)",
      ylim=c(min(c(GAUsim_mean,JSUsim_mean)),1 + max(c(GAUsim_mean,JSUsim_mean))))
-matpoints(XH$t0,GAUsim_mean,col=alpha("tomato",0.25),pch=".",cex=2)
-matpoints(XH$t0,1 + JSUsim_mean,col=alpha("cornflowerblue",0.25),pch=".",cex=2)
-points(XH$t0,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
-points(XH$t0,1 + Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
+matpoints(XH$t0,GAUsim_mean,col=alpha("tomato",0.25),type="l",lty=1)
+matpoints(XH$t0,1 + JSUsim_mean,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+points(XH$t0,Q.mean(q.25,q.50,q.75),col="black",type="l",lwd=2)
+points(XH$t0,1 + Q.mean(q.25,q.50,q.75),col="black",type="l",lwd=2)
 legend("topleft",legend=c("Real data","Gaussian simulation","JSU simulation + offset"),
        lty=1,col=c("black","tomato","cornflowerblue"),cex=0.8,bty="n")
 
 plot(XH$t0,Q.sd(q.25,q.75),type="n",
      xlab="Size(t)",ylab="NP SD Size(t+1)",
      ylim=c(min(c(GAUsim_sd,JSUsim_sd)),1 + max(c(GAUsim_sd,JSUsim_sd))))
-matpoints(XH$t0,GAUsim_sd,col=alpha("tomato",0.25),pch=".",cex=2)
-matpoints(XH$t0,1 + JSUsim_sd,col=alpha("cornflowerblue",0.25),pch=".",cex=2)
-points(XH$t0,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
-points(XH$t0,1 + Q.sd(q.25,q.75),col="black",pch=".",cex=2)
+matpoints(XH$t0,GAUsim_sd,col=alpha("tomato",0.25),type="l",lty=1)
+matpoints(XH$t0,1 + JSUsim_sd,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+points(XH$t0,Q.sd(q.25,q.75),col="black",type="l",lwd=2)
+points(XH$t0,1 + Q.sd(q.25,q.75),col="black",type="l",lwd=2)
 
 plot(XH$t0,Q.skewness(q.10,q.50,q.90),type="n",
      xlab="Size(t)",ylab="NP skewness size(t+1)",
      ylim=c(min(c(GAUsim_skew,JSUsim_skew)),1 + max(c(GAUsim_skew,JSUsim_skew))))
-matpoints(XH$t0,GAUsim_skew,col=alpha("tomato",0.25),pch=".",cex=2)
-matpoints(XH$t0,1+ JSUsim_skew,col=alpha("cornflowerblue",0.25),pch=".",cex=2)
-points(XH$t0,Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
-points(XH$t0,1 + Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
+matpoints(XH$t0,GAUsim_skew,col=alpha("tomato",0.25),type="l",lty=1)
+matpoints(XH$t0,1+ JSUsim_skew,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+points(XH$t0,Q.skewness(q.10,q.50,q.90),col="black",type="l",lwd=2)
+points(XH$t0,1 + Q.skewness(q.10,q.50,q.90),col="black",type="l",lwd=2)
 
 plot(XH$t0,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
      xlab="Size(t)",ylab="NP kurtosis size(t+1)",
      ylim=c(min(GAUsim_kurt,JSUsim_kurt),1 + max(GAUsim_kurt,JSUsim_kurt)))
-matpoints(XH$t0,GAUsim_kurt,col=alpha("tomato",0.25),pch=".",cex=2)
-matpoints(XH$t0,1 + JSUsim_kurt,col=alpha("cornflowerblue",0.25),pch=".",cex=2)
-points(XH$t0,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
-points(XH$t0,1 + Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
+matpoints(XH$t0,GAUsim_kurt,col=alpha("tomato",0.25),type="l",lty=1)
+matpoints(XH$t0,1 + JSUsim_kurt,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+points(XH$t0,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",type="l",lwd=2)
+points(XH$t0,1 + Q.kurtosis(q.05,q.25,q.75,q.95),col="black",type="l",lwd=2)
 dev.off()
 
+########################################### 
+## JSU IPM
+###########################################
+muJSU_fun <- function(z){outJSU$estimate[1]+outJSU$estimate[2]*z+outJSU$estimate[3]*z^2}
+sigJSU_fun <- function(z){exp(outJSU$estimate[4]+outJSU$estimate[5]*z+outJSU$estimate[6]*z^2)}
+epsJSU_fun <- function(z){outJSU$estimate[7]+outJSU$estimate[8]*z}
+delJSU_fun <- function(z){exp(outJSU$estimate[9])}
+
+G_z1z_J = function(z1,z) {sx(z)*dJSU(z1,muJSU_fun(z),sigJSU_fun(z),epsJSU_fun(z),delJSU_fun(z))}
+
+mk_K_J <- function(m, L, U, L1, U1) {
+  # mesh points 
+  h <- (U - L)/m
+  meshpts <- L + ((1:m) - 1/2) * h
+  K <- P <- h * (outer(meshpts, pmax(pmin(meshpts, U1),L1),G_z1z_J))
+  K[1,] = K[1,] + matrix(fx(meshpts),nrow=1); F = K - P; 
+  return(list(K = K, meshpts = meshpts, P = P, F = F))
+}
+
+IPM_J =mk_K_J(200,L=0,U=U,L1 = L1, U1 = U1); Re(eigen(IPM_J$K)$values[1]);
+
+chop_meshpts = pmax(pmin(IPM_J$meshpts,U1),L1)
+plot(IPM_J$meshpts,apply(IPM_J$P,2,sum)/sx(chop_meshpts), type="l",lty=1,col=c("black","red")); 
+abline(v=c(L1,U1)); 
+
+### JSU
+matU = IPM_J$P; matF = IPM_J$F; c0 = rep(0,nrow(matU)); c0[1]=1; 
+
+X[3,] = c(
+  mean_lifespan(matU, mixdist=c0),
+  var_lifespan(matU, mixdist=c0)^0.5,
+  skew_lifespan(matU, mixdist=c0),
+  mean_LRO(matU,matF,mixdist=c0), 
+  var_LRO_mcr(matU,matF,mixdist=c0)^0.5,
+  skew_LRO(matU,matF,mixdist=c0), 
+  prob_repro(matU,matF)[1], 
+  mean_age_repro(matU,matF,mixdist=c0), 
+  lifespan_reproducers(matU,matF,mixdist=c0), 
+  gen_time_Ta(matU,matF), 
+  gen_time_mu1_v(matU,matF), 
+  gen_time_R0(matU,matF))  
+
+X = data.frame(round(X,digits=2)); 
+names(X) = c("Mean lifespan", "SD lifespan", "Skew lifespan", "Mean LRO", "SD LRO", "Skew LRO", "Prob repro", "Mean age repro", "Conditional lifespan", 
+             "Gen time Ta", "Gen time mu1(v)", "Gen time R0"); 
+row.names(X) = c("Gaussian", "SHASH", "JSU"); 
+
+# proportional differences
+(X$`Mean lifespan`[1]-X$`Mean lifespan`[3]) / X$`Mean lifespan`[1]
+(X$`Mean LRO`[1]-X$`Mean LRO`[3]) / X$`Mean LRO`[1]
+(X$`Mean age repro`[1]-X$`Mean age repro`[3]) / X$`Mean age repro`[1]
+
+##########################################################################
+##  Simulate discrete population dynamics and compare extinction risk
+##########################################################################
+update_pop = function(sizes,JSU=TRUE) {
+  N = length(sizes); 
+  if(N==0){
+    return(sizes); 
+  }else{
+    new_sizes = numeric(0); 
+    total_F = sum(fx(sizes)); 
+    kids = rpois(1,total_F);
+    if(kids>0) new_sizes = rep(L1,kids)
+    
+    survival_probs = sx(sizes); 
+    live = which(runif(N)<survival_probs) 
+    if(length(live)>0) {
+      living = sizes[live];
+      if(JSU) {
+        surv_sizes = rJSU(length(living), muJSU_fun(living),sigJSU_fun(living),epsJSU_fun(living),delJSU_fun(living) ) 
+      }else{
+        surv_sizes = rnorm(length(living), mu_G(living),sd_G(living))
+      }			
+      surv_sizes = pmax(pmin(surv_sizes, U1),L1)
+      new_sizes = c(new_sizes,surv_sizes)
+    }
+    return(new_sizes) 
+  }
+}	
+
+popsize_J = popsize_G =matrix(NA,100,5000);
+for(k in 1:5000) {
+  sizes_J = sizes_G = runif(12,L1,2*L1); 
+  for(j in 1:100) {
+    sizes_G=update_pop(sizes_G,JSU=FALSE);
+    popsize_G[j,k]=length(sizes_G);
+    sizes_J=update_pop(sizes_J,JSU=TRUE);
+    popsize_J[j,k]=length(sizes_J);
+  }		
+  if(k%%100==0) cat(k,"\n"); 
+}
+extinct_JSU = apply(popsize_J,1,function(x) sum(x==0)); 
+extinct_GAU =  apply(popsize_G,1,function(x) sum(x==0)); 
+
+dev.new(width=10,height=10); par(bty="l",cex.axis=1.3,cex.lab=1.3,mgp=c(2.1,1,0)); 
+matplot(1:100,cbind(extinct_JSU,extinct_GAU)/5000,col=c("black","red"),type="l",lty=1,
+        xlab="Years", ylab="Extinction probability",lwd=2); 
+legend("topleft",legend = c("JSU", "Gaussian"), col=c("black","red"),lty=1,lwd=2,inset=0.03)
+dev.copy2pdf(file="../manuscript/figures/lichen_extinction_risk.pdf"); 
