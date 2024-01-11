@@ -337,14 +337,14 @@ and
 
 \section{Case study: lichen, \emph{Vulpicida pinastri}}
 We begin with a simple example where current size is the only predictor of future size. 
-Growth data for the epiphytic lichen \emph{Vulpicida pinastri} was first analyzed by Shriver et al. \citeyear{shriver2012comparative} and analyzed again by Peterson et al. \citeyear{peterson2019improving} in their study of negatively skewed growth distributions. 
+Growth data for the epiphytic lichen \emph{Vulpicida pinastri} were first analyzed by Shriver et al. \citeyear{shriver2012comparative} and analyzed again by Peterson et al. \citeyear{peterson2019improving} in their study of negatively skewed growth distributions. 
 We therefore had an \emph{a priori} expectation of deviation from normality. 
 The authors of the original study used a mixture distribution that separated ``normal growth or shrinkage'' from ``extreme shrinkage''. 
-We aimed to fit a single, flexible growth model that could realistically accommodate both types of size transition without requiring \emph{ad hoc} decisions about which observations were or were not ``extreme''.
+We aimed to fit a single, flexible growth model that could realistically accommodate both types of size transition without requiring \emph{ad hoc} decisions about which observations of shrinkage were ``extreme'' or not.
 The data set includes $1,542$ inter-annual transitions in thallus area ($cm^2$) observed from 2004 to 2009 in Kennicott Valley, AK. 
 
 With initial size as the only predictor, a simple way to fit a Gaussian model with nonconstant variance is the \texttt{gam} function in \textbf{mgcv} library \citep{wood-2017} using the \texttt{gaulss} family. 
-Following a bit of model selection, we fit the mean and standard deviation of future size as second-order polynomials of current size, then derived the standardized residuals from the fitted mean and sd:
+Following a bit of model selection, we fit the mean and standard deviation of future size as second-order polynomials of current size, then derived the scaled residuals from the fitted mean and sd:
 \begin{lstlisting}
 # XH is the data frame
 # t0 and t1 are initial and final thallus area, respectively
@@ -353,23 +353,23 @@ XH$fitted_mean = predict(fitGAU,type="response")[,1]
 XH$fitted_sd <- 1/predict(fitGAU,type="response")[,2]
 XH$scaledResids=residuals(fitGAU,type="response")/XH$fitted_sd
 \end{lstlisting}
-Quantile regression on the standardized residuals generates the diagnostics shown in Fig. \ref{fig:lichen_diagnostics} (see script \texttt{Vulpicida\_IPMS.R}).
+Quantile regression on the scaled residuals generates the diagnostics shown in Fig. \ref{fig:lichen_diagnostics} (see script \texttt{Vulpicida\_IPMS.R}).
 As expected based on previous analyses, visual analysis of the standardized residuals indicated negative skew, especially at larger sizes (Fig. \ref{fig:lichen_diagnostics}B).
 We also find positive excess kurtosis for all sizes. 
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/lichen_qgam_diagnostics.pdf}
-	\caption{\textbf{A}, Size transition data for lichens, \emph{Gorgonia ventalina}, and fitted gam with mean (red) and standard deviation (blue) of future size conditional on current size.  \textbf{B}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (red) and excess kurtosis (blue) derived from them. Black lines in \textbf{B} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. Figure made by script \texttt{Vulpicida\_IPMS.R}.}
+	\caption{\textbf{A}, Size transition data for lichens, \emph{Vulpicida pinastri}, and fitted gam with mean (red) and standard deviation (blue) of future size conditional on current size.  \textbf{B}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (red) and excess kurtosis (blue) derived from them. Black lines in \textbf{B} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. Figure made by script \texttt{Vulpicida\_IPMS.R}.}
 	\label{fig:lichen_diagnostics}
 \end{figure}
 
 Lacking clear evidence of size-dependence in kurtosis, we turned to the Johnson's \emph{S-U} (JSU) distribution for improvement. 
 The JSU is a four-parameter, leptokurtic distribution that can accommodate positive or negative skew; it also has the convenient property that parameters \texttt{mu} and \texttt{sigma} are the mean and standard deviation, respectively, which facilitates a natural correspondence to the pilot Gaussian model. 
-The JSU is not available as a distribution family in \textbf{mgcv} or any other linear modeling packages, to our knowledge, but that need not be a barrier for this or any other distribution as long as we can write a likelihood function (\texttt{dJSU()} is provided by \textbf{gamlss}). 
-Following the best-fit Gaussian model, we define \texttt{mu} and \texttt{sigma} as second-order polynomials of initial size and, based on signals of skewness and kurtosis in the standardized residuals (Fig. \ref{fig:lichen_diagnostics}B), we define parameter \texttt{nu} (which controls skewness) as a linear function of size and \texttt{tau} (which controls kurtosis) as a constant; the likelihood function therefore has nine parameters to estimate.
+The JSU is not available as a distribution family in any of the standard linear or additive modeling packages, to our knowledge, but that need not be a barrier for this or any other distribution as long as we can write a likelihood function (\texttt{dJSU()} is provided by \textbf{gamlss}). 
+Following the best-fit Gaussian model, we defined \texttt{mu} and \texttt{sigma} of the JSU as second-order polynomials of initial size and, based on signals of skewness and kurtosis in the standardized residuals (Fig. \ref{fig:lichen_diagnostics}B), we define parameter \texttt{nu} (which controls skewness) as a linear function of size and \texttt{tau} (which controls kurtosis) as a positive constant; the likelihood function therefore has nine parameters to estimate.
 We fit the model using the \textbf{maxLik} package and starting values for \texttt{mu} and \texttt{sigma} based on estimates from the pilot Gaussian model:
 \begin{lstlisting}
-## define function that returns the negative log-likelihood
+## define function that returns the JSU negative log-likelihood
 LogLikJSU=function(pars){
 	dJSU(size_t1, 
 	mu=pars[1]+pars[2]*size_t+pars[3]*size_t^2,
@@ -385,17 +385,27 @@ method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE);
 \end{lstlisting}
 Data simulation from the fitted JSU model indicates a compelling improvement over the best Gaussian model, particularly in skewness and kurtosis (Fig. \ref{fig:lichen_fit}). 
 
-We assembled the remainder of the lichen IPM following Shriver et al. \citeyear{shriver2012comparative}. 
-The asymptotic population growth rate based on Gaussian growth suggests a stable population trajectory ($\lambda_{GAU}=1.001$) while the improved JSU growth model indicate slow decline ($\lambda_{JSU}=0.991$), a difference of about $1\%$ annual population growth, in line with results of Peterson et al. \citeyear{peterson2019improving}. 
-However, differences in other life history metrics were more pronounced (Table).\tom{}{What is the best way to cite Chrissy Hernandez' life history functions?} 
-For example, the JSU growth model predicts values for mean lifespan, mean lifetime reproductive success, and mean age at reproduction that are XX\%, XX\%, and XX\% lower than the Gaussian growth model. 
-Furthermore, [extinction result]
-
+To understand the practical consequences of improved growth modeling, we assembled the remainder of the lichen IPM following Shriver et al. \citeyear{shriver2012comparative}. 
+The asymptotic population growth rate based on Gaussian growth ($\lambda_{GAU}=1.001$) differs from the JSU growth model ($\lambda_{JSU}=0.991$) by about $1\%$ annual population growth, in line with results of Peterson et al. \citeyear{peterson2019improving}. 
+However, even this modest difference can lead to strongly biased estimates of extinction risk from the Gaussian model, particularly over longer time horizons (Fig. \ref{fig:lichen_extinction}). 
+We also explored differences in other life history metrics (Table).\tom{}{What is the best way to cite Chrissy Hernandez' life history functions?} 
+For example, the JSU growth model predicts values for mean lifespan, mean lifetime reproductive success, and mean age at reproduction that are 19\%, 25\%, and 14\% lower than the Gaussian growth model. 
+In this case study, properly modeling non-normal size transitions -- which was easy to do with a few extra lines of code -- can have important effects on ecological inferences. 
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/lichen_JSU_fit}
 	\caption{Comparisons among real lichen data and data simulated from Gaussian and JSU growth models for NP mean, NP standard deviation, NP skewness, and NP excess kurtosis of future size conditional on current size. Figure made by script \texttt{Vuplicida\_IPMs.R}.}
 	\label{fig:lichen_fit}
+\end{figure} 
+
+One could argue that the lichen data set was a convenient ``straw man'' to disqualify Gaussian growth, since it was recognized by the original and subsequent IPM analysts that this species requires a skewed distribution of size transitions \citep{shriver2012comparative,peterson2019improving}. 
+In all remaining case studies, including those in the Appendix, we re-examine growth data that were modeled as Gaussian by the data originators in published IPM studies. 
+
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=0.75\textwidth]{figures/lichen_extinction_risk}
+	\caption{Extinction risk estimated from individual-based simulation of IPMs based on Gaussian and Johnson's S-U (JSU) growth distributions. Figure made by script \texttt{Vuplicida\_IPMs.R}.}
+	\label{fig:lichen_extinction}
 \end{figure} 
 
 \section{Case study: tree cholla cactus, \emph{Cylindriopuntia imbricata}}
