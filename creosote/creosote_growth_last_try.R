@@ -383,9 +383,6 @@ LATR_recruit[[2]] <- gam(cbind(recruits,total_seeds - recruits) ~ s(dens_scaled)
 recruit_aic <- AICtab(LATR_recruit, base = TRUE, sort = FALSE)
 # Set top model as "best"
 LATR_recruit_best <- LATR_recruit[[which.min(recruit_aic$AIC)]]
-## annoying but necessary index wrangling
-recruit_size_sd_index <- which(as.factor(names(coef(LATR_recruit_best)))=="(Intercept).1") ## this is where the sd coefficients start
-recruit_size_coef_length <- length(coef(LATR_recruit_best))
 
 ##### Recruit sizes and integration limits (size bounds) --------------------------------------------------
   # Filter out seedlings and get their sizes
@@ -408,6 +405,9 @@ LATR_recruit_size_mod[[4]] <- gam(list(log_volume ~ s(dens_scaled) + s(unique.tr
 recruitsize_aic <- AICtab(LATR_recruit_size_mod, base = TRUE, sort = FALSE)
 # Set top model as "best"
 LATR_recruitsize_best <- LATR_recruit_size_mod[[which.min(recruitsize_aic$AIC)]]
+## annoying but necessary index wrangling
+recruit_size_sd_index <- which(as.factor(names(coef(LATR_recruitsize_best)))=="(Intercept).1") ## this is where the sd coefficients start
+recruit_size_coef_length <- length(coef(LATR_recruitsize_best))
 
 # Create maximum and minimum size bounds for the IPM
 LATR_size_bounds <- data.frame(min_size = log(min(LATR_full$volume_t, LATR_full$volume_t1[LATR_full$transplant == FALSE], na.rm = TRUE)),
@@ -419,24 +419,36 @@ LATR_size_bounds <- data.frame(min_size = log(min(LATR_full$volume_t, LATR_full$
 # Growth from size x to y at density d, using best GAUSSIAN
 growth.GAU <- function(x, y, d){
   xb = pmin(pmax(x, LATR_size_bounds$min_size), LATR_size_bounds$max_size)
-  pred = predict.gam(LATR_GAU_best,
-               newdata = data.frame(dens_scaled = d, log_volume_t = xb, unique.transect = "1.FPS"),
-               type = "response",
+  ## need expected value before I can use predict.gam because fitted_val is an input
+  pred_mat = predict.gam(LATR_GAU_best,
+               newdata = data.frame(dens_scaled = d, log_volume_t = xb, fitted_vals = 0, unique.transect = "1.FPS"),
+               type = "lpmatrix",
                exclude = "s(unique.transect)")
+  mu = pred_mat[,1:19]%*%coef(LATR_GAU_best)[1:19]
+  pred = predict.gam(LATR_GAU_best,
+                     newdata = data.frame(dens_scaled = d, log_volume_t = xb, fitted_vals = mu, unique.transect = "1.FPS"),
+                     type = "response",
+                     exclude = "s(unique.transect)")
   return(dnorm(y,mean=pred[,1],1/pred[,2]))
 }
 
 # Growth from size x to y at density d, using JSU
 growth.JSU <- function(x, y, d){
   xb = pmin(pmax(x, LATR_size_bounds$min_size), LATR_size_bounds$max_size)
-  mu = predict(LATR_GAU_best,
-               newdata = data.frame(dens_scaled = d, log_volume_t = xb, unique.transect = "1.FPS"),
-               re.form = NA)
+  pred_mat = predict.gam(LATR_GAU_best,
+                         newdata = data.frame(dens_scaled = d, log_volume_t = xb, fitted_vals = 0, unique.transect = "1.FPS"),
+                         type = "lpmatrix",
+                         exclude = "s(unique.transect)")
+  mu = pred_mat[,1:19]%*%coef(LATR_GAU_best)[1:19]
+  pred = predict.gam(LATR_GAU_best,
+                     newdata = data.frame(dens_scaled = d, log_volume_t = xb, fitted_vals = mu, unique.transect = "1.FPS"),
+                     type = "response",
+                     exclude = "s(unique.transect)")
   return(dJSU(y,
-              mu=mu,
-              sigma=exp(GAU_sd_coef$estimate[1]+GAU_sd_coef$estimate[2]*mu),
-              nu=JSUout$estimate[3]+JSUout$estimate[4]*mu,
-              tau=exp(JSUout$estimate[5]+JSUout$estimate[6]*mu)))
+              mu=pred[,1],
+              sigma=1/pred[,2],
+              nu=JSUout$estimate[1]+JSUout$estimate[2]*pred[,1],
+              tau=exp(JSUout$estimate[3]+JSUout$estimate[4]*pred[,1])))
 }
 
 # Survival of size x at density d using best GAM
@@ -503,9 +515,9 @@ fertrecruit <- function(x, y, d){
 
 # Put it all together; projection matrix is a function of weighted density (dens)
 # We need a large lower extension because growth variance is greater for smaller plants
-ApproxMatrix <- function(dens,ext.lower=lower.extension,ext.upper=upper.extension,
+ApproxMatrix <- function(dens,ext.lower,ext.upper,
                          min.size=LATR_size_bounds$min_size,max.size=LATR_size_bounds$max_size,
-                         mat.size=matdim,dist){
+                         mat.size,dist){
   
   # Matrix size and size extensions (upper and lower integration limits)
   n <- mat.size
@@ -534,22 +546,21 @@ ApproxMatrix <- function(dens,ext.lower=lower.extension,ext.upper=upper.extensio
   return(list(IPMmat = IPMmat, Fmat = Fmat, Pmat = Pmat, meshpts = y))
 }
 
-# Eviction extensions for upper and lower size limits
-lower.extension <- -8
-upper.extension <- 2
-
 ## load SIPM source functions and some data elements for wind dispersal
 ## will take a hot minute and will throw warnings
 source("creosote_SIPM_source_fns.R")
 
-## explore effect of matrix dimensions -- skip to matdim
+# Eviction extensions for upper and lower size limits
+lower.extension <- -8
+upper.extension <- 2
+## explore effect of matrix dimensions -- or skip to matdim
 dims<-c(100,150,200,250,300,350,400)
 lambda0.GAU<-lambda0.JSU<-c()
 meanlife.GAU<-meanlife.JSU<-c()
 cstar_GAU<-cstar_JSU<-c()
 for(i in 1:length(dims)){
-  hold.GAU<-ApproxMatrix(dens=0,dist="GAU",mat.size=dims[i])
-  hold.JSU<-ApproxMatrix(dens=0,dist="JSU",mat.size=dims[i])
+  hold.GAU<-ApproxMatrix(dens=0,dist="GAU",mat.size=dims[i],ext.lower=lower.extension,ext.upper=upper.extension)
+  hold.JSU<-ApproxMatrix(dens=0,dist="JSU",mat.size=dims[i],ext.lower=lower.extension,ext.upper=upper.extension)
   lambda0.GAU[i]<-lambda(hold.GAU$IPMmat)
   meanlife.GAU[i]<-life_expect_mean(hold.GAU$Pmat,start=1)
   lambda0.JSU[i]<-lambda(hold.JSU$IPMmat)
@@ -581,14 +592,14 @@ matdim <- 400
 dens=seq(min(LATR_full$dens_scaled),max(LATR_full$dens_scaled),0.1)
 lambda.GAU<-lambda.JSU<-c()
 for(i in 1:length(dens)){
-  lambda.GAU[i]<-lambda(ApproxMatrix(dens=dens[i],dist="GAU")$IPMmat)
-  lambda.JSU[i]<-lambda(ApproxMatrix(dens=dens[i],dist="JSU")$IPMmat)
+  lambda.GAU[i]<-lambda(ApproxMatrix(dens=dens[i],dist="GAU",mat.size=matdim,ext.lower=lower.extension,ext.upper=upper.extension)$IPMmat)
+  lambda.JSU[i]<-lambda(ApproxMatrix(dens=dens[i],dist="JSU",mat.size=matdim,ext.lower=lower.extension,ext.upper=upper.extension)$IPMmat)
   print(i)
 }
 
 # Construct transition matrix for minimum weighted density (zero)
-mat_GAU <- ApproxMatrix(dens = 0, dist="GAU")
-mat_JSU <- ApproxMatrix(dens = 0, dist="JSU")
+mat_GAU <- ApproxMatrix(dens = 0, dist="GAU",mat.size=matdim,ext.lower=lower.extension,ext.upper=upper.extension)
+mat_JSU <- ApproxMatrix(dens = 0, dist="JSU",mat.size=matdim,ext.lower=lower.extension,ext.upper=upper.extension)
 colSums(mat_JSU$Pmat)
 
 params_GAU <- WALD_par(mat=mat_GAU)
@@ -604,15 +615,15 @@ cstar_JSU <- optimize(cs,lower=0.05,upper=4,emp=F,mat=mat_JSU,
                       params=params_JSU,D.samples=D.samples.JSU)$objective
 
 
-pdf("./manuscript/figures/creosote_DD_lambda.pdf",height = 4, width = 4,useDingbats = F)
+pdf("../manuscript/figures/creosote_DD_lambda.pdf",height = 4, width = 4,useDingbats = F)
 par(mar=c(4,4,1,1))
 plot(dens*100,lambda.JSU,type="b",col=alpha("cornflowerblue",0.75),pch=16,cex=1.2,
      xlab="Weighted density",ylab=expression(paste(lambda)))
 lines(dens*100,lambda.GAU,type="b",col=alpha("tomato",0.75),pch=16,cex=1.2)
 legend("topright",bty="n",legend=c("Gaussian","JSU"),
        pch=16,col=c(alpha("tomato",1),alpha("cornflowerblue",1)))
-text(140,1.025,paste("c*=",round(cstar_GAU,5),"m/yr"),col=alpha("tomato",1))
-text(140,1.02,paste("c*=",round(cstar_JSU,5),"m/yr"),col=alpha("cornflowerblue",1))
+text(140,1.025,paste("c*=",round(cstar_GAU,4),"m/yr"),col=alpha("tomato",1))
+text(140,1.02,paste("c*=",round(cstar_JSU,4),"m/yr"),col=alpha("cornflowerblue",1))
 dev.off()
 
 
@@ -621,6 +632,7 @@ life_expect_mean(mat_JSU$Pmat,start=1);life_expect_var(mat_JSU$Pmat,start=1)
 
 ## remaining life expectancy of median-sized shrub
 median_index<-which.min(abs(mat_GAU$meshpts-median(LATR_full$log_volume_t,na.rm=T)))
+life_expect_mean(mat_GAU$Pmat,start=median_index)
 life_expect_mean(mat_JSU$Pmat,start=median_index)
 
 plot(flower(mat_JSU$meshpts,d=0))
