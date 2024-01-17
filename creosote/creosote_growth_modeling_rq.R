@@ -98,14 +98,16 @@ for(mod in 1:length(LATR_GAU)) {
 }
 
 ### SPE: how good is that log-linear model for the standard deviation? 
-LATR_GAU[[6]] <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(log_volume_t)), 
+## TM: added basis constraint k=4
+LATR_GAU[[6]] <- gam(list(log_volume_t1~log_volume_t + s(dens_scaled,k=4) + s(unique.transect,bs="re"),~s(log_volume_t,k=4)), 
     family="gaulss", data=LATR_grow, method="ML",gamma=1.4) 
 ## TM: model 6 has smooth terms for both density and SD(size). 
 ## Try a model with only smooth term for SD, same linear model for mean
-LATR_GAU[[7]] <- gam(list(log_volume_t1~log_volume_t + dens_scaled + I(dens_scaled^2) + s(unique.transect,bs="re"),~s(log_volume_t)), 
+LATR_GAU[[7]] <- gam(list(log_volume_t1~log_volume_t + dens_scaled + I(dens_scaled^2) + s(unique.transect,bs="re"),~s(log_volume_t,k=4)), 
                      family="gaulss", data=LATR_grow, method="ML",gamma=1.4) 
 
 ### SPE: not very good. The gam winds by 33 AIC units. 
+## with k=4 now wins by 25
 AICctab(LATR_GAU,sort=F); 
 
 ### Now use iterative re-weighting to fit gam model with SD=f(fitted)
@@ -115,9 +117,9 @@ for(i in 6:7){
   new_fitted_vals = fitted_all[,1];
   LATR_grow$fitted_vals = new_fitted_vals; 
   weights = fitted_all[,2]; # what I call "weights" here are 1/sigma values; see ?gaulss for details.
-  if(i==6){fit_gaulss = gam(list(log_volume_t1~log_volume_t + s(dens_scaled) + s(unique.transect,bs="re"),~s(fitted_vals)), 
+  if(i==6){fit_gaulss = gam(list(log_volume_t1~log_volume_t + s(dens_scaled,k=4) + s(unique.transect,bs="re"),~s(fitted_vals,k=4)), 
     family="gaulss", data=LATR_grow, method="ML",gamma=1.4) }
-  if(i==7){fit_gaulss = gam(list(log_volume_t1~log_volume_t + dens_scaled + I(dens_scaled^2) + s(unique.transect,bs="re"),~s(fitted_vals)), 
+  if(i==7){fit_gaulss = gam(list(log_volume_t1~log_volume_t + dens_scaled + I(dens_scaled^2) + s(unique.transect,bs="re"),~s(fitted_vals,k=4)), 
                             family="gaulss", data=LATR_grow, method="ML",gamma=1.4) }  
   err=100; k=0; 
   while(err>10^(-6)) {

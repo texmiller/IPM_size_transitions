@@ -604,7 +604,7 @@ With this opportunity comes the burden of getting it right: IPMs are good models
 The growth sub-model is the trickiest part of ``getting it right'' because it defines a distribution of future size conditional on current size. 
 Distributions have many properties -- ``moments'' -- and a good growth model should recapitulate the properties of real size transitions. 
 The default assumption of normally distributed size transitions, employed overwhelmingly across 20+ years of IPM studies, is an arbitrary historical precedent. 
-In four case studies (chosen simply because we had the data at our fingertips) and, we suspect, more broadly, skewness and excess kurtosis were common features of size transition data: shrinking was more common than growing, and large changes in size were more common than a Gaussian model would predict. 
+In our case studies (chosen simply because we had the data at our fingertips) and, we suspect, more broadly, skewness and excess kurtosis were common features of size transition data: shrinking was more common than growing, and large changes in size were more common than a Gaussian model would predict. 
 Our most important message is that the standard assumption of normally-distributed size transitions should be abandoned and a more inquisitive process of growth modeling should take its place. 
 
 We have attempted to lay out a general workflow for what that process should look like, guided by visual diagnostics of standardized residuals. 
@@ -612,27 +612,48 @@ One implication of relying on visual diagnostics is that goodness of fit is in t
 This approach can empower IPM users to make informed choices, but it is not very prescriptive: we have not suggested any hard rules for when one or another distribution should be used, only that a good growth model should generate data that look like the real thing. 
 Alternatively, model selection could be used to identify best-fitting growth distributions and best-fitting functions for higher moments. 
 However, model selection among growth distributions with 3-5 parameters, each of which may be functions of state variables or fitted values, can quickly explode in complexity, and we are not convinced it is worth the trouble. 
-It is possible to find a good growth model without worrying about which one is ``best''. 
+It should be possible to find a good growth model without worrying about which one is ``best''. 
+
+Our work follows the important contribution of Peterson et al. \citeyear{peterson2019improving}, who were motivated by a similar problem (inadequacy of the Gaussian distribution for skewed size transitions) but arrived at different recommendations for dealing with the problem. 
+These authors developed a creative approach in which size data are transformed onto a $[0,1]$ scale and then size transitions are modeled using beta regression. 
+The beta distribution can accommodate positive, negative, or zero skew; as Peterson et al. demonstrate, this approach is a viable option for skewed growth data. 
+However, beta regression also has some important downsides: common beta regression packages do not fit random effects(e.g., \textbf{betareg} \citep{cribari2010beta}) or do not do so reliably (in our experience \textbf{gamlss} is numerically unstable); the two-parameter beta distribution has rigid mean-variance and skewness-kurtosis relationships that may not describe the data well; \tom{and}{Steve, I recall you have a beef with transformation to [0,1], so that would go here.}. 
+Rather than shoe-horn size transition data into a default beta distribution, we find it more natural and appropriate to leverage the vast arsenal of real-valued probability distributions -- all of them at one's fingertips with a few lines of code -- and let the data suggest appropriate alternatives based on the residuals of a pilot Gaussian model. 
+The workflow that we have envisioned requires no sacrifice of complexity in random effects or covariates for the sake of modeling skewness and kurtosis. 
+
+While the arsenal of candidate distributions is indeed vast, in our analyses for this paper, we found ourselves coming back time and again to a few usual suspects. 
+The four-parameter SHASH distribution, for example, is able to flexibly accommodate independent, size-dependent variation in variance, skewness, and kurtosis, and it is available as a distribution family in the well-developed \textbf{mgcv} package. 
+In our case study analyses it was consistently among the top non-Gaussian candidates and was our model of choice for the coral, cactus, and pike data sets. 
+While we have emphasized the importance of moving away from a single default distribution of size transitions, if one were to want or need a default distribution (e.g., in software packages for IPM construction [cite IPMpack]) one could do worse than the SHASH. 
+In cases where size transitions are leptokurtic but consistently so across the size distribution, the Johnson's S-U (used for creosotebush) and skewed $t$ (used for lady orchid) distributions were easy to fit with custom likelihood functions. 
+All of the distributions we have used (and the specific parameterizations we have implemented) share the property that their location and scale parameters correspond to the mean and standard deviation, which is not essential but it facilitates interpretation and an intuitive connection to the pilot Gaussian model. 
+The five-parameter skewed generalized $t$ (sgt) generalizes many other real-valued distributions (cite) and is therefore another flexible option, but it does not share the location=mean and scale=sd property, and in our experience can be hard to fit. 
+Finally, finding an appropriate non-Gaussian alternative does not solve all the problems of growth modeling. 
+``Eviction'' from the approximating matrix of the IPM kernel is an ever-present danger and requires vigilance to detect and correct \citep{williams2012avoiding}. 
 
 In all of our case studies, non-Gaussian growth models always yielded more satisfying fits to size transition data than the Gaussian models published in those papers. 
 However, much to our relief, none of these re-analyses yielded a ``gotcha'' result that overturned results of the original study. 
-In this small sampling of case studies, improved growth modeling had only modest effects on IPM results. 
+In this small sampling of case studies, improved growth modeling had weak to modest effects on IPM results, similar in magnitude to the results of \cite{peterson2019improving}. 
 We caution against taking too much comfort in this outcome; we can imagine other scenarios in which the choice of the growth distribution could be more consequential. 
-It is worth noting that three of our case studies focused on perennial plants and the fourth focused on corals, which are demographically similar to perennial plants (heavy losses during recruitment but high survival once established). 
+It is worth noting that most of our case studies focused on perennial life histories (perennial plants, corals, lichens), characterized by relatively slow growth, heavy losses during recruitment, and high survival once established. 
 Life cycles such as these may be relatively robust to subtle features of the growth kernel. 
-More systematic comparative analyses across may provide insight into which types of species and life histories are more likely to exhibit strong skewness and kurtosis of size transitions, and the conditions under which demographic analysis is more or less sensitive to these features of size transition. 
+More systematic comparative analyses may provide insight into which types of species and life histories are more likely to exhibit strong skewness and kurtosis, and the conditions under which demographic analysis is more or less sensitive to these features of size transition. 
 It is also worth noting, as we saw in several case studies, that different outputs from the same model can be more or less sensitive to the choice of growth distribution. 
 
+Across our case studies we have attempted to illustrate a diversity of software packages and computational approaches to model fitting, to reflect the diversity of preferences and habits that the community of IPM users bring to their own analyses. 
+We like generalized additive models (gams) for their flexibility and for \textbf{mgcv}'s numerous options for distribution families and overall speed and reliability. 
+However, there are some applications for which parametric regression would be preferable or necessary because the regression coefficients have a direct biological interpretation (e.g. in Fig. \ref{fig:orchid_ESS}A  the intercept and slope of the size-dependent flowering function are used to derive the expected mean size at flowering). 
+Some potentially useful but relatively obscure distributions may not be available in canned software packages, but that should not be a barrier to their use: as we have illustrated in several case studies, custom likelihood functions open up diverse possibilities for non-Gaussian growth modeling without sacrificing the complex, multi-level features that one might be accustomed to fitting in \textbf{lme4}, for example. 
+We have illustrated fitting growth models using maximum likelihood but Bayesian analysis is another option that may further broaden the options of non-Gaussian candidate distributions and may help estimate hard-to-fit parameters through the brute force of MCMC. 
+Bayesian analysis also make it easy to propagate uncertainty from the vital rate sub-models through the predictions of the IPM \citep{elderd2016quantifying}. 
 
-Some issues to be discussed.
-\begin{itemize}
-\item{Many software options: lme4/maxLik, mgcv, rstan}
-\item{Comparison of our approach with beta regression method.}
-\item{We have emphasize growth but same principles apply to other continuous state transitions, eg disease IPMs.}
-\item{Eviction still a problem for unbounded distributions.}
+This paper has focused on size transitions, but IPMs have been increasingly extended in ways that capture other continuous state variables, and the same problems and solutions we propose should apply in those cases. 
+For example, IPMs can be used to model infectious disease dynamics, where hosts may exhibit continuous variation in infection load (e.g., parasite density), and host vital rate processes depend on infection load \citep{metcalf2016opportunities,wilber2016integral}. 
+Such models must define probabilities of future infection load conditional on current load, and would therefore benefit from the same modeling workflow that we have outlined for size transitions.
+
+\subsection{Conclusion}
 
 
-\end{itemize}
 
 \section*{Acknowledgements} 
 This research was supported by US NSF grants DEB-1933497 to SPE and DEB-1754468, 2208857, and 2225027 to TEXM. 
