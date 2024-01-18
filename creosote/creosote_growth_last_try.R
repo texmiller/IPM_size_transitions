@@ -118,7 +118,37 @@ NPK_hat = Q.kurtosis(q.05=predict(S.05),
                      q.75=predict(S.75),
                      q.95=predict(S.95))
 
-plot(LATR_grow$GAU_fitted,LATR_grow$GAU_scaled_resids,col=alpha("black",0.25),
+## figure of sizet1/density conditional on sizet, sd(fitted), and scaled resids
+dens_dummy<-seq(min(LATR_grow$dens_scaled),
+                max(LATR_grow$dens_scaled),0.1)
+size_means<-LATR_grow %>% group_by(size_bin) %>% summarise(mean=mean(log_volume_t),col=unique(size_col))
+size1_pred<-predict.gam(LATR_GAU_best,newdata=data.frame(dens_scaled=dens_dummy,log_volume_t=size_means$mean[1],fitted_vals=10,unique.transect="1.FPS"),
+                        type = "response",
+                        exclude = "s(unique.transect)")[,1]
+size2_pred<-predict.gam(LATR_GAU_best,newdata=data.frame(dens_scaled=dens_dummy,log_volume_t=size_means$mean[2],fitted_vals=10,unique.transect="1.FPS"),
+                        type = "response",
+                        exclude = "s(unique.transect)")[,1]
+size3_pred<-predict.gam(LATR_GAU_best,newdata=data.frame(dens_scaled=dens_dummy,log_volume_t=size_means$mean[3],fitted_vals=10,unique.transect="1.FPS"),
+                        type = "response",
+                        exclude = "s(unique.transect)")[,1]
+
+pdf("../manuscript/figures/creosote_diagnostics.pdf",height = 3, width = 9,useDingbats = F)
+par(mar = c(5, 4, 2, 2), oma=c(0,0,0,2), mfrow=c(1,3)) 
+plot(LATR_grow$dens_scaled*100,LATR_grow$log_volume_t1,
+     col=alpha(LATR_grow$size_col,0.5),pch=16,
+     xlab="Weighted density",ylab="Size at t+1")
+lines(dens_dummy*100,size1_pred,col=dens_means$col[1],lwd=2)
+lines(dens_dummy*100,size2_pred,col=dens_means$col[2],lwd=2)
+lines(dens_dummy*100,size3_pred,col=dens_means$col[3],lwd=2)
+legend("bottomright",title="Size at t",legend=round(size_means$mean,2),
+       bty="n",cex=0.8,pch=16,col=dens_pallete)
+title("A",adj=0,font=3)
+
+plot(LATR_grow$GAU_mean,LATR_grow$GAU_sd,
+     xlab="Expected size at t+1",ylab="SD of size at t+1",type="l",lwd=3)
+title("B",adj=0,font=3)
+
+plot(LATR_grow$GAU_mean,LATR_grow$GAU_scaled_resids,col=alpha("black",0.25),
      xlab="Expected size at t+1",ylab="Scaled residuals of size at t+1")
 points(LATR_grow$GAU_fitted,predict(S.05),col="black",pch=".")
 points(LATR_grow$GAU_fitted,predict(S.10),col="black",pch=".")
@@ -136,6 +166,8 @@ abline(h=0,col="lightgray",lty=3)
 axis(side = 4,cex.axis=0.8,at = pretty(range(c(NPS_hat,NPK_hat))))
 mtext("Skewness", side = 4, line = 2,col="blue",cex=0.7)
 mtext("Excess Kurtosis", side = 4, line =3,col="red",cex=0.7)
+title("C",adj=0,font=3)
+dev.off()
 
 ## based on these results I will fit a JSU distribution to the residuals
 ## will need to fit variance, skew, and kurtosis as functions of the mean
@@ -600,7 +632,15 @@ for(i in 1:length(dens)){
 # Construct transition matrix for minimum weighted density (zero)
 mat_GAU <- ApproxMatrix(dens = 0, dist="GAU",mat.size=matdim,ext.lower=lower.extension,ext.upper=upper.extension)
 mat_JSU <- ApproxMatrix(dens = 0, dist="JSU",mat.size=matdim,ext.lower=lower.extension,ext.upper=upper.extension)
-colSums(mat_JSU$Pmat)
+
+## check eviction
+plot(mat_GAU$meshpts,colSums(mat_GAU$Pmat))
+lines(mat_GAU$meshpts,survival(mat_GAU$meshpts,d=0),col="red",lwd=2)##good
+plot(mat_JSU$meshpts,colSums(mat_JSU$Pmat))
+lines(mat_JSU$meshpts,survival(mat_JSU$meshpts,d=0),col="red",lwd=2)##good
+
+## write out approx. matrices for comparative analyses
+saveRDS(list(mat_GAU,mat_JSU),"creosote_matrices.RData")
 
 params_GAU <- WALD_par(mat=mat_GAU)
 params_JSU <- WALD_par(mat=mat_JSU)

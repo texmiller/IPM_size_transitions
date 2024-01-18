@@ -435,7 +435,7 @@ The standardized residuals, accounting for size-dependent residual variance (Fig
 To better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, but both of which may be negligible at some sizes.
 We first tried Johnson's $S_{U}$ and then the skewed $t$ distributions, both of which are limited to positive excess kurtosis.
 Both distributions provided some improvement over the Gaussian, but were not happy with the fit of either. 
-Iterating through the workflow (Fig. \ref{fig:workflow}), we arrived, again, at the SHASH distribution, which is more flexible than either the JSU or skewed $t$, capable of capturing a greater range of kurtosis for a given amount of skew, and vice versa (Steve's NPSkewKurtosisRanges.pdf). 
+Iterating through the workflow (Fig. \ref{fig:workflow}), we arrived at the SHASH distribution, which is more flexible than either the JSU or skewed $t$, capable of capturing a greater range of kurtosis for a given amount of skew, and vice versa (\cite{jones-pewsey-2009}; Appendix S.1). 
 Furthermore, fitting the SHASH as a generalized additive model with \textbf{mgcv} allowed for flexible, non-monotonic size-dependence in skewness and kurtosis without the need for model selection on specific size-dependent functions; through iterations of trial and error, we found this flexibility was necessary to generate simulated data that compared favorably to the real data. 
 The other distributions that we tried are not available as \textbf{mgcv} families, so we fit these with custom maximum likelihood functions, an approach we illustrate in the next case study.
 The final growth model was similar to the SHASH gam in the coral case study, but with random intercepts for the location parameter, representing spatial and temporal heterogeneity:
@@ -481,29 +481,18 @@ Thus, depending on the target of one's analysis, modeling non-Gaussian size tran
 	\label{fig:cactus_lambda}
 \end{figure} 
 
-
-\section{Case study: creosotebush, \emph{Larrea tridentata}}
-Our next case study comes from our studies of the woody shrub creosotebush (\emph{Larrea tridentata}) at the Sevilleta Long-Term Ecological Research (LTER) site in central New Mexico, US. 
-At this site as elsewhere in the Southwest US, creosotebush is encroaching into desert grassland habitats.
-The data described here were collected along transects spanning grass-shrub ecotones to understand patterns of density dependence in creosotebush demography.
-Specifically, we asked whether fitness is maximized approaching zero density at the leading edge of the expansion front (consistent with `pulled' expansion), or whether there is a demographic advantage for shrubs at higher density due to positive feedbacks expected for ecosystem engineers (leading to `pushed' expansion). 
-Our published study \citep{drees2023demography} used a spatial integral projection model (SIPM) to predict the speed of shrub encroachment, assuming normally-distributed size transitions. 
-Here we step through our suggested workflow to ask whether a non-Gaussian model would have been more faithful to the data, and how such an improvement would influence predictions for the speed of encroachment.
+ 
+\subsection{Case study: lady orchid, \emph{Orchis purpurea}}
+Our final case study examines selection on life history strategies in the lady orchid \textit{Orchis purpurea}. 
+In a prior study, Miller et al. \citeyear{miller2012evolutionary} contrasted the growth trajectories from year $t$ to $t+1$ for plants that did or did not flower in year $t$, as a way to quantify costs of reproduction. 
+The different growth kernels were then used in an IPM to quantify evolutionarily stable life history strategies: the optimal flowering size that balances benefits of flowering at larger sizes against the risk of dying before reaching those sizes. 
+The original study assumed a Gaussian distribution of size transitions and allowed for non-constant variance with respect to initial size. 
+Here we re-visit that analysis applying our growth modeling workflow to derive improved growth kernels for flowering and non-flowering orchids. 
 We use this case study to illustrate several new elements and challenges, including modeling skewness and kurtosis as functions of expected future size (instead of initial size) and using distributions that are not available as \textbf{mgcv} families.
 In fact, to diversify our use of software and illustrate alternatives, we do not use gam's for any element of this case study.
 
-Growth data come from 522 shrubs censused longitudinally over four years (2013-2017). 
-Census individuals occurred along 12 replicate transects (200 to 600 m in length) that spanned gradients of shrub density along shrub-grass ecotones. 
-Size was measured as volume of an elliptical cone based on height and width measurements; the size variable of the IPM was the natural logarithm of volume ($cm^3$). 
-For each census individual, we recorded the size and density of all conspecifics within the five-meter transect ``window'' in which it occurred, and took the sum of all sizes within the window as a measure of local density. 
-The data are available in \cite{shrubdata}. 
-
-As an initial Gaussian approach, we first fit a set of candidate linear mixed models, including transect as a random effect, that represented competing hypotheses for how size, density, and their interaction influence growth. 
-Specifically, we fit five candidate Gaussian models that included fixed effects of initial size only (model 1), size and density (model 2), and size, density, and their interaction (model 3), allowing for shrubs of different sizes to have different growth responses to local density. 
-Models 4 and 5 mirrored models 2 and 3 but included second-order terms for density, allowing for the possibility of non-monotonic density dependence. 
-As in \citep{drees2023demography} we pooled data across three transition years. 
-Initial AIC rankings of these pilot models favor model 4 slightly over model 5 ($\Delta AIC = 0.8$) and significantly over all other models ($\Delta AIC > 2$). 
-However, these models were fit assuming constant variance, and inspection of the residuals of the best model indicate this is not a safe assumption. 
+The data, originated by Dr. Hans Jacquemyn and used here with permission, come from 368 plants in a Belgian population that was censused annually from 2003 through 2011 (for this reanalysis we are using data only from the ``light'' habitat). 
+Size was measured as leaf area ($cm^3$) summed over all leaves, and we analyzed the natural logarithm of total leaf area as the size variable of the IPM. 
 
 Unlike our previous case studies, here we have multiple fixed effects that may influence the variance of future size. 
 In cases such as this, we recommend modeling variance as a function of expected future size, rather than initial size as we did with the corals and cacti. 
@@ -528,74 +517,72 @@ In step 2, we modeled the standard deviation as a simple linear function of the 
 We did this for all candidate models and, for fair AIC comparison, we re-fit all candidate models with the same weights, estimated from the top model. 
 The updated model selection continued to favor model 4, but now with a stronger improvement over the next-best model ($\Delta AIC = 3.0$). 
 
-\begin{figure}[tbp]
-	\centering
-	\includegraphics[width=1.0\textwidth]{figures/creosote_diagnostics.pdf}
-	\includegraphics[width=1.0\textwidth]{figures/creosote_diagnostics_gamSD.pdf}
-	\centerline{\includegraphics[width = 0.33\textwidth]{figures/creosote_diagnostics_gaulss_qgam.pdf}}
-	\caption{Two and 1/3 versions of the same figure. TOP, lmer growth model with log-linear model for SD as a function of fitted. MIDDLE, lmer growth model with spline SD as a function of fitted using gaulss, 
-	quantiles from rq (parametric). Bottom: rightmost panel redrawn with spline model for growth and SD using gaulss, and qgam fitting of residual quantiles. 
-		\textbf{A}, Creosotebush size transition data with respect to initial size (colors) and local weighted density (sum of sizes of all plants within a five-meter transect window). Size is quantified as the natural logarithm of plant volume ($cm^3$). \textbf{B}, Standard deviation of size at time $t+1$ as a function of expected size at $t+1$ (the fitted values), estimated by iterative re-weighting. \textbf{C}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (blue) and excess kurtosis (red) derived from them. Black lines in \textbf{C} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. All figures made by script \texttt{creosote\_growth\_modeling\_rq.R}.}
-	\label{fig:creosote_diagnostics}
-\end{figure} 
 
-The resulting Gaussian growth model predicts strong initial size-dependence and weak and slightly nonlinear (but monotonic) negative density dependence (Fig. \ref{fig:creosote_diagnostics}A). 
-The model accounts for non-constant variance through the fitted weights, which indicate greater dispersion for smaller values of expected size ($\beta_{1}=-0.21$; Fig. \ref{fig:creosote_diagnostics}B). mostly 
-Quantiles of the standardized residuals indicate size-dependent mostly negative skew and positive excess kurtosis, especially at smaller expected sizes (Fig. \ref{fig:creosote_diagnostics}C).\tom{}{Note that there is still a variance trend in the standardized residuals--rather unsatisfying! I have been through this backwards and forwards and my take is that this is a product of the sample size imbalance between small and large plants. The quantile regression is doing its best. SPE: I think a lot of it has to do with the fitted SD function. gam(family=``gaulss'') says
-the standard deviation flattens out near the bottom, and using that SD function there is a smaller (but still unsatisfying) variance trend in the standardized residuals.} 
-As a candidate for improvement, we turned to the Johnson's $S_{U}$ (JSU) distribution, a four-parameter, leptokurtic distribution capable of skew in either direction. 
-
-Following our suggested workflow, rather than re-fitting a JSU model from scratch, we parameterize a model a model where the residuals from the Gaussian ``pilot'' model are fitted by a JSU distribution. 
-This relatively easy because the \textbf{gamlss.dist} package provides a parameterization of the JSU in which 
-the location parameter $\mu$ is the mean and scale parameter $\sigma$ is the standard deviation \citep{rigby2019distributions}. 
-Using that, we fit the ``hybrid'' model by writing a likelihood function that uses the fitted mean and standard deviation functions from Gaussian pilot model, and estimates the parameters that control skewness and kurtosis
-as linear functions of predicted future size.   
-The ``hybrid'' likelihood looks like this \comment{SPE: if we are going to use the spline SD function, this will need to change}:
+As a pilot Gaussian approach, we fit six candidate models in which the mean was a function of initial size only, additive effects of initial size and flowering status, and interaction between size and flowering, and the standard deviation was a function of size only (models 1-3) or size and flowering status (models 4-6). 
+All models included a random intercept for year. 
+As another variation on software and an alternative to two-step fitting or iterative re-weighting, here we use \verb|nmle::lme()|, which can simultaneously fit linear predictors for mean and variance. 
+For example, model 1 was:
 \begin{lstlisting}
-## log_volume_t1 are the size obervations
-## GAU_fitted are the predicted future size from the best Gaussian model
-## pars is a vector of free parameters to be estimated
-JSULogLik=function(pars){
-	dJSU(x=log_volume_t1, 
-	mu=GAU_fitted,
-	sigma=exp(GAU_sd_coef[1]+GAU_sd_coef[2]*GAU_fitted),
-	nu = pars[1]+pars[2]*GAU_fitted,
-	tau = exp(pars[3]+pars[4]*GAU_fitted), log=TRUE)
-}
+	orchid_GAU[[1]]<-lme(log_area_t1~log_area_t,
+	weights=varExp(form=~log_area_t),
+	random=~1|begin.year,data=orchid_grow,method="ML")
 \end{lstlisting}
-The mean of the JSU is set to that of the best Gaussian model (\verb|GAU_fitted|) and the standard deviation is a function of the mean according to the coefficients (\verb|GAU_sd_coef|) estimated through iterative re-weighting. 
-Based on diagnostics of the standardized residuals (Fig. \ref{fig:creosote_diagnostics}), JSU parameters that control skewness and kurtosis are defined as linear functions of the mean, and those coefficients are estimated by maximum likelihood. 
-This approach relies on the robustness of Gaussian models fitted mean and variance to deviations from normality. 
-If one is skeptical of this approach, it is possible to simultaneously re-fit all parameters of the JSU in a maximum likelihood framework. 
-However, incorporating random effects into a custom likelihood model is non-trivial (we provide guidance on one way to do this, using the ``shrinkage'' approach, in Appendix XX). 
-Therefore a key advantage of the hybrid approach is convenient retention of the fitted random effects and associated variance components, which get shuttled from the Gaussian model into the non-Gaussian model without any fuss (it was critical that we used a parameterization of the JSU for which \verb|mu| is the mean and \verb|sigma| is the standard deviation). 
-And, if this approach does not ``work'' (i.e., deviations from normality biased the fitted values of the Gaussian model) one would quickly find out through the simulation step of the workflow. 
-In this case, the hybrid JSU model performed well, generating simulated data that aligned with the real data better than the best Gaussian model, particularly in \tom{standard deviation}{I am a little mystified as to why the JSU is so much better. It is literally the same SD in both distributions. SPE: it's the same SD but not the same quantile-based nonparametric SD, and the JSU gets the nonparametric SD better. With the curves offset, you can see that in also does
-better at the NP mean.} and kurtosis (Fig. \ref{fig:creosote_JSU}). \new{The JSU model has exactly the same mean and standard deviation of future size as the Gaussian, but Fig. \ref{fig:creosote_diagnostics} uses the quantile-based 
-nonparametric mean and standard deviation. The results show that even though the JSU was not fitted to match those, it comes closer than the Gaussian model as a result of accounting for the skew and kurtosis.} 
+Model 3 (size $\times$ flowering) was strongly favored, consistent with prior results that non-flowering plants have a growth advantage over flowering plants. 
+Growth variance declined with initial size for both reproductive classes (Fig. \ref{fig:orchid_diagnostics}A-B) and skewness and kurtosis of the standardized residuals indicate strong deviations from normality (Fig. \ref{fig:orchid_diagnostics}C-D). 
+For most sizes, left skew and excess kurtosis were more severe for non-reproductive plants, with tail imbalance ca. 10\% of their total and tail weights 10--20\% fatter than Gaussian. 
 
 \begin{figure}[tbp]
 	\centering
-	\includegraphics[width=1.0\textwidth]{figures/creosote_JSU_fit.pdf}
-	\caption{Comparisons between real creosotebush data and data simulated from Gaussian and JSU growth models for mean, standard deviation, NP skewness, and NP excess kurtosis of future size conditional on current size. 
-	Moments of the future size distribution are plotted with respect to initial size; their distribution is also conditional on density but initial size is by far the stronger predictor of future size, so we chose this visualization. 
-	Values for the JSU model (and the corresponding ``real data'' values) are offset vertically by one unit for comparison. Figure made by script \texttt{creosote\_growth\_modeling\_qgam.R}.}
-	\label{fig:creosote_JSU}
+	\includegraphics[width=1.0\textwidth]{figures/orchid_diagnostics.pdf}
+	\caption{}
+	\label{fig:orchid_diagnostics}
 \end{figure} 
 
-The improvement of the JSU over the Gaussian growth model, while visually satisfying, had virtually no influence on SIPM results. 
-Models using Gaussian or JSU growth kernels had nearly identical, monotonic decreases in $\lambda$ with increasing local density, and nearly identical wave velocities (Fig. \ref{fig:creosote_lambda_cstar}). 
-This species has very low mortality risk once established (mean remaining life expectancy of a median-sized shrub is 24,408 years) and its population growth and wave expansion are limited by very low seedling recruitment (\citep{drees2023demography}). 
-Weak size-dependence in survival likely explains why the improvement in growth modeling had little influence on SIPM predictions. 
+As improvements, we explored the skewed $t$ and Johnson's SU distributions, both leptokurtic distributions with flexible skewness. 
+We were happier with the skewed $t$, which we fit in a similar way as we fit the JSU to the creosote data, setting the mean and standard deviation to the Gaussian fits and estimating free parameters controlling skewness and kurtosis:
+\begin{lstlisting}
+	## log_area_t1 and log_area_t are the size obervations
+	## flowering indicates reproductive status at time t (0 or 1)
+	## GAU_fitted and GAU_sd are mean and standard deviation from lme
+	## pars is a vector of free parameters to be estimated
+	SSTLogLik=function(pars){
+		dSST(x=log_area_t1, 
+		mu=GAU_fitted,
+		sigma=GAU_sd,
+		nu = exp(pars[1] + pars[2]*log_area_t + pars[3]*as.logical(flowering) + pars[4]*log_area_t*as.logical(flowering)),
+		tau = exp(pars[5] + pars[6]*log_area_t + pars[7]*as.logical(flowering) + pars[8]*log_area_t*as.logical(flowering))+2, 
+		log=TRUE)
+	}
+\end{lstlisting}
+\verb|gamlss.dist:dSST| is a parameterization of the skewed $t$ in which \verb|mu| and \verb|sigma| are the mean and standard deviation, respectively. 
+Based on diagnostics of the standardized residuals (Fig. \ref{fig:orchid_diagnostics}) we allowed \verb|nu| and \verb|tau| to vary by size and differ between flowering and non-flowering plants (note that the \verb|tau| parameter uses a $log(x-2)$ link function). 
+Size transition data simulated from this model corresponded favorably to the real data, much better than the pilot Gaussian model, including improvements in the \tom{standard deviation}{Again, the improvement here is suprising to me and I am unsure what to say about it. SPE: again, it's probably about the ``usual'' mean and SD versus the quantile-based NP versions.}, skewness, and kurtosis of future size (Fig. \ref{fig:orchid_SST_fit}). 
 
 \begin{figure}[tbp]
 	\centering
-	\includegraphics[width=0.5\textwidth]{figures/creosote_DD_lambda.pdf}
-	\caption{Density dependence in fitness ($\lambda$) and asymptotic velocity of the creosote encroachment wave (c*) for Gaussian and JSU growth kernels. Weighted density is the sum of sizes ($log(cm^3)$) of all conspecifics within a five-meter transect ``window''. Figure made by script \texttt{creosote\_growth\_modeling\_qgam.R}.}
-	\label{fig:creosote_lambda_cstar}
-\end{figure}
+	\includegraphics[width=1.0\textwidth]{figures/orchid_SST_fit.pdf}
+	\caption{Comparisons between real orchid data and data simulated from Gaussian and skewed $t$ growth models for mean, standard deviation, NP skewness, and NP kurtosis of future size conditional on current size. Top row (\textbf{A}-\textbf{D}) shows plants that were vegetative at the start of the transition year and bottom row (\textbf{E}-\textbf{H}) shows plants that were flowering at the start of the transition year. Figure made by script \texttt{orchid\_growth\_modeling\_rq.R}.}
+	\label{fig:orchid_SST_fit}
+\end{figure} 
 
-\clearpage 
+Finally, we used the improved growth model to revisit key results of the original study. 
+Miller et al. (\citeyear{miller2012evolutionary}) used the orchid IPM to estimate the evolutionarily stable strategy (ESS) as the mean size at flowering that maximizes lifetime reproductive success ($R_0$), given the constraint that flowering when small reduces growth and thus elevates mortality risk. 
+Repeating that analysis here, we found that improved growth modeling has virtually no influence on predictions for optimal life history strategies (Fig. \ref{fig:orchid_ESS}).
+ESS flowering sizes were nearly identical between IPMs with Gaussian vs skewed $t$ growth models, and both aligned well with the observed mean flowering size (dashed vertical line in Fig. \ref{fig:orchid_ESS}A). 
+Extending beyond the original study, we also explored expected remaining lifespan for different ages and sizes (R package \textbf{Rage} \citep{jones2022rcompadre}). 
+Gaussian and skewed $t$ growth models predicted nearly identical mean remaining lifespans across the stage and size distribution (Fig. \ref{fig:orchid_ESS}B).
+\tom{However, the skewed $t$ model predicted consistently greater variance in remaining lifespan, nearly 10\% greater at some sizes.}{Do not believe this result! I have left it here as a placeholder because I would like to do this correctly. But I think there are problems with Rage's life\_expect\_var() function. The predicted variance declines linearly with matrix dimension.} 
+Thus, as we have seen in other case studies, the practical consequences of improved growth modeling depend on what one aims to learn from the IPM. 
+
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/orchis_life_history.pdf}
+	\caption{Orchid life history results from IPMs using Gaussian or skewed $t$ growth models. \textbf{A}, Lifetime reproductive success ($R_0$) as a function of mean size of flowering. Dashed vertical line shows the observed mean flowering size. \textbf{B-C}, Mean and variance of remaining lifespan as a function of size or stage. The orchid IPM includes three discrete below-ground stages (protocorm, tuber, and dormant plant) in addition to continuous size of above-ground plants.
+		\comment{SPE: the variance of lifespan results are now correct, using Chrissy Hernandez's functions instead of RAGE. And the result is, non-Gaussian again has no effect.} 
+	}
+	\label{fig:orchid_ESS}
+\end{figure} 
+
 
 \section{Discussion}
 Much of the appeal of integral projection models has stemmed from their embrace of continuous size structure through reliance on regression-based approaches, and the potentially complex fixed- and random-effect structures that these approaches allow. 
@@ -1029,81 +1016,88 @@ This is especially problematic for growth modeling, because data are typically s
 To minimize the risk of overfitting we specified the number of ``knots'' (\texttt{k=4}) and used \texttt{gamma=1.4} to overweight model degrees of freedom as suggested by \citet[][sec. 3.2]{gu-2013}. 
 But it is always important to plot the fitted splines and make sure they do not wag unrealistically. 
 If they do, parametric regression may be a better choice. 
-  
-\subsection{Case study: lady orchid, \emph{Orchis purpurea}}
-Our final case study examines selection on life history strategies in the lady orchid \textit{Orchis purpurea}. 
-In a prior study, Miller et al. \citeyear{miller2012evolutionary} contrasted the growth trajectories from year $t$ to $t+1$ for plants that did or did not flower in year $t$, as a way to quantify costs of reproduction. 
-The different growth kernels were then used in an IPM to quantify evolutionarily stable life history strategies: the optimal flowering size that balances benefits of flowering at larger sizes against the risk of dying before reaching those sizes. 
-The original study assumed a Gaussian distribution of size transitions and allowed for non-constant variance with respect to initial size. 
-Here we re-visit that analysis applying our growth modeling workflow to derive improved growth kernels for flowering and non-flowering orchids. 
 
-The data, originated by Dr. Hans Jacquemyn and used here with permission, come from 368 plants in a Belgian population that was censused annually from 2003 through 2011 (for this reanalysis we are using data only from the ``light'' habitat). 
-Size was measured as leaf area ($cm^3$) summed over all leaves, and we analyzed the natural logarithm of total leaf area as the size variable of the IPM. 
+\subsection{Case study: creosotebush, \emph{Larrea tridentata}}
+Our next case study comes from our studies of the woody shrub creosotebush (\emph{Larrea tridentata}) at the Sevilleta Long-Term Ecological Research (LTER) site in central New Mexico, US. 
+At this site as elsewhere in the Southwest US, creosotebush is encroaching into desert grassland habitats.
+The data described here were collected along transects spanning grass-shrub ecotones to understand patterns of density dependence in creosotebush demography.
+Specifically, we asked whether fitness is maximized approaching zero density at the leading edge of the expansion front (consistent with `pulled' expansion), or whether there is a demographic advantage for shrubs at higher density due to positive feedbacks expected for ecosystem engineers (leading to `pushed' expansion). 
+Our published study \citep{drees2023demography} used a spatial integral projection model (SIPM) to predict the speed of shrub encroachment, assuming normally-distributed size transitions. 
+Here we step through our suggested workflow to ask whether a non-Gaussian model would have been more faithful to the data, and how such an improvement would influence predictions for the speed of encroachment.
 
-As a pilot Gaussian approach, we fit six candidate models in which the mean was a function of initial size only, additive effects of initial size and flowering status, and interaction between size and flowering, and the standard deviation was a function of size only (models 1-3) or size and flowering status (models 4-6). 
-All models included a random intercept for year. 
-As another variation on software and an alternative to two-step fitting or iterative re-weighting, here we use \verb|nmle::lme()|, which can simultaneously fit linear predictors for mean and variance. 
-For example, model 1 was:
+Growth data come from 522 shrubs censused longitudinally over four years (2013-2017). 
+Census individuals occurred along 12 replicate transects (200 to 600 m in length) that spanned gradients of shrub density along shrub-grass ecotones. 
+Size was measured as volume of an elliptical cone based on height and width measurements; the size variable of the IPM was the natural logarithm of volume ($cm^3$). 
+For each census individual, we recorded the size and density of all conspecifics within the five-meter transect ``window'' in which it occurred, and took the sum of all sizes within the window as a weighted measure of local density. 
+The data are available in \cite{shrubdata}. 
+
+As an initial Gaussian approach, and following the approach of Drees et al. \citeyear{drees2023demography}, we first fit a generalized additive model with \textbf{mgcv} that included smooth terms for initial size and weighted density (constrained to four basis functions), plus the random effect of transect. 
+We used the \texttt{gaulss} family and, as a starting point, fit a constant standard deviation. 
 \begin{lstlisting}
-	orchid_GAU[[1]]<-lme(log_area_t1~log_area_t,
-	weights=varExp(form=~log_area_t),
-	random=~1|begin.year,data=orchid_grow,method="ML")
+	LATR_GAU <- gam(list(log_volume_t1~s(log_volume_t,k=4) + 
+	s(dens_scaled,k=4) + s(unique.transect,bs="re"),~1), 
+	family="gaulss", data=LATR_grow, method="ML",gamma=1.4) 
 \end{lstlisting}
-Model 3 (size $\times$ flowering) was strongly favored, consistent with prior results that non-flowering plants have a growth advantage over flowering plants. 
-Growth variance declined with initial size for both reproductive classes (Fig. \ref{fig:orchid_diagnostics}A-B) and skewness and kurtosis of the standardized residuals indicate strong deviations from normality (Fig. \ref{fig:orchid_diagnostics}C-D). 
-For most sizes, left skew and excess kurtosis were more severe for non-reproductive plants, with tail imbalance ca. 10\% of their total and tail weights 10--20\% fatter than Gaussian. 
+Using the fitted values from this initial model, we updated the standard deviation to be a smooth function of fitted values, and iterated the fitting until the weights stopped changing, following the same steps as in the orchid case study. 
 
 \begin{figure}[tbp]
 	\centering
-	\includegraphics[width=1.0\textwidth]{figures/orchid_diagnostics.pdf}
-	\caption{}
-	\label{fig:orchid_diagnostics}
+	\includegraphics[width=1.0\textwidth]{figures/creosote_diagnostics.pdf}
+	\caption{\textbf{A}, Creosotebush size transition data with respect to initial size (colors) and local weighted density (sum of sizes of all plants within a five-meter transect window). Size is quantified as the natural logarithm of plant volume ($cm^3$). \textbf{B}, Standard deviation of size at time $t+1$ as a function of expected size at $t+1$ (the fitted values), estimated by iterative re-weighting. \textbf{C}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (blue) and excess kurtosis (red) derived from them. Black lines in \textbf{C} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. All figures made by script \texttt{creosote\_growth\_modeling.R}.}
+	\label{fig:creosote_diagnostics}
 \end{figure} 
 
-As improvements, we explored the skewed $t$ and Johnson's SU distributions, both leptokurtic distributions with flexible skewness. 
-We were happier with the skewed $t$, which we fit in a similar way as we fit the JSU to the creosote data, setting the mean and standard deviation to the Gaussian fits and estimating free parameters controlling skewness and kurtosis:
+The resulting Gaussian growth model predicts strong initial size-dependence and weak and slightly nonlinear (but monotonic) negative density dependence (Fig. \ref{fig:creosote_diagnostics}A). 
+The model accounts for non-constant variance, which indicate greater dispersion for smaller values of expected size (Fig. \ref{fig:creosote_diagnostics}B).  
+Quantiles of the standardized residuals indicate that skew and excess kurtosis are both greater at smaller sizes (Fig. \ref{fig:creosote_diagnostics}C).
+Skewness is close to zero for larger plants (the best-sampled size range) but excess kurtosis remains positive for large plants (ca. 10\% heavier tails than Gaussian). 
+As a candidate for improvement, we turned to the Johnson's $S_{U}$ (JSU) distribution, a four-parameter, leptokurtic distribution capable of skew in either direction. 
+
+Following our suggested workflow, rather than re-fitting a JSU model from scratch, we parameterize a model a model where the residuals from the Gaussian model are fitted by a JSU distribution. 
+This is relatively easy because the \textbf{gamlss.dist} package provides a parameterization of the JSU in which the location parameter $\mu$ is the mean and scale parameter $\sigma$ is the standard deviation \citep{rigby2019distributions}. 
+We fit the ``hybrid'' model by writing a likelihood function that uses the fitted mean and standard deviation functions from Gaussian pilot model, and estimates the parameters that control skewness and kurtosis as linear functions of predicted future size.   
+The ``hybrid'' likelihood looks like this:
 \begin{lstlisting}
-	## log_area_t1 and log_area_t are the size obervations
-	## flowering indicates reproductive status at time t (0 or 1)
-	## GAU_fitted and GAU_sd are mean and standard deviation from lme
-	## pars is a vector of free parameters to be estimated
-	SSTLogLik=function(pars){
-		dSST(x=log_area_t1, 
-		mu=GAU_fitted,
-		sigma=GAU_sd,
-		nu = exp(pars[1] + pars[2]*log_area_t + pars[3]*as.logical(flowering) + pars[4]*log_area_t*as.logical(flowering)),
-		tau = exp(pars[5] + pars[6]*log_area_t + pars[7]*as.logical(flowering) + pars[8]*log_area_t*as.logical(flowering))+2, 
-		log=TRUE)
+	JSULogLik=function(pars){
+		dJSU(LATR_grow$log_volume_t1, 
+		mu=LATR_grow$GAU_mean,
+		sigma=LATR_grow$GAU_sd,
+		nu = pars[1]+pars[2]*LATR_grow$GAU_mean,
+		tau = exp(pars[3]+pars[4]*LATR_grow$GAU_mean), log=TRUE)
 	}
 \end{lstlisting}
-\verb|gamlss.dist:dSST| is a parameterization of the skewed $t$ in which \verb|mu| and \verb|sigma| are the mean and standard deviation, respectively. 
-Based on diagnostics of the standardized residuals (Fig. \ref{fig:orchid_diagnostics}) we allowed \verb|nu| and \verb|tau| to vary by size and differ between flowering and non-flowering plants (note that the \verb|tau| parameter uses a $log(x-2)$ link function). 
-Size transition data simulated from this model corresponded favorably to the real data, much better than the pilot Gaussian model, including improvements in the \tom{standard deviation}{Again, the improvement here is suprising to me and I am unsure what to say about it. SPE: again, it's probably about the ``usual'' mean and SD versus the quantile-based NP versions.}, skewness, and kurtosis of future size (Fig. \ref{fig:orchid_SST_fit}). 
+
+The mean and standard deviation of the JSU are set to those of the best Gaussian model. 
+Based on diagnostics of the standardized residuals (Fig. \ref{fig:creosote_diagnostics}C), JSU parameters that control skewness and kurtosis are defined as linear functions of the mean, and those coefficients are estimated by maximum likelihood. 
+This approach relies on the robustness of Gaussian models fitted mean and variance to deviations from normality. 
+If one is skeptical of this approach, it is possible to simultaneously re-fit all parameters of the JSU in a maximum likelihood framework. 
+However, incorporating random effects into a custom likelihood model is non-trivial (we provide guidance on one way to do this, using the ``shrinkage'' approach, in Appendix XX). 
+Therefore a key advantage of the hybrid approach is convenient retention of the fitted random effects and associated variance components, which get shuttled from the Gaussian model into the non-Gaussian model without any fuss (it was critical that we used a parameterization of the JSU for which \verb|mu| is the mean and \verb|sigma| is the standard deviation). 
+And, if this approach does not ``work'' (i.e., deviations from normality biased the fitted values of the Gaussian model) one would quickly find out through the simulation step of the workflow.\tom{}{Move to orchids.}
+The hybrid JSU model performed well, generating simulated data that aligned with the real data better than the best Gaussian model, particularly in the standard deviation and kurtosis (Fig. \ref{fig:creosote_JSU}). 
+The JSU model has exactly the same mean and standard deviation of future size as the Gaussian, but Fig. \ref{fig:creosote_diagnostics} uses the quantile-based nonparametric mean and standard deviation. 
+The results show that even though the JSU was not fitted to match those, it comes closer than the Gaussian model as a result of accounting for the skew and kurtosis.
 
 \begin{figure}[tbp]
 	\centering
-	\includegraphics[width=1.0\textwidth]{figures/orchid_SST_fit.pdf}
-	\caption{Comparisons between real orchid data and data simulated from Gaussian and skewed $t$ growth models for mean, standard deviation, NP skewness, and NP kurtosis of future size conditional on current size. Top row (\textbf{A}-\textbf{D}) shows plants that were vegetative at the start of the transition year and bottom row (\textbf{E}-\textbf{H}) shows plants that were flowering at the start of the transition year. Figure made by script \texttt{orchid\_growth\_modeling\_rq.R}.}
-	\label{fig:orchid_SST_fit}
+	\includegraphics[width=1.0\textwidth]{figures/creosote_JSU_fit.pdf}
+	\caption{Comparisons between real creosotebush data and data simulated from Gaussian and JSU growth models for nonparametric measures of mean, standard deviation, skewness, and excess kurtosis of future size conditional on current size. 
+		Moments of the future size distribution are plotted with respect to initial size; their distribution is also conditional on density but initial size is by far the stronger predictor of future size, so we chose this visualization. 
+		Values for the JSU model (and the corresponding ``real data'' values) are offset vertically by one unit for comparison. Figure made by script \texttt{creosote\_growth\_modeling.R}.}
+	\label{fig:creosote_JSU}
 \end{figure} 
 
-Finally, we used the improved growth model to revisit key results of the original study. 
-Miller et al. (\citeyear{miller2012evolutionary}) used the orchid IPM to estimate the evolutionarily stable strategy (ESS) as the mean size at flowering that maximizes lifetime reproductive success ($R_0$), given the constraint that flowering when small reduces growth and thus elevates mortality risk. 
-Repeating that analysis here, we found that improved growth modeling has virtually no influence on predictions for optimal life history strategies (Fig. \ref{fig:orchid_ESS}).
-ESS flowering sizes were nearly identical between IPMs with Gaussian vs skewed $t$ growth models, and both aligned well with the observed mean flowering size (dashed vertical line in Fig. \ref{fig:orchid_ESS}A). 
-Extending beyond the original study, we also explored expected remaining lifespan for different ages and sizes (R package \textbf{Rage} \citep{jones2022rcompadre}). 
-Gaussian and skewed $t$ growth models predicted nearly identical mean remaining lifespans across the stage and size distribution (Fig. \ref{fig:orchid_ESS}B).
-\tom{However, the skewed $t$ model predicted consistently greater variance in remaining lifespan, nearly 10\% greater at some sizes.}{Do not believe this result! I have left it here as a placeholder because I would like to do this correctly. But I think there are problems with Rage's life\_expect\_var() function. The predicted variance declines linearly with matrix dimension.} 
-Thus, as we have seen in other case studies, the practical consequences of improved growth modeling depend on what one aims to learn from the IPM. 
+The improvement of the JSU over the Gaussian growth model, while visually satisfying, had only weak influence on SIPM results. 
+The Gaussian model slightly over-estimated the low-density growth rate, but models using either Gaussian or JSU growth kernels had very similar monotonic decreases in $\lambda$ with increasing local density, and nearly identical wave velocities (Fig. \ref{fig:creosote_lambda_cstar}). 
+This species has very low mortality risk once established (mean remaining life expectancy of a median-sized shrub is 24,408 years) and its population growth and wave expansion are limited by very low seedling recruitment (\citep{drees2023demography}). 
+Weak size-dependence in survival likely explains why the improvement in growth modeling had little influence on SIPM predictions. 
 
 \begin{figure}[tbp]
 	\centering
-	\includegraphics[width=1.0\textwidth]{figures/orchis_life_history.pdf}
-	\caption{Orchid life history results from IPMs using Gaussian or skewed $t$ growth models. \textbf{A}, Lifetime reproductive success ($R_0$) as a function of mean size of flowering. Dashed vertical line shows the observed mean flowering size. \textbf{B-C}, Mean and variance of remaining lifespan as a function of size or stage. The orchid IPM includes three discrete below-ground stages (protocorm, tuber, and dormant plant) in addition to continuous size of above-ground plants.
-		\comment{SPE: the variance of lifespan results are now correct, using Chrissy Hernandez's functions instead of RAGE. And the result is, non-Gaussian again has no effect.} 
-	}
-	\label{fig:orchid_ESS}
-\end{figure} 
+	\includegraphics[width=0.5\textwidth]{figures/creosote_DD_lambda.pdf}
+	\caption{Density dependence in fitness ($\lambda$) and asymptotic velocity of the creosote encroachment wave (c*) for Gaussian and JSU growth kernels. Weighted density is the sum of sizes ($log(cm^3)$) of all conspecifics within a five-meter transect ``window''. Figure made by script \texttt{creosote\_growth\_modeling\_qgam.R}.}
+	\label{fig:creosote_lambda_cstar}
+\end{figure}
 
-  
+ 
 \end{document}
