@@ -1,11 +1,3 @@
-
-##################################################################################
-### define functions and parameters. see model selection scripts
-### for where these functions came from
-### there are all the "fixed" components of the optimization
-##################################################################################
-
-
 ##############################################################################################################
 ########## define demographic functions 
 ##############################################################################################################
@@ -22,29 +14,22 @@ fx<-function(x,params){
 #GROWTH FROM SIZE X TO Y
 gxy_GAU<-function(x,y,params){
   pflow<-invlogit(params$flow.int+params$flow.size*x) 
-	gveg<-dnorm(x=y,mean=(params$grow.int+params$grow.size*x),
-	            sd=params$growsd.int*exp(params$growsd.size*x))
-	gflow<-dnorm(x=y,mean=params$grow.int+params$grow.flow+(params$grow.size+params$grow.size.flow)*x,
-	             sd=params$growsd.int*exp(params$growsd.size*x))
-	#gflow<-dnorm(x=y,mean=(0.04624+0.99799*x),
-	#             sd=params$growsd.int*exp(params$growsd.size*x))
-	result<-gveg*(1-pflow)+gflow*pflow
-	return(result)
+  gveg<-params$grow.int+params$grow.size*x
+  gflow<-params$grow.int+params$grow.flow+(params$grow.size+params$grow.size.flow)*x
+  mu<-gveg*(1-pflow)+gflow*pflow
+	return(dnorm(x=y,mean=mu,sd=exp(params$growsd.int+params$growsd.fit*mu+params$growsd.fit2*mu^2)))
 }
 
 gxy_SST<-function(x,y,params){
   pflow<-invlogit(params$flow.int+params$flow.size*x) 
-  gveg<-dSST(x=y,mu=params$grow.int+params$grow.size*x,sigma=params$growsd.int*exp(params$growsd.size*x),
-             nu=exp(params$growSST.nu.int+params$growSST.nu.size*x),
-             tau=exp(params$growSST.tau.int+params$growSST.tau.size*x)+2)
-  gflow<-dSST(x=y,mu=params$grow.int+params$grow.flow+(params$grow.size+params$grow.size.flow)*x,
-              sigma=params$growsd.int*exp(params$growsd.size*x),
-              nu=exp(params$growSST.nu.int+params$growSST.nu.flow+(params$growSST.nu.size+params$growSST.nu.size.flow)*x),
-              tau=exp(params$growSST.tau.int+params$growSST.tau.flow+(params$growSST.tau.size+params$growSST.tau.size.flow)*x)+2)
-  result<-gveg*(1-pflow)+gflow*pflow
-  return(result)
+  gveg<-params$grow.int+params$grow.size*x
+  gflow<-params$grow.int+params$grow.flow+(params$grow.size+params$grow.size.flow)*x
+  mu<-gveg*(1-pflow)+gflow*pflow
+  return(dSST(x=y,mu=mu,
+              sigma=exp(params$growsd.int+params$growsd.fit*mu+params$growsd.fit2*mu^2),
+              nu=exp(params$growSST.nu.int + params$growSST.nu.fit*mu),
+              tau=exp(params$growSST.tau.int + params$growSST.tau.fit*mu)+2))
 }
-
 
 ## size distribution of plants that emerge from tubers
 recruits<-function(y,params){

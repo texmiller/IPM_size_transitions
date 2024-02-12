@@ -95,22 +95,24 @@ orchid_grow$GAU_resids <- residuals(orchid_GAU_best)
 orchid_grow$GAU_scaled_resids <- orchid_grow$GAU_resids*sqrt(best_weights) ##sqrt(weights)=1/sd
 ## should be mean zero unit variance
 mean(orchid_grow$GAU_scaled_resids);sd(orchid_grow$GAU_scaled_resids)
+## store stdev coefs
+stdev_coef <- out$estimate
 ##this will help with plotting lines
 orchid_grow<-arrange(orchid_grow,GAU_fitted)
 
 ## quantile regressions on stand resids
 k_param=4
-S.05<-qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.05)
-S.10<-qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.1)
-S.25<-qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.25)
-S.50<-qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.5) 
-S.75<-qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.75)
-S.90<-qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.9) 
-S.95<-qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.95)
+q.05<-predict(qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.05))
+q.10<-predict(qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.1))
+q.25<-predict(qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.25))
+q.50<-predict(qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.5)) 
+q.75<-predict(qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.75))
+q.90<-predict(qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.9)) 
+q.95<-predict(qgam(GAU_scaled_resids~s(GAU_fitted,k=k_param), data=orchid_grow,qu=0.95))
 ## NP skewness
-NPS_hat = Q.skewness(q.10=predict(S.10),q.50=predict(S.50),q.90=predict(S.90))
+NPS_hat = Q.skewness(q.10,q.50,q.90)
 ## NP kurtosis (relative to Gaussian)
-NPK_hat = Q.kurtosis(q.05=predict(S.05),q.25=predict(S.25),q.75=predict(S.75),q.95=predict(S.95))
+NPK_hat = Q.kurtosis(q.05,q.25,q.75,q.95)
 
 ## plot raw growth data, sd(fitted as inset), and skew and kurt against std resids
 veg_size<-pretty(orchid_grow$log_area_t[orchid_grow$flowering==0],n=50)
@@ -138,37 +140,41 @@ title("A",font=3,adj=0)
 
 plot(orchid_grow$GAU_fitted,orchid_grow$GAU_scaled_resids,type="n",
      xlab="Fitted value",ylab="Scaled residuals of size at t+1")
-points(orchid_grow$GAU_fitted,predict(S.05),col="black",pch=".")
-points(orchid_grow$GAU_fitted,predict(S.10),col="black",pch=".")
-points(orchid_grow$GAU_fitted,predict(S.25),col="black",pch=".")
-points(orchid_grow$GAU_fitted,predict(S.50),col="black",pch=".")
-points(orchid_grow$GAU_fitted,predict(S.75),col="black",pch=".")
-points(orchid_grow$GAU_fitted,predict(S.90),col="black",pch=".")
-points(orchid_grow$GAU_fitted,predict(S.95),col="black",pch=".")
+points(orchid_grow$GAU_fitted,q.05,col="black",pch=".")
+points(orchid_grow$GAU_fitted,q.10,col="black",pch=".")
+points(orchid_grow$GAU_fitted,q.25,col="black",pch=".")
+points(orchid_grow$GAU_fitted,q.50,col="black",pch=".")
+points(orchid_grow$GAU_fitted,q.75,col="black",pch=".")
+points(orchid_grow$GAU_fitted,q.90,col="black",pch=".")
+points(orchid_grow$GAU_fitted,q.95,col="black",pch=".")
 par(new = TRUE)      
 plot(c(orchid_grow$GAU_fitted,
          orchid_grow$GAU_fitted),
-       c(Q.skewness(predict(S.10),
-                    predict(S.50),
-                    predict(S.90)),
-         Q.kurtosis(predict(S.05),
-                    predict(S.25),
-                    predict(S.75),
-                    predict(S.95))),
+       c(NPS_hat,NPK_hat),
        col=c(rep(alpha("blue",0.25),nrow(orchid_grow)),
              rep(alpha("red",0.25),nrow(orchid_grow))),
        pch=16,cex=.5,axes = FALSE, xlab = "", ylab = "")
 abline(h=0,col="lightgray",lty=3)
-axis(side = 4,cex.axis=0.8,at = pretty(range(c(Q.skewness(predict(S.10),
-                                                          predict(S.50),
-                                                          predict(S.90)),
-                                               Q.kurtosis(predict(S.05),
-                                                          predict(S.25),
-                                                          predict(S.75),
-                                                          predict(S.95))))))
+axis(side = 4,cex.axis=0.8,at = pretty(range(c(NPS_hat,NPK_hat))))
 legend("topleft",legend=c("Skewness","Kurtosis"),bg="white",pch=16,col=c("blue","red"),cex=0.8)
 title("B",font=3,adj=0)
 dev.off()
+
+## save plot elements so these can be re-drawn with other species
+orchid_resid_plot<-list(
+orchid_grow = orchid_grow[,c("log_area_t","log_area_t1","flowering","GAU_fitted","GAU_sd")],
+veg_size = veg_size,
+flow_size = flow_size,
+orchid_GAU_best = orchid_GAU_best,
+q.05 = q.05,
+q.10 = q.10,
+q.25 = q.25,
+q.50 = q.50,
+q.75 = q.75,
+q.90 = q.90,
+q.95 = q.95,
+NPS_hat = NPS_hat,
+NPK_hat = NPK_hat)
 ############################################################
 ## Improvement: skewness and excess kurtosis
 ## try JSU and skewed t
@@ -318,8 +324,102 @@ title("D",font=3,adj=0)
 dev.off()
 
 
+# IPM and life history analysis -------------------------------------------
+## here are the additional components for the IPM
+### survival (not affected by flowering)
+surv<-glmer(survival~log_area_t+(1|begin.year),family="binomial",data=orchid)
+### flowering probability
+flower<-glmer(flowering~log_area_t+(1|begin.year),data=orchid,family="binomial")
+### number of flowers produced by flowering plants
+nflowers<-glmer(number.flowers~log_area_t+(1|begin.year),data=subset(orchid,flowering==1),family="poisson")
+### proportion of fruits that set seed; Hans et al. used a size-dependent function
+### but I get non-significant slopes in both environments, so I will use means
+propfruit<-glmer(number.fruits/number.flowers~(1|begin.year),weights=number.flowers,data=subset(orchid,flowering==1),family="binomial")
+### seedling size distributions
+kidsize<-mean(seedlings$log_area_t1)
+kidsd<-sd(seedlings$log_area_t1)
+### seeds per fruit;see text
+seeds<-6000	
+### seed to protocorm transition; see text
+eta<-mean(c(0.007,0.023))
+### protocorm survival probability (from Eelke)
+sigmap<-0.01485249
+### tuber survival probability (from Eelke)
+sigmat<-0.05940997
+### size-dependent probability of entering dormancy
+dormancy<-glmer(dormant~log_area_t+(1|begin.year),family="binomial",data=orchid)
+### size distribution (mean and sd) of plants emerging from dormancy (assumed to be common across environments)
+Dsize<-mean(orchid$log_area_t1[orchid$number.leaves==0],na.rm=T)
+Dsizesd<-sd(orchid$log_area_t1[orchid$number.leaves==0],na.rm=T)
+### observed size limits
+minsize<-min(na.omit(c(orchid$log_area_t,orchid$log_area_t1)))
+maxsize<-max(na.omit(c(orchid$log_area_t,orchid$log_area_t1)))
+matsize<-100	##size of approximating matrix
 
+##################################################################################
+### store parameters in vector
+###################################################################################
+params<-c()
+## survival params
+params$surv.int <- fixef(surv)[1]
+params$surv.size <- fixef(surv)[2]
+## gaussian growth params
+params$grow.int <- fixef(orchid_GAU_best)[1]
+params$grow.size <- fixef(orchid_GAU_best)[2]
+params$grow.flow <- fixef(orchid_GAU_best)[3]
+params$grow.size.flow <- fixef(orchid_GAU_best)[4]
+params$growsd.int <- stdev_coef[1]
+params$growsd.fit <- stdev_coef[2]
+params$growsd.fit2 <- stdev_coef[3]
+## SST growth params
+params$growSST.nu.int<-SSTout$estimate[1]
+params$growSST.nu.fit<-SSTout$estimate[2]
+params$growSST.tau.int<-SSTout$estimate[3]
+params$growSST.tau.fit<-SSTout$estimate[4]
+## flowering params
+params$flow.int <- fixef(flower)[1]
+params$flow.size <- fixef(flower)[2]
+## fruit production
+params$flowers.int <- fixef(nflowers)[1]
+params$flowers.size <- fixef(nflowers)[2]
+## fruit set
+params$fruits<-fixef(propfruit)[1]
+## offspring
+params$seeds<-seeds
+params$kidsize<-kidsize
+params$kidsize.sd<-kidsd
+params$germ<-eta 
+params$sigmap<-sigmap 
+## dormancy
+params$dorm.int<-fixef(dormancy)[1]
+params$dorm.size<-fixef(dormancy)[2]
+params$sigmat<-sigmat 
+params$Dsize<-Dsize						
+params$Dsizesd<-Dsizesd						
+## matrix
+params$minsize<-minsize
+params$maxsize<-maxsize
+params$matsize<-matsize
 
+#IPM source functions are here:
+source("orchid/orchis.IPM.source.R")
+
+flowint<-seq(-30,0,0.1)
+R0out.beta0.GAU<-R0out.beta0.SST<-vector("numeric",length=length(flowint))
+for(i in 1:length(flowint)){
+  params$flow.int<-flowint[i]
+  R0out.beta0.GAU[i]<-returnR0(params,dist="GAU")$R0
+  R0out.beta0.SST[i]<-returnR0(params,dist="SST")$R0
+  if(i==length(flowint)){params$flow.int<-fixef(flower)[1]}
+}
+
+plot(-flowint/params$flow.size,R0out.beta0.GAU,type="l",lwd=2,col="tomato",
+     xlab="Flowering size (log leaf area)",ylab="R0",cex.lab=1.4)
+lines(-flowint/params$flow.size,R0out.beta0.SST,lwd=2,col="cornflowerblue")
+abline(v=-params$flow.int/params$flow.size,lty=2)
+legend("topleft",legend=c("Gaussian","Skewed t"),title="Growth model:",
+       lwd=2,col=c("tomato","cornflowerblue"),bty="n")
+title("A",adj=0,font=3)
 
 
 
