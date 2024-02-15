@@ -54,7 +54,6 @@ CYIM_full<-read_csv("cholla_demography_20042018_EDI.csv")%>%
   ## sort by initial size
   arrange(vol_t) 
 
-
 ## In prelim analysis I inspected several unrealistic size transitions
 ## this file identifies plants to drop
 CYIM_outliers<-read_csv("CYIM_outliers.csv")%>% 
@@ -76,10 +75,10 @@ CYIM_full %>%
 CYIM_grow_m1 <- gam(list(logvol_t1 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), ~s(logvol_t,k=4)), 
                     data=CYIM_grow, family=gaulss())
 CYIM_gam_pred <- predict(CYIM_grow_m1,type="response",exclude=c("s(plot)","s(year_t)"))
-
+CYIM_grow$fitted_norfx<-CYIM_gam_pred[,1]
 ## inspect residuals, scaled by sd; re-run predict now w/RFX
-fitted_sd<-1/predict(CYIM_grow_m1,type="response")[,2]
-CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="response")/fitted_sd
+CYIM_grow$fitted_sd<-1/predict(CYIM_grow_m1,type="response")[,2]
+CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="response")/CYIM_grow$fitted_sd
 
 ##are the standardized residuals gaussian? -- no
 jarque.test(CYIM_grow$scaledResids) # normality test: FAILS, P < 0.001 
@@ -87,7 +86,6 @@ anscombe.test(CYIM_grow$scaledResids) # kurtosis: FAILS, P < 0.001
 agostino.test(CYIM_grow$scaledResids) # skewness: FAILS, P<0.001 
 
 ## fit qgam -- we will need several quantiles for skewness and kurtosis
-gamma_param<-2
 S.05<-qgam(scaledResids~s(logvol_t,k=4), data=CYIM_grow,qu=0.05)#,argGam=list(gamma=gamma_param)) 
 S.10<-qgam(scaledResids~s(logvol_t,k=4), data=CYIM_grow,qu=0.1)#,argGam=list(gamma=gamma_param)) 
 S.25<-qgam(scaledResids~s(logvol_t,k=4), data=CYIM_grow,qu=0.25)#,argGam=list(gamma=gamma_param)) 
@@ -111,11 +109,11 @@ pdf("../manuscript/figures/cactus_qgam_diagnostics.pdf",height = 5, width = 11,u
 par(mfrow=c(1,2),mar = c(5, 5, 2, 3), oma=c(0,0,0,2)) 
 plot(CYIM_grow$logvol_t,CYIM_grow$logvol_t1,pch=1,col=alpha("black",0.25),
      xlab="log volume, time t",ylab="log volume, time t+1")
-points(CYIM_grow$logvol_t,CYIM_gam_pred[,1],col=alpha("red",0.25),pch=16,cex=.5)
+points(CYIM_grow$logvol_t,CYIM_grow$fitted_norfx,col=alpha("red",0.25),pch=16,cex=.5)
 par(new = TRUE)                           
-plot(CYIM_grow$logvol_t,1/CYIM_gam_pred[,2],col=alpha("blue",0.25),pch=16,cex=.5,
+plot(CYIM_grow$logvol_t,CYIM_grow$fitted_sd,col=alpha("blue",0.25),pch=16,cex=.5,
      axes = FALSE, xlab = "", ylab = "")
-axis(side = 4, at = pretty(range(1/CYIM_gam_pred[,2])))
+axis(side = 4, at = pretty(range(CYIM_grow$fitted_sd)))
 mtext("std dev", side = 4, line = 2)
 legend("topleft",legend=c("Fitted mean","Fitted sd"),bg="white",pch=1,col=c("red","blue"),cex=0.8)
 title("A",font=3,adj=0)
@@ -139,6 +137,22 @@ mtext("Skewness", side = 4, line = 2,col="blue")
 mtext("Excess Kurtosis", side = 4, line =3,col="red")
 title("B",font=3,adj=0)
 dev.off()
+
+plot(CYIM_grow$logvol_t,CYIM_grow$fitted)
+
+## collect data objects to re-draw plot
+cactus_out <- list(
+  cactus_grow = CYIM_grow[,c("logvol_t","logvol_t","fitted_norfx","fitted_sd","scaledResids")],
+  q.05 = q.05,
+  q.10 = q.10,
+  q.25 = q.25,
+  q.50 = q.50,
+  q.75 = q.75,
+  q.90 = q.90,
+  q.95 = q.95,
+  NPS_hat = NPS_hat,
+  NPK_hat = NPK_hat
+)
 
 ## now I need to fit a distribution with negative skew and positive excess kurtosis
 ## both skewness and kurtosis should be non-monotonic wrt size
@@ -580,17 +594,17 @@ flow_mod <- gam(Goodbuds_t>0 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="
 fert_mod <- gam(Goodbuds_t ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), family="nb", data=subset(CYIM_full,Goodbuds_t>0))
 
 ## misc parameters for seeds and seedlings
-seeds_per_fruit<-read.csv("cactus/JO_fruit_data_final_dropplant0.csv",T)  %>% drop_na() %>% 
+seeds_per_fruit<-read.csv("JO_fruit_data_final_dropplant0.csv",T)  %>% drop_na() %>% 
   summarise(seeds_per_fruit = mean(seed_count))
-seed_survival <- read.csv("cactus/FruitSurvival.csv",T) %>% drop_na() %>% mutate(fruit_frac = Fr.on.grnd.not.chewed/Fr.on.plant) %>% 
+seed_survival <- read.csv("FruitSurvival.csv",T) %>% drop_na() %>% mutate(fruit_frac = Fr.on.grnd.not.chewed/Fr.on.plant) %>% 
   summarise(seed_survival = mean(fruit_frac))
-germination <- read.csv("cactus/Germination.csv") %>% drop_na() %>% 
+germination <- read.csv("Germination.csv") %>% drop_na() %>% 
   mutate(germ1_frac = Seedlings04/Input,
          germ2_frac = Seedlings05/(Input-Seedlings04)) %>% 
   summarise(germ1 = mean(germ1_frac), germ2 = mean(germ2_frac))
-precensus_survival <- read.csv("cactus/PrecensusSurvival.csv") %>% dplyr::select(survive0405) %>% drop_na() %>% 
+precensus_survival <- read.csv("PrecensusSurvival.csv") %>% dplyr::select(survive0405) %>% drop_na() %>% 
   summarise(precensus_survival = mean(survive0405))
-seedling_size <- read_csv("cactus/cholla_demography_20042018_EDI.csv") %>% 
+seedling_size <- read_csv("cholla_demography_20042018_EDI.csv") %>% 
   ## subset seed germination plots
   filter(str_sub(Plot,1,1)=="H") %>% 
   mutate(vol_t = volume(Height_t,Width_t,Perp_t)) %>% 
@@ -605,7 +619,7 @@ max.size <- log(max(CYIM_full$vol_t1,na.rm=T))
 sx<-function(x,exclude,year=2004,plot=1){
   xb=pmin(pmax(x,min.size),max.size)
   pred=predict(surv_mod,newdata = data.frame(logvol_t=xb,plot=plot,year_t=year),
-                exclude=paste0("s(",exclude,")"))
+                exclude=paste0(exclude))
   return(invlogit(pred))
 }
 ## GROWTH - SHASH
@@ -613,7 +627,7 @@ gxy_SHASH<-function(x,y,exclude,year=2004,plot=1){
   xb=pmin(pmax(x,min.size),max.size) #Transforms all values below/above limits in min/max size
   pred=predict(CYIM_gam_shash,
                newdata = data.frame(logvol_t=xb,plot=plot,year_t=year),
-               exclude=paste0("s(",exclude,")"))
+               exclude=paste0(exclude))
   return(dSHASHo2(x=y, 
                   mu=pred[,1],
                   sigma = exp(pred[,2]), 
@@ -625,7 +639,7 @@ gxy_GAU<-function(x,y,exclude,year=2004,plot=1){
   xb=pmin(pmax(x,min.size),max.size) #Transforms all values below/above limits in min/max size
   pred = predict(CYIM_grow_m1,
                  newdata = data.frame(logvol_t=xb,plot=plot,year_t=year),
-                 exclude=paste0("s(",exclude,")"))
+                 exclude=paste0(exclude))
   return(dnorm(y,mean=pred[,1],sd=exp(pred[,2])))
 }
 ## COMBINED GROWTH_SURVIVAL
@@ -638,7 +652,7 @@ flow.x <- function(x,exclude,year=2004,plot=1){
   xb=pmin(pmax(x,min.size),max.size)
   pred=predict(flow_mod,
                newdata = data.frame(logvol_t=xb,plot=plot,year_t=year),
-               exclude=paste0("s(",exclude,")"))
+               exclude=paste0(exclude))
   return(invlogit(pred))
 }
 ##FLOWERBUD PRODUCTION BY FLOWERING PLANTS
@@ -646,7 +660,7 @@ fert.x <- function(x,exclude,year=2004,plot=1){
   xb=pmin(pmax(x,min.size),max.size)
   pred=predict(fert_mod,
                newdata = data.frame(logvol_t=xb,plot=plot,year_t=year),
-               exclude=paste0("s(",exclude,")"))
+               exclude=paste0(exclude))
   return(exp(pred))
 }
 ##SEED BANK CONTRIBUTION OF X-SIZED PLANTS
@@ -732,20 +746,35 @@ lambdaSim<-function(mat_list, ## a list of transition matrices, each correspondi
 mat.size = 200
 lower.extension = -1
 upper.extension = 1.5
+
+## store kernel outputs for average plot and year
+exclude_plot_year<-c("s(plot)","s(year_t)")
+cactus_out$mat_GAU<-bigmatrix(lower.extension = lower.extension, 
+                              upper.extension = upper.extension,
+                              mat.size = mat.size,exclude=exclude_plot_year,
+                              dist="GAU")
+cactus_out$mat_SHASH<-bigmatrix(lower.extension = lower.extension, 
+                              upper.extension = upper.extension,
+                              mat.size = mat.size,exclude=exclude_plot_year,
+                              dist="SHASH")
+write_rds(cactus_out,file="cactus_out.rds")
+
+
 ## store year-specific K's and lambda's
 studyyears<-sort(unique(CYIM_full$Year_t))
 K_t_SHASH<-K_t_GAU<-vector("list",length=length(studyyears))
 lambda_t_SHASH<-lambda_t_GAU<-vector("numeric",length=length(studyyears))
 ## loop over years for an average plot
+exclude_plot<-exclude_plot_year[1]
 for(t in 1:length(studyyears)){
   K_t_SHASH[[t]]<-bigmatrix(lower.extension = lower.extension, 
                       upper.extension = upper.extension,
-                      mat.size = mat.size,exclude="plot",
+                      mat.size = mat.size,exclude=exclude_plot,
                       dist="SHASH",year=studyyears[t])$IPMmat
   lambda_t_SHASH[t]<-lambda(K_t_SHASH[[t]])
   K_t_GAU[[t]]<-bigmatrix(lower.extension = lower.extension, 
                             upper.extension = upper.extension,
-                            mat.size = mat.size,exclude="plot",
+                            mat.size = mat.size,exclude=exclude_plot,
                             dist="GAU",year=studyyears[t])$IPMmat
   lambda_t_GAU[t]<-lambda(K_t_GAU[[t]])
 }
@@ -756,15 +785,16 @@ studyplots<-unique(CYIM_full$plot)
 K_p_SHASH<-K_p_GAU<-vector("list",length=length(studyplots))
 lambda_p_SHASH<-lambda_p_GAU<-vector("numeric",length=length(studyplots))
 ## loop over plots for an average year
+exclude_year<-exclude_plot_year[2]
 for(p in 1:length(studyplots)){
   K_p_SHASH[[p]]<-bigmatrix(lower.extension = lower.extension, 
                             upper.extension = upper.extension,
-                            mat.size = mat.size,exclude="year",
+                            mat.size = mat.size,exclude=exclude_year,
                             dist="SHASH",plot=studyplots[p])$IPMmat
   lambda_p_SHASH[p]<-lambda(K_p_SHASH[[p]])
   K_p_GAU[[p]]<-bigmatrix(lower.extension = lower.extension, 
                           upper.extension = upper.extension,
-                          mat.size = mat.size,exclude="year",
+                          mat.size = mat.size,exclude=exclude_year,
                           dist="GAU",plot=studyplots[p])$IPMmat
   lambda_p_GAU[p]<-lambda(K_p_GAU[[p]])
 }

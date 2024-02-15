@@ -456,11 +456,10 @@ As in the coral case study, we see that correctly modeling skewness and kurtosis
 We explored how improved growth modeling influenced IPM results, leveraging the plot and year structure of the study design to quantify spatial and temporal variance in fitness.
 We used the fitted random effects from the vital rate models to estimate the asymptotic growth rate for each year ($\lambda_t$), centered on the average plot, and for each plot ($\lambda_p$), centered on the average year.
 This allowed us to quantify demographic variance associated with temporal and spatial heterogeneity. 
-We found that the Gaussian growth model tended to over-estimate $\lambda_t$, particularly in the harshest years (Fig. \ref{fig:cactus_lambda}A), and thus under-estimated temporal variance in fitness ($Var(\lambda_{t(Gaussian)})=0.0018$, $Var(\lambda_{t(SHASH)})=0.0023$). 
-The opposite was true for plot-to-plot variation (Fig. \ref{fig:cactus_lambda}B), where the Gaussian model under-estimated $\lambda_p$ and over-estimated spatial variance in fitness ($Var(\lambda_{p(Gaussian)})=0.00015$, $Var(\lambda_{p(SHASH)})=0.000088$). 
-Across both growth models, fluctuations in fitness were stronger through time than across space. 
+We found that the Gaussian growth model tended to over-estimate $\lambda_t$, particularly in the harshest years (Fig. \ref{fig:cactus_lambda}A), and thus under-estimated temporal variance in fitness ($SD(\lambda_{t(Gaussian)})=0.042$, $SD(\lambda_{t(SHASH)})=0.048$). 
+The opposite was true for plot-to-plot variation ($SD(\lambda_{p(Gaussian)})=0.0037$, $SD(\lambda_{p(SHASH)})=0.0028$), although spatial variation in fitness was much lower than temporal variation (Fig. \ref{fig:cactus_lambda}B). 
 The difference in temporal variance would suggest that Gaussian growth modeling would lead to over-estimation of the stochastic growth rate $\lambda_S$, since temporal variance has a negative influence on $\lambda_S$.
-However, this was not the case: stochastic IPMs based on Gaussian and SHASH growth models had nearly identical stochastic growth rates ($\lambda_S(Gaussian)=0.9906$, $\lambda_S(Gaussian)=0.9909$). 
+However, this was not the case: stochastic IPMs based on Gaussian and SHASH growth models had nearly identical stochastic growth rates ($\lambda_S(Gaussian)=0.9907$, $\lambda_S(Gaussian)=0.991$). 
 This is likely because temporal fluctuations in vital rates, which is where the SHASH growth model would make a difference, have a weaker influence on $\lambda_S$ than the temporal fluctuations in size structure that they generate \citep{ellis2013role,compagnoni2016effect}. 
 Thus, depending on the target of one's analysis, modeling non-Gaussian size transitions with a Gaussian growth model could bias results in either direction, or make no difference at all. 
 
@@ -516,7 +515,7 @@ The standardized residuals indicated negative skewness (10--20\% difference in t
 
 As improvements, we explored the skewed $t$ and Johnson's SU distributions, both leptokurtic distributions with flexible skewness. 
 We were happier with the skewed $t$, which we fit with a custom likelihood function similar to the JSU growth model fit to the lichen data. 
-However, rather than re-fitting all the parameters of the skewed $t$ model, here we build a ``hybrid'' that uses the fitted mean and standard deviation functions from Gaussian pilot model, and estimates the parameters that control skewness and kurtosis as linear functions of predicted future size. 
+However, rather than re-fitting all the parameters of the skewed $t$ model, here we build a ``hybrid'' likelihood function that uses the fitted mean and standard deviation from the best Gaussian model, and estimates parameters that control skewness and kurtosis as linear functions of predicted future size. 
 This is easy because the \textbf{gamlss.dist} package provides a parameterization of the skewed $t$ in which the location parameter $\mu$ is the mean and scale parameter $\sigma$ is the standard deviation \citep{rigby2019distributions}. 
 The hybrid likelihood looks like this:
 \begin{lstlisting}
@@ -534,9 +533,9 @@ SSTLogLik=function(pars){
 \end{lstlisting}
 
 Based on diagnostics of the standardized residuals, parameters that control skewness and kurtosis are defined as linear functions of the mean, and those coefficients are estimated by maximum likelihood (note that the \verb|tau| parameter uses a $log(x-2)$ link function). 
-This approach relies on the robustness of Gaussian models to deviations from normality, which implies that the fitted mean and variance from a Gaussian model are a good approximation for the mean and variance of a corresponding non-Gaussian model. 
+This approach relies on the robustness of Gaussian models to deviations from normality, which implies that the fitted mean and variance from a Gaussian model are good approximations for the mean and variance of a corresponding non-Gaussian model. 
 If one is skeptical of this approach, it is possible to simultaneously re-fit all parameters of the skewed $t$. 
-However, recall that our pilot Gaussian approach included random effects for year, and therefore the expected values getting passed into \verb|dSST| account for this source of variation. 
+However, recall that unlike the lichen case study, our pilot Gaussian approach included random effects for year, and therefore the expected values getting passed into \verb|dSST| account for this source of variation. 
 Coding random effects ``from scratch'' into a custom likelihood model is possible (we provide guidance on one way to do this, using the ``shrinkage'' approach, in Appendix XX) but should generally not be necessary. 
 Instead, a key advantage of the hybrid approach is convenient retention of the fitted random effects and associated variance components, which get shuttled from the Gaussian model into the non-Gaussian model without any fuss (it was critical that we used a parameterization of the skewed $t$ for which \verb|mu| is the mean and \verb|sigma| is the standard deviation). 
 And, if this approach does not ``work'' (i.e., deviations from normality biased the fitted values of the Gaussian model) one would quickly find out through the simulation step of the workflow.
@@ -544,19 +543,17 @@ In this case, size transition data simulated from this model corresponded favora
 
 Finally, we used the improved growth model to revisit key results of the original study. 
 Miller et al. (\citeyear{miller2012evolutionary}) used the orchid IPM to estimate the evolutionarily stable strategy (ESS) as the mean size at flowering that maximizes lifetime reproductive success ($R_0$), given the constraint that flowering when small reduces growth and thus elevates mortality risk. 
-Repeating that analysis here, we found that improved growth modeling has virtually no influence on predictions for optimal life history strategies (Fig. \ref{fig:orchid_ESS}).
-ESS flowering sizes were nearly identical between IPMs with Gaussian vs skewed $t$ growth models, and both aligned well with the observed mean flowering size (dashed vertical line in Fig. \ref{fig:orchid_ESS}A). 
-Extending beyond the original study, we also explored expected remaining lifespan for different ages and sizes (R package \textbf{Rage} \citep{jones2022rcompadre}). 
-Gaussian and skewed $t$ growth models predicted nearly identical mean remaining lifespans across the stage and size distribution (Fig. \ref{fig:orchid_ESS}B).
-\tom{However, the skewed $t$ model predicted consistently greater variance in remaining lifespan, nearly 10\% greater at some sizes.}{Do not believe this result! I have left it here as a placeholder because I would like to do this correctly. But I think there are problems with Rage's life\_expect\_var() function. The predicted variance declines linearly with matrix dimension.} 
-Thus, as we have seen in other case studies, the practical consequences of improved growth modeling depend on what one aims to learn from the IPM. 
+Repeating that analysis here, we found that improved growth modeling has virtually no influence on predictions for optimal life history strategies (Fig. \ref{fig:orchid_ESS}). 
+ESS flowering sizes were nearly identical between IPMs with Gaussian vs skewed $t$ growth models, and both aligned well with the observed mean flowering size (dashed vertical line in Fig. \ref{fig:orchid_ESS}). 
+%Extending beyond the original study, we also explored expected remaining lifespan for different ages and sizes (R package \textbf{Rage} \citep{jones2022rcompadre}). 
+%Gaussian and skewed $t$ growth models predicted nearly identical mean remaining lifespans across the stage and size distribution (Fig. \ref{fig:orchid_ESS}B).
+%\tom{However, the skewed $t$ model predicted consistently greater variance in remaining lifespan, nearly 10\% greater at some sizes.}{Do not believe this result! I have left it here as a placeholder because I would like to do this correctly. But I think there are problems with Rage's life\_expect\_var() function. The predicted variance declines linearly with matrix dimension.} 
+%Thus, as we have seen in other case studies, the practical consequences of improved growth modeling depend on what one aims to learn from the IPM. 
 
 \begin{figure}[tbp]
 	\centering
-	\includegraphics[width=1.0\textwidth]{figures/orchis_life_history.pdf}
-	\caption{Orchid life history results from IPMs using Gaussian or skewed $t$ growth models. \textbf{A}, Lifetime reproductive success ($R_0$) as a function of mean size of flowering. Dashed vertical line shows the observed mean flowering size. \textbf{B-C}, Mean and variance of remaining lifespan as a function of size or stage. The orchid IPM includes three discrete below-ground stages (protocorm, tuber, and dormant plant) in addition to continuous size of above-ground plants.
-		\comment{SPE: the variance of lifespan results are now correct, using Chrissy Hernandez's functions instead of RAGE. And the result is, non-Gaussian again has no effect.} 
-	}
+	\includegraphics[width=1.0\textwidth]{figures/orchis_R0.pdf}
+	\caption{Orchid life history results from IPMs using Gaussian or skewed $t$ growth models. Lifetime reproductive success ($R_0$) is shown as a function of mean size of flowering. Dashed vertical line shows the observed mean flowering size.}
 	\label{fig:orchid_ESS}
 \end{figure} 
 
