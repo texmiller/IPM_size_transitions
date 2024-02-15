@@ -105,6 +105,7 @@ XH$fitted_sd <- 1/predict(fitGAU22,type="response")[,2]
 XH$fitted = predict(fitGAU22,type="response")[,1]
 XH$scaledResids=residuals(fitGAU22,type="pearson")
 
+## checking that I know how to use the residuals function
 plot(residuals(fitGAU22,type="response"),XH$t1-XH$fitted)
 plot(XH$scaledResids,residuals(fitGAU22,type="response")/XH$fitted_sd)
 
@@ -180,6 +181,21 @@ mtext("Skewness and kurtosis", side = 4, line = 2)
 legend("topleft",legend=c("Quantiles","NP skewness","NP excess kurtosis"),bg="white",pch=c(20,1,1),col=c("black","blue","red"),cex=0.8)
 title("B",font=3,adj=0)
 dev.off()
+
+## collect outputs to write
+lichen_out <- list(
+  lichen_grow = XH[,c("t0","t1","fitted","fitted_sd","scaledResids")],
+  lichen_GAU_best = fitGAU,
+  q.05 = predict(S.05),
+  q.10 = predict(S.10),
+  q.25 = predict(S.25),
+  q.50 = predict(S.50),
+  q.75 = predict(S.75),
+  q.90 = predict(S.90),
+  q.95 = predict(S.95),
+  NPS_hat = NPS_hat,
+  NPK_hat = NPK_hat
+)
 
 ###### improved model: gam SHASH
 ## TM: why assume kurtosis is constant?
@@ -275,7 +291,8 @@ library(gamlss.dist); load(file="SHASHfuns.Rdata")
 ## GAUSSIAN
 ###########################################
 graphics.off(); par(mfrow=c(2,1)); 
-L=0; U=10; L1 = 0.2; U1 = 7; # limits of the data for eviction-prevention 
+L=-1; U=10; L1 = 0.2; U1 = 7; # limits of the data for eviction-prevention 
+## see below for where these limits come from
 
 #coef(fitGAU)
 # (Intercept)            t0       I(t0^2) (Intercept).1          t0.1     I(t0^2).1 
@@ -637,8 +654,7 @@ mk_K_J <- function(m, L, U, L1, U1) {
   return(list(K = K, meshpts = meshpts, P = P, F = F))
 }
 
-IPM_J =mk_K_J(200,L=0,U=U,L1 = L1, U1 = U1); Re(eigen(IPM_J$K)$values[1]);
-
+IPM_J =mk_K_J(200,L=L,U=U,L1 = L1, U1 = U1); Re(eigen(IPM_J$K)$values[1]);
 chop_meshpts = pmax(pmin(IPM_J$meshpts,U1),L1)
 plot(IPM_J$meshpts,apply(IPM_J$P,2,sum)/sx(chop_meshpts), type="l",lty=1,col=c("black","red")); 
 abline(v=c(L1,U1)); 
@@ -718,3 +734,21 @@ matplot(1:100,cbind(extinct_JSU,extinct_GAU)/5000,col=c("black","red"),type="l",
         xlab="Years", ylab="Extinction probability",lwd=2); 
 legend("topleft",legend = c("JSU", "Gaussian"), col=c("black","red"),lty=1,lwd=2,inset=0.03)
 dev.copy2pdf(file="../manuscript/figures/lichen_extinction_risk.pdf"); 
+
+## add GAU and JSU kernels to output and write to file
+lichen_out$mat_GAU <- IPM_G
+lichen_out$mat_JSU <- IPM_J
+write_rds(lichen_out,"lichen_out.rds")
+
+
+##### find eviction limits that work for GAU and JSU
+par(mfrow=c(1,2))
+IPM_G = mk_K_G(200,L=-1,U=10,L1 = L1, U1 = U1); Re(eigen(IPM_G$K)$values[1]);
+chop_meshpts = pmax(pmin(IPM_G$meshpts,U1),L1) 
+plot(IPM_G$meshpts,apply(IPM_G$P,2,sum)/sx(chop_meshpts), type="l",lty=1,col=c("black","red")); 
+abline(v=c(L1,U1))
+
+IPM_J =mk_K_J(200,L=-1,U=10,L1 = L1, U1 = U1); Re(eigen(IPM_J$K)$values[1]);
+chop_meshpts = pmax(pmin(IPM_J$meshpts,U1),L1)
+plot(IPM_J$meshpts,apply(IPM_J$P,2,sum)/sx(chop_meshpts), type="l",lty=1,col=c("black","red")); 
+abline(v=c(L1,U1))

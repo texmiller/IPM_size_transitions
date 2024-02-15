@@ -161,8 +161,8 @@ title("B",font=3,adj=0)
 dev.off()
 
 ## save plot elements so these can be re-drawn with other species
-orchid_resid_plot<-list(
-orchid_grow = orchid_grow[,c("log_area_t","log_area_t1","flowering","GAU_fitted","GAU_sd")],
+orchid_out<-list(
+orchid_grow = orchid_grow[,c("log_area_t","log_area_t1","flowering","GAU_fitted","GAU_sd","GAU_scaled_resids")],
 veg_size = veg_size,
 flow_size = flow_size,
 orchid_GAU_best = orchid_GAU_best,
@@ -354,7 +354,6 @@ Dsizesd<-sd(orchid$log_area_t1[orchid$number.leaves==0],na.rm=T)
 ### observed size limits
 minsize<-min(na.omit(c(orchid$log_area_t,orchid$log_area_t1)))
 maxsize<-max(na.omit(c(orchid$log_area_t,orchid$log_area_t1)))
-matsize<-100	##size of approximating matrix
 
 ##################################################################################
 ### store parameters in vector
@@ -397,32 +396,50 @@ params$sigmat<-sigmat
 params$Dsize<-Dsize						
 params$Dsizesd<-Dsizesd						
 ## matrix
-params$minsize<-minsize
-params$maxsize<-maxsize
-params$matsize<-matsize
+params$minsize<-minsize*0.95 #5% lower than observed
+params$maxsize<-maxsize*1.05 #5% higher than observed
+params$matsize<-100 ##explored below
 
 #IPM source functions are here:
 source("orchid/orchis.IPM.source.R")
+
+##check eviction by setting survival to 100%
+plot(colSums(returnR0(params,dist="GAU",lower.extend=5,upper.extend=2)$T))
+plot(colSums(returnR0(params,dist="SST",lower.extend=5,upper.extend=2)$T))
+## these are the extensions I need -- change survival back!
+
+## test matrix dimensions
+dims <- c(25,50,100,200,300,500)
+R0_dims <- c()
+for(i in 1:length(dims)){
+  params$matsize<-dims[i]
+  R0_dims[i]<-returnR0(params,dist="GAU",lower.extend=5,upper.extend=2)$R0
+}
+plot(dims,R0_dims)
 
 flowint<-seq(-30,0,0.1)
 R0out.beta0.GAU<-R0out.beta0.SST<-vector("numeric",length=length(flowint))
 for(i in 1:length(flowint)){
   params$flow.int<-flowint[i]
-  R0out.beta0.GAU[i]<-returnR0(params,dist="GAU")$R0
-  R0out.beta0.SST[i]<-returnR0(params,dist="SST")$R0
+  R0out.beta0.GAU[i]<-returnR0(params,dist="GAU",lower.extend=5,upper.extend=2)$R0
+  R0out.beta0.SST[i]<-returnR0(params,dist="SST",lower.extend=5,upper.extend=2)$R0
   if(i==length(flowint)){params$flow.int<-fixef(flower)[1]}
 }
 
+pdf("./manuscript/figures/orchid_R0.pdf",height = 5, width = 5,useDingbats = F)
+par(mar=c(5,5,1,1))
 plot(-flowint/params$flow.size,R0out.beta0.GAU,type="l",lwd=2,col="tomato",
-     xlab="Flowering size (log leaf area)",ylab="R0",cex.lab=1.4)
+     xlab="Flowering size (log leaf area)",ylab=expression(R[0]),cex.lab=1.4)
 lines(-flowint/params$flow.size,R0out.beta0.SST,lwd=2,col="cornflowerblue")
 abline(v=-params$flow.int/params$flow.size,lty=2)
 legend("topleft",legend=c("Gaussian","Skewed t"),title="Growth model:",
        lwd=2,col=c("tomato","cornflowerblue"),bty="n")
-title("A",adj=0,font=3)
+dev.off()
 
-
-
+## write out matrices
+orchid_out$mat_GAU<-returnR0(params,dist="GAU",lower.extend=5,upper.extend=2)
+orchid_out$mat_SST<-returnR0(params,dist="SST",lower.extend=5,upper.extend=2)
+write_rds(orchid_out,file="orchid/orchid_out.rds")
 
 #### The Basement ###################################
 ## I thought I might do better fitting the sd as a gam--turns out not really

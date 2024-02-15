@@ -1,29 +1,33 @@
 ##############################################################################################################
 ########## define demographic functions 
+#Transforms all values below/above limits in min/max size to prevent eviction
 ##############################################################################################################
 invlogit<-function(x){exp(x)/(1+exp(x))}
 
 #PRODUCTION OF PROTOCORMS BY Y-SIZED INDIVIDUALS
 fx<-function(x,params){
-	pflow<-invlogit(params$flow.int+params$flow.size*x) 
-	nflow<-exp(params$flowers.int+params$flowers.size*x)
+  xb<-pmin(pmax(x,params$minsize),params$maxsize) 
+  pflow<-invlogit(params$flow.int+params$flow.size*xb) 
+	nflow<-exp(params$flowers.int+params$flowers.size*xb)
 	protocorms<-pflow*nflow*invlogit(params$fruits)*params$seeds*params$germ
 	return(protocorms)
 	}
 
 #GROWTH FROM SIZE X TO Y
 gxy_GAU<-function(x,y,params){
-  pflow<-invlogit(params$flow.int+params$flow.size*x) 
-  gveg<-params$grow.int+params$grow.size*x
-  gflow<-params$grow.int+params$grow.flow+(params$grow.size+params$grow.size.flow)*x
+  xb<-pmin(pmax(x,params$minsize),params$maxsize) 
+  pflow<-invlogit(params$flow.int+params$flow.size*xb) 
+  gveg<-params$grow.int+params$grow.size*xb
+  gflow<-params$grow.int+params$grow.flow+(params$grow.size+params$grow.size.flow)*xb
   mu<-gveg*(1-pflow)+gflow*pflow
 	return(dnorm(x=y,mean=mu,sd=exp(params$growsd.int+params$growsd.fit*mu+params$growsd.fit2*mu^2)))
 }
 
 gxy_SST<-function(x,y,params){
-  pflow<-invlogit(params$flow.int+params$flow.size*x) 
-  gveg<-params$grow.int+params$grow.size*x
-  gflow<-params$grow.int+params$grow.flow+(params$grow.size+params$grow.size.flow)*x
+  xb<-pmin(pmax(x,params$minsize),params$maxsize) 
+  pflow<-invlogit(params$flow.int+params$flow.size*xb) 
+  gveg<-params$grow.int+params$grow.size*xb
+  gflow<-params$grow.int+params$grow.flow+(params$grow.size+params$grow.size.flow)*xb
   mu<-gveg*(1-pflow)+gflow*pflow
   return(dSST(x=y,mu=mu,
               sigma=exp(params$growsd.int+params$growsd.fit*mu+params$growsd.fit2*mu^2),
@@ -58,12 +62,15 @@ wakeup<-function(y,params){
 
 #SURVIVAL AT SIZE X
 sx<-function(x,params){
-	invlogit(params$surv.int+params$surv.size*x)
+  xb<-pmin(pmax(x,params$minsize),params$maxsize) 
+  invlogit(params$surv.int+params$surv.size*xb)
+  #return(1)
 	}
 
 #Probability of dormancy at size x
 dx<-function(x,params){
-	invlogit(params$dorm.int+params$dorm.size*x)
+  xb<-pmin(pmax(x,params$minsize),params$maxsize) 
+  invlogit(params$dorm.int+params$dorm.size*xb)
 	}
 
 #Survival * growth * not going dormant
@@ -72,10 +79,10 @@ pxy<-function(x,y,params,dist){
 	}
 
 ###R0 functions, one for each habitat
-returnR0<-function(params,dist){
+returnR0<-function(params,dist,lower.extend=0,upper.extend=0){
 
-	L<-params$minsize*0.9
-	U<-params$maxsize*1.1 #these are the upper and lower integration limits
+	L<-params$minsize - lower.extend
+	U<-params$maxsize + upper.extend
 	n<-params$matsize#matrix size
 	h<-(U-L)/n
 	b<-L+c(0:n)*h;

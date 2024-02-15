@@ -142,7 +142,7 @@ plot(CYIM_grow$logvol_t,CYIM_grow$fitted)
 
 ## collect data objects to re-draw plot
 cactus_out <- list(
-  cactus_grow = CYIM_grow[,c("logvol_t","logvol_t","fitted_norfx","fitted_sd","scaledResids")],
+  cactus_grow = CYIM_grow[,c("logvol_t","logvol_t1","fitted_norfx","fitted_sd","scaledResids")],
   q.05 = q.05,
   q.10 = q.10,
   q.25 = q.25,
@@ -778,6 +778,7 @@ for(t in 1:length(studyyears)){
                             dist="GAU",year=studyyears[t])$IPMmat
   lambda_t_GAU[t]<-lambda(K_t_GAU[[t]])
 }
+sd(lambda_t_GAU);sd(lambda_t_SHASH)
 
 ## now the same for plots
 ## store plot-specific K's and lambda's
@@ -798,10 +799,12 @@ for(p in 1:length(studyplots)){
                           dist="GAU",plot=studyplots[p])$IPMmat
   lambda_p_GAU[p]<-lambda(K_p_GAU[[p]])
 }
+sd(lambda_p_GAU);sd(lambda_p_SHASH)
+
 ## compare plot-specific asypmtotic growth rates
 ## compare year-specific asypmtotic growth rates
 cols<-wes_palette("Zissou1")
-pdf("./manuscript/figures/cactus_lambda_years_plots.pdf",height = 4, width = 8,useDingbats = F)
+pdf("../manuscript/figures/cactus_lambda_years_plots.pdf",height = 4, width = 8,useDingbats = F)
 par(mfrow=c(1,2),mar=c(4,5,1,1))
 plot(studyyears,lambda_t_SHASH,type="b",col=alpha(cols[1],0.85),pch=16,cex.lab=1.4,
      xlab="Year",ylab=expression(paste(lambda[t])),cex=1.5)
