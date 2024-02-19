@@ -371,6 +371,11 @@ ApproxMatrix <- function(ext.lower=0,ext.upper=0.1,mat.size=600,dist){
 GAU_IPM<-ApproxMatrix(dist="GAU")
 SHASH_IPM<-ApproxMatrix(dist="SHASH")
 
+plot(colSums(GAU_IPM$Pmat) / sx(GAU_IPM$meshpts))
+plot(colSums(SHASH_IPM$Pmat) / sx(SHASH_IPM$meshpts))
+
+## write out for cross-spp analysis
+write_rds(list(GAU_IPM=GAU_IPM,SHASH_IPM=SHASH_IPM),file="pike/pike_out.rds")
 
 ## source Steve/Chrissy's life history functions
 source("code/metaluck_fns_CMH.R")

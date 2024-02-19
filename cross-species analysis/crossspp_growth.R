@@ -1,5 +1,7 @@
 # purpose: assemble data figures and tables using data and model outputs 
 # combining multiple case studies
+library(xtable)
+
 rm(list=ls(all=TRUE))
 
 tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
@@ -11,15 +13,12 @@ setwd(home)
 lichen<-readRDS("lichen/lichen_out.rds")
 cactus<-readRDS("cactus/cactus_out.rds")
 orchid<-readRDS("orchid/orchid_out.rds")
+pike<-readRDS("pike/pike_out.rds")
 
 # residuals plot
-## fix the scale of the right y axis across case studies
-axis4_scale <- pretty(range(c(lichen$NPS_hat,lichen$NPK_hat,
-                              cactus$NPS_hat,cactus$NPK_hat,
-                              orchid$NPS_hat,orchid$NPK_hat)))
-alpha_val <- 0.25
+alpha_val <- 0.15
 
-pdf("manuscript/figures/combo_resid_diagnostics.pdf",height = 12, width = 5,useDingbats = F)
+pdf("manuscript/figures/combo_resid_diagnostics.pdf",height = 9, width = 7.5,useDingbats = F)
 par(mfrow=c(3,2),mar = c(3.5, 5, 2, 4), oma=c(0,0,0,2)) 
 ## lichen
 plot(lichen$lichen_grow$t0,lichen$lichen_grow$t1,pch=1,col=alpha("black",alpha_val),cex.axis=0.8,
@@ -104,7 +103,7 @@ lines(orchid$flow_size,fixef(orchid$orchid_GAU_best)[1]+fixef(orchid$orchid_GAU_
 legend("topleft",legend=c("Vegetative, time t","Flowering, time t"),bg="white",pch=1,col=c("black","pink"),cex=0.8)
 plotInset(2.5, 0.25, 7, 2,
           expr = plot(orchid$orchid_grow$GAU_fitted,orchid$orchid_grow$GAU_sd,
-                      type="l", xlab = "Fitted value",col="blue3",lwd=2,
+                      type="l", xlab = "E[log(leaf area), time t+1]",col="blue3",lwd=2,
                       ylab = "Std Dev",cex.lab=0.8,
                       cex.axis = 0.5, mgp = c(3/2, 1/2, 0)),
           mar = c(0, 3, 0, 0))
@@ -130,3 +129,78 @@ axis(side = 4,cex.axis=0.8,at = pretty(range(c(orchid$NPS_hat,orchid$NPK_hat))))
 mtext("NP skewness or kurtosis", side = 4, line = 2,cex=0.7)
 title("F",font=3,adj=0)
 dev.off()
+
+
+### Table of life history traits from matrices
+source("./code/metaluck_fns_CMH.R")
+
+lichenGAU_mat <- lichen$mat_GAU$K; lichenJSU_mat <- lichen$mat_JSU$K
+lichenGAU_matU <- lichen$mat_GAU$P; lichenJSU_matU <- lichen$mat_JSU$P
+lichenGAU_matF <- lichen$mat_GAU$F; lichenJSU_matF <- lichen$mat_JSU$F
+lichen_c0 = rep(0,nrow(lichenGAU_matU)); lichen_c0[1]=1
+lichenGAU_traits<-c(
+  Re(eigen(lichenGAU_mat)$values[1]),
+  mean_lifespan(lichenGAU_matU, mixdist=lichen_c0),
+  mean_LRO(lichenGAU_matU,lichenGAU_matF,mixdist=lichen_c0),
+  var_LRO_mcr(lichenGAU_matU,lichenGAU_matF,mixdist=lichen_c0)^0.5,
+  mean_age_repro(lichenGAU_matU,lichenGAU_matF,mixdist=lichen_c0),
+  gen_time_mu1_v(lichenGAU_matU,lichenGAU_matF)
+)
+lichenJSU_traits<-c(
+  Re(eigen(lichenJSU_mat)$values[1]),
+  mean_lifespan(lichenJSU_matU, mixdist=lichen_c0),
+  mean_LRO(lichenJSU_matU,lichenJSU_matF,mixdist=lichen_c0),
+  var_LRO_mcr(lichenJSU_matU,lichenJSU_matF,mixdist=lichen_c0)^0.5,
+  mean_age_repro(lichenJSU_matU,lichenJSU_matF,mixdist=lichen_c0),
+  gen_time_mu1_v(lichenJSU_matU,lichenJSU_matF)
+)
+
+cactusGAU_mat <- cactus$mat_GAU$IPMmat; cactusSHASH_mat <- cactus$mat_SHASH$IPMmat
+cactusGAU_matU <- cactus$mat_GAU$Tmat; cactusSHASH_matU <- cactus$mat_SHASH$Tmat
+cactusGAU_matF <- cactus$mat_GAU$Fmat; cactusSHASH_matF <- cactus$mat_SHASH$Fmat
+cactus_c0 = rep(0,nrow(cactusGAU_matU)); cactus_c0[1]=1
+cactusGAU_traits<-c(
+  Re(eigen(cactusGAU_mat)$values[1]),
+  mean_lifespan(cactusGAU_matU, mixdist=cactus_c0),
+  mean_LRO(cactusGAU_matU,cactusGAU_matF,mixdist=cactus_c0),
+  var_LRO_mcr(cactusGAU_matU,cactusGAU_matF,mixdist=cactus_c0)^0.5,
+  mean_age_repro(cactusGAU_matU,cactusGAU_matF,mixdist=cactus_c0),
+  gen_time_mu1_v(cactusGAU_matU,cactusGAU_matF)
+)
+cactusSHASH_traits<-c(
+  Re(eigen(cactusSHASH_mat)$values[1]),
+  mean_lifespan(cactusSHASH_matU, mixdist=cactus_c0),
+  mean_LRO(cactusSHASH_matU,cactusSHASH_matF,mixdist=cactus_c0),
+  var_LRO_mcr(cactusSHASH_matU,cactusSHASH_matF,mixdist=cactus_c0)^0.5,
+  mean_age_repro(cactusSHASH_matU,cactusSHASH_matF,mixdist=cactus_c0),
+  gen_time_mu1_v(cactusSHASH_matU,cactusSHASH_matF)
+)
+
+
+orchidGAU_mat <- orchid$mat_GAU$matrix; orchidSST_mat <- orchid$mat_SST$matrix
+orchidGAU_matU <- orchid$mat_GAU$Tmatrix; orchidSST_matU <- orchid$mat_SST$Tmatrix
+orchidGAU_matF <- orchid$mat_GAU$Fmatrix; orchidSST_matF <- orchid$mat_SST$Fmatrix
+orchid_c0 = rep(0,nrow(orchidGAU_matU)); orchid_c0[1]=1
+orchidGAU_traits<-c(
+  Re(eigen(orchidGAU_mat)$values[1]),
+  mean_lifespan(orchidGAU_matU, mixdist=orchid_c0),
+  mean_LRO(orchidGAU_matU,orchidGAU_matF,mixdist=orchid_c0),
+  var_LRO_mcr(orchidGAU_matU,orchidGAU_matF,mixdist=orchid_c0)^0.5,
+  mean_age_repro(orchidGAU_matU,orchidGAU_matF,mixdist=orchid_c0),
+  gen_time_mu1_v(orchidGAU_matU,orchidGAU_matF)
+)
+orchidSST_traits<-c(
+  Re(eigen(orchidSST_mat)$values[1]),
+  mean_lifespan(orchidSST_matU, mixdist=orchid_c0),
+  mean_LRO(orchidSST_matU,orchidSST_matF,mixdist=orchid_c0),
+  var_LRO_mcr(orchidSST_matU,orchidSST_matF,mixdist=orchid_c0)^0.5,
+  mean_age_repro(orchidSST_matU,orchidSST_matF,mixdist=orchid_c0),
+  gen_time_mu1_v(orchidSST_matU,orchidSST_matF)
+)
+
+round(as.matrix(rbind(lichenGAU_traits,lichenJSU_traits,
+                      cactusGAU_traits,cactusSHASH_traits,
+                      orchidGAU_traits,orchidSST_traits)),3) 
+
+
+

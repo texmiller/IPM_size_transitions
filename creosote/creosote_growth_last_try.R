@@ -150,15 +150,15 @@ title("B",adj=0,font=3)
 
 plot(LATR_grow$GAU_mean,LATR_grow$GAU_scaled_resids,col=alpha("black",0.25),
      xlab="Expected size at t+1",ylab="Scaled residuals of size at t+1")
-points(LATR_grow$GAU_fitted,predict(S.05),col="black",pch=".")
-points(LATR_grow$GAU_fitted,predict(S.10),col="black",pch=".")
-points(LATR_grow$GAU_fitted,predict(S.25),col="black",pch=".")
-points(LATR_grow$GAU_fitted,predict(S.50),col="black",pch=".")
-points(LATR_grow$GAU_fitted,predict(S.75),col="black",pch=".")
-points(LATR_grow$GAU_fitted,predict(S.90),col="black",pch=".")
-points(LATR_grow$GAU_fitted,predict(S.95),col="black",pch=".")
+points(LATR_grow$GAU_mean,predict(S.05),col="black",pch=".")
+points(LATR_grow$GAU_mean,predict(S.10),col="black",pch=".")
+points(LATR_grow$GAU_mean,predict(S.25),col="black",pch=".")
+points(LATR_grow$GAU_mean,predict(S.50),col="black",pch=".")
+points(LATR_grow$GAU_mean,predict(S.75),col="black",pch=".")
+points(LATR_grow$GAU_mean,predict(S.90),col="black",pch=".")
+points(LATR_grow$GAU_mean,predict(S.95),col="black",pch=".")
 par(new = TRUE)                           
-plot(c(LATR_grow$GAU_fitted,LATR_grow$GAU_fitted),
+plot(c(LATR_grow$GAU_mean,LATR_grow$GAU_mean),
      c(NPS_hat,NPK_hat),
      col=c(rep(alpha("blue",0.25),nrow(LATR_grow)),rep(alpha("red",0.25),nrow(LATR_grow))),
      pch=16,cex=.5,axes = FALSE, xlab = "", ylab = "")
@@ -639,8 +639,8 @@ lines(mat_GAU$meshpts,survival(mat_GAU$meshpts,d=0),col="red",lwd=2)##good
 plot(mat_JSU$meshpts,colSums(mat_JSU$Pmat))
 lines(mat_JSU$meshpts,survival(mat_JSU$meshpts,d=0),col="red",lwd=2)##good
 
-## write out approx. matrices for comparative analyses
-saveRDS(list(mat_GAU,mat_JSU),"creosote_matrices.RData")
+## write out for cross-spp analysis
+write_rds(list(mat_GAU=mat_GAU,mat_JSU=mat_JSU),file="creosote_out.rds")
 
 params_GAU <- WALD_par(mat=mat_GAU)
 params_JSU <- WALD_par(mat=mat_JSU)
