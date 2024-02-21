@@ -14,6 +14,7 @@ lichen<-readRDS("lichen/lichen_out.rds")
 cactus<-readRDS("cactus/cactus_out.rds")
 orchid<-readRDS("orchid/orchid_out.rds")
 pike<-readRDS("pike/pike_out.rds")
+creosote<-readRDS("creosote/creosote_out.rds")
 
 # residuals plot
 alpha_val <- 0.15
@@ -134,6 +135,7 @@ dev.off()
 ### Table of life history traits from matrices
 source("./code/metaluck_fns_CMH.R")
 
+##lichen
 lichenGAU_mat <- lichen$mat_GAU$K; lichenJSU_mat <- lichen$mat_JSU$K
 lichenGAU_matU <- lichen$mat_GAU$P; lichenJSU_matU <- lichen$mat_JSU$P
 lichenGAU_matF <- lichen$mat_GAU$F; lichenJSU_matF <- lichen$mat_JSU$F
@@ -142,7 +144,7 @@ lichenGAU_traits<-c(
   Re(eigen(lichenGAU_mat)$values[1]),
   mean_lifespan(lichenGAU_matU, mixdist=lichen_c0),
   mean_LRO(lichenGAU_matU,lichenGAU_matF,mixdist=lichen_c0),
-  var_LRO_mcr(lichenGAU_matU,lichenGAU_matF,mixdist=lichen_c0)^0.5,
+  #var_LRO_mcr(lichenGAU_matU,lichenGAU_matF,mixdist=lichen_c0)^0.5,
   mean_age_repro(lichenGAU_matU,lichenGAU_matF,mixdist=lichen_c0),
   gen_time_mu1_v(lichenGAU_matU,lichenGAU_matF)
 )
@@ -150,11 +152,12 @@ lichenJSU_traits<-c(
   Re(eigen(lichenJSU_mat)$values[1]),
   mean_lifespan(lichenJSU_matU, mixdist=lichen_c0),
   mean_LRO(lichenJSU_matU,lichenJSU_matF,mixdist=lichen_c0),
-  var_LRO_mcr(lichenJSU_matU,lichenJSU_matF,mixdist=lichen_c0)^0.5,
+  #var_LRO_mcr(lichenJSU_matU,lichenJSU_matF,mixdist=lichen_c0)^0.5,
   mean_age_repro(lichenJSU_matU,lichenJSU_matF,mixdist=lichen_c0),
   gen_time_mu1_v(lichenJSU_matU,lichenJSU_matF)
 )
 
+##cactus
 cactusGAU_mat <- cactus$mat_GAU$IPMmat; cactusSHASH_mat <- cactus$mat_SHASH$IPMmat
 cactusGAU_matU <- cactus$mat_GAU$Tmat; cactusSHASH_matU <- cactus$mat_SHASH$Tmat
 cactusGAU_matF <- cactus$mat_GAU$Fmat; cactusSHASH_matF <- cactus$mat_SHASH$Fmat
@@ -163,7 +166,7 @@ cactusGAU_traits<-c(
   Re(eigen(cactusGAU_mat)$values[1]),
   mean_lifespan(cactusGAU_matU, mixdist=cactus_c0),
   mean_LRO(cactusGAU_matU,cactusGAU_matF,mixdist=cactus_c0),
-  var_LRO_mcr(cactusGAU_matU,cactusGAU_matF,mixdist=cactus_c0)^0.5,
+  #var_LRO_mcr(cactusGAU_matU,cactusGAU_matF,mixdist=cactus_c0)^0.5,
   mean_age_repro(cactusGAU_matU,cactusGAU_matF,mixdist=cactus_c0),
   gen_time_mu1_v(cactusGAU_matU,cactusGAU_matF)
 )
@@ -171,12 +174,12 @@ cactusSHASH_traits<-c(
   Re(eigen(cactusSHASH_mat)$values[1]),
   mean_lifespan(cactusSHASH_matU, mixdist=cactus_c0),
   mean_LRO(cactusSHASH_matU,cactusSHASH_matF,mixdist=cactus_c0),
-  var_LRO_mcr(cactusSHASH_matU,cactusSHASH_matF,mixdist=cactus_c0)^0.5,
+  #var_LRO_mcr(cactusSHASH_matU,cactusSHASH_matF,mixdist=cactus_c0)^0.5,
   mean_age_repro(cactusSHASH_matU,cactusSHASH_matF,mixdist=cactus_c0),
   gen_time_mu1_v(cactusSHASH_matU,cactusSHASH_matF)
 )
 
-
+##orchid
 orchidGAU_mat <- orchid$mat_GAU$matrix; orchidSST_mat <- orchid$mat_SST$matrix
 orchidGAU_matU <- orchid$mat_GAU$Tmatrix; orchidSST_matU <- orchid$mat_SST$Tmatrix
 orchidGAU_matF <- orchid$mat_GAU$Fmatrix; orchidSST_matF <- orchid$mat_SST$Fmatrix
@@ -185,7 +188,7 @@ orchidGAU_traits<-c(
   Re(eigen(orchidGAU_mat)$values[1]),
   mean_lifespan(orchidGAU_matU, mixdist=orchid_c0),
   mean_LRO(orchidGAU_matU,orchidGAU_matF,mixdist=orchid_c0),
-  var_LRO_mcr(orchidGAU_matU,orchidGAU_matF,mixdist=orchid_c0)^0.5,
+  #var_LRO_mcr(orchidGAU_matU,orchidGAU_matF,mixdist=orchid_c0)^0.5,
   mean_age_repro(orchidGAU_matU,orchidGAU_matF,mixdist=orchid_c0),
   gen_time_mu1_v(orchidGAU_matU,orchidGAU_matF)
 )
@@ -193,14 +196,70 @@ orchidSST_traits<-c(
   Re(eigen(orchidSST_mat)$values[1]),
   mean_lifespan(orchidSST_matU, mixdist=orchid_c0),
   mean_LRO(orchidSST_matU,orchidSST_matF,mixdist=orchid_c0),
-  var_LRO_mcr(orchidSST_matU,orchidSST_matF,mixdist=orchid_c0)^0.5,
+  #var_LRO_mcr(orchidSST_matU,orchidSST_matF,mixdist=orchid_c0)^0.5,
   mean_age_repro(orchidSST_matU,orchidSST_matF,mixdist=orchid_c0),
   gen_time_mu1_v(orchidSST_matU,orchidSST_matF)
 )
 
-round(as.matrix(rbind(lichenGAU_traits,lichenJSU_traits,
+##pike
+pikeGAU_mat <- pike$GAU_IPM$IPMmat; pikeSHASH_mat <- pike$SHASH_IPM$IPMmat
+pikeGAU_matU <- pike$GAU_IPM$Pmat; pikeSHASH_matU <- pike$SHASH_IPM$Pmat
+pikeGAU_matF <- pike$GAU_IPM$Fmat; pikeSHASH_matF <- pike$SHASH_IPM$Fmat
+pike_c0 = rep(0,nrow(pikeGAU_matU)); pike_c0[1]=1
+pikeGAU_traits<-c(
+  Re(eigen(pikeGAU_mat)$values[1]),
+  mean_lifespan(pikeGAU_matU, mixdist=pike_c0),
+  mean_LRO(pikeGAU_matU,pikeGAU_matF,mixdist=pike_c0),
+  #var_LRO_mcr(pikeGAU_matU,pikeGAU_matF,mixdist=pike_c0)^0.5,
+  mean_age_repro(pikeGAU_matU,pikeGAU_matF,mixdist=pike_c0),
+  gen_time_mu1_v(pikeGAU_matU,pikeGAU_matF)
+)
+pikeSHASH_traits<-c(
+  Re(eigen(pikeSHASH_mat)$values[1]),
+  mean_lifespan(pikeSHASH_matU, mixdist=pike_c0),
+  mean_LRO(pikeSHASH_matU,pikeSHASH_matF,mixdist=pike_c0),
+  #var_LRO_mcr(pikeSHASH_matU,pikeSHASH_matF,mixdist=pike_c0)^0.5,
+  mean_age_repro(pikeSHASH_matU,pikeSHASH_matF,mixdist=pike_c0),
+  gen_time_mu1_v(pikeSHASH_matU,pikeSHASH_matF)
+)
+
+##creosote
+creosoteGAU_mat <- creosote$mat_GAU$IPMmat; creosoteJSU_mat <- creosote$mat_JSU$IPMmat
+creosoteGAU_matU <- creosote$mat_GAU$Pmat; creosoteJSU_matU <- creosote$mat_JSU$Pmat
+creosoteGAU_matF <- creosote$mat_GAU$Fmat; creosoteJSU_matF <- creosote$mat_JSU$Fmat
+creosote_c0 = rep(0,nrow(creosoteGAU_matU)); creosote_c0[1]=1
+creosoteGAU_traits<-c(
+  Re(eigen(creosoteGAU_mat)$values[1]),
+  mean_lifespan(creosoteGAU_matU, mixdist=creosote_c0),
+  mean_LRO(creosoteGAU_matU,creosoteGAU_matF,mixdist=creosote_c0),
+  #var_LRO_mcr(creosoteGAU_matU,creosoteGAU_matF,mixdist=creosote_c0)^0.5,
+  mean_age_repro(creosoteGAU_matU,creosoteGAU_matF,mixdist=creosote_c0),
+  gen_time_mu1_v(creosoteGAU_matU,creosoteGAU_matF)
+)
+creosoteJSU_traits<-c(
+  Re(eigen(creosoteJSU_mat)$values[1]),
+  mean_lifespan(creosoteJSU_matU, mixdist=creosote_c0),
+  mean_LRO(creosoteJSU_matU,creosoteJSU_matF,mixdist=creosote_c0),
+  #var_LRO_mcr(creosoteJSU_matU,creosoteJSU_matF,mixdist=creosote_c0)^0.5,
+  mean_age_repro(creosoteJSU_matU,creosoteJSU_matF,mixdist=creosote_c0),
+  gen_time_mu1_v(creosoteJSU_matU,creosoteJSU_matF)
+)
+
+## compile species into table
+traits_table<-round(as.matrix(rbind(
+                      lichenGAU_traits,lichenJSU_traits,
                       cactusGAU_traits,cactusSHASH_traits,
-                      orchidGAU_traits,orchidSST_traits)),3) 
-
-
+                      orchidGAU_traits,orchidSST_traits,
+                      pikeGAU_traits,pikeSHASH_traits,
+                      creosoteGAU_traits,creosoteJSU_traits)),3) 
+spp_names<-c("Lichen (Vulpicida pinastri)",
+             "Cactus (Cylindriopunia imbricata)",
+             "Orchid (Orchis purpurea)",
+             "Pike (Esox lucius)",
+             "Creosote (Larrea tridentata)")
+out_table<-data.frame(cbind(rep(spp_names,each=2),
+               rep(c("Gaussian","Imrpoved"),times=length(spp_names)),
+               traits_table),row.names=NULL)
+names(out_table)<-c("Species","Growth model","lambda","Lifespan",
+                    "Lifetime reproductive output","Age at reproduction","Generation time")
 
