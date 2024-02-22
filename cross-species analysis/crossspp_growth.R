@@ -252,14 +252,20 @@ traits_table<-round(as.matrix(rbind(
                       orchidGAU_traits,orchidSST_traits,
                       pikeGAU_traits,pikeSHASH_traits,
                       creosoteGAU_traits,creosoteJSU_traits)),3) 
-spp_names<-c("Lichen (Vulpicida pinastri)",
-             "Cactus (Cylindriopunia imbricata)",
-             "Orchid (Orchis purpurea)",
-             "Pike (Esox lucius)",
-             "Creosote (Larrea tridentata)")
-out_table<-data.frame(cbind(rep(spp_names,each=2),
-               rep(c("Gaussian","Imrpoved"),times=length(spp_names)),
+spp_names<-c("Lichen","(Vulpicida pinastri)",
+             "Cactus","(Cylindriopunia imbricata)",
+             "Orchid","(Orchis purpurea)",
+             "Pike","(Esox Lucius)",
+             "Creosote","(Larrea tridentata)")
+out_table<-data.frame(cbind(spp_names,rep(c("Gaussian","Improved"),times=length(spp_names)/2),
                traits_table),row.names=NULL)
 names(out_table)<-c("Species","Growth model","lambda","Lifespan",
                     "Lifetime reproductive output","Age at reproduction","Generation time")
+
+## print latex code then paste into ms
+bold <- function(x) {paste('{\\textbf{',x,'}}', sep ='')}
+print(xtable(out_table,align="rrp{1.5cm}|p{1.5cm}p{1.5cm}p{1.5cm}p{1.5cm}p{1.5cm}"),
+      size="\\fontsize{9pt}{10pt}\\selectfont",include.rownames=FALSE,
+      hline.after=c(0,2,4,6,8),
+      sanitize.colnames.function=bold)
 
