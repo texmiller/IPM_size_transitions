@@ -90,35 +90,53 @@ q.95<-predict(qgam(scaledResids~s(log_t0,k=4), data=pike_final,qu=0.95))
 NPS_hat<-Q.skewness(q.10,q.50,q.90)
 NPK_hat<-Q.kurtosis(q.05,q.25,q.75,q.95)
 
+pdf("manuscript/figures/pike_resid_diagnostics.pdf",height = 5, width = 11,useDingbats = F)
 ## mean and sd of size transition
-plot(pike_final$log_t0,pike_final$log_t1,pch=".")
-lines(pike_final$log_t0,pike_gau_pred[,1],col="red")
+par(mfrow=c(1,2),mar = c(5, 5, 2, 3), oma=c(0,0,0,2)) 
+plot(pike_final$log_t0,pike_final$log_t1,pch=".",col=alpha("black",0.25),
+     xlab="log(length), time t",ylab="log(length), time t+1")
+lines(pike_final$log_t0,pike_gau_pred[,1],col="red",lwd=2)
+abline(0,1)
 par(new = TRUE)                           
 plot(pike_final$log_t0,1/pike_gau_pred[,2],col="blue",pch=16,cex=.5,
-     axes = FALSE, xlab = "", ylab = "",type="l")
+     axes = FALSE, xlab = "", ylab = "",type="l",lwd=2)
 axis(side = 4, at = pretty(range(1/pike_gau_pred[,2])))
+mtext("Standard deviation", side = 4, line = 2)
 abline(0,1)
+legend("bottom",legend=c("Fitted mean","Fitted sd"),bg="white",lwd=2,col=c("red","blue"),cex=0.8)
+title("A",font=3,adj=0)
 
 ## scaled residuals plot
-par(mar = c(5, 5, 2, 3), oma=c(0,0,0,2)) 
 plot(pike_final$log_t0,pike_final$scaledResids,col=alpha("black",0.25),pch=".",
-     xlab="log length, time t",ylab="Scaled residuals of log length at t+1")
-lines(pike_final$log_t0,q.05,col="black",pch=".")
-lines(pike_final$log_t0,q.10,col="black",pch=".")
-lines(pike_final$log_t0,q.25,col="black",pch=".")
-lines(pike_final$log_t0,q.50,col="black",pch=".")
-lines(pike_final$log_t0,q.75,col="black",pch=".")
-lines(pike_final$log_t0,q.90,col="black",pch=".")
-lines(pike_final$log_t0,q.95,col="black",pch=".")
+     xlab="log(length), time t",ylab="Scaled residuals of log(length) at t+1")
+lines(pike_final$log_t0,q.05,col="black")
+lines(pike_final$log_t0,q.10,col="black")
+lines(pike_final$log_t0,q.25,col="black")
+lines(pike_final$log_t0,q.50,col="black")
+lines(pike_final$log_t0,q.75,col="black")
+lines(pike_final$log_t0,q.90,col="black")
+lines(pike_final$log_t0,q.95,col="black")
 par(new = TRUE)                           
-plot(c(pike_final$log_t0,pike_final$log_t0),c(NPS_hat,NPK_hat),
-     col=c(rep(alpha("blue",0.25),nrow(pike_final)),rep(alpha("red",0.25),nrow(pike_final))),
-     type="p",pch=16,cex=.5, axes = FALSE, xlab = "", ylab = "")
-abline(h=0,col="lightgray",lty=3)
+matplot(cbind(pike_final$log_t0,pike_final$log_t0),
+        cbind(NPS_hat,NPK_hat),
+        type="l",lwd=2,
+        col=c("blue3","red3"), lty=1, axes = FALSE, xlab = "", ylab = "",cex.axis=0.8)
 axis(side = 4, at = pretty(range(c(NPS_hat,NPK_hat))),cex.axis=0.8)
-mtext("Skewness", side = 4, line = 2,col="blue")
-mtext("Excess Kurtosis", side = 4, line =3,col="red")
+mtext("NP skewness or kurtosis", side = 4, line = 2)
+legend("topright",legend=c("Skewness","Excess kurtosis"),bg="white",lwd=1.5,col=c("blue3","red3"),cex=0.8)
+title("B",font=3,adj=0)
+dev.off()
 
+##do we ever get a non-zero probability of shrinkage?
+size_dummy <- seq(min(pike_final$log_t0),max(pike_final$log_t1),0.01)
+plot(size_dummy,dnorm(size_dummy,
+      mean=pike_gau_pred[1,1],
+      sd=1/pike_gau_pred[1,2]),type="l")
+abline(v=pike_final$log_t0[1],col="red")
+lines(size_dummy,dnorm(size_dummy,
+           mean=pike_gau_pred[nrow(pike_final),1],
+           sd=1/pike_gau_pred[nrow(pike_final),2]),type="l")
+abline(v=pike_final$log_t0[nrow(pike_final)],col="blue")
 
 ## gonna try a gam shash (bc that's what's easy in mgcv)
 pike_gam_shash <- gam(list(log_t1 ~ s(log_t0,k=4), # <- model for location 
