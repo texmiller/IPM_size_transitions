@@ -128,7 +128,7 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 \noindent\textbf{Running header:} Better growth modeling for IPMs
 
 \bigskip 
-\noindent\textbf{Acknowledgements:} This research was supported by US NSF grants DEB-1933497 to SPE and DEB-1754468, 2208857, and 2225027 to TEXM. 
+\noindent\textbf{Acknowledgements:} This research was supported by US NSF grants DEB-1933497 to SPE and DEB-1754468, 2208857, and 2225027 to TEXM. Giles Hooker gave us the very good idea to use quantile regression for non-parameteric estimates of skewness and excess kurtosis. 
 
 \bigskip 
 \noindent\textbf{Authorship statement:} All authors discussed all aspects of the research and contributed to developing methods, analyzing data, and writing and revising the paper.  
@@ -431,13 +431,13 @@ In this case study, properly modeling non-normal size transitions -- which was e
 		(Orchis purpurea) & Improved & 1.09 & 1.079 & 19.378 & 5.027 & 100.753 \\ 
 		\hline
 		Pike & Gaussian & 1.762 & 1.122 & 1.172 & 1.311 & 4.807 \\ 
-		(Esox Lucius) & Improved & 1.764 & 1.123 & 1.236 & 1.303 & 4.788 \\ 
+		(Esox lucius) & Improved & 1.764 & 1.123 & 1.236 & 1.303 & 4.788 \\ 
 		\hline
 		Creosote & Gaussian & 1.039 & 21651.948 & 1998.486 & 29.338 & 241517.676 \\ 
 		(Larrea tridentata) & Improved & 1.04 & 19613.824 & 1814.89 & 31.668 & 215330.883 \\ 
 	\end{tabular}
 	\endgroup
-	\caption{Life history attributes derived from IPM kernels that included Gaussian or ``improved'' growth sub-models for five case studies. The improved distributions were JSU (lichen, creosote), SHASH (cactus, pike), and skewed $t$ (orchid). Table can be reproduced from script \texttt{crossspp\_growth.R}.}
+	\caption{Life history attributes derived from IPM kernels that included Gaussian or ``improved'' growth sub-models for five case studies. The improved distributions were JSU (lichen, creosote), SHASH (cactus, pike), and skewed $t$ (orchid). Pike and creosote case studies are presented in the Supporting Information. Table can be reproduced from script \texttt{crossspp\_growth.R}.}
 	\label{tab:crossspp}
 \end{table}
 
@@ -610,7 +610,7 @@ With this opportunity comes the burden of getting it right: IPMs are good models
 The growth sub-model is the trickiest part of ``getting it right'' because it defines a distribution of future size conditional on current size. 
 Distributions have many properties -- ``moments'' -- and a good growth model should recapitulate the properties of real size transitions. 
 The default assumption of normally distributed size transitions, employed overwhelmingly across 20+ years of IPM studies, is an arbitrary historical precedent. 
-In our case studies (chosen simply because we had the data at our fingertips) and, we suspect, more broadly, skewness and excess kurtosis were common features of size transition data: shrinking was more common than growing, and large changes in size were more common than a Gaussian model would predict. 
+In our case studies (chosen simply because we had the data at our fingertips) and, we suspect, more broadly, skewness and excess kurtosis were common features of size transition data. 
 Our most important message is that the standard assumption of normally-distributed size transitions should be abandoned and a more inquisitive process of growth modeling should take its place. 
 
 We have attempted to lay out a general workflow for what that process should look like, guided by visual diagnostics of standardized residuals that characterize the ways in which growth data may deviate from Gaussian. 
@@ -645,10 +645,10 @@ It is worth noting that most of our case studies focused on perennial life histo
 Life histories such as these may be relatively robust to subtle features of the growth kernel. 
 In the Supporting Information we present two additional case studies that broaden our life history coverage, including pike (\emph{Esox lucius}), a fish with a generation time of four to five years and creosotebush (\emph{Larrea tridentata}), a desert shrub that is virtually immortal once established with a generation time exceeding 200,000 years. 
 Life history metrics from the ``fast'' fish population were no more sensitive to improved growth modeling than those of the perennial plants and lichens, while the creosotebush generation time differed by $>25,000$ years between Gaussian and improved growth models (Table \ref{tab:crossspp}). 
-More systematic comparative analyses may provide insight into which types of species and life histories are more likely to exhibit strong skewness and kurtosis, and and which demographic quantities are more or less sensitive to these features of size transition. 
+More systematic comparative analyses may provide insight into which types of species and life histories are more likely to exhibit strong skewness and kurtosis, and which demographic quantities are more or less sensitive to these features of size transition. 
 It is worth noting, as we saw in several case studies, that different outputs from the same model can be more or less sensitive to the choice of growth distribution. 
 
-Across our case studies we have attempted to illustrate a diversity of software packages and computational approaches to model fitting, to reflect the diversity of preferences and habits that the community of IPM users bring to their own analyses. 
+Across our case studies we have attempted to illustrate a diversity of software packages and computational approaches to model fitting, to reflect the diversity of preferences and habits that the community of IPM analysts bring to their own problems. 
 We like generalized additive models (gams) for their flexibility and for \textbf{mgcv}'s numerous options for distribution families and overall speed and reliability. 
 However, there are some applications for which classical parametric regression would be preferable because the coefficients carry biological meaning.
 For example, regression coefficients may be targets of natural selection \citep{rees2016evolving} and may combine to influence traits of interest such as the expected size at flowering (e.g. in Fig. \ref{fig:orchid_ESS}A), a function of the intercept and slope of the size-dependent flowering function \citep{metcalf2003evolutionary}. 
@@ -656,26 +656,19 @@ Some potentially useful but relatively obscure distributions may not be availabl
 We have illustrated fitting growth models using maximum likelihood but Bayesian analysis is another option that may further broaden the options of non-Gaussian candidate distributions and may help estimate hard-to-fit parameters through the brute force of sampling algorithms. 
 Bayesian analysis also provides a natural way to propagate uncertainty from the vital rate sub-models through the predictions of the IPM \citep{elderd2016quantifying}. 
 
-This paper has focused on size transitions, but IPMs have been increasingly extended in ways that capture other continuous state variables, and the same problems and solutions we propose should apply in those cases. 
-For example, IPMs can be used to model infectious disease dynamics, where hosts may exhibit continuous variation in infection load (e.g., parasite density), and host vital rate processes depend on infection load \citep{metcalf2016opportunities,wilber2016integral}. 
+This paper has focused on size transitions, but IPMs have been extended in ways that capture other continuous state variables, and the same problems and solutions we propose should apply in those cases. 
+For example, IPMs can be used to model infectious disease dynamics, where hosts may exhibit continuous variation in infection load (e.g., parasite density), and host vital rate processes depend on infection intensity \citep{metcalf2016opportunities,wilber2016integral}. 
 Such models must define probabilities of future infection load conditional on current load, and would therefore benefit from the same modeling workflow that we have outlined for size transitions.
 
+\tom{}{Maybe include a teaser paragraph for the stuff Steve is working on with Giles?}
+
 \subsection{Conclusion}
-Our focus on modeling size transitions is admittedly deep in the weeds of demographic analysis that ``casual
+Normally-distributed size transitions are probably the exception, not the rule. 
+Yet, two decades-worth of IPM studies have relied overwhelmingly on Gaussian growth models. 
+Using tools not available when IPMs were first developed, it is now very easy to do much better without any sacrifice in richness or complexity of covariates and random effects. 
+By generating predicted size transitions that are truer to the data, IPM analysts can narrow the gap between model and nature. 
 
-
-\section*{Acknowledgements} 
-This research was supported by US NSF grants DEB-1933497 to SPE and DEB-1754468, 2208857, and 2225027 to TEXM. 
-
-\section{Authorship statement} 
-All authors discussed all aspects of the research and contributed to developing methods, analyzing data, and writing and revising the paper.  
-
-\section{Data accessibility statement}
-No original data appear in this paper. Should the paper be accepted, all computer scripts supporting the results will be archived in a Zenodo package, with the DOI included at the end of the article. 
-During peer review, our data and code are available at \url{https://github.com/texmiller/IPM_size_transitions}. 
-	
 \newpage 
-
 %\bibliographystyle{EcologyLetters}
 \bibliographystyle{apalike}
 \bibliography{BetterGrowthModeling}
@@ -1115,11 +1108,58 @@ Weak size-dependence in survival likely explains why the improvement in growth m
 	\label{fig:creosote_lambda_cstar}
 \end{figure}
 
- \section{Additional results}
+\subsection{Case study: pike, \emph{Esox lucius}}
+Our final case study comes from a long-term study of pike (\emph{Esox lucius}) at Windemere in the English Lake District, UK. 
+Fish were gill-netted and destructively sampled to retrieve otoliths. 
+Lengths (cm) were recorded at the time of sampling and back-casted to estimate length in the preceding year. 
+There were size transitions in the data set. 
+These data are publicly available \citep{winfield2013pikegrowth}, as are data on size-specific fertility and survival \citep{winfield2013pikesurvival,winfield2013pikefecundity}, and have been analyzed in previous IPM studies \citep{vindenes2014effects,stubberud2019effects}. 
+Previous authors modeled growth using a log-normal distribution to ensure that change in length was non-negative. 
+Here, we do not attempt to reproduce the published IPMs but rather use the growth data as an additional test case of non-Gaussian growth modeling for a short-lived vertebrate. 
+
+With no additional covariates or random effects, this is a simple growth model of final size conditional on initial size. 
+We use the natural log of length. 
+Our first step was a Gaussian model of $log(length)$ where the mean and standard deviation are smooth functions of initial size fit using the \texttt{gaulss()} family in \textbf{mgcv}. 
+We then derive the scaled residuals from the fitted mean and standard deviation:
+\begin{lstlisting}
+# pike is the data frame
+#t1 and t0 are final and inital log(length), respectively
+pike_gau<-gam(list(t1 ~ s(t0,k=4), ~s(t0,k=4)), data=pike, family=gaulss())
+pike_gau_pred<-predict(pike_gau,type="response")
+pike$fitted_mean<-pike_gau_pred,1
+pike$fitted_sd<-1/pike_gau_pred[,2]
+pike$scaledResids=residuals(pike_gau,type="response")/fitted_sd
+\end{lstlisting}
+Growth variance strongly decreased with initial size and size transitions were strongly positively skewed, with up to a 75\% difference in tail weight at small sizes (Fig. \ref{fig:pike_diagnostics}). 
+Size transitions were fat-tailed at small initial sizes but were consistent with Gaussian tails at large initial sizes. 
+
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/pike_resid_diagnostics.pdf}
+	\caption{\textbf{A}, Size transition data for pike, \emph{Esox lucius}, and fitted gam with mean (red) and standard deviation (blue) of future size conditional on current size.  \textbf{B}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (red) and excess kurtosis (blue) derived from them. Black lines in \textbf{B} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles.}
+	\label{fig:pike_diagnostics}
+\end{figure} 
+
+Our improved growth model was a SHASH gam that defined all four parameters as smooth functions of initial size.
+\begin{lstlisting}
+pike_gam_shash <- gam(list(t1 ~ s(t0,k=4), # <- model for location 
+	~ s(t0,k=4),   # <- model for log-scale
+	~ s(t0,k=4),   # <- model for skewness
+	~ s(t0,k=4)), # <- model for log-kurtosis
+	data = pike, family = shash,  optimizer = "efs")
+\end{lstlisting}
+We also tried gamma regression on the change in size, to ensure strictly increasing size transitions, but found that this was not necessary to prevent shrinkage and did not provide as good a fit as the SHASH. 
+Data simulated from the SHASH and Gaussian models are shown in \tom{Fig. \ref{}}{Tom will get this uploaded once the simulations are done.}.
+
+For the remainder of the IPM, we fit gams for survival and egg production as smooth functions of size. 
+Parameter values for fertilization probability, fraction female (the IPM is female-dominant), and probability of survival from egg to 1-yo came from \cite{stubberud2019effects}, Table 2. 
+ 
+
+\section{Additional results}
  
  \begin{figure}[tbp]
  	\centering
- 	\includegraphics[width=1.0\textwidth]{figures/cactus_SHASH_fit.jpg}
+ 	\includegraphics[width=1.0\textwidth]{figures/cactus_SHASH_fit.pdf}
  	\caption{Comparisons among real cactus data and data simulated from Gaussian and SHASH growth models for mean, standard deviation, NP skewness, and NP excess kurtosis of future size conditional on current size. Figure made by script \texttt{cactus\_growth\_modeling\_qgam.R}.}
  	\label{fig:cactus_fit}
  \end{figure} 
