@@ -146,10 +146,10 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 %350 word limit on abstract, must be numbered 1-4
 \section*{Abstract} 
 \begin{enumerate}
-	\item Integral Projection Models (IPMs) are widely used for studying the dynamics of continuously size-structured populations. IPMs require a growth sub-model that describes the probability of future size conditional on current size. Over the past two decades, most IPM studies have assumed that this probability is normally-distributed, despite repeated calls for non-Gaussian approaches that accommodate skewness and kurtosis known to occur in size transition data. %set the context for and purpose of the work
-	\item We provide a general workflow for modeling size transitions that accommodates non-Gaussian growth patterns while retaining the desirable features that Gaussian approaches typically provide (ecologically important covariates and random effects). Our approach emphasizes visual diagnostics of residuals from pilot Gaussian models and quantile-based metrics of skewness and kurtosis that vet the fit of the Gaussian distribution and guide the selection of an alternative, if necessary. We illustrate our methods by reanalyzing size transition data from published IPM studies, targeting a diversity of demographic quantities including population growth rate, extinction risk, and evolutionarily stable life history strategies. %indicate the approach and methods
+	\item Integral Projection Models (IPMs) are widely used for studying the dynamics of continuously size-structured populations. IPMs require a growth sub-model that describes the probability distribution of future size conditional on current size and covariates. Over the past two decades, most IPM studies have assumed that this distribution is Gaussian, despite repeated calls for non-Gaussian approaches that accommodate skewness and kurtosis known to occur in size transition data. %set the context for and purpose of the work
+	\item We provide a general workflow for modeling size transitions that accommodates non-Gaussian growth patterns while retaining the desirable features that Gaussian approaches typically provide, ecologically important covariates and random effects. Our approach emphasizes visual diagnostics of residuals from pilot Gaussian models and quantile-based metrics of skewness and kurtosis that vet the fit of the Gaussian distribution and guide selection of an alternative, if necessary. We illustrate our methods by reanalyzing size transition data from published IPM studies, targeting a diversity of demographic quantities including population growth rate, extinction risk, and evolutionarily stable life history strategies. %indicate the approach and methods
 	\item Across five case studies, skewness and excess kurtosis were common features of size transition data and non-Gaussian growth models consistently generated simulated data that were more consistent with the real data than pilot Gaussian models. However, in these case studies, the effects of ``improved'' growth modeling on IPM results were moderate to weak, and differed in direction or magnitude between different outputs from the same model. 
-	\item Using tools that were not available when IPMs were first developed, it is now possible to fit non-Gaussian models to size transition data without sacrificing ecological complexity; our worked examples demonstrate how, including open-access data and computing scripts. Doing so, as guided by careful interrogation of the data, will result in a model that better represents the population for which it is intended. %identify the conclusions and the wider implications
+	\item Using tools that were not available when IPMs were first developed, it is now possible to fit non-Gaussian models to size transition data without sacrificing ecological complexity; our worked examples demonstrate how, including open-access data and computing scripts. Doing so, as guided by careful interrogation of the data, will result in models that better represents the populations for which they are intended. %identify the conclusions and the wider implications
 \end{enumerate}
 
 %alphabetical order not exceeding eight words or short phrases
@@ -176,12 +176,12 @@ Whenever survival and reproduction are size-dependent, the entire distribution o
 
 The original template for modeling size transitions in IPMs was provided by Easterling et al. \citeyear{easterling2000size}. 
 They first tried simple linear regression, assuming normally distributed size changes with constant variance. 
-Because the residuals from this regression exhibited non-constant variance, they used a two-step approach that estimated the size-dependence in the residual variance (better options soon became available, such as the \texttt{lme} function in R). 
+Because the residuals from this regression exhibited non-constant variance, they used a two-step approach that estimated the size-dependence in mean squared residuals (better options soon became available, such as the \texttt{lme} function in R). 
 However, even after accounting for non-constant variance, growth data may still deviate from the assumption that size transitions are normally distributed.  
 Size transitions are often skewed such that large decreases are more common than large increases \citep{peterson2019improving,salguero2010keeping}, or vice versa \citep{stubberud2019effects}.
 Size transitions may also exhibit excess kurtosis (`fat tails'), where extreme growth or shrinkage is more common than predicted by the tails of the normal distribution \citep{herault2011functional}. 
 
-The observation that the normal (or ``Gaussian'') distribution may poorly describe size transitions in real organisms has been made before,  
+The observation that the normal (or Gaussian) distribution may poorly describe size transitions in real organisms has been made before,  
 and several studies have emphasized that alternative distributions should be explored \citep{easterling2000size,peterson2019improving,rees2014building,williams2012avoiding}. 
 Nonetheless, default use of Gaussian growth distributions (often with non-constant variance) remains the standard practice. 
 The general state-of-the-art in the literature appears to remain where it was 20 or so years ago, using the default model without pausing to examine critically whether or not it actually provides a good description of the data. 
@@ -230,7 +230,7 @@ If the standardized residuals are satisfactorily Gaussian, skip to the final ste
 There are many ways that growth data may deviate from Gaussian, and the nature of those deviations can guide the search for a better distribution. 
 Frequentist tests such as the D'Agostino test of skewness \citep{d1970transformation} and the Anscombe-Glynn test of kurtosis \citep{anscombe1983distribution} could be used to diagnose whether the aggregate distribution of standardized residuals deviates from normality (R package \textbf{moments} \citep{komsta2015moments}). 
 However, the aggregate distribution of standardized residuals may be misleading if properties such as skew and kurtosis vary with size or other covariates. 
-For example, a change in the direction of skewness from small to large sizes might produce zero overall skewness, but really requires a distribution flexible enough to accommodate both positive and negative skew, such as the skewed normal or Johnson $S_{U}$ distributions. 
+For example, a change in the direction of skewness from small to large sizes might produce zero overall skewness, but really requires a distribution flexible enough to accommodate both positive and negative skew, such as the skewed Normal or Johnson $S_{U}$ distributions. 
 Alternatively, growth data may lack skew but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
 It is therefore essential to visualize trends in distribution properties with respect to size, either initial size (for simple models with only size-dependence) or expected future size (for models with multiple fixed effects). 
 %In the case studies below, we rely on quantile regression of the standardized residuals to visualize skew and kurtosis as continuous functions of initial size or expected future size. 
@@ -241,11 +241,11 @@ In our case studies we take advantage of the many distributions provided in the 
 \\
 In models with multiple covariates and/or random effects, each potentially affecting several distribution parameters (location, scale, skew, kurtosis) in different ways, ``refit the model'' could entail a massive model selection process to identify the ``right'' or ``best'' non-Gaussian model. 
 And with so many options, model uncertainty may be overwhelming and over-fitting becomes a significant risk even if precautions against it are taken. 
-We therefore argue for adopting the more modest goal of remedying any evident defects in the Gaussian model. 
+We therefore argue for adopting a more modest goal: remedy the evident defects in the Gaussian model. 
 As we demonstrate below, the functional forms for the mean and standard deviation (or location and scale parameters) can often be carried over from the pilot Gaussian model into a non-Gaussian distribution, leaving skew and kurtosis as the targets for improvement. 
 
-Our recommendation for this step is based on the fact that parameter estimation using Gaussian regression models is generally robust to deviations from normality \citep{schielzeth2020robustness}, meaning that the mean of the Gaussian model is probably a good proxy for the mean of the non-Gaussian model (and if it is not, the next step in the workflow would catch that). 
-The functional forms for skew and kurtosis of the non-Gaussian model can be guided by the qualitative features of the graphical diagnostics (e.g., skewness switches from positive to negative with size). 
+Our recommendation for this step is based on the fact that parameter estimation using Gaussian regression models is generally robust to deviations from normality \citep{schielzeth2020robustness}, meaning that the mean of the Gaussian model is probably a very good approximation for the mean of the non-Gaussian model (and if it is not, the next step in the workflow will catch that). 
+The functional forms for skew and kurtosis of the non-Gaussian model can be guided by the qualitative features of the graphical diagnostics (e.g., that skewness switches from positive to negative with size). 
 %When there are other covariates or random effects, the GLM-like alternative of making distribution parameters a function of the location parameter (the ``linear predictor'') sould also be considered. 
 %How fitting is accomplished depends on features of the model, in particular whether or not it includes random effects. 
 
@@ -255,8 +255,8 @@ A good model will generate simulated data that look like the real data.
 Again, it is important to inspect the properties of simulated data conditional on initial size, rather than examining the aggregate distribution.   
 We provide examples below of informative comparisons between simulated and real data, based mainly on quantiles. 
 If the simulated data do not correspond well with real data, alternative (possibly more flexible) growth distributions, or more complex functions relating distribution parameters to size and other covariates, should be explored. 
-However, we again caution against a full-blown model selection exercise. 
-Instead, alternative models should be chosen to remedy observable discrepancies between real and simulated size transition data, and at most slightly modified based on final diagnostics and statistical tests.
+However, we again caution that full-blown model selection exercise is high risk with low expected reward. 
+Instead, alternative models should be chosen to remedy observable discrepancies between real and simulated size transitions, and at most slightly modified based on final diagnostics and statistical tests.
 
 \end{enumerate}
 
@@ -271,7 +271,7 @@ except for the skewed generalized $t$, which is available in the package \textbf
 \end{figure} 
 
 \section*{How should skewness and kurtosis be measured?}
-Improvement of a Gaussian model will involve scrutiny of skewness and kurtosis, so measurement of these properties warrants some attention. 
+Improvement of a Gaussian model will involve scrutiny of skewness and kurtosis, so measurement of these properties warrants attention. 
 The standard measures of skewness and kurtosis (tail thickness) are based on the third and fourth central moments, respectively, of the distribution: 
 \be
 \mbox{Skewness} = \frac{m_3}{\sigma^3}, \quad \mbox{Excess kurtosis} = \frac{m_4}{\sigma^4}-3
