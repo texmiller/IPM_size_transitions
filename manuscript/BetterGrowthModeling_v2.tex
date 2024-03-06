@@ -7,15 +7,16 @@
 \usepackage[authoryear,sort]{natbib}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{hyperref}
+
 \usepackage{enumitem}
 \setlist{topsep=.125em,itemsep=-0.15em,leftmargin=0.75cm}
 \setlength{\parindent}{0.35in}
 
 \usepackage[sc]{mathpazo} %Like Palatino with extensive math support
-
 \usepackage[nodisplayskipstretch]{setspace} 
-
 \usepackage[font=small,labelfont=bf,font=singlespacing]{caption}
+
+\usepackage[subtle]{savetrees}
 
 % Coloring of R code listings
 \usepackage[formats]{listings}
@@ -70,7 +71,6 @@ deletekeywords={on,by,data,R,Q,mean,var,sd,log,family,na,options,q,weights,effec
 \DeclareMathOperator{\Ex}{\mathbb{E}}
 \DeclareMathOperator{\var}{\textit{Var}}
 \DeclareMathOperator{\cov}{\textit{Cov}}
-
 
 
 %%%%%%%%% Macros to simplify using our notation 
@@ -145,6 +145,7 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 \spacing{1.25} 
 %350 word limit on abstract, must be numbered 1-4
 \section*{Abstract} 
+
 \begin{enumerate}
 	\item Integral Projection Models (IPMs) are widely used for studying the dynamics of continuously size-structured populations. IPMs require a growth sub-model that describes the probability distribution of future size conditional on current size and covariates. Over the past two decades, most IPM studies have assumed that this distribution is Gaussian, despite repeated calls for non-Gaussian approaches that accommodate skewness and kurtosis known to occur in size transition data. %set the context for and purpose of the work
 	\item We provide a general workflow for modeling size transitions that accommodates non-Gaussian growth patterns while retaining the desirable features that Gaussian approaches typically provide, ecologically important covariates and random effects. Our approach emphasizes visual diagnostics of residuals from pilot Gaussian models and quantile-based metrics of skewness and kurtosis that vet the fit of the Gaussian distribution and guide selection of an alternative, if necessary. We illustrate our methods by reanalyzing size transition data from published IPM studies, targeting a diversity of demographic quantities including population growth rate, extinction risk, and evolutionarily stable life history strategies. %indicate the approach and methods
@@ -153,11 +154,14 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 \end{enumerate}
 
 %alphabetical order not exceeding eight words or short phrases
-\section*{Keywords}
+\subsection*{Keywords}
 demography; growth; integral projection model; kurtosis; skewness
 
 \newpage
-\section*{Introduction}
+\tableofcontents
+
+\newpage
+\section{Introduction}
 
 Structured demographic models -- matrix and integral projection models (MPMs and IPMs) -- are powerful tools for data-driven modeling of population and community dynamics that are widely used in basic and applied settings. 
 In contrast to MPMs for populations with discrete structure (life stage, age class, etc.), IPMs \citep{easterling2000size} readily accommodate populations structured by continuous state variables, most commonly size. 
@@ -204,7 +208,7 @@ In each case, the Gaussian assumption does not stand up to close scrutiny.
 We illustrate how we could have done better, and the consequences of ``doing better'' for our ecological inferences. 
 All of our analyses may be reproduced from code and data that are publicly available (see Data accessibility statement). 
 
-\section*{A workflow for growth modeling}
+\section{A workflow for growth modeling}
 The modeling workflow that we suggest runs as follows (Fig. \ref{fig:workflow}):
 \begin{enumerate}[label=\arabic*., listparindent=1.5em]
 \item \textit{Fit a ``pilot'' model or models assuming a Gaussian distribution, but allowing for non-constant variance.}
@@ -270,7 +274,7 @@ except for the skewed generalized $t$, which is available in the package \textbf
 \label{fig:workflow}
 \end{figure} 
 
-\section*{How should skewness and kurtosis be measured?}
+\section{How should skewness and kurtosis be measured?}
 Improvement of a Gaussian model will involve scrutiny of skewness and kurtosis, so measurement of these properties warrants attention. 
 The standard measures of skewness and kurtosis (tail thickness) are based on the third and fourth central moments, respectively, of the distribution: 
 \be
