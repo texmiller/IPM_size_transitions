@@ -128,7 +128,7 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 \noindent\textbf{Running header:} Better growth modeling for IPMs
 
 \bigskip 
-\noindent\textbf{Acknowledgements:} This research was supported by US NSF grants DEB-1933497 to SPE and DEB-1754468, 2208857, and 2225027 to TEXM. Giles Hooker gave us the very good idea to use quantile regression for non-parameteric estimates of skewness and excess kurtosis. 
+\noindent\textbf{Acknowledgements:} This research was supported by US NSF grants DEB-1933497 to SPE and DEB-1754468, 2208857, and 2225027 to TEXM. Giles Hooker gave us the very good idea to use quantile regression for estimating skewness and excess kurtosis. 
 
 \bigskip 
 \noindent\textbf{Authorship statement:} All authors discussed all aspects of the research and contributed to developing methods, analyzing data, and writing and revising the paper.  
@@ -337,13 +337,13 @@ We calculate NP Kurtosis using $\alpha=0.05$ unless otherwise stated, to focus o
 Figure \ref{fig:NPmoments}C,D illustrate how, applied to exactly the same simulated samples, the nonparametric measures produce a smaller fraction of highly inaccurate estimates caused by a few extreme values in the sample. 
 But also note that, in contrast to the moment-based measures, numerically small values of the nonparametric measures (e.g., 0.1 or 0.2) should not be disregarded, because they are both scaled so that a value of 1 indicates extremely large departures from a Gaussian distribution. 
 
-Quantile-based estimation of skewness and kurtosis carries the added value that quantile regression methods may be used to derive these properties of size transitions as continuous functions of initial size or expected future size. 
+Using quantile-based measures of skewness and kurtosis carries the added value that quantile regression can be used to estimate these properties of size transitions as continuous functions of initial size or expected future size. 
 In the examples below, we use the \textbf{qgam} package \citep{fasiolo2020qgam} to fit smooth additive quantile regression models, which have the flexibility to accommodate nonlinear size-dependence in skewness and kurtosis. 
-One risk of a gam-based approach is that fitted quantiles may be too ``wiggly'' without constraints on their complexity. 
+One risk of a gam-based approach is that fitted quantiles may be excessively ``wiggly'' without constraints on their complexity; with realistic amounts of data, we can hope to estimate broad trends in distribution shape, but not fine-scale variation.  
 In the examples below, we limit complexity by fitting splines with $k=4$ basis functions. 
-For the gam-averse, other quantile regression models may be suitable. 
+For the gam-averse, parametric quantile regression is also an option. 
 
-For consistency with nonparametric skewness and kurtosis, in comparisons of real and simulated data below and in the Appendix, we use quantile-based measures of mean and standard deviation, and use quantile regression to visualize these as functions of size. 
+For consistency with nonparametric skewness and kurtosis, in comparisons of real and simulated data we use quantile-based measures of mean and standard deviation, and use quantile regression to visualize these as functions of size. 
 Specifically, following \cite{wan2014estimating},
 \be
 \mbox{NP Mean}  = \frac{q_{0.25} + q_{0.5} + q_{0.75}}{3}
@@ -363,7 +363,7 @@ The data set includes $1,542$ inter-annual transitions in thallus area ($cm^2$) 
 \citeyear{shriver2012comparative} used a mixture distribution that separated ``normal growth or shrinkage'' from ``extreme shrinkage''. 
 We aimed to fit a single growth model that could realistically accommodate both types of size transition without requiring \emph{ad hoc} decisions about which observations of shrinkage were ``extreme'' or not.
 
-With initial size as the only predictor, a simple way to fit a Gaussian model with nonconstant variance is the \texttt{gam} function in \textbf{mgcv} library \citep{wood-2017} using the \texttt{gaulss} family. 
+With initial size as the only predictor, a convient way to fit a Gaussian model with nonconstant variance is the \texttt{gam} function in \textbf{mgcv} library \citep{wood-2017} using the \texttt{gaulss} family. 
 Following a bit of model selection, we fit the mean and standard deviation of future size as second-order polynomials of current size, then derived the scaled residuals from the fitted mean and standard deviation.
 Here, the first argument to \texttt{gam()} is a two-element list that defines the linear predictors for mean and sd:
 \begin{lstlisting}
