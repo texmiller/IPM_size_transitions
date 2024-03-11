@@ -45,17 +45,17 @@ plot(XH$t0,XH$survival);
 fit1 = glm(survival~sqrt(t0),data=XH,family="binomial"); 
 fit2 = glm(survival~sqrt(t0) + t0,data=XH,family="binomial"); 
 fit3 = gam(survival~s(sqrt(t0)),data=XH,family="binomial"); 
-## AIC goes for fit2, by a hair. 
+## AIC goes for fit2, \Delta AIC of about 3. 
 #(Intercept)    sqrt(t0)          t0 
 #  -1.649455    5.363115   -1.249375 
 
-## rig this up so that area can be negative and function evaluates at zero
+## survival, set up so that area can be negative and survival evaluates at zero
 sx = function(x)  {
   a = pmax(0,x)
-	u1 = -1.649455  + 5.363115*sqrt(a) - 1.249375*a 
-	u2 = 0.0954 + 2.252*sqrt(a); ##<--where do these parameter values come from?
-	p1 = exp(u1)/(1+exp(u1)); 	p2 = exp(u1)/(1+exp(u1)); 
-	return( 0.2*p1 + 0.8*p2 )
+  u1 = -1.649455  + 5.363115*sqrt(a) - 1.249375*a 
+  p1 = exp(u1)/(1+exp(u1)); 	 
+  p1[x < 0]=0; 
+  return(p1);
 }	
 
 nbins = 12; 
@@ -67,19 +67,20 @@ plot(tbar,pbar,pch=16,xlim=range(XH$t0),ylim=c(0.9,1));
 points(XH$t0,sx(XH$t0),type="l",lty=1); 
 
 ############### Fecundity function (from Shriver et al. model) 
-## rig this up so that area can be negative and function evaluates at zero
+## Area can be negative and fecundity evaluates at zero
 fx = function(Area) {
     a = pmax(0,Area)
-		r = sqrt(a/pi);
-		u = 2*pi*r; 
-		return(0.047*u)
+	r = sqrt(a/pi);
+	u = 2*pi*r; 
+	u[Area <0] = 0; 
+	return(0.047*u)
 }		
 
 ########################################################################
 #  Growth modeling 
 ########################################################################
 
-XH = XH[XH$survival==1,]; ## discard the dead 
+XH = XH[XH$survival==1,]; ## discard those dead at (t+1); 
 
 fitGAU <- gam(list(t1~s(t0),~s(t0)), data=XH, gamma=1.4,family=gaulss())
 summary(fitGAU); # plot(fitGAU); 
@@ -115,11 +116,10 @@ mean(XH$scaledResids); sd(XH$scaledResids); ## all good
 plot(XH$t0, log(XH$fitted_sd)); 
 points(XH$t0, log( 1/predict(fitGAU,type="response")[,2]), col="red" )
 
-####################### Save the best-fitting Gaussian 
+####################### Save the best-fitting Gaussian as fitGAU. 
 fitGAU = fitGAU22; rm(fitGAU22); rm(fitGAU0); rm(fitGAU00);  
 
 ######### Diagnostics on fitted parametric SD function: no problems! 
-#stopCluster(c1); ##<--c1 not defined
 c1<- makeCluster(8); 
 registerDoParallel(c1);
 out = multiple_levene_test(XH$fitted, XH$scaledResids, 3, 8, 2000);
@@ -129,7 +129,7 @@ out = multiple_bs_test(XH$fitted, XH$scaledResids, 4, 8, 2000)
 out$p_value; ## > 0.78; 
 stopCluster(c1); 
 
-## quantile regressions on stand resids
+## quantile regressions on standardized  residuals 
 S.05<-qgam(scaledResids~s(t0,k=6), data=XH,qu=0.05)
 S.10<-qgam(scaledResids~s(t0,k=6), data=XH,qu=0.1)
 S.25<-qgam(scaledResids~s(t0,k=6), data=XH,qu=0.25)
@@ -197,8 +197,8 @@ lichen_out <- list(
   NPK_hat = NPK_hat
 )
 
-###### improved model: gam SHASH
-## TM: why assume kurtosis is constant?
+###### Candidate for an improved model: gam SHASH
+###### We begin with some model selection on skewness and kurtosis vs. size 
 fitSHASH <- gam(list(t1 ~ s(t0), # <- location 
                         ~ s(t0),  # <- log-scale
                         ~ s(t0),  # <- skewness
@@ -450,15 +450,15 @@ dev.copy2pdf(file="exctinction_risk.pdf");
 ###################################################################
 ## Exploring the JSU as an alternative
 ###################################################################
-## since kurtosis is constant, let's to fit a JSU as a more natural alternative?
-## we could hold over the mean and sd from pilot gaussian because in this parameterization mu and sigma are mean and sd
-## however, I would like to compare to SHASH, and we cannot make this transfer so cleanly with SHASH
-## therefore re-fitting polynomials for mean and sd
+## since kurtosis is constant, a JSU might be a more natural alternative to Gaussian. 
+## We could hold over the mean and sd from pilot gaussian because in this parameterization mu and sigma are mean and sd. 
+## However, we want to compare with SHASH, and we cannot make the same transfer with SHASH, 
+## therefore re-fitting polynomials for mean and sd. 
 LogLikJSU=function(pars,response){
   dJSU(response, 
-       mu=pars[1]+pars[2]*XH$t0+pars[3]*(XH$t0^2),
-       sigma=exp(pars[4]+pars[5]*XH$t0+pars[6]*(XH$t0^2)),
-       nu = pars[7]+pars[8]*XH$t0,
+       mu=pars[1] + pars[2]*XH$t0 + pars[3]*(XH$t0^2),
+       sigma=exp(pars[4] + pars[5]*XH$t0 + pars[6]*(XH$t0^2)),
+       nu = pars[7] + pars[8]*XH$t0,
        tau = exp(pars[9]), log=TRUE)
 }
 ## compare to SHASH
@@ -471,7 +471,7 @@ LogLikSHASH=function(pars,response){
 }
 
 ## starting parameters
-p0<-c(coef(fitGAU22)[1:6],0,0,0)
+p0<-c(coef(fitGAU)[1:6],0,0,0)
 ## fit with maxlik
 outJSU=maxLik(logLik=LogLikJSU,start=p0*exp(0.2*rnorm(length(p0))), response=XH$t1,
               method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE); 
@@ -489,6 +489,7 @@ outSHASH=maxLik(logLik=LogLikSHASH,start=outSHASH$estimate,response=XH$t1,
 
 AIC(outJSU);AIC(outSHASH) ##looks like JSU is the winner
 AIC(fitSHASH2) ##it's also better than the best gam SHASH
+
 ##########################################################
 # Compare quantiles
 ##########################################################
@@ -522,7 +523,7 @@ matplot(XH$t0,Y_GAU,type="l",lty=1,col="black", xlab="Area t", ylab = "Area t+1"
 points(XH$t0,XH$t1); title(main="Gaussian  percentiles 1, 25, 50, 75, 99")
 
 
-## just out of curiosity, what would happen if I fixed JSU mean and sd at GAU?
+## just out of curiosity, what would happen if we fix JSU mean and sd at the Gaussian fitted mean and sd?
 LogLikJSU2=function(pars,response){
   dJSU(response, 
        mu=XH$fitted,
