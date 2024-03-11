@@ -1,6 +1,6 @@
 \documentclass[12pt]{article}
 \usepackage{amsmath,amsfonts,amssymb,graphicx,authblk}
-\usepackage[font={small,singlespacing},labelfont=bf]{caption}
+\usepackage[font={footnotesize,singlespacing},labelfont=bf]{caption}
 \usepackage{titlesec,blkarray, bm} 
 \usepackage{float,afterpage}
 \usepackage[running,mathlines]{lineno}
@@ -16,7 +16,6 @@
 \usepackage[sc]{mathpazo} %Like Palatino with extensive math support
 \usepackage[nodisplayskipstretch]{setspace} 
 \usepackage[subtle]{savetrees}
-
 
 % Coloring of R code listings
 \usepackage[formats]{listings}
@@ -276,6 +275,7 @@ except for the skewed generalized $t$, which is available in the package \textbf
 \end{figure} 
 
 \section{How should skewness and kurtosis be measured?}
+\label{sec:NPmeasures} 
 Improvement of a Gaussian model will involve scrutiny of skewness and kurtosis, so measurement of these properties warrants attention. 
 The standard measures of skewness and kurtosis (tail thickness) are based on the third and fourth central moments, respectively, of the distribution: 
 \be
@@ -356,6 +356,7 @@ and
 \ee
 
 \section{Case study: lichen, \emph{Vulpicida pinastri}}
+\label{sec:lichenCaseStudy} 
 We begin with a simple example where current size is the only predictor of future size. 
 Growth data for the epiphytic lichen \emph{Vulpicida pinastri} were first analyzed by Shriver et al. \citeyear{shriver2012comparative} and analyzed again by Peterson et al. \citeyear{peterson2019improving} in their study of negatively skewed growth distributions. 
 We therefore had an \emph{a priori} expectation of deviation from normality. 
@@ -458,6 +459,7 @@ In all remaining case studies, including those in the Appendix, we re-examine gr
 \end{figure} 
 
 \section{Case study: tree cholla cactus, \emph{Cylindriopuntia imbricata}}
+\label{sec:cactusCaseStudy} 
 The next case study, focusing on the tree cholla cactus \emph{Cylindriopuntia imbricata} at the Sevilleta Long-Term Ecological Research site in central New Mexico, adds a new feature on top of the simple size-dependent regressions in the previous study: random effects associated with temporal (year) and spatial (plot) environmental heterogeneity. 
 This long-term study of cactus demography was initiated in 2004 and different subsets of the data have been analyzed in various IPM studies, all using Gaussian growth kernels  \citep{miller2009impacts,czachurademographic,compagnoni2016effect,ohm2014balancing,elderd2016quantifying}.
 In fact, \citep{elderd2016quantifying} presented a Gaussian growth model fit to the cactus data as an example of a well fit growth function, based on a marginal distribution of residuals that appeared approximately Gaussian and posterior predictive checks (PPCs) of a Bayesian model that suggested consistency between the real data and data simulated from the fitted model (Fig. 4 in \citep{elderd2016quantifying}). 
@@ -482,7 +484,8 @@ To better capture size transitions, we need a distribution with negative skew an
 We first tried Johnson's $S_{U}$ and then the skewed $t$ distributions, both of which are limited to positive excess kurtosis.
 Both distributions provided some improvement over the Gaussian, but were not happy with the fit of either. \steve{It would be good to say why: which of our graphical
 diagnostics did not put a smile on your face?} 
-Iterating through the workflow (Fig. \ref{fig:workflow}), we arrived at the SHASH distribution, which is more flexible than either the JSU or skewed $t$, capable of capturing a greater range of kurtosis for a given amount of skew, and vice versa (\cite{jones-pewsey-2009}; Appendix S.1). 
+Iterating through the workflow (Fig. \ref{fig:workflow}), we arrived at the SHASH distribution, which is more flexible than either the JSU or skewed $t$, 
+capable of capturing a greater range of kurtosis for a given amount of skew, and vice versa (\cite{jones-pewsey-2009}; Appendix S.1). 
 Furthermore, SHASH is available as an \textbf{mgcv} family, allowing for flexible, non-monotonic size-dependence in skewness and kurtosis without the need for model selection on specific size-dependent functions. Through iterations of trial and error, we found this flexibility was necessary to generate simulated data that compared favorably to the real data. 
 Here, the first argument to \texttt{gam()} is now a four-element list giving the linear predictors for mean, standard deviation, skewness, and kurtosis:
 \begin{lstlisting}
@@ -519,6 +522,7 @@ Thus, depending on the target of one's analysis, modeling non-Gaussian size tran
 
  
 \section{Case study: lady orchid, \emph{Orchis purpurea}}
+\label{sec:orchidCaseStudy} 
 Our final case study examines selection on life history strategies in the lady orchid \textit{Orchis purpurea}. 
 In a prior study, Miller et al. \citeyear{miller2012evolutionary} contrasted the growth trajectories from year $t$ to $t+1$ for plants that did or did not flower in year $t$, as a way to quantify costs of reproduction. 
 The different growth kernels were then used in an IPM to quantify evolutionarily stable life history strategies: the optimal flowering size that balances benefits of waiting to flower at larger sizes against the risk of dying before reaching those sizes. 
@@ -610,6 +614,7 @@ Similarly, there were very small differences between growth functions in other m
 
 
 \section{Discussion}
+\label{sec:Discussion} 
 Much of the appeal of integral projection models has stemmed from their embrace of continuous size structure through reliance on regression-based approaches, and the potentially complex fixed- and random-effect structures that these approaches allow. 
 Using familiar statistical tools and with relatively few parameters to estimate, IPM users can incorporate important sources of variation in demography and interrogate their influence on ecological and evolutionary dynamics. 
 With this opportunity comes the burden of getting it right: IPMs are good models of the populations they are intended represent only insofar as the statistical models provide good fits to the underlying data. 
@@ -697,10 +702,11 @@ By generating predicted size transitions that are truer to the data, IPM analyst
 
 \centerline{\Large{\textbf{Appendices}}}
 
-\section{The Jones-Pewsey distribution} 
+\section{The Jones-Pewsey SHASH distribution} 
+\label{sec:SHASHdist} 
 \citet{jones-pewsey-2009} introduced a simple, tractable generalization of the Normal distribution with two additional parameters determining  
 asymmetry (skewness), and tail weight (kurtosis) which can be either lighter or heavier than the Gaussian. It is defined as a transformation
-of a Normal(0,1) random variable usingthe hyperbolic sine function (sinh) and its inverse (asinh), as follows. The distribution family's base probability density  
+of a Normal(0,1) random variable using the hyperbolic sine function (sinh) and its inverse (asinh), as follows. The distribution family's base probability density  
 $f_{\epsilon,\delta}$  is the probability density of the random variable $X_{\epsilon,\delta}$ where  
 \be
 Z = \sinh (\delta \; \mbox{asinh}(X_{\epsilon,\delta}) - \epsilon)
@@ -715,27 +721,31 @@ Parameters $\delta=1, \epsilon=0$ give the Normal(0,1) distribution. Skewness ha
 $\delta > 0$ controls tail weight, with heavier than Gaussian tails for $\delta<1$ and lighter than Gaussian tails for $\delta > 1$. 
 A formula for the density $f_{\epsilon,\delta}$ is given by \citet[][eqn. 2]{jones-pewsey-2009}. 
 The general four-parameter family with location parameter $\mu$ and scale parameter $\sigma$ is defined as the probability densities 
-of $\mu + \sigma X_{\epsilon, \delta}$. We refer to this as the JP distribution family. 
+of $\mu + \sigma X_{\epsilon, \delta}$. We refer to this as the SHASH distribution family. 
 
 As is unfortunately the case for most four-parameter distributions $\mu$ is not the mean, $\sigma$ is not the standard deviation, $\epsilon$ is not
 the skew and $\delta$ is not the kurtosis. All else being equal, larger $\mu$  gives a larger mean, larger $\sigma$ gives a higher
-standard deviation, higher $\epsilon$ gives higher asymmetry, and higher $\delta$ gives heavier tail weight.  But each moment is jointly determined 
-by all four parameters. 
+standard deviation, higher $\epsilon$ gives higher asymmetry, and higher $\delta$ gives heavier tail weight. 
+But each moment is jointly determined by all four parameters. 
 
-The main advantage of the JP distribution is that the attainable combinations of skewness and kurtosis are very broad, compared to other 
-four-parameter families, and come very close to the theoretical limits on kurtosis as a function of skewness \citep[][Fig.  2]{jones-pewsey-2009}. 
+The main advantage of the SHASH distribution is that the attainable combinations of skewness and kurtosis are very broad compared to other 
+four-parameter families, and come very close to the theoretical limit of kurtosis as a function of skewness \citep[][Fig.  2]{jones-pewsey-2009}. 
 Additionally, being a transformation of the Normal makes it very simple to generate random numbers from the distribution, and to compute 
-probability density, cumultive distribution, and quantile functions. There are also simple analytic formulas for the first four moments
-\citep[][p. 764]{jones-pewsey-2009} which we use below to define a centered and scaled version in which $\mu$ and $\sigma$ 
-are the mean and standard deviation. 
+the probability density, cumulative distribution, and quantile functions. There are also simple analytic formulas for the first four moments
+\citep[][p. 764]{jones-pewsey-2009}. 
+%which we use below to define a centered and scaled version in which $\mu$ and $\sigma$ are the mean and standard deviation. 
 
-The definition \eqref{eqn:JP2} shows that the distribution depends on $\epsilon$ only through the ratio $\epsilon/\delta$. We have found
-that this property can be problematic for estimating distribution parameters. Even with good sized ($n=250$ or 500) data sets generated from the 
+It eventually transpired that none of our case studies involved fitting a SHASH distribution through a ``bespoke'' likelihood 
+function (though this was transiently the case). But for the sake of future applications by readers, we record here some 
+advice for doing so based on our experience. 
+
+Eqn. \eqref{eqn:JP2} shows that the distribution depends on $\epsilon$ only through the ratio $\epsilon/\delta$. We have found
+that this property can be problematic for parameter estimation. Even with good sized data sets ($n=250$ or 500) generated from the 
 distribution with known parameters, both maximum likelihood and Bayesian estimation were unstable for some values of $\epsilon$ and $\delta$, 
 occasionally yielding estimates far from the truth. One cause was a ridge in the $(\epsilon,\delta)$ likelihood surface with a constant of 
-$\epsilon/\delta$. Another is that when $\delta$ is large,  changes in $\epsilon$ have little effect. 
+$\epsilon/\delta$. Another is that when $\delta$ is large, changes in $\epsilon$ have little effect. 
 
-To avoid that problems, we reparameterize the distribution as follows: 
+To avoid that problems, we can reparameterize the distribution as follows: 
 \be
 X_{\lambda,\tau} = \sinh \left( e^{-\tau} \; \mbox{asinh}(Z) + \lambda \right).
 \label{eqn:SJP}
@@ -747,44 +757,45 @@ Thus, the two parameterizations are related by
 The definition of $\tau$ allows it to take any real value, with negative values giving thinner than Gaussian tails and positive
 values giving fatter than Gaussian tails. $\lambda$ also can take any real value, and the distribution's skew has the same sign as $\lambda$. 
 Because the $\sinh$ function is nonlinear, it is still the case that the skew depends on $\tau$ as well as $\lambda$, but the
-``crosstalk'' between the kurtosis and skew parameters is weaker. As  a result, we found that maximum likelihood estimation of parameter values was 
-generally more reliable if the distribution is parameterized in terms of $\tau$ and $\lambda$. 
+``crosstalk'' between the kurtosis and skew parameters is weaker. As a result, we found that maximum likelihood estimation of parameter values is 
+more reliable if the distribution is parameterized in terms of $\tau$ and $\lambda$. Code for this reparameterized form of the distribution is
+provided in our code archive script \texttt{JPfuns.R}. 
 
 \section{Estimating non-Gaussian mixed effects models using shrinkage}
-
-Specialized software for fitting mixed effects models only allow a (usually small) subset of the distribution families that 
-we want to consider for modeling growth increments \footnote{The \textbf{gamlss} package allows many distribution families, but in our experience, even with 
-simple random effects structure the fitting algorithms often fail to converge, or fail to find the global optimum.} 
-One way past this limitation is Bayesian estimation. Here we describe another option, introduced by \citet{link-nichols-1994} and \citet{gould-nichols-1998}: 
+\label{sec:shrinkageFits}
+Specialized software for fitting mixed effects models only allow a subset, usually a small subset, of the distributions that 
+we want to consider for modeling growth \footnote{The \textbf{gamlss} package includes many distribution families, but in our experience, even with 
+simple random effects structure the fitting algorithms often fail to converge or fail to find the global optimum, and sometimes get turned around and
+start looking for minimum likelihood estimates. \textbf{gamlss.dist} has some incomplete help pages, but the distribution functions we have
+worked with seem to be reliable.} One way past this limitation is Bayesian estimation. Here we describe another option, 
+introduced by \citet{link-nichols-1994} and \citet{gould-nichols-1998}: 
 fitting a fixed effects model by Maximum Likleihood, followed by shrinkage of coefficient estimates. 
-None of the ideas here are original. The material overlaps Appendix S1 of \citet{metcalf-etal-2015}, 
-but for completeness we make it self-contained. Appendix D of \citet{cooch-white-2020} (written by K.D. Burnham)
+None of the ideas here are original. The material overlaps Appendix S1 of \citet{metcalf-etal-2015}, the only new wrinkle
+being the application to non-Gaussian models. Appendix D of \citet{cooch-white-2020} (written by K.D. Burnham)
 provides more details in the context of capture-recapture analysis. 
 
 We explain shrinkage using a simple model fitted to some growth data 
 on the bunchgrass \emph{Pseudoroegneria spicata} from  \cite{adler-weak-dryad}. 
-The fitted model includes random effects for between-year variation in the slope and intercept of future size 
-(log area) as a function of initial size. We assume that initial size 
+The fitted model includes random effects for between-year variation in the slope and 
+intercept of future size (log area) as a function of initial size. We assume that initial size 
 and year are the only covariates, and we assume that growth increments 
 follow a skew-Normal distribution with nonconstant variance and constant skew parameter. 
-Code for this example is in the script \texttt{SimpleShrinkageExample.R}. 
-%The first part of the script
-%fits the model to the empirical growth data, and then randomly generates new ``size next year'' values 
-%for each individual in the actual data set. The second part contains the ``data'' analysis. 
+Code for this example are in the script \texttt{SimpleShrinkageExample.R} in our code archive. 
 
-The growth model assumes that the skew and kurtosis parameters are functions
+The fitted growth model assumes that the skew and kurtosis parameters are functions
 of the location parameter; this dominated $(\Delta AIC \approx 30)$ the analogous  
 model with skew and kurtosis depending on initial size.   
 We fit this model using maximum likelihood with all between-year variation as fixed effects. 
-The appropriate design matrix is easily constructed using the \texttt{model.matrix} function: 
+The appropriate design matrix is can be constructed using the \texttt{model.matrix} function: 
 \begin{lstlisting}
 U = model.matrix(~year + init.size:year - 1, data=growthData)
 \end{lstlisting}
 If there are $T$ years, the matrix \texttt{U} has $2T$ columns corresponding to $n$ annual 
 intercepts and $T$ annual slopes. 
 
-Using this design matrix, we can readily write a log likelihood function for use with 
-the \textbf{maxLik} package, with a log link function for the variance because it is necessarily positive: 
+Using this design matrix, we can write a log-likelihood function for use with 
+the \textbf{maxLik} package, using a log link function for the variance parameter 
+because it is necessarily positive: 
 \begin{lstlisting}
 LogLik=function(pars,new.size,U){
     pars1 = pars[1:ncol(U)]; pars2=pars[-(1:ncol(U))];
@@ -793,9 +804,7 @@ LogLik=function(pars,new.size,U){
     dSN1(new.size, mu=mu, sigma=sigma, nu=pars2[3], log=TRUE)
 }
 \end{lstlisting} 
-
-Parameters and their standard errors can then be estimated with \texttt{maxLik}, 
-starting from a random guess: 
+Parameters and their standard errors can then be estimated, starting from a random guess: 
 \begin{lstlisting}
 start=c(runif(ncol(U)), rep(0,3))
 out=maxLik(logLik=LogLik,start=start, new.size=simData$new.size,U=U,
@@ -803,33 +812,30 @@ out=maxLik(logLik=LogLik,start=start, new.size=simData$new.size,U=U,
 coefs = out$estimate; # parameters
 V = vcov(out); SEs = sqrt(diag(V));	# standard errors 
 \end{lstlisting}  
-In real life we would repeat the optimization several times with different starting values, to be confident that
-optimal parameter values had been found. 
+In real life we would repeat the optimization several times with different starting values, 
+to be confident that optimal parameter values had been found. 
 
 Focus now on the year-specific intercept parameters $\hat{a}_t, t = 1,2,\cdots T$. 
 We can view the year-specific estimates $\hat{a}_t$ as consisting of unobserved true values $a_t$ plus sampling error:
 \be
 \hat{a}_t= a_t + \varepsilon_t 
 \ee
-Because of the sampling errors, the sample variance of
-the estimates $\hat{a}_t$ is an upward-biased estimate of the true across-year variance in the parameter. 
-That is undesirable if the model will be used to project how temporal variability affects population dynamics. 
-However, maximum liklihood estimation gives us an approximaten variance-covariance matrix $\hat{V}$ of the
-sampling errors, \texttt{V} in the code above. With that information, we can estimate the parameters
-of a random effects model for the intercept parameters, and thereby improve the year-specific estimates and
-the estimate of the across-year variance.  
+Because of sampling errors, the expected sample variance of the estimates $\hat{a}_t$ is larger 
+than the true across-year variance in the parameter, which is udesirable if population projections are made
+by random sampling from the estimated year-specific parameters (analogous to ``matrix selection'' for stochastic
+matrix models). However, the approximate variance-covariance matrix $\hat{V}$ of the sampling errors, \texttt{V} in the code 
+above, can be used to correct for this upward bias.   
 
-The model is as follows. We make the standard mixed-models assumptions that the $a_t$ are drawn 
-independently from some fixed distribution with unknown variance $\sigma^2$. We also assume that the estimates 
-$\hat{a}_t$ are unbiased, that is
+To make the correction we assume that the estimates $\hat{a}_t$ are unbiased, that is
 \be
 \mathbb{E}(\varepsilon_t \vert a_t) = 0.    
 \ee
-These are optimistic assumptions, but not excessively optimistic. 
-If the assumptions of maximum likelihood are satisfied, the bias in parameter estimates 
-is asympototically negligible compared to the standard error. 
-Some temporal autocorrelation can be present, but the corrections for correlation add terms 
-that can only be reliably estimated if the autocorrelations fall to nearly zero within lag $m \ll T$, 
+We also adopt the standard mixed-model assumption that the $a_t$ are drawn 
+independently from some fixed distribution with unknown variance $\sigma^2$. 
+These are optimistic assumptions, but not excessively so. If the assumptions of maximum likelihood are satisfied, 
+the bias in parameter estimates is asympototically negligible compared to the standard error. 
+The terms resulting from non-independence can only be reliably estimated if 
+the autocorrelations fall to nearly zero within lag $m \ll T$, 
 and in that case the autocorrelation correction term is small (see eqn. (1) in \citet{gould-nichols-1998}). 
 We therefore recommend proceeding on the assumption that the $\hat{a}_t$ are independent. 
 
@@ -842,33 +848,31 @@ Let $S^2$ denote the sample variance of the estimates $\hat{a}_t$. It can then b
 This is eqn. (1) in \citet{gould-nichols-1998} in our notation, without the term that 
 accounts for temporal autocorrelation. 
 
-The terms besides $\sigma^2$ on the right-hand are the expected impact of sampling error on the across-year variance
-of the parameter estimates; their presence makes $S^2$ a biased estimated of $\sigma^2$. However,
-all of those terms correspond to entries in the variance-covariance matrix $V$. We can therefore use our estimated
-variance-covariance matrix $\hat{V}$ to removes the bias due to sampling variability: 
+The terms besides $\sigma^2$ on the right-hand of \eqref{eqn:biasTerms} makes $S^2$ a biased estimated of $\sigma^2$. 
+However, the terms correspond to entries in the variance-covariance matrix $V$, so we can use $\hat{V}$ to remove 
+the bias: 
 \be
 \hat{\sigma^2}  = S^2 - \frac{1}{T}\sum\limits_{t=1}^T \hat{V}_{t,t} + 
 \frac{1}{T(T-1)}\sum\limits_{i=1}^{j-1} \sum\limits_{j=1}^T \hat{V}_{i,j}. 
 \label{eqn:hatSigma}
 \ee
-$\hat{\sigma^2}$ estimates the variance of the distribution from which the $a_t$ are assumed
+$\hat{\sigma^2}$ is the estimated variance of the distribution from which the $a_t$ are assumed
 to be drawn. 
 
-Using that estimate, we can adjust the year-specific estimates to reduce the expected 
-impact of sampling error. Several ways to do this have been proposed; following \citet{metcalf-etal-2015}
-we recommend the method used in the capture-recapture analysis software Mark \citet{cooch-white-2020}, 
+We can also adjust the year-specific estimates to reduce the expected impact of sampling error. Several methods  
+have been proposed; following \citet{metcalf-etal-2015} we recommend the method used in the 
+capture-recapture analysis software Mark \citet{cooch-white-2020}, 
 \be
 \widetilde{a}_t = \bar{\hat{a_t}} + \sqrt{\frac{\hat{\sigma}^2}{\hat{\sigma}^2 + \hat{V}_{t,t}}}\left (\hat{a_t} - \bar{\hat{a_t}} \right). 
 \label{eqn:ShrinkLess}
 \ee
 The name ``shrinkage'' comes from the fact that each estimate is adjusted towards the overall mean, with 
 larger adjustments of values that have higher estimated sampling error variance, $\hat{V}_{t,t}$. 
-This shrinkage estimate has the property that the expected sample variance of the 
-adjusted estimates $\widetilde{a}_t$ is very close to $\hat{\sigma^2}$. The $\widetilde{a}_t$ therefore approximate
-the actual amount of parameter variation, and are the shrinkage method analog of the year-specific random effects
-from a fitted random effects model. 
+The expected sample variance of the adjusted estimates $\widetilde{a}_t$ is very close to $\hat{\sigma^2}$. 
+The $\widetilde{a}_t$ therefore approximate the actual amount of parameter variation, and are analogous to the 
+year-specific estimated random effects from a mixed effects model. 
 
-The take-home message is that estimating random effects from the regression coefficients is very simple: 
+The take-home message is that estimating random effects from regression coefficients is very simple: 
 \begin{lstlisting}
 # Variance-covariance matrices for intercepts and slopes
 V1 = V[1:T,1:T]; V2 = V[(T+1):(2*T),(T+1):(2*T)]; 
@@ -889,18 +893,25 @@ var2.hat = mean(fixed.fx2^2) - mean(diag(V2)) +
 shrinkRanSlope = fixed.fx2*sqrt(var2.hat/(var2.hat + diag(V2))); 
 \end{lstlisting}
 
-The figure below shows the results for one artificial ``data'' set, having $T=22$ years and growth measurments on 
+Figure \ref{fig:compareShrinkage} shows the results for one artificial ``data'' set, having $T=22$ years and growth measurments on 
 about 175 individuals/year on average. The true random year effects (the ones used to generate the data) are recovered
 with good accuracy and no bias. In particular there is no sign of extreme values being pulled in too far
 towards the mean, which would cause an S-shaped graph of estimated versus true values. 
 
-\bigskip 
-
+\begin{figure}{tbp}
 \centerline{\includegraphics[width=\textwidth]{figures/SimpleShrinkage.pdf}}
+\caption{Comparison of the true random year effects with the shrinkage estimates, for one artificial data set
+generated from the fitted growth model for  \emph{Pseudoroegneria spicata}. Figure made by R script 
+\texttt{SimpleShrinkageExample.R} in our code archive.} 
+\label{fig:compareShrinkage}
+\end{figure}
+
 
 \section{Additional case studies}
-\subsection{Case study: Sea fan corals, \emph{Gorgonia ventalina}}
+\label{sec:moreCases}
 
+\subsection{Case study: Sea fan corals, \emph{Gorgonia ventalina}}
+\label{sec:seafans}
 \cite{bruno-etal-2011} developed an IPM to understand the rise and fall of a fungal pathogen \emph{Aspergillus sydowii} in Caribbean sea fan corals \emph{G. ventalina}. 
 The model was based on repeated observations of marked corals in permanent transects at several sites near Akumal, Mexico, recording disease status (infected/uninfected) and the area of uninfected tissue. 
 The epidemic peak had passed and disease incidence was already low, so infected fans were relatively infrequent. 
@@ -1004,6 +1015,7 @@ But it is always important to plot the fitted splines and make sure they do not 
 If they do, parametric regression may be a better choice. 
 
 \subsection{Case study: creosotebush, \emph{Larrea tridentata}}
+\label{sec:creosotebush}
 Our next case study comes from our studies of the woody shrub creosotebush (\emph{Larrea tridentata}) at the Sevilleta Long-Term Ecological Research (LTER) site in central New Mexico, US. 
 At this site as elsewhere in the Southwest US, creosotebush is encroaching into desert grassland habitats.
 The data described here were collected along transects spanning grass-shrub ecotones to understand patterns of density dependence in creosotebush demography.
@@ -1080,6 +1092,7 @@ Weak size-dependence in survival likely explains why the improvement in growth m
 \end{figure}
 
 \subsection{Case study: pike, \emph{Esox lucius}}
+\label{sec:pike}
 Our final case study comes from a long-term study of pike (\emph{Esox lucius}) at Windemere in the English Lake District, UK. 
 Fish were gill-netted and destructively sampled to retrieve otoliths. 
 Lengths (cm) were recorded at the time of sampling and back-casted to estimate length in the preceding year. 
@@ -1125,8 +1138,11 @@ Data simulated from the SHASH and Gaussian models are shown in \tom{Fig. \ref{}}
 For the remainder of the IPM, we fit gams for survival and egg production as smooth functions of size. 
 Parameter values for fertilization probability, fraction female (the IPM is female-dominant), and probability of survival from egg to 1-yo came from \cite{stubberud2019effects}, Table 2. 
  
+\clearpage
+\newpage  
 
-\section{Additional results}
+\section{Additional Figures}
+\label{sec:additionalFigs}
  
  \begin{figure}[tbp]
  	\centering
