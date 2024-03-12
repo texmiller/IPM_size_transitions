@@ -221,18 +221,29 @@ But two-step fitting may be convenient when there are multiple fixed and random 
 We illustrate both one-step and two-step approaches in the case studies below. 
 
 Allowing non-constant variance removes the need for transforming the data to stabilize the growth variance. 
-Transformation remains an option when it does not create new problems \steve{such as making some state-fate
-relationships highly nonlinear}, and it may have advantages besides variance stabilization. %beta regression
-In particular log-transformation often reduces or eliminates heteroskedasticity in growth data \citep{ellner-etal-2016}, and it also helps to avoid eviction at small sizes \citep{williams2012avoiding}. 
+A variance-stabilizing transformation may still be useful if it does not create new problems \new{such as making some state-fate
+relationships highly nonlinear}. %beta regression
+In particular, log-transformation often reduces or eliminates heteroskedasticity in growth data \citep{ellner-etal-2016} 
+and also helps avoid eviction at small sizes \citep{williams2012avoiding}. 
 
-\item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate from Gaussian, and to identify a more appropriate distribution.}
+\new{Before considering non-Gaussian models it is important to check the fitted mean and standard deviation functions. 
+If they are valid, the set of scaled or standardized residuals (residuals scaled by the standard deviation function) should have zero mean and unit variance --- overall, and as a function of original size or fitted mean values. Plotting residuals versus fitted values is commonly recommended to check for omitted trends in mean or variance. 
+However, residual plots can be misleading about trends in variance, because data sparsity creates an illusion of low variance. 
+One of us recently found, while modeling some tree growth data, that the actual variance trend in the residuals plot (identified by maximum likelihood) was the exact opposite of what we saw with our own two eyes. 
+So for this step we recommend using formal statistical tests for nonconstant variance. 
+In our code archive, the script \texttt{variance\_diagnostics.R} provides two randomization-based tests for variance trends without having to specify the nature of the trend, texttt{multiple\_levene\_test} and \texttt{multiple\_bs\_test}.  
+These are described in Supplement section \ref{sec:VarianceTests}.}    
+
+\item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate 
+from Gaussian, and to identify a more appropriate distribution.}
 \\
-If the Gaussian pilot model is valid, the set of standardized (or ``scaled'') residuals (standardized by the standard deviation) should be Gaussian with mean zero and unit variance, with no skew or excess kurtosis. 
-This criterion provides a straightforward test for whether to accept a Gaussian growth model or explore alternatives. 
+If the Gaussian pilot model is valid, the standardized residuals should be Gaussian with no skew or excess kurtosis.  
+This criterion provides the basis for deciding whether to accept a Gaussian growth model or explore alternatives. 
 If the standardized residuals are satisfactorily Gaussian, skip to the final step of the workflow. 
 
 There are many ways that growth data may deviate from Gaussian, and the nature of those deviations can guide the search for a better distribution. 
-Frequentist tests such as the D'Agostino test of skewness \citep{d1970transformation} and the Anscombe-Glynn test of kurtosis \citep{anscombe1983distribution} could be used to diagnose whether the aggregate distribution of standardized residuals deviates from normality (R package \textbf{moments} \citep{komsta2015moments}). 
+Frequentist tests such as the D'Agostino test of skewness \citep{d1970transformation} and the Anscombe-Glynn test of kurtosis \citep{anscombe1983distribution} 
+could be used to diagnose whether the aggregate distribution of standardized residuals deviates from normality (R package \textbf{moments} \citep{komsta2015moments}). 
 However, the aggregate distribution of standardized residuals may be misleading if properties such as skew and kurtosis vary with size or other covariates. 
 For example, a change in the direction of skewness from small to large sizes might produce zero overall skewness, but really requires a distribution flexible enough to accommodate both positive and negative skew, such as the skewed Normal or Johnson $S_{U}$ distributions. 
 Alternatively, growth data may lack skew but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
@@ -672,7 +683,10 @@ This paper has focused on size transitions, but IPMs have been extended in ways 
 For example, IPMs can be used to model infectious disease dynamics, where hosts may exhibit continuous variation in infection load (e.g., parasite density), and host vital rate processes depend on infection intensity \citep{metcalf2016opportunities,wilber2016integral}. 
 Such models must define probabilities of future infection load conditional on current load, and would therefore benefit from the same modeling workflow that we have outlined for size transitions.
 
-\tom{}{Maybe include a teaser paragraph for the stuff Steve is working on with Giles?}
+\new{The generalizations of the Gaussian model that we have considered here are not a panacea. For example, none of them allow a bimodal growth distribution, such as might occur if 
+individuals attacked by an herbivore or a pathogen experienced rapid tissue loss, followed by normal growth from their diminished size. From the beginning there were concerns about 
+``how   
+
 
 \subsection*{Conclusion}
 Normally-distributed size transitions are probably the exception, not the rule. 
@@ -702,6 +716,12 @@ By generating predicted size transitions that are truer to the data, IPM analyst
 
 \centerline{\Large{\textbf{Appendices}}}
 
+section{Nonparametric tests for non-constant variance}
+\label{sec:VarianceTests}  
+
+
+
+
 \section{The Jones-Pewsey SHASH distribution} 
 \label{sec:SHASHdist} 
 \citet{jones-pewsey-2009} introduced a simple, tractable generalization of the Normal distribution with two additional parameters determining  
@@ -730,8 +750,8 @@ But each moment is jointly determined by all four parameters.
 
 The main advantage of the SHASH distribution is that the attainable combinations of skewness and kurtosis are very broad compared to other 
 four-parameter families, and come very close to the theoretical limit of kurtosis as a function of skewness \citep[][Fig.  2]{jones-pewsey-2009}. 
-Additionally, being a transformation of the Normal makes it very simple to generate random numbers from the distribution, and to compute 
-the probability density, cumulative distribution, and quantile functions. There are also simple analytic formulas for the first four moments
+Additionally, eqn. \eqref{eqn:JP2} makes it straighforward to generate random numbers from the distribution, and to compute 
+the probability density, cumulative distribution, and quantile functions. There are also analytic formulas for the first four moments
 \citep[][p. 764]{jones-pewsey-2009}. 
 %which we use below to define a centered and scaled version in which $\mu$ and $\sigma$ are the mean and standard deviation. 
 
