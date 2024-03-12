@@ -651,12 +651,14 @@ of the growth distribution (e.g., 0.01 and 0.99) as a function of initial size, 
 
 Rather than picking one distribution (such as the beta) as a new default, we prefer leveraging the vast arsenal of continuous probability distributions -- all at one's fingertips with a few lines of code -- so that the data and their particular deviations from normality can guide the choice of a better distribution. 
 Nonetheless, in our analyses we found ourselves coming back time and again to a few ``usual suspects''. 
-The four-parameter SHASH distribution, for example, is able to flexibly accommodate independent, size-dependent variation in variance, skewness, and kurtosis, and it is available as a distribution family in the well-developed \textbf{mgcv} package. 
-In our case studies it was consistently among the top non-Gaussian candidates and was our model of choice for several data sets. 
-In situations where one wanted or needed a default distribution, one could do worse than the SHASH. 
-In cases where size transitions are leptokurtic but consistently so across the size distribution, the Johnson's S-U (used for lichens) and skewed $t$ (used for orchids) distributions are easy to fit with custom likelihood functions. 
-All of the distributions we have used (and the specific parameterizations we have implemented) share the property that their location and scale parameters correspond to the mean and standard deviation, which is not essential but it facilitates interpretation and an intuitive connection to the pilot Gaussian model. 
-The five-parameter skewed generalized $t$ (sgt) generalizes many other continuous distributions and is therefore another highly flexible option, but it does not share the location=mean and scale=sd property, and in our experience can be hard to fit. 
+The four-parameter SHASH distribution, for example, 
+%is able to flexibly accommodate independent, size-dependent variation in variance, skewness, and kurtosis, and it is available as a distribution family in the well-developed \textbf{mgcv} package. 
+%In our case studies it 
+was consistently among the top non-Gaussian candidates, was our model of choice for several data sets, and is available in the well-developed \textbf{mgcv} package. 
+If one needs or wants a default distribution, one could do worse than the SHASH. 
+In cases where size transitions are consistently leptokurtic, Johnson's S-U (used for lichens) and the skewed $t$ (used for orchids) distributions are easy to fit with custom likelihood functions. 
+\comment{SPE: I don't think this is true for SHASH: All of the distributions we have used (and the specific parameterizations we implemented) share the property that their location and scale parameters correspond to the mean and standard deviation, which is not essential but it facilitates interpretation and an intuitive connection to the pilot Gaussian model. } 
+The five-parameter skewed generalized $t$ (sgt) is highly flexible, generalizing many other continuous distributions, but it does not have the useful property that the location and scale parameters equal the mean and standard deviation, and in our experience it can be hard to fit. 
 Finally, finding an appropriate non-Gaussian alternative does not solve all the problems of growth modeling. 
 ``Eviction'' from the approximating matrix of the IPM kernel is an ever-present danger and requires vigilance to detect and correct \citep{williams2012avoiding}. 
 
@@ -683,12 +685,16 @@ This paper has focused on size transitions, but IPMs have been extended in ways 
 For example, IPMs can be used to model infectious disease dynamics, where hosts may exhibit continuous variation in infection load (e.g., parasite density), and host vital rate processes depend on infection intensity \citep{metcalf2016opportunities,wilber2016integral}. 
 Such models must define probabilities of future infection load conditional on current load, and would therefore benefit from the same modeling workflow that we have outlined for size transitions.
 
-\new{The generalizations of the Gaussian model that we have considered here are not a panacea. For example, none of them allow a bimodal growth distribution, such as might occur if 
-individuals attacked by an herbivore or a pathogen experienced rapid tissue loss, followed by normal growth from their diminished size. From the beginning there were concerns about 
-``how   
+\new{From the outset there have been concerns about ``how well these methods [IPM growth kernels] can deal with different patterns of growth, stasis, and shrinkage'' \citep[][p. 200]{morris-doak-2002}, compared to ``binning'' methods that use observed transition frequencies between 
+user-defined size classes as the transition probabilities in a (possibly large) matrix model \citep{doak-critical-2021}. 
+The non-Gaussian models that we have considered here are not a panacea. 
+For example, none of them allow bimodal growth, such as might occur if herbivore- or pathogen-attached individuals experience rapid tissue loss. 
+When growth depends only on initial size, and the shape of the growth distribution is roughly constant, a nonparametric IPM growth kernel can be derived from a  kernel density estimate for scaled residuals \citep[][p. 288]{ellner-etal-2016}. 
+Outside that special situation, analogous approaches require choosing multiple smoothing parameters, which is as challenging (and unstable) as model selection for parametric models. 
+We are currently exploring with collaborators whether ``targeted learning'' approaches developed for causal inference \citep{vande-rose-2011} can be used to circumvent smoothing parameter selection. Targeted learning is an interative method, starting with a pilot model presumed to be fairly good but flawed, and updating it iteratively to achieve unbiased estimates and valid confidence intervals for a particular ``target'' quantity (such as $\lambda$ or mean lifespan). 
+It is easy to see the bumps and wiggles that signal under-smoothing, and preliminary results suggest that targeted learning with a deliberately under-smoothed pilot model works well for estimating complex growth patterns (G. Hooker and Y. Zhou, \emph{personal communication}).} 
 
-
-\subsection*{Conclusion}
+ \subsection*{Conclusion}
 Normally-distributed size transitions are probably the exception, not the rule. 
 Yet, two decades-worth of IPM studies have relied overwhelmingly on Gaussian growth models. 
 Using tools not available when IPMs were first developed, it is now very easy to do much better without any sacrifice in richness or complexity of covariates and random effects. 
@@ -716,11 +722,26 @@ By generating predicted size transitions that are truer to the data, IPM analyst
 
 \centerline{\Large{\textbf{Appendices}}}
 
-section{Nonparametric tests for non-constant variance}
+\section{Nonparametric tests for non-constant variance}
 \label{sec:VarianceTests}  
 
+The tests we describe here use randomization to test for trends in the variance of a response $y$ as a function of a covariate $x$, given data pairs $(x_i,y_i),  i = 1,2, \cdots, n$. 
+In this paper $y$ is the set of standardized residuals from a pilot model, and $x$ is a covariate in the model such as initial size or fitted mean as a function of initial size and other covariates. 
 
+The first is based on the Levene test for constancy of variance across groups, available in the \textbf{car} package \citep{car-package} as \texttt{leveneTest}.
+In our setting there are no natural groups. We create groups by sorting the $x_i$ from smallest to largest and dividing them into $m$ equal-size groups (i.e., we bin based on quantiles of the growth predictor). The outcome of the resulting Levene test then depends on the choice of $m$. To avoid choosing $m$, 
+we use as test statistic the minimum $p$-value obtained across a range of bin numbers. With typical growth data we only hope to identify broad patterns
+of variation, so we typically scan across $m$ from 3 to 8. This test statistic is computed for the actual data, and for $R$ random shufflings of the
+$y_i$. The randomization $p$ value is the proportion of randomizations where the Levene test $p$-value is smaller than that from the real data.  
 
+The $p$-value returned by the \texttt{leveneTest} function assumes Gaussian data. However, the Levene test $p$ value is a monotonic function
+of the underlying test statistic. The \emph{Multiple Levene test} described in the preceding paragraph is exactly equivalent to a randomization 
+based on the underlying test statistic, and therefore it does not rest on any assumptions about the distribution of the data. 
+
+The second is based on using B-spline regression to test for trends in the squared residuals. We regress $y^2$ on a B-spline basis in $x$ of
+some dimension $m$, and record the fraction of variance explained, $r^2$. As with the Levene test, to avoid dependence on $m$ our test statistic
+is the maximum $r^2$ across a range of $m$ values, typically 4 to 8. This is computed for the actual data, and for $R$ random shufflings of
+the $y_i$ values. The randomization $p$ value is the proportion of randomizations where the maximum $r^2$ is larger than that for the real data.  
 
 \section{The Jones-Pewsey SHASH distribution} 
 \label{sec:SHASHdist} 
