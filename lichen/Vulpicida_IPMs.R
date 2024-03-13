@@ -119,15 +119,17 @@ points(XH$t0, log( 1/predict(fitGAU,type="response")[,2]), col="red" )
 ####################### Save the best-fitting Gaussian as fitGAU. 
 fitGAU = fitGAU22; rm(fitGAU22); rm(fitGAU0); rm(fitGAU00);  
 
-######### Diagnostics on fitted parametric SD function: no problems! 
+####################################################################### 
+## Diagnostics on fitted parametric SD function: no problems! 
 c1<- makeCluster(8); 
 registerDoParallel(c1);
-out = multiple_levene_test(XH$fitted, XH$scaledResids, 3, 8, 2000);
-out$p_value; ## > 0.89
+out = multiple_levene_test(XH$fitted, XH$scaledResids, 3, 8, 5000);
+out$p_value; ## 0.88
 
-out = multiple_bs_test(XH$fitted, XH$scaledResids, 4, 8, 2000) 
-out$p_value; ## > 0.78; 
+out = multiple_bs_test(XH$fitted, XH$scaledResids, 4, 8, 5000) 
+out$p_value; ## 0.14; 
 stopCluster(c1); 
+#######################################################################
 
 ## quantile regressions on standardized  residuals 
 S.05<-qgam(scaledResids~s(t0,k=6), data=XH,qu=0.05)

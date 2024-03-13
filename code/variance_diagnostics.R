@@ -52,7 +52,7 @@ multiple_bs_test = function(fitted_vals, residuals, min_basis, max_basis, R) {
 	for(nbasis in min_basis:max_basis){
 		X = bs(fitted_vals,df=nbasis,intercept=TRUE); 
 		fit_true = lm(I(residuals^2) ~ X-1) 
-		rsq_true[nbasis] = summary(fit_true)$r.squared; 
+		rsq_true[nbasis] = summary(fit_true)$adj.r.squared; 
 	}
 	rsq_max_true = max(rsq_true,na.rm=TRUE); 
 	df_max_true = which.max(rsq_true); 
@@ -65,7 +65,7 @@ multiple_bs_test = function(fitted_vals, residuals, min_basis, max_basis, R) {
 	for(nbasis in min_basis:max_basis) {
 		X = bs(fitted_vals,df=nbasis,intercept=TRUE); 
 		fit_ran = lm(I(ran_resids^2) ~ X-1) 
-		rsq_ran[nbasis] = summary(fit_ran)$r.squared; 
+		rsq_ran[nbasis] = summary(fit_ran)$adj.r.squared; 
 	}
 	max(rsq_ran,na.rm=TRUE); 
 }
