@@ -28,5 +28,4 @@ data/.csv
 *.mtc1
 *.out
 *.synctex.gz
-*.rds
 manuscript/BetterGrowthModeling.pdf
