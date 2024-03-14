@@ -127,7 +127,7 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 \noindent\textbf{Running header:} Better growth modeling for IPMs
 
 \bigskip 
-\noindent\textbf{Acknowledgements:} This research was supported by US NSF grants DEB-1933497 to SPE and DEB-1754468, 2208857, and 2225027 to TEXM. Giles Hooker gave us the very good idea to use quantile regression for estimating skewness and excess kurtosis. 
+\noindent\textbf{Acknowledgements:} This research was supported by US NSF grants DEB-1933497 to SPE and DEB-1754468, 2208857, and 2225027 to TEXM. Giles Hooker gave us the very good idea to use quantile regression instead of binning to estimate trends in skewness and kurtosis. 
 
 \bigskip 
 \noindent\textbf{Authorship statement:} All authors discussed all aspects of the research and contributed to developing methods, analyzing data, and writing and revising the paper.  
@@ -689,10 +689,10 @@ Such models must define probabilities of future infection load conditional on cu
 user-defined size classes as the transition probabilities in a (possibly large) matrix model \citep{doak-critical-2021}. 
 The non-Gaussian models that we have considered here are not a panacea. 
 For example, none of them allow bimodal growth, such as might occur if herbivore- or pathogen-attached individuals experience rapid tissue loss. 
-When growth depends only on initial size, and the shape of the growth distribution is roughly constant, a nonparametric IPM growth kernel can be derived from a  kernel density estimate for scaled residuals \citep[][p. 288]{ellner-etal-2016}. 
-Outside that special situation, analogous approaches require choosing multiple smoothing parameters, which is as challenging (and unstable) as model selection for parametric models. 
-We are currently exploring with collaborators whether ``targeted learning'' approaches developed for causal inference \citep{vande-rose-2011} can be used to circumvent smoothing parameter selection. Targeted learning is an interative method, starting with a pilot model presumed to be fairly good but flawed, and updating it iteratively to achieve unbiased estimates and valid confidence intervals for a particular ``target'' quantity (such as $\lambda$ or mean lifespan). 
-It is easy to see the bumps and wiggles that signal under-smoothing, and preliminary results suggest that targeted learning with a deliberately under-smoothed pilot model works well for estimating complex growth patterns (G. Hooker and Y. Zhou, \emph{personal communication}).} 
+When the shape of the growth distribution is roughly constant, a nonparametric IPM growth kernel can be derived from a kernel density estimate for scaled residuals \citep[][p. 288]{ellner-etal-2016}. 
+Outside that special situation, analogous approaches require choosing multiple smoothing parameters, which is very challenging. 
+We are currently exploring with collaborators whether ``targeted learning'' approaches developed for causal inference \citep{vande-rose-2011} can be used to circumvent smoothing parameter selection. Targeted learning starts with a pilot model and updates it iteratively to achieve unbiased estimates and valid confidence intervals for a particular ``target'' quantity (such as $\lambda$ or mean lifespan). Preliminary results suggest that targeted learning with a deliberately under-smoothed pilot model works well for complex growth patterns (G. Hooker and Y. Zhou, \emph{personal communication}). But nonparametric methods are data-hungry, and targeted learning is no exception. When departures from Gaussian are quantitative rather than qualitative, 
+parametric modeling as in this paper will make more efficient use of limited data.} 
 
  \subsection*{Conclusion}
 Normally-distributed size transitions are probably the exception, not the rule. 
