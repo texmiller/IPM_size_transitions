@@ -21,13 +21,13 @@ c1<- makeCluster(12);
 registerDoParallel(c1);
 
 N = 500; ## number of fitted values 
-nreps = 500; ## number of replicate simulations 
+nreps = 250; ## number of replicate simulations 
 R = 1000; ## number of randomizations for randomization test  
 
 pbin = pspline = pbin2 = pspline2 = numeric(nreps); 
 for(jrep in 1:nreps){
 	cat("Rep ", jrep, "------------------------------", "\n")
-	fitted_vals = sort(2*rbeta(N,5,3)); 
+	fitted_vals = sort(2*rbeta(N,3,3)); 
 	sd_vals = rep(1,N); 
 	scaled_resids = rSST(N,mu=rep(0,N), sigma = sd_vals, nu = exp(-2 + 2*fitted_vals), tau = 5); 
 	out = multiple_levene_test(fitted_vals, scaled_resids, 3, 8, R) 
@@ -35,7 +35,8 @@ for(jrep in 1:nreps){
 	out = multiple_bs_test(fitted_vals, scaled_resids, 4, 8, R) 
 	pspline[jrep]=out$p_value
 	
-	sd_vals2 = 1 + 0.2*sin(3*pi*fitted_vals);  
+	#sd_vals2 = 1 + 0.25*sin(3*pi*fitted_vals);  
+	sd_vals2 =  1  + exp(-2*fitted_vals) 
 	scaled_resids = rSST(N,mu=rep(0,N), sigma = sd_vals2, nu = exp(-2 + 2*fitted_vals), tau = 5); 
 	out = multiple_levene_test(fitted_vals, scaled_resids, 3, 8, R) 
 	pbin2[jrep]=out$p_value
