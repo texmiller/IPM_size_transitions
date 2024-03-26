@@ -15,7 +15,6 @@ add_panel_label <- function(ltype="a"){
 
 source("variance_diagnostics.R"); 
 
-	
 stopCluster(c1); 
 c1<- makeCluster(8); 
 registerDoParallel(c1);
@@ -29,11 +28,11 @@ for(jrep in 1:nreps){
 	cat("Rep ", jrep, "------------------------------", "\n")
 	fitted_vals = sort(2*rbeta(N,3,3)); 
 	
-	if(FALSE) {
+
 	sd_vals = rep(1,N); 
 	scaled_resids = rJSU(N, mu=rep(0,N), sigma = sd_vals, nu = -3 + 1.5*fitted_vals, tau = 4); 
 	scaled_resids = scaled_resids/sd(scaled_resids); 
-	out = multiple_levene_test(fitted_vals, scaled_resids, 3, 8, R) 
+	out = multiple_levene_test(fitted_vals, scaled_resids, 3, 10, R) 
 	pbin[jrep]=out$p_value
 	out = multiple_bs_test(fitted_vals, scaled_resids, 4, 8, R) 
 	pspline[jrep]=out$p_value
@@ -42,16 +41,15 @@ for(jrep in 1:nreps){
 	sd_vals2 =  1  + exp(-2*fitted_vals) 
 	scaled_resids2 = rJSU(N, mu=rep(0,N), sigma = sd_vals2, nu = -3 + 1.5*fitted_vals, tau = 4); 
 	scaled_resids2 = scaled_resids2/sd(scaled_resids2); 
-	out = multiple_levene_test(fitted_vals, scaled_resids2, 3, 8, R) 
+	out = multiple_levene_test(fitted_vals, scaled_resids2, 3, 10, R) 
 	pbin2[jrep]=out$p_value
 	out = multiple_bs_test(fitted_vals, scaled_resids2, 4, 8, R) 
 	pspline2[jrep]=out$p_value
-	}
 	
 	sd_vals3 = 1 + 0.3*dnorm(fitted_vals,mean=1,sd=0.3); 
 	scaled_resids3 = rJSU(N, mu=rep(0,N), sigma = sd_vals3, nu = -3 + 1.5*fitted_vals, tau = 4); 
 	scaled_residus3 = scaled_resids2/sd(scaled_resids3); 
-	out = multiple_levene_test(fitted_vals, scaled_resids3, 3, 8, R) 
+	out = multiple_levene_test(fitted_vals, scaled_resids3, 3, 10, R) 
 	pbin3[jrep]=out$p_value
 	out = multiple_bs_test(fitted_vals, scaled_resids3, 4, 8, R) 
 	pspline3[jrep]=out$p_value
