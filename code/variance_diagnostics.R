@@ -8,6 +8,7 @@ library(car);
 library(gamlss.dist); 
 require(parallel); 
 require(doParallel); 
+require(splines); 
 
 #################################################################
 ## Compute minimum Levene test p-value on data and R random 
