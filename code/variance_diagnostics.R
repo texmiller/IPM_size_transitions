@@ -21,7 +21,8 @@ multiple_levene_test = function(fitted_vals, residuals, min_bins, max_bins, R) {
 	for(nbins in min_bins:max_bins){
 		u = nbins*indexx/(1 + max(indexx)); 
 		u = floor(u); u = factor(u); 
-		p_true[nbins] = leveneTest(residuals,u,center=mean, trim = 0.1)$"Pr(>F)"[[1]]
+		# p_true[nbins] = leveneTest(residuals,u,center=mean, trim = 0.1)$"Pr(>F)"[[1]]
+		p_true[nbins] = leveneTest(residuals,u)$"Pr(>F)"[[1]]
 	}
 	p_min_true = min(p_true,na.rm=TRUE); 
 	bins_min_true = which.min(p_true); 
@@ -47,12 +48,14 @@ multiple_levene_test = function(fitted_vals, residuals, min_bins, max_bins, R) {
 ## permutations, scanning across a range of basis functions
 #################################################################
 multiple_bs_test = function(fitted_vals, residuals, min_basis, max_basis, R) {
-	e = order(fitted_vals); residuals = residuals[e];  
+	e = order(fitted_vals); residuals = residuals[e]; 
+	abs_residuals = abs(residuals - median(residuals))
 	indexx = seq_along(residuals)
 	rsq_true=rep(NA,max_basis); 
 	for(nbasis in min_basis:max_basis){
 		X = bs(fitted_vals,df=nbasis,intercept=TRUE); 
-		fit_true = lm(I(residuals^2) ~ X-1) 
+		## fit_true = lm(I(residuals^2) ~ X-1) 
+		fit_true = lm(abs_residuals ~ X-1) 
 		rsq_true[nbasis] = summary(fit_true)$adj.r.squared; 
 	}
 	rsq_max_true = max(rsq_true,na.rm=TRUE); 
@@ -61,11 +64,13 @@ multiple_bs_test = function(fitted_vals, residuals, min_basis, max_basis, R) {
 	 
 	out = foreach(j=1:R,.combine = c,.packages="splines") %dopar% 
     {
-	ran_resids = sample(residuals);
+	## ran_resids = sample(residuals);
+	ran_resids = sample(abs_residuals);
 	rsq_ran = rep(NA,max_basis); 
 	for(nbasis in min_basis:max_basis) {
 		X = bs(fitted_vals,df=nbasis,intercept=TRUE); 
-		fit_ran = lm(I(ran_resids^2) ~ X-1) 
+		# fit_ran = lm(I(ran_resids^2) ~ X-1) 
+		fit_ran = lm(ran_resids ~ X-1) 
 		rsq_ran[nbasis] = summary(fit_ran)$adj.r.squared; 
 	}
 	max(rsq_ran,na.rm=TRUE); 

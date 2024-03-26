@@ -109,8 +109,8 @@ deletekeywords={on,by,data,R,Q,mean,var,sd,log,family,na,options,q,weights,effec
 \author[a]{Tom E.X. Miller\thanks{Corresponding author. Department of BioSciences, Rice University,
 Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 \author[b]{Stephen P. Ellner}
-\affil[a]{Department of BioSciences, Rice University, Houston, TX } 
-\affil[b]{Department of Ecology and Evolutionary Biology, Cornell University, Ithaca, New York} 
+\affil[a]{Department of BioSciences, Rice University, Houston TX } 
+\affil[b]{Department of Ecology \& Evolutionary Biology, Cornell University, Ithaca NY} 
 \date{}
 \renewcommand\Authands{ and }
 
@@ -227,50 +227,50 @@ In particular, log-transformation often reduces or eliminates heteroskedasticity
 and also helps avoid eviction at small sizes \citep{williams2012avoiding}. 
 
 \new{Before considering non-Gaussian models it is important to check the fitted mean and standard deviation functions. 
-If they are valid, the set of scaled or standardized residuals (residuals scaled by the standard deviation function) should have zero mean and unit variance --- overall, and as a function of original size or fitted mean values. Plotting residuals versus fitted values is commonly recommended to check for omitted trends in mean or variance. 
-However, residual plots can be misleading about trends in variance, because data sparsity creates an illusion of low variance. 
-One of us recently found, while modeling some tree growth data, that the actual variance trend in the residuals plot (identified by maximum likelihood) was the exact opposite of what we saw with our own two eyes. 
+If they are valid, the standardized residuals (residuals scaled by the standard deviation function) should have zero mean and unit variance, both overall and as a function of original size or fitted mean values. 
+Plotting residuals versus fitted values is commonly recommended to check for omitted trends in mean or variance. 
+However, residual plots can be misleading about variance trends, because data sparsity creates an illusion of low variance. 
+One of us recently found, that the actual variance trend (identified by maximum likelihood) in the residuals plot for a tree growth model was the exact opposite of what we saw with our own two eyes. 
 So for this step we recommend using formal statistical tests for nonconstant variance. 
-In our code archive, the script \texttt{variance\_diagnostics.R} provides two randomization-based tests for variance trends without having to specify the nature of the trend, texttt{multiple\_levene\_test} and \texttt{multiple\_bs\_test}.  
+In our code archive, the script \texttt{variance\_diagnostics.R} provides two randomization tests 
+for nonconstant variance as a function of a covariate, texttt{multiple\_levene\_test} and \texttt{multiple\_bs\_test}.  
 These are described in Supplement section \ref{sec:VarianceTests}.}    
 
 \item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate 
-from Gaussian, and to identify a more appropriate distribution.}
+from Gaussian, and to choose a more appropriate distribution.}
 \\
 If the Gaussian pilot model is valid, the standardized residuals should be Gaussian with no skew or excess kurtosis.  
 This criterion provides the basis for deciding whether to accept a Gaussian growth model or explore alternatives. 
 If the standardized residuals are satisfactorily Gaussian, skip to the final step of the workflow. 
 
-There are many ways that growth data may deviate from Gaussian, and the nature of those deviations can guide the search for a better distribution. 
+Growth data may deviate from Gaussian in many ways, and the nature of those deviations can guide the search for a better distribution. 
 Frequentist tests such as the D'Agostino test of skewness \citep{d1970transformation} and the Anscombe-Glynn test of kurtosis \citep{anscombe1983distribution} 
 could be used to diagnose whether the aggregate distribution of standardized residuals deviates from normality (R package \textbf{moments} \citep{komsta2015moments}). 
-However, the aggregate distribution of standardized residuals may be misleading if properties such as skew and kurtosis vary with size or other covariates. 
-For example, a change in the direction of skewness from small to large sizes might produce zero overall skewness, but really requires a distribution flexible enough to accommodate both positive and negative skew, such as the skewed Normal or Johnson $S_{U}$ distributions. 
+However, the distribution of all standardized residuals may be misleading if properties such as skew and kurtosis vary with size or other covariates. 
+For example, a change from positive skew at small sizes to negative at large sizes might produce zero overall skewness, but really requires a distribution family that can allow both positive and negative skew, such as the skewed Normal or Johnson $S_{U}$ distributions. 
 Alternatively, growth data may lack skew but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
-It is therefore essential to visualize trends in distribution properties with respect to size, either initial size (for simple models with only size-dependence) or expected future size (for models with multiple fixed effects). 
+It is therefore essential to visualize trends in distribution properties with respect to either initial size (in simple models with only size-dependence) or expected future size (for models with multiple fixed effects). 
 %In the case studies below, we rely on quantile regression of the standardized residuals to visualize skew and kurtosis as continuous functions of initial size or expected future size. 
 Fig. \ref{fig:workflow} includes guidance on how the skew and kurtosis properties of the standardized residuals suggest options for an appropriate growth distribution. 
-In our case studies we take advantage of the many distributions provided in the \textbf{gamlss} R package \citep{stasinopoulos2007generalized}, but any other distributions with the necessary properties can be used.  
+In our case studies we exploit the many distributions provided in the \textbf{gamlss} R package \citep{stasinopoulos2007generalized}, but any other distribution families with the necessary properties can be used.  
 
 \item \textit{Refit the growth model using the chosen distribution.}
 \\
 In models with multiple covariates and/or random effects, each potentially affecting several distribution parameters (location, scale, skew, kurtosis) in different ways, ``refit the model'' could entail a massive model selection process to identify the ``right'' or ``best'' non-Gaussian model. 
-And with so many options, model uncertainty may be overwhelming and over-fitting becomes a significant risk even if precautions against it are taken. 
+And with so many options, model uncertainty may be overwhelming and over-fitting becomes a significant risk even when precautions against it are taken. 
 We therefore argue for adopting a more modest goal: remedy the evident defects in the Gaussian model. 
 As we demonstrate below, the functional forms for the mean and standard deviation (or location and scale parameters) can often be carried over from the pilot Gaussian model into a non-Gaussian distribution, leaving skew and kurtosis as the targets for improvement. 
 
-Our recommendation for this step is based on the fact that parameter estimation using Gaussian regression models is generally robust to deviations from normality \citep{schielzeth2020robustness}, meaning that the mean of the Gaussian model is probably a very good approximation for the mean of the non-Gaussian model (and if it is not, the next step in the workflow will catch that). 
+Our recommendation for this step is based on the fact that parameter estimation using Gaussian regression models is generally robust to deviations from normality \citep{schielzeth2020robustness}, meaning that the fitted mean (as a function of covariates) of the Gaussian model is probably a very good approximation for the fitted mean in the corresponding non-Gaussian model (and if it is not, the next step in the workflow will catch that). 
 The functional forms for skew and kurtosis of the non-Gaussian model can be guided by the qualitative features of the graphical diagnostics (e.g., that skewness switches from positive to negative with size). 
-%When there are other covariates or random effects, the GLM-like alternative of making distribution parameters a function of the location parameter (the ``linear predictor'') sould also be considered. 
-%How fitting is accomplished depends on features of the model, in particular whether or not it includes random effects. 
 
 \item \textit{Test the final model through graphical diagnostics comparing simulated and real growth data.} 
 \\
 A good model will generate simulated data that look like the real data.  
-Again, it is important to inspect the properties of simulated data conditional on initial size, rather than examining the aggregate distribution.   
+Again, it is important to inspect the properties of simulated data conditional on initial size or fitted mean subsequent size, rather than examining the aggregate distribution.   
 We provide examples below of informative comparisons between simulated and real data, based mainly on quantiles. 
-If the simulated data do not correspond well with real data, alternative (possibly more flexible) growth distributions, or more complex functions relating distribution parameters to size and other covariates, should be explored. 
-However, we again caution that full-blown model selection exercise is high risk with low expected reward. 
+If the simulated data do not correspond well with real data, alternative (possibly more flexible) growth distributions should be explored, or more complex functions relating distribution parameters to size and other covariates. 
+However, we again caution that full-blown model selection is high risk with low expected reward. 
 Instead, alternative models should be chosen to remedy observable discrepancies between real and simulated size transitions, and at most slightly modified based on final diagnostics and statistical tests.
 
 \end{enumerate}
@@ -728,25 +728,42 @@ By generating predicted size transitions that are truer to the data, IPM analyst
 The tests that we describe here use randomization to test for trends in the variance of a response $y$ as a function of a covariate $x$, given data pairs $(x_i,y_i),  i = 1,2, \cdots, n$. 
 In this paper $y$ is the set of standardized residuals from a pilot model, and $x$ is a covariate in the pilot model such as initial size or fitted mean subsequent size. 
 
-The first is based on the Levene test for constancy of variance across groups, available in the \textbf{car} package \citep{car-package} as \texttt{leveneTest}.
-In our setting there are no natural groups. We create groups by sorting the $x_i$ from smallest to largest and dividing them into $m$ equal-size groups (i.e., we bin based on quantiles of $x$). 
-The outcome of the resulting Levene test then depends on the choice of $m$. To avoid choosing $m$, 
-we use as test statistic the minimum $p$-value obtained across a range of bin numbers. With typical growth data we only hope to identify broad patterns
-of variation, so we typically scan across $m$ from 3 to 8. This test statistic is computed for the actual data, and for $R$ random shufflings of the
+The first test is based on the Levene test for constancy of variance across discrete groups
+\citep{conover-etal-1981}, as provided in the \textbf{car} package \citep{car-package} as \texttt{leveneTest}. We used the default options in \texttt{LeveneTest},
+meaning that the test is based on absolute deviations between data values and their median, rather than on squared deviations from the mean. 
+\citet{conover-etal-1981} found that the tests using the former measure of residual size gave the most robustness with non-Gaussian data. 
+In our setting there are no natural groups. We create groups by sorting the data pairs according to the value of $x_i$ (from smallest to largest) 
+and dividing them into $m$ equal-size groups (i.e., we bin based on quantiles of $x$). 
+The outcome of the Levene test depends on the choice of $m$. Following the approach of 
+\citet{ye-Jensen-2020}, to avoid choosing $m$ our test statistic is the minimum $p$-value obtained across a range of bin numbers. With typical growth data we only hope to identify broad patterns
+of variation, so we typically scan across $m$ from 3 to 10. This test statistic is computed for the actual data, and for $R$ random shufflings of the
 $y_i$. The randomization $p$ value is the proportion of randomizations where the Levene test $p$-value is smaller than that from the real data.  
 
 The $p$-value returned by the \texttt{leveneTest} function assumes Gaussian data. However, the Levene test $p$ value is a monotonic function
 of the underlying test statistic. The \emph{Multiple Levene test} described in the preceding paragraph is exactly equivalent to a randomization 
-based on the underlying test statistic, and therefore it does not rest on any assumptions about the distribution of the data. 
+based on the underlying test statistic, so it does not rest on any assumptions about the distribution of the data. 
 
-The second is based on using B-spline regression to test for trends in the squared residuals. We regress $y^2$ on a B-spline basis in $x$ of
-some dimension $m$, and record the fraction of variance explained, $r^2$, adjusted for model degrees of freedom.
+The \emph{Multiple B-spline test} is based on using B-spline regression to test for trends in the magnitude of residuals. 
+We again based the test on absolute deviations between response values and their median. We regressed those values on 
+on a B-spline basis in $x$ of some dimension $m$, and record the fraction of variance explained, $r^2$, adjusted for model degrees of freedom.
 Our script uses \texttt{lm} to do the regression, and adjusted $r^2$ is a component of the fitted model's \texttt{summary}.  
-As with the Levene test, to avoid dependence on $m$ our test statistic is the maximum $r^2$ across a range of $m$ values, typically 4 to 8. 
-This is computed for the actual data, and for $R$ random shufflings of the $y_i$ values. 
+As with the Levene test, to avoid dependence on $m$ our test statistic is the maximum $r^2$ across a range of $m$ values, typically 4 to 10. 
+This is computed for the actual data, and for $R$ random shufflings.  
 The randomization $p$ value is the proportion of randomizations where the maximum adjusted $r^2$ is larger than that for the real data.  
 
-Figure \ref{fig:ncv} illustrates how these tests perform on non-Gaussian responses. 
+
+\begin{figure}[tbp]
+\centering
+\includegraphics[width=\textwidth]{figures/test_variance_diagnostics.pdf}
+\caption{Examples of applying the Multiple Levene test and Multiple B-spline test to simulated residuals with known trends in variance.}
+\label{fig:ncv}
+\end{figure} 
+
+
+Figure \ref{fig:ncv} illustrates how these tests perform on simulated non-Gaussian residuals with specified trends in variance as a function of a covariate.
+The top row shows the overall distribution of simulated 
+
+
 
 \section{The Jones-Pewsey SHASH distribution} 
 \label{sec:SHASHdist} 
