@@ -755,23 +755,24 @@ The randomization $p$ value is the proportion of randomizations where the maximu
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=\textwidth]{figures/test_variance_diagnostics.pdf}
-\caption{Examples of applying the Multiple Levene test and Multiple B-spline test to simulated residuals with known trends in variance. See text for explanation}
+\caption{Examples of applying the Multiple Levene test and Multiple B-spline test to simulated non-Gaussian residuals with known trends in variance, sample size $n=500$. 
+See text for explanation. Figure made by R script \texttt{test\_variance\_diagnostics.R} in our code archive. }
 \label{fig:ncv}
 \end{figure} 
 
-
 Figure \ref{fig:ncv} illustrates how these tests perform on simulated non-Gaussian residuals with specified trends in variance as a function of a covariate.
-In all cases the 500 simulated residuals were generated from a Johnson SU distribution with mean zero, kurtosis parameter $\tau = 2$ (kurtosis drops to zero as $\tau \to \infty$)
+In all cases 500 simulated residuals were generated from a Johnson SU distribution with mean zero, kurtosis parameter $\tau = 2$ (kurtosis drops to zero as $\tau \to \infty$)
 and skewness parameter $\nu$ trending linearly from -2 at $x=0$ to 2 at $x=2$. At the extremes ($\nu = \pm 2, \tau =2$) the distribution has skewness of $\approx \pm 1.5$
 (nonparametric skewness $\pm 0.24$) and kurtosis $\approx 7$ (nonparametric excess kurtosis $0.10$).  
 
-The top row shows the overall distribution of simulated residuals, the second row residuals as a function of covariate with the true standard deviation 
+The top row shows the overall distribution of simulated residuals, and the second row shows residuals as a function of the covariate, with the true standard deviation 
 function plotted as a dashed line. The third row and fourth rows show the test results, using $p \le 0.05$ as the criterion for rejecting the null hypothesis
-of constant variance, for 250 sets of simulated residuals, and $R=1000$ randomizations used to compute the randomization $p$-value for each set. 
+of constant variance, for 250 sets of simulated residuals and $R=1000$ randomizations for each set.  
 With constant standard deviation (panels G and J) the type-I error rate (i.e., the fraction of false rejections) should be 0.05, 
-and both tests perform well. Approximating the nominal type-I error rate even with non-Gaussian data was the reason \citet{conover-etal-1981} preferred tests based on absolute deviations from the median. 
-Even with relatively small departures from constant variance (middle and right columns), the tests exhibit reasonable power to detect that
-the variance is not constant. 
+and both tests perform well. Robustness of the type-I error rate with non-Gaussian data was the main reason for \citet{conover-etal-1981} favoring tests based on absolute deviations from the median. 
+Even with relatively small departures from constant variance (middle and right columns), the tests exhibit reasonable power to detect that the variance is not constant. Most of our
+case studies have larger sample sizes, and in simulations with a sample size of 1000 instead of 500 the power to detect nonconstant variance at $\alpha = 0.05$ increased to 
+roughly 85\% for both tests (middle column), and roughly 98\% for both tests (right column). 
 
 \section{The Jones-Pewsey SHASH distribution} 
 \label{sec:SHASHdist} 
@@ -835,18 +836,20 @@ provided in our code archive script \texttt{JPfuns.R}.
 \section{Estimating non-Gaussian mixed effects models using shrinkage}
 \label{sec:shrinkageFits}
 Specialized software for fitting mixed effects models only allow a subset, usually a small subset, of the distributions that 
-we want to consider for modeling growth \footnote{The \textbf{gamlss} package includes many distribution families, but in our experience, even with 
-simple random effects structure the fitting algorithms often fail to converge or fail to find the global optimum, and sometimes get turned around and
-start looking for minimum likelihood estimates. \textbf{gamlss.dist} has some incomplete help pages, but the distribution functions we have
-worked with seem to be reliable.} One way past this limitation is Bayesian estimation. Here we describe another option, 
+are useful for modeling growth \footnote{The \textbf{gamlss} package includes many distribution families, but in our experience, even with 
+simple random effects structure the fitting algorithms often fail to converge or fail to find the global optimum, and can 
+sometimes get turned around and start looking for minimum likelihood estimates. 
+\textbf{gamlss.dist} has some incomplete help pages, and some inaccurate pages, 
+but the distribution functions we have worked with seem to be reliable if you look at the source code to see what they are
+actually computing.} One way past this limitation is Bayesian estimation. Here we describe another option, 
 introduced by \citet{link-nichols-1994} and \citet{gould-nichols-1998}: 
-fitting a fixed effects model by Maximum Likleihood, followed by shrinkage of coefficient estimates. 
+fit a fixed effects model by Maximum Likleihood, followed by shrinkage of coefficient estimates. 
 None of the ideas here are original. The material overlaps Appendix S1 of \citet{metcalf-etal-2015}, the only new wrinkle
 being the application to non-Gaussian models.
 
 We explain shrinkage using a simple model fitted to some growth data 
-on the bunchgrass \emph{Pseudoroegneria spicata} from  \cite{adler-weak-dryad}. 
-The fitted model includes random effects for between-year variation in the slope and 
+on the bunchgrass \emph{Pseudoroegneria spicata} from \cite{adler-weak-dryad}. 
+The fitted model includes random effects for across-year variation in the slope and 
 intercept of future size (log area) as a function of initial size. We assume that initial size 
 and year are the only covariates, and we assume that growth increments 
 follow a skew-Normal distribution with nonconstant variance and constant skew parameter. 

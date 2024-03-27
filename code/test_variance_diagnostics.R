@@ -19,7 +19,7 @@ stopCluster(c1);
 c1<- makeCluster(16); 
 registerDoParallel(c1);
 
-N = 500; ## number of fitted values 
+N = 1000; ## number of fitted values 
 nreps = 250; ## number of replicate simulations 
 R = 1000; ## number of randomizations for randomization test  
 
@@ -77,5 +77,5 @@ hist(pbin3,20,xlab = "p-values", main=paste0("Multiple Levene test: power=", mea
 hist(pspline3,20,xlab = "p-values", main=paste0("Multiple B-spline test: power=", mean(pspline3<0.05)));  add_panel_label("l"); 
 
 
-## dev.copy2pdf(file="../manuscript/figures/test_variance_diagnostics.pdf"); 
+dev.copy2pdf(file="../manuscript/figures/test_variance_diagnostics_1000.pdf"); 
 

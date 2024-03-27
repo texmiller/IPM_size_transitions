@@ -1,7 +1,12 @@
 rm(list=ls(all=TRUE));
 
-setwd("c:/repos/IPM_size_transitions/creosote"); #Steve
-# setwd("C:/Users/tm9/Desktop/git local/IPM_size_transitions/creosote"); #Tom
+
+### move to the right local directory 
+tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
+steve = "c:/repos/IPM_size_transitions" 
+home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
+
+setwd(home); setwd("creosote"); 
 
 require(car); require(lme4); require(zoo); require(moments); require(mgcv); 
 require(gamlss); require(gamlss.tr); require(AICcmodavg); 
