@@ -1,8 +1,7 @@
-#############################################################
-##  Levene Test, binning by percentiles of the data
-##  u is a factor variable to indicate bin membership 
-##  p-value from randomization of scaled residuals 
-#############################################################
+#####################################################################
+## Code for SiZeR-inspired multiple Levene and B-spline tests 
+## for nonconstant variance as a function of a covariate
+#####################################################################
 
 library(car); 
 library(gamlss.dist); 
@@ -21,7 +20,6 @@ multiple_levene_test = function(fitted_vals, residuals, min_bins, max_bins, R) {
 	for(nbins in min_bins:max_bins){
 		u = nbins*indexx/(1 + max(indexx)); 
 		u = floor(u); u = factor(u); 
-		# p_true[nbins] = leveneTest(residuals,u,center=mean, trim = 0.1)$"Pr(>F)"[[1]]
 		p_true[nbins] = leveneTest(residuals,u)$"Pr(>F)"[[1]]
 	}
 	p_min_true = min(p_true,na.rm=TRUE); 
@@ -35,7 +33,7 @@ multiple_levene_test = function(fitted_vals, residuals, min_bins, max_bins, R) {
 	for(nbins in min_bins:max_bins) {
 	u = nbins*indexx/(1 + max(indexx)); 
 	u = floor(u); u = factor(u);  
-	p_ran[nbins] = leveneTest(ran_resids, u, center=mean, trim = 0.1)$"Pr(>F)"[[1]]
+	p_ran[nbins] = leveneTest(ran_resids, u)$"Pr(>F)"[[1]]
 	}	
 	min(p_ran,na.rm=TRUE); 
 }
@@ -54,7 +52,6 @@ multiple_bs_test = function(fitted_vals, residuals, min_basis, max_basis, R) {
 	rsq_true=rep(NA,max_basis); 
 	for(nbasis in min_basis:max_basis){
 		X = bs(fitted_vals,df=nbasis,intercept=TRUE); 
-		## fit_true = lm(I(residuals^2) ~ X-1) 
 		fit_true = lm(abs_residuals ~ X-1) 
 		rsq_true[nbasis] = summary(fit_true)$adj.r.squared; 
 	}
@@ -64,12 +61,10 @@ multiple_bs_test = function(fitted_vals, residuals, min_basis, max_basis, R) {
 	 
 	out = foreach(j=1:R,.combine = c,.packages="splines") %dopar% 
     {
-	## ran_resids = sample(residuals);
 	ran_resids = sample(abs_residuals);
 	rsq_ran = rep(NA,max_basis); 
 	for(nbasis in min_basis:max_basis) {
 		X = bs(fitted_vals,df=nbasis,intercept=TRUE); 
-		# fit_ran = lm(I(ran_resids^2) ~ X-1) 
 		fit_ran = lm(ran_resids ~ X-1) 
 		rsq_ran[nbasis] = summary(fit_ran)$adj.r.squared; 
 	}

@@ -124,10 +124,10 @@ fitGAU = fitGAU22; rm(fitGAU22); rm(fitGAU0); rm(fitGAU00);
 c1<- makeCluster(8); 
 registerDoParallel(c1);
 out = multiple_levene_test(XH$fitted, XH$scaledResids, 3, 10, 5000);
-out$p_value; ## 0.91
+out$p_value; ## 0.90
 
 out = multiple_bs_test(XH$fitted, XH$scaledResids, 4, 10, 5000) 
-out$p_value; ## 0.88; 
+out$p_value; ## 0.87; 
 stopCluster(c1); 
 #######################################################################
 

@@ -722,48 +722,56 @@ By generating predicted size transitions that are truer to the data, IPM analyst
 
 \centerline{\Large{\textbf{Appendices}}}
 
-\section{Nonparametric tests for non-constant variance}
+\section{Nonparametric tests for nonconstant variance}
 \label{sec:VarianceTests}  
 
-The tests that we describe here use randomization to test for trends in the variance of a response $y$ as a function of a covariate $x$, given data pairs $(x_i,y_i),  i = 1,2, \cdots, n$. 
+The tests that we describe here use randomization to test for unspecified trends in the variance of a response $y$ as a function of a covariate $x$, given data pairs $(x_i,y_i),  i = 1,2, \cdots, n$. 
 In this paper $y$ is the set of standardized residuals from a pilot model, and $x$ is a covariate in the pilot model such as initial size or fitted mean subsequent size. 
 
 The first test is based on the Levene test for constancy of variance across discrete groups
-\citep{conover-etal-1981}, as provided in the \textbf{car} package \citep{car-package} as \texttt{leveneTest}. We used the default options in \texttt{LeveneTest},
-meaning that the test is based on absolute deviations between data values and their median, rather than on squared deviations from the mean. 
+\citep{conover-etal-1981}, as provided in the \textbf{car} package \citep{car-package} as \texttt{leveneTest}. 
+We used the default options in \texttt{LeveneTest}, meaning that the test is based on absolute deviations between data values and their median, rather than on squared deviations from the mean. 
 \citet{conover-etal-1981} found that the tests using the former measure of residual size gave the most robustness with non-Gaussian data. 
-In our setting there are no natural groups. We create groups by sorting the data pairs according to the value of $x_i$ (from smallest to largest) 
+In our setting there are no natural groups. We create groups by sorting the data pairs according to the value of $x_i$ from smallest to largest 
 and dividing them into $m$ equal-size groups (i.e., we bin based on quantiles of $x$). 
-The outcome of the Levene test depends on the choice of $m$. Following the approach of 
-\citet{ye-Jensen-2020}, to avoid choosing $m$ our test statistic is the minimum $p$-value obtained across a range of bin numbers. With typical growth data we only hope to identify broad patterns
-of variation, so we typically scan across $m$ from 3 to 10. This test statistic is computed for the actual data, and for $R$ random shufflings of the
-$y_i$. The randomization $p$ value is the proportion of randomizations where the Levene test $p$-value is smaller than that from the real data.  
+The outcome of the Levene test depends on the choice of bin number $m$. Following the approach of 
+\citet{ye-Jensen-2020}, to avoid choosing $m$ our test statistic is the minimum $p$-value obtained across a range of bin numbers. 
+With typical growth data we only hope to identify broad patterns of variation, so we typically scan across $m$ from 3 to 10. 
+This test statistic is computed for the actual data, and for $R$ random shufflings of the $y_i$. The randomization $p$ value is the proportion of 
+randomizations where the Levene test $p$-value is smaller than that from the real data.  
 
-The $p$-value returned by the \texttt{leveneTest} function assumes Gaussian data. However, the Levene test $p$ value is a monotonic function
+The $p$-value returned by the \texttt{leveneTest} function assumes Gaussian data. However, that $p$ value is a monotonic function
 of the underlying test statistic. The \emph{Multiple Levene test} described in the preceding paragraph is exactly equivalent to a randomization 
-based on the underlying test statistic, so it does not rest on any assumptions about the distribution of the data. 
+based on the underlying test statistic, so it does not rest on any assumption about the data distribution. 
 
-The \emph{Multiple B-spline test} is based on using B-spline regression to test for trends in the magnitude of residuals. 
-We again based the test on absolute deviations between response values and their median. We regressed those values on 
+The \emph{Multiple B-spline test} is based on using B-spline regression to test for smooth trends in the magnitude of residuals. 
+We also based this test on absolute deviations between response values and their median. We regress those values  
 on a B-spline basis in $x$ of some dimension $m$, and record the fraction of variance explained, $r^2$, adjusted for model degrees of freedom.
-Our script uses \texttt{lm} to do the regression, and adjusted $r^2$ is a component of the fitted model's \texttt{summary}.  
+Our script uses \texttt{lm} to do the regression, and the adjusted $r^2$ is a component of the fitted model's \texttt{summary}.  
 As with the Levene test, to avoid dependence on $m$ our test statistic is the maximum $r^2$ across a range of $m$ values, typically 4 to 10. 
 This is computed for the actual data, and for $R$ random shufflings.  
 The randomization $p$ value is the proportion of randomizations where the maximum adjusted $r^2$ is larger than that for the real data.  
 
-
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=\textwidth]{figures/test_variance_diagnostics.pdf}
-\caption{Examples of applying the Multiple Levene test and Multiple B-spline test to simulated residuals with known trends in variance.}
+\caption{Examples of applying the Multiple Levene test and Multiple B-spline test to simulated residuals with known trends in variance. See text for explanation}
 \label{fig:ncv}
 \end{figure} 
 
 
 Figure \ref{fig:ncv} illustrates how these tests perform on simulated non-Gaussian residuals with specified trends in variance as a function of a covariate.
-The top row shows the overall distribution of simulated 
+In all cases the 500 simulated residuals were generated from a Johnson SU distribution with mean zero, kurtosis parameter $\tau = 2$ (kurtosis drops to zero as $\tau \to \infty$)
+and skewness parameter $\nu$ trending linearly from -2 at $x=0$ to 2 at $x=2$. At the extremes ($\nu = \pm 2, \tau =2$) the distribution has skewness of $\approx \pm 1.5$
+(nonparametric skewness $\pm 0.24$) and kurtosis $\approx 7$ (nonparametric excess kurtosis $0.10$).  
 
-
+The top row shows the overall distribution of simulated residuals, the second row residuals as a function of covariate with the true standard deviation 
+function plotted as a dashed line. The third row and fourth rows show the test results, using $p \le 0.05$ as the criterion for rejecting the null hypothesis
+of constant variance, for 250 sets of simulated residuals, and $R=1000$ randomizations used to compute the randomization $p$-value for each set. 
+With constant standard deviation (panels G and J) the type-I error rate (i.e., the fraction of false rejections) should be 0.05, 
+and both tests perform well. Approximating the nominal type-I error rate even with non-Gaussian data was the reason \citet{conover-etal-1981} preferred tests based on absolute deviations from the median. 
+Even with relatively small departures from constant variance (middle and right columns), the tests exhibit reasonable power to detect that
+the variance is not constant. 
 
 \section{The Jones-Pewsey SHASH distribution} 
 \label{sec:SHASHdist} 
