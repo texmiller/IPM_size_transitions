@@ -12,8 +12,8 @@ home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
 setwd(home); setwd("coral"); 
 
 
-source("../Diagnostics.R");
-source("../fitChosenDists.R"); 
+source("../code/Diagnostics.R");
+source("../code/fitChosenDists.R"); 
 
 #############   load the data frame on healthy corals 
 source("AkumalCoralsSetup.R"); 
