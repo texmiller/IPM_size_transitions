@@ -80,6 +80,20 @@ CYIM_grow$fitted_norfx<-CYIM_gam_pred[,1]
 CYIM_grow$fitted_sd<-1/predict(CYIM_grow_m1,type="response")[,2]
 CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="response")/CYIM_grow$fitted_sd
 
+CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="Pearson")
+
+####################################################################### 
+## Diagnostics on fitted SD function: BIG problems! 
+c1<- makeCluster(8); 
+registerDoParallel(c1);
+out = multiple_levene_test(CYIM_grow$fitted_norfx, CYIM_grow$scaledResids, 3, 10, 1000);
+out$p_value; # zero! 
+
+out = multiple_bs_test(CYIM_grow$fitted_norfx, CYIM_grow$scaledResids, 4, 10, 5000) 
+out$p_value; ## zero!  
+stopCluster(c1); 
+
+
 ##are the standardized residuals gaussian? -- no
 jarque.test(CYIM_grow$scaledResids) # normality test: FAILS, P < 0.001 
 anscombe.test(CYIM_grow$scaledResids) # kurtosis: FAILS, P < 0.001 
