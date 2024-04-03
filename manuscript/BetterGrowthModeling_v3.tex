@@ -227,15 +227,18 @@ relationships highly nonlinear}. %beta regression
 In particular, log-transformation often reduces or eliminates heteroskedasticity in growth data \citep{ellner-etal-2016} 
 and also helps avoid eviction at small sizes \citep{williams2012avoiding}. 
 
-\new{Before considering non-Gaussian models it is important to check the fitted mean and standard deviation functions. 
-If they are valid, the standardized residuals (residuals scaled by the standard deviation function) should have zero mean and unit variance, both overall and as a function of original size or fitted mean values. 
-Plotting residuals versus fitted values is commonly recommended to check for omitted trends in mean or variance. 
-But residual plots can be misleading about variance trends because data sparsity can create an illusion of low variance. 
-One of us recently found that the actual variance trend (identified by maximum likelihood) in the residuals plot for a tree growth model was the exact opposite of what we saw with our own two eyes. 
+\new{The fitted mean and standard deviation functions should be checked before going any further and modified if necessary. 
+If the functions are accurate, the standardized residuals (residuals scaled by the standard deviation function) should have zero mean and unit variance, both overall and as a function of original size or fitted mean values. 
+Looking at a plot of residuals versus fitted values is often recommended to check for omitted trends in mean or variance. 
+But such plots can be misleading about variance trends, because data sparsity in the tails of a size distribution can create a visual impression of low variance. 
+One of us recently found that the actual variance trend in a tree growth model (identified by maximum likelihood) was the exact opposite of what appeared to be true in a residuals plot, because of data sparsity.  
 So for this step we recommend using formal statistical tests for nonconstant variance. 
-In our code archive, the script \texttt{variance\_diagnostics.R} provides two randomization tests 
-for nonconstant variance as a function of a covariate, texttt{multiple\_levene\_test} and \texttt{multiple\_bs\_test}.  
-These are described in Supplement section \ref{sec:VarianceTests}.}    
+The script \texttt{variance\_diagnostics.R} in our code archive provides two randomization tests 
+for an unspecified trend in variance as a function of a covariate, \texttt{multiple\_levene\_test} and \texttt{multiple\_bs\_test},   
+described in Supplement section \ref{sec:VarianceTests}. 
+However, it is important to remember that what matters for growth modeling is effect size, not $p$-value.  
+For example in our cactus case study, with over 4800 observed size transitions, we found very strong evidence ($p<0.001$) for a minuscule trend (explaining under 1\% of the variation in
+the magnitude of scaled residuals) and therefore accepted the candidate standard deviation function.} 
 
 \item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate 
 from Gaussian, and to choose a more appropriate distribution.}
@@ -461,9 +464,8 @@ In this case study, properly modeling non-normal size transitions -- which was e
 	\label{tab:crossspp}
 \end{table}
 
-
-One could argue that the lichen data set was a convenient ``straw man'' to disqualify Gaussian growth, since it was recognized by the original and subsequent IPM analysts that this species requires a skewed distribution of size transitions \citep{shriver2012comparative,peterson2019improving}. 
-In all remaining case studies, including those in the Appendix, we re-examine growth data that were modeled as Gaussian by the data originators in published IPM studies. 
+One could argue that the lichen data set was a convenient ``straw man'' to disqualify Gaussian growth, because it was recognized by the original and subsequent analysts that size transitions had a strongly skewed distribution \citep{shriver2012comparative,peterson2019improving}. 
+In all remaining case studies, including those in the Appendix, we re-examine growth data that were modeled as Gaussian in published IPM studies. 
 
 \begin{figure}[tbp]
 	\centering

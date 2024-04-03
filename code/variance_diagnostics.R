@@ -9,6 +9,30 @@ require(parallel);
 require(doParallel); 
 require(splines); 
 
+####################################################################
+## Modified from car, to use squared rather than absolute residuals,
+## with each group centered on 5% trimmed mean for some robustness 
+####################################################################
+
+my_leveneTest = function (y, group, center=mean, ...) {
+    if (!is.numeric(y)) 
+        stop(deparse(substitute(y)), " is not a numeric variable")
+    if (!is.factor(group)) {
+        warning(deparse(substitute(group)), " coerced to factor.")
+        group <- as.factor(group)
+    }
+    valid <- complete.cases(y, group)
+    meds <- tapply(y[valid], group[valid], center, ...)
+    resp <- (y - meds[group])^2  ### Only difference from leveneTest in car library: squares instead of absolute value. 
+    table <- anova(lm(resp ~ group))[, c(1, 4, 5)]
+    rownames(table)[2] <- " "
+    dots <- deparse(substitute(...))
+    attr(table, "heading") <- paste("Levene's Test for Homogeneity of Variance (center = ", 
+        deparse(substitute(center)), if (!(dots == "NULL")) 
+            paste(":", dots), ")", sep = "")
+    table
+}
+
 #################################################################
 ## Compute minimum Levene test p-value on data and R random 
 ## permutations, scanning across a range of bin numbers
@@ -20,39 +44,72 @@ multiple_levene_test = function(fitted_vals, residuals, min_bins, max_bins, R) {
 	for(nbins in min_bins:max_bins){
 		u = nbins*indexx/(1 + max(indexx)); 
 		u = floor(u); u = factor(u); 
-		p_true[nbins] = leveneTest(residuals,u)$"Pr(>F)"[[1]]
+		p_true[nbins] = my_leveneTest(residuals,u)$"Pr(>F)"[[1]]
 	}
 	p_min_true = min(p_true,na.rm=TRUE); 
 	bins_min_true = which.min(p_true); 
 
 	 
-	out = foreach(j=1:R,.combine = c,.packages="car") %dopar% 
+	out = foreach(j=1:R,.combine = c,.packages="car",.export="my_leveneTest") %dopar% 
     {
 	ran_resids = sample(residuals);
 	p_ran = rep(NA,max_bins); 
 	for(nbins in min_bins:max_bins) {
 	u = nbins*indexx/(1 + max(indexx)); 
 	u = floor(u); u = factor(u);  
-	p_ran[nbins] = leveneTest(ran_resids, u)$"Pr(>F)"[[1]]
+	p_ran[nbins] = my_leveneTest(ran_resids, u)$"Pr(>F)"[[1]]
 	}	
 	min(p_ran,na.rm=TRUE); 
 }
 	p_value = mean(out < p_min_true); ## how many randomizations exceed the true value? 
 	return(list(p_value = p_value, p_min_true = p_min_true, bins_min_true=bins_min_true, p_min_random = out))
 } 
-	
+
+
+#################################################################
+## Compute minimum Bartlett test p-value on data and R random 
+## permutations, scanning across a range of bin numbers
+#################################################################
+multiple_bartlett_test = function(fitted_vals, residuals, min_bins, max_bins, R) {
+	e = order(fitted_vals); residuals = residuals[e];  
+	indexx = seq_along(residuals)
+	p_true=rep(NA,max_bins); 
+	for(nbins in min_bins:max_bins){
+		u = nbins*indexx/(1 + max(indexx)); 
+		u = floor(u); u = factor(u); 
+		p_true[nbins] = bartlett.test(residuals,u)$p.value
+	}
+	p_min_true = min(p_true,na.rm=TRUE); 
+	bins_min_true = which.min(p_true); 
+
+	 
+	out = foreach(j=1:R,.combine = c,.packages="car",.export="my_leveneTest") %dopar% 
+    {
+	ran_resids = sample(residuals);
+	p_ran = rep(NA,max_bins); 
+	for(nbins in min_bins:max_bins) {
+	u = nbins*indexx/(1 + max(indexx)); 
+	u = floor(u); u = factor(u);  
+	p_ran[nbins] = bartlett.test(ran_resids, u)$p.value
+	}	
+	min(p_ran,na.rm=TRUE); 
+}
+	p_value = mean(out < p_min_true); ## how many randomizations exceed the true value? 
+	return(list(p_value = p_value, p_min_true = p_min_true, bins_min_true=bins_min_true, p_min_random = out))
+} 
+
+
 #################################################################
 ## Compute maximum b-spline r^2 value on data and R random 
 ## permutations, scanning across a range of basis functions
 #################################################################
 multiple_bs_test = function(fitted_vals, residuals, min_basis, max_basis, R) {
 	e = order(fitted_vals); residuals = residuals[e]; 
-	abs_residuals = abs(residuals - median(residuals))
 	indexx = seq_along(residuals)
 	rsq_true=rep(NA,max_basis); 
 	for(nbasis in min_basis:max_basis){
 		X = bs(fitted_vals,df=nbasis,intercept=TRUE); 
-		fit_true = lm(abs_residuals ~ X-1) 
+		fit_true = lm(I(residuals^2) ~ X-1) 
 		rsq_true[nbasis] = summary(fit_true)$adj.r.squared; 
 	}
 	rsq_max_true = max(rsq_true,na.rm=TRUE); 
@@ -61,11 +118,11 @@ multiple_bs_test = function(fitted_vals, residuals, min_basis, max_basis, R) {
 	 
 	out = foreach(j=1:R,.combine = c,.packages="splines") %dopar% 
     {
-	ran_resids = sample(abs_residuals);
+	ran_resids = sample(residuals);
 	rsq_ran = rep(NA,max_basis); 
 	for(nbasis in min_basis:max_basis) {
 		X = bs(fitted_vals,df=nbasis,intercept=TRUE); 
-		fit_ran = lm(ran_resids ~ X-1) 
+		fit_ran = lm(I(ran_resids^2) ~ X-1) 
 		rsq_ran[nbasis] = summary(fit_ran)$adj.r.squared; 
 	}
 	max(rsq_ran,na.rm=TRUE); 

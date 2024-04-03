@@ -16,10 +16,10 @@ add_panel_label <- function(ltype="a"){
 source("variance_diagnostics.R"); 
 
 stopCluster(c1); 
-c1<- makeCluster(16); 
+c1<- makeCluster(8); 
 registerDoParallel(c1);
 
-N = 1000; ## number of fitted values 
+N = 500; ## number of fitted values 
 nreps = 250; ## number of replicate simulations 
 R = 1000; ## number of randomizations for randomization test  
 
@@ -31,11 +31,12 @@ for(jrep in 1:nreps){
 	sd_vals = rep(1,N); 
 	scaled_resids = rJSU(N, mu=rep(0,N), sigma = sd_vals, nu = -2 + 2*fitted_vals, tau = 2); 
 	scaled_resids = (scaled_resids-mean(scaled_resids))/sd(scaled_resids); 
-	out = multiple_levene_test(fitted_vals, scaled_resids, 3, 10, R) 
+	out = multiple_bartlett_test(fitted_vals, scaled_resids, 3, 10, R) 
 	pbin[jrep]=out$p_value
 	out = multiple_bs_test(fitted_vals, scaled_resids, 4, 10, R) 
 	pspline[jrep]=out$p_value
 	
+	if(FALSE){
 	sd_vals2 =  1  + exp(-2*fitted_vals) 
 	scaled_resids2 = rJSU(N, mu=rep(0,N), sigma = sd_vals2, nu = -2 + 2*fitted_vals, tau = 2); 
 	scaled_resids2 =(scaled_resids2-mean(scaled_resids2))/sd(scaled_resids2); 
@@ -51,7 +52,9 @@ for(jrep in 1:nreps){
 	pbin3[jrep]=out$p_value
 	out = multiple_bs_test(fitted_vals, scaled_resids3, 4, 10, R) 
 	pspline3[jrep]=out$p_value
-}
+	}
+	
+	}
 	
 stopCluster(c1); 
 
@@ -77,5 +80,5 @@ hist(pbin3,20,xlab = "p-values", main=paste0("Multiple Levene test: power=", mea
 hist(pspline3,20,xlab = "p-values", main=paste0("Multiple B-spline test: power=", mean(pspline3<0.05)));  add_panel_label("l"); 
 
 
-dev.copy2pdf(file="../manuscript/figures/test_variance_diagnostics_1000.pdf"); 
+## dev.copy2pdf(file="../manuscript/figures/test_variance_diagnostics_1000.pdf"); 
 
