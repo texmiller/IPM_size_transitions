@@ -14,7 +14,7 @@ require(splines);
 ## with each group centered on 5% trimmed mean for some robustness 
 ####################################################################
 
-my_leveneTest = function (y, group, center=mean, ...) {
+my_leveneTest = function (y, group, center=mean,...) {
     if (!is.numeric(y)) 
         stop(deparse(substitute(y)), " is not a numeric variable")
     if (!is.factor(group)) {
@@ -44,7 +44,7 @@ multiple_levene_test = function(fitted_vals, residuals, min_bins, max_bins, R) {
 	for(nbins in min_bins:max_bins){
 		u = nbins*indexx/(1 + max(indexx)); 
 		u = floor(u); u = factor(u); 
-		p_true[nbins] = my_leveneTest(residuals,u)$"Pr(>F)"[[1]]
+		p_true[nbins] = my_leveneTest(residuals,u,trim=0.05)$"Pr(>F)"[[1]]
 	}
 	p_min_true = min(p_true,na.rm=TRUE); 
 	bins_min_true = which.min(p_true); 
@@ -57,7 +57,7 @@ multiple_levene_test = function(fitted_vals, residuals, min_bins, max_bins, R) {
 	for(nbins in min_bins:max_bins) {
 	u = nbins*indexx/(1 + max(indexx)); 
 	u = floor(u); u = factor(u);  
-	p_ran[nbins] = my_leveneTest(ran_resids, u)$"Pr(>F)"[[1]]
+	p_ran[nbins] = my_leveneTest(ran_resids, u,trim=0.05)$"Pr(>F)"[[1]]
 	}	
 	min(p_ran,na.rm=TRUE); 
 }
