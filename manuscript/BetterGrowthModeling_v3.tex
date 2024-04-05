@@ -234,11 +234,11 @@ But such plots can be misleading about variance trends, because data sparsity in
 One of us recently found that the actual variance trend in a tree growth model (identified by maximum likelihood) was the exact opposite of what appeared to be true in a residuals plot, because of data sparsity.  
 So for this step we recommend using formal statistical tests for nonconstant variance. 
 The script \texttt{variance\_diagnostics.R} in our code archive provides two randomization tests 
-for an unspecified trend in variance as a function of a covariate, \texttt{multiple\_levene\_test} and \texttt{multiple\_bs\_test},   
+for an unspecified trend in variance as a function of a covariate, \texttt{multiple\_bartlett\_test} and \texttt{multiple\_bs\_test},   
 described in Supplement section \ref{sec:VarianceTests}. 
 However, it is important to remember that what matters for growth modeling is effect size, not $p$-value.  
-For example in our cactus case study, with over 4800 observed size transitions, we found very strong evidence ($p<0.001$) for a minuscule trend (explaining under 1\% of the variation in
-the magnitude of scaled residuals) and therefore accepted the candidate standard deviation function.} 
+For example in our cactus case study, with over 4800 observed size transitions, we found strong evidence ($p<0.01$) for a minuscule trend, 
+and therefore accepted the fitted standard deviation function.} 
 
 \item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate 
 from Gaussian, and to choose a more appropriate distribution.}
@@ -250,7 +250,7 @@ If the standardized residuals are satisfactorily Gaussian, skip to the final ste
 Growth data may deviate from Gaussian in many ways, and the nature of those deviations can guide the search for a better distribution. 
 Frequentist tests such as the D'Agostino test of skewness \citep{d1970transformation} and the Anscombe-Glynn test of kurtosis \citep{anscombe1983distribution} 
 could be used to diagnose whether the aggregate distribution of standardized residuals deviates from normality (R package \textbf{moments} \citep{komsta2015moments}). 
-However, the distribution of all standardized residuals may be misleading if properties such as skew and kurtosis vary with size or other covariates. 
+However, the aggregate distribution may be misleading if properties such as skew and kurtosis vary with size or other covariates. 
 For example, a change from positive skew at small sizes to negative at large sizes might produce zero overall skewness, but really requires a distribution family that can allow both positive and negative skew, such as the skewed Normal or Johnson $S_{U}$ distributions. 
 Alternatively, growth data may lack skew but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
 It is therefore essential to visualize trends in distribution properties with respect to either initial size (in simple models with only size-dependence) or expected future size (for models with multiple fixed effects). 
@@ -389,9 +389,8 @@ d$fitted_mean = predict(fitGAU,type="response")[,1]
 d$fitted_sd <- 1/predict(fitGAU,type="response")[,2]
 d$scaledResids=residuals(fitGAU,type="response")/d$fitted_sd
 \end{lstlisting}
-The data and fitted mean and standard deviation are shown in Fig. \ref{fig:resid_diagnostics}A. \new{The resulting scaled residuals  
-(Fig. \ref{fig:resid_diagnostics}B) did not exhibit any
-statistically significant trends in variance ($p>0.85$ for Multiple Levene test and Multiple B-spline test; script \texttt{Vulpicida\_IPMs.R}).} 
+The data and fitted mean and standard deviation are shown in Fig. \ref{fig:resid_diagnostics}A. \new{We did not find any statistically significant variance trends in the 
+resulting scaled residuals (Fig. \ref{fig:resid_diagnostics}B; $p>0.7$ for Multiple Bartlett test and Multiple B-spline test; script \texttt{Vulpicida\_IPMs.R}).} 
 
 Quantile regression on the scaled residuals generates the diagnostics shown in Fig. \ref{fig:resid_diagnostics}B (see script \texttt{Vulpicida\_IPMS.R}).
 As expected based on previous analyses, visual analysis of the standardized residuals indicated negative skew, especially at larger sizes (Fig. \ref{fig:resid_diagnostics}B).
@@ -494,9 +493,11 @@ We begin the growth modeling workflow, as above, with a generalized additive mod
 fitGAU <- gam(list(t1 ~ s(t0,k=4) + s(plot,bs="re") + s(year,bs="re"), 
 	~s(t0,k=4)), data=cactus, family=gaulss())
 \end{lstlisting}
-The standardized residuals, accounting for growth variance that peaks at small-to-medium sizes (Fig. \ref{fig:resid_diagnostics}C), show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:resid_diagnostics}D). \new{They also exhibit
-non-constant variance, $p<0.001$ for both Multiple Levene and Multiple B-spline tests; script \texttt{cactus\_growth\_modeling\_qgam.R}). Evidently the departure from
-Gaussian are so severe as to throw off estimation of the standard deviation.}   
+The standardized residuals, accounting for growth variance that peaks at small-to-medium sizes (Fig. \ref{fig:resid_diagnostics}C), show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:resid_diagnostics}D). \new{We also find a statistically significant 
+trend in variance, $p<0.01$ for both Multiple Bartlett and Multiple B-spline tests; script \texttt{cactus\_growth\_modeling\_qgam.R}). However, the trend is too small to 
+worry about: spline regressions (using \texttt{gam} from the \texttt{mgcv} library) of either squared or absolute scaled residuals on either initial size or fitted subsequent size 
+explained under 2\% of the variance. The trend is so weak that it makes no sense to try to remove it, even though the support for the trend is small because of the 
+large sample size ($n=4844$). } 
 
 So to better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, but both of which may be negligible at some sizes.
 We first tried Johnson's $S_{U}$ and then the skewed $t$ distributions, both of which are limited to positive excess kurtosis.
@@ -733,35 +734,39 @@ By generating predicted size transitions that are truer to the data, IPM analyst
 The tests that we describe here use randomization to test for unspecified trends in the variance of a response $y$ as a function of a covariate $x$, given data pairs $(x_i,y_i),  i = 1,2, \cdots, n$. 
 In this paper $y$ is the set of standardized residuals from a pilot model, and $x$ is a covariate in the pilot model such as initial size or fitted mean subsequent size. 
 
-The first test is based on the Levene test for constancy of variance across discrete groups
-\citep{conover-etal-1981}, as provided in the \textbf{car} package \citep{car-package} as \texttt{leveneTest}. 
-We used the default options in \texttt{LeveneTest}, meaning that the test is based on absolute deviations between 
-each data value and overall median, rather than on squared deviations from the mean. 
-\citet{conover-etal-1981} found that the tests using the former measure of residual size gave the most robustness with non-Gaussian data. 
+These tests are used in our suggested workflow specifically to test for correct specification of variance trends in the raw residuals. We therefore build our
+tests from test statistics based on squared residuals, even though tests using other measures of residual magnitude (e.g., absolute residuals, or the log or
+square root of absolute residuals) have better performance on non-Gaussian data \citep{conover-etal-1981}. We instead use randomization to obtain $p$-values without
+assuming that the data are Gaussian. 
+
+The first test is based on the Bartlett test for constancy of variance across discrete groups, 
+which is provided as the \texttt{bartlett.test} function in the \textbf{stats} package that is part of base R.
 
 In our setting there are no natural groups. We create groups by sorting the data pairs according to the value of $x_i$ from smallest to largest 
 and dividing them into $m$ equal-size groups (i.e., we bin based on quantiles of $x$). 
-The outcome of the Levene test then depends on the bin number $m$. Following the approach of 
+The outcome of the test then depends on the bin number $m$. Following the approach of 
 \citet{ye-Jensen-2020}, to avoid choosing $m$ our test statistic is the minimum $p$-value obtained across a range of bin numbers. 
 With typical growth data we can only hope to identify broad patterns of variation, so we typically scan across $m$ from 3 to 10. 
 This test statistic is computed for the actual data, and for $R$ random shufflings of the $y_i$. The randomization $p$ value is the proportion of 
-randomizations where the Levene test $p$-value is smaller than that from the real data.  
+randomizations where the Bartlett test $p$-value is smaller than that from the real data.  
 
-The $p$-value returned by the \texttt{leveneTest} function assumes Gaussian data. However, that $p$ value is a monotonic function
-of the underlying test statistic. The \emph{Multiple Levene test} described in the preceding paragraph is therefore 
-exactly equivalent to a randomization based on the underlying test statistic, so it does not rest on any assumption about the data distribution. 
+The $p$-value returned by the \texttt{bartlett.test} function assumes Gaussian data and has poor robustness against departures from Gaussian \citep{conover-etal-1981}, 
+in particular it often gives false positives (high type-I error rate on non-Gaussian data with constant variance).  
+However, that $p$ value is a monotonic function of the underlying test statistic. The \emph{Multiple Bartlett test} described in the preceding paragraph is therefore 
+exactly equivalent to a randomization test based on the underlying test statistic, and thus does not rest on any assumptions about the data distribution. 
 
-The \emph{Multiple B-spline test} is based on using B-spline regression to test for smooth trends in the magnitude of residuals. 
-We also based this test on absolute deviations between response values and their overall median. We regress those values  
-on a B-spline basis in $x$ of some dimension $m$, and record the fraction of variance explained, $r^2$, adjusted for model degrees of freedom.
+The \emph{Multiple B-spline test} is based on using B-spline regression to test for smooth trends in the scale of residuals. 
+We regress squared residuals on a B-spline basis in $x$ of some dimension $m$, and record the fraction of variance explained, $r^2$, adjusted for model degrees of freedom.
 Our script uses \texttt{lm} to do the regression, and the adjusted $r^2$ is a component of the fitted model's \texttt{summary}.  
-As with the Levene test, to avoid dependence on $m$ our test statistic is the maximum $r^2$ across a range of $m$ values, typically 4 to 10. 
-This is computed for the actual data, and for $R$ random shufflings. The randomization $p$ value is the proportion of randomizations where the maximum adjusted $r^2$ is larger than that for the real data.  
+As with the Multiple Bartlett test, to avoid dependence on $m$ our test statistic is the maximum $r^2$ across a range of $m$ values, typically 4 to 10. 
+This is computed for the actual data, and for $R$ random shufflings. The randomization $p$ value is the proportion of randomizations where the maximum adjusted $r^2$ is 
+larger than that for the real data.  
+
 
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=\textwidth]{figures/test_variance_diagnostics.pdf}
-\caption{Examples of applying the Multiple Levene test and Multiple B-spline test to simulated non-Gaussian residuals with known trends in variance, sample size $n=500$. 
+\caption{Examples of applying the Multiple Bartlett test and Multiple B-spline test to simulated non-Gaussian residuals with known trends in variance, sample size $n=500$. 
 See text for explanation. Figure made by R script \texttt{test\_variance\_diagnostics.R} in our code archive. }
 \label{fig:ncv}
 \end{figure} 
@@ -769,16 +774,16 @@ See text for explanation. Figure made by R script \texttt{test\_variance\_diagno
 Figure \ref{fig:ncv} illustrates how these tests perform on simulated non-Gaussian residuals with specified trends in variance as a function of a covariate.
 In all cases 500 simulated residuals were generated from a Johnson SU distribution with mean zero, kurtosis parameter $\tau = 2$ (kurtosis drops to zero as $\tau \to \infty$)
 and skewness parameter $\nu$ trending linearly from -2 at $x=0$ to 2 at $x=2$. At the extremes ($\nu = \pm 2, \tau =2$) the distribution has skewness of $\approx \pm 1.5$
-(nonparametric skewness $\pm 0.24$) and kurtosis $\approx 7$ (nonparametric excess kurtosis $0.10$).  
+(nonparametric skewness $\pm 0.24$) and kurtosis $\approx 7$ (nonparametric excess kurtosis $0.10$).   
 
 The top row shows the overall distribution of simulated residuals, and the second row shows residuals as a function of the covariate, with the true standard deviation 
 function plotted as a dashed line. The third row and fourth rows show the test results, using $p \le 0.05$ as the criterion for rejecting the null hypothesis
-of constant variance, for 250 sets of simulated residuals and $R=1000$ randomizations for each set.  
+of constant variance, for 500 sets of simulated residuals and $R=2000$ randomizations to compute the $p$-value for each set.  
 With constant standard deviation (panels G and J) the type-I error rate (i.e., the fraction of false rejections) should be 0.05, 
-and both tests perform well. Robustness of the type-I error rate with non-Gaussian data was the main reason for \citet{conover-etal-1981} favoring tests based on absolute deviations from the median. 
-Even with relatively small departures from constant variance (middle and right columns), the tests exhibit reasonable power to detect that the variance is not constant. Most of our
-case studies have larger sample sizes, and in simulations with a sample size of 1000 instead of 500 the power to detect nonconstant variance at $\alpha = 0.05$ increased to 
-roughly 85\% for both tests (middle column), and roughly 98\% for both tests (right column). 
+and both tests perform quite well. Even with relatively small departures from constant variance (middle and right columns), the tests 
+exhibit reasonable power to detect that the variance is not constant. Most of our case studies have larger sample sizes, and in simulations with a sample size 
+of 1000 instead of 500 the power to detect nonconstant variance at $\alpha = 0.05$ increased to roughly 85\% for both tests (middle column), and roughly 98\% for 
+both tests (right column). 
 
 \section{The Jones-Pewsey SHASH distribution family} 
 \label{sec:SHASHdist} 

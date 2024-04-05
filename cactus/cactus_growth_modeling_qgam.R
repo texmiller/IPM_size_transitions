@@ -80,14 +80,14 @@ CYIM_grow$fitted_norfx<-CYIM_gam_pred[,1]
 CYIM_grow$fitted_sd<-1/predict(CYIM_grow_m1,type="response")[,2]
 CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="response")/CYIM_grow$fitted_sd
 
-CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="Pearson")
+CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="pearson")
 
 ########################################################################### 
 ## Diagnostics on fitted SD function: strong evidence for a tiny problem 
 ###########################################################################
 c1<- makeCluster(8); 
 registerDoParallel(c1);
-out = multiple_levene_test(CYIM_grow$fitted_norfx, CYIM_grow$scaledResids, 3, 10, 1000);
+out = multiple_bartlett_test(CYIM_grow$fitted_norfx, CYIM_grow$scaledResids, 3, 10, 1000);
 out$p_value; # zero! 
 
 out = multiple_bs_test(CYIM_grow$fitted_norfx, CYIM_grow$scaledResids, 4, 10, 5000) 
@@ -95,9 +95,12 @@ out$p_value; ## zero!
 stopCluster(c1); 
 
 ### p-values are tiny, but the effect size is also tiny! So don't worry about it. 
-vfit = gam(abs(scaledResids)~s(logvol_t,k=6), data=CYIM_grow); ## R-sq.(adj) =  0.0133 
-vfit2 = gam(I(scaledResids^2)~s(logvol_t,k=6), data=CYIM_grow); ## R-sq.(adj) =  0.00592 
-vfit3 = gam(abs(scaledResids-median(scaledResids))~s(logvol_t,k=6), data=CYIM_grow); ##  R-sq.(adj) =  0.0130 
+vfit = gam(abs(scaledResids)~s(logvol_t), data=CYIM_grow); ## R-sq.(adj) =  0.0152 
+vfit2 = gam(I(scaledResids^2)~s(logvol_t), data=CYIM_grow); ## R-sq.(adj) =  0.0076 
+
+vfit3 = gam(abs(scaledResids)~s(fitted_norfx), data=CYIM_grow); ## R-sq.(adj) =  0.0155 
+vfit4 = gam(I(scaledResids^2)~s(fitted_norfx), data=CYIM_grow); ## R-sq.(adj) =  0.0078 
+
 
 ##are the standardized residuals gaussian? -- no
 jarque.test(CYIM_grow$scaledResids) # normality test: FAILS, P < 0.001 

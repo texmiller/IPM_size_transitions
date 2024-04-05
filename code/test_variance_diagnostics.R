@@ -19,7 +19,7 @@ stopCluster(c1);
 c1<- makeCluster(8); 
 registerDoParallel(c1);
 
-N = 500; ## number of fitted values 
+N = 1000; ## number of fitted values 
 nreps = 500; ## number of replicate simulations 
 R = 2000; ## number of randomizations for randomization test  
 
@@ -33,10 +33,9 @@ for(jrep in 1:nreps){
 	scaled_resids = (scaled_resids-mean(scaled_resids))/sd(scaled_resids); 
 	out = multiple_bartlett_test(fitted_vals, scaled_resids, 3, 10, R) 
 	pbin[jrep]=out$p_value
-	# out = multiple_bs_test(fitted_vals, scaled_resids, 4, 10, R) 
-	# pspline[jrep]=out$p_value
+	out = multiple_bs_test(fitted_vals, scaled_resids, 4, 10, R) 
+	pspline[jrep]=out$p_value
 
-if(FALSE) {	
 	sd_vals2 =  1  + exp(-2*fitted_vals) 
 	scaled_resids2 = rJSU(N, mu=rep(0,N), sigma = sd_vals2, nu = -2 + 2*fitted_vals, tau = 2); 
 	scaled_resids2 =(scaled_resids2-mean(scaled_resids2))/sd(scaled_resids2); 
@@ -53,7 +52,7 @@ if(FALSE) {
 	out = multiple_bs_test(fitted_vals, scaled_resids3, 4, 10, R) 
 	pspline3[jrep]=out$p_value
 	}
-}	
+
 	
 stopCluster(c1); 
 
@@ -63,21 +62,21 @@ par(mfcol=c(4,3),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.5,mgp=c(2.1,1,0), bty="l"
 hist(fitted_vals, 11, xlab = "Scaled residuals", main=""); add_panel_label("a"); 
 plot(fitted_vals,scaled_resids,xlab="Fitted values", ylab="Scaled residuals"); add_panel_label("d"); 
 matpoints(fitted_vals,cbind(-2*sd_vals,2*sd_vals),type="l",lty=2,col="black"); 
-hist(pbin,xlab = "p-values", main=paste0("Multiple Levene test: type-I error rate ", mean(pbin<0.05)));  add_panel_label("g"); 
+hist(pbin,xlab = "p-values", main=paste0("Multiple Bartlett test: type-I error rate ", mean(pbin<0.05)));  add_panel_label("g"); 
 hist(pspline,xlab = "p-values", main=paste0("Multiple B-spline test: type-I error rate ", mean(pspline<0.05)));  add_panel_label("j"); 
 
 hist(scaled_resids2, 11,xlab = "Scaled residuals", main=""); add_panel_label("b"); 
 matplot(fitted_vals,cbind(scaled_resids2, -2*sd_vals2, 2*sd_vals2),type=c("p","l","l"), col="black", lty=2, pch=1,
 		xlab="Fitted values", ylab="Scaled residuals"); add_panel_label("e"); 
-hist(pbin2,20,xlab = "p-values", main=paste0("Multiple Levene test: power=", mean(pbin2<0.05)));  add_panel_label("h"); 
+hist(pbin2,20,xlab = "p-values", main=paste0("Multiple Bartlett test: power=", mean(pbin2<0.05)));  add_panel_label("h"); 
 hist(pspline2,20,xlab = "p-values", main=paste0("Multiple B-spline test: power=", mean(pspline2<0.05)));  add_panel_label("k"); 
 
 hist(scaled_resids3, 11, xlab = "Scaled residuals", main=""); add_panel_label("c"); 
 matplot(fitted_vals,cbind(scaled_resids3, -2*sd_vals3, 2*sd_vals3),type=c("p","l","l"), col="black", lty=2, pch=1,
 		xlab="Fitted values", ylab="Scaled residuals"); add_panel_label("f"); 
-hist(pbin3,20,xlab = "p-values", main=paste0("Multiple Levene test: power=", mean(pbin3<0.05)));  add_panel_label("i"); 
+hist(pbin3,20,xlab = "p-values", main=paste0("Multiple Barlett test: power=", mean(pbin3<0.05)));  add_panel_label("i"); 
 hist(pspline3,20,xlab = "p-values", main=paste0("Multiple B-spline test: power=", mean(pspline3<0.05)));  add_panel_label("l"); 
 
 
-dev.copy2pdf(file="../manuscript/figures/test_variance_diagnostics_bartlett.pdf"); 
+dev.copy2pdf(file="../manuscript/figures/test_variance_diagnostics_1000.pdf"); 
 
