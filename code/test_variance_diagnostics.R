@@ -78,5 +78,5 @@ hist(pbin3,20,xlab = "p-values", main=paste0("Multiple Barlett test: power=", me
 hist(pspline3,20,xlab = "p-values", main=paste0("Multiple B-spline test: power=", mean(pspline3<0.05)));  add_panel_label("l"); 
 
 
-dev.copy2pdf(file="../manuscript/figures/test_variance_diagnostics_1000.pdf"); 
+dev.copy2pdf(file="../manuscript/figures/test_variance_diagnostics_1000b.pdf"); 
 

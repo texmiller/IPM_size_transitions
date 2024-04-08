@@ -731,16 +731,17 @@ By generating predicted size transitions that are truer to the data, IPM analyst
 \section{Nonparametric tests for nonconstant variance}
 \label{sec:VarianceTests}  
 
-The tests that we describe here use randomization to test for unspecified trends in the variance of a response $y$ as a function of a covariate $x$, given data pairs $(x_i,y_i),  i = 1,2, \cdots, n$. 
+The tests that we describe here use randomization to test for unspecified trends in the variance of a response $y$ as a 
+function of a covariate $x$, given data pairs $(x_i,y_i),  i = 1,2, \cdots, n$. 
 In this paper $y$ is the set of standardized residuals from a pilot model, and $x$ is a covariate in the pilot model such as initial size or fitted mean subsequent size. 
 
 These tests are used in our suggested workflow specifically to test for correct specification of variance trends in the raw residuals. We therefore build our
-tests from test statistics based on squared residuals, even though tests using other measures of residual magnitude (e.g., absolute residuals, or the log or
-square root of absolute residuals) have better performance on non-Gaussian data \citep{conover-etal-1981}. We instead use randomization to obtain $p$-values without
-assuming that the data are Gaussian. 
+tests from statistics based on squared residuals. Tests based on squared residuals are generally less robust against non-Gaussian data than tests
+using other measures of residual magnitude such as absolute residuals, or the log or square root of absolute residuals \citep{conover-etal-1981}. 
+We therefore use randomization methods to obtain $p$-values that are not dependent on any assumptions about the data distribution. 
 
-The first test is based on the Bartlett test for constancy of variance across discrete groups, 
-which is provided as the \texttt{bartlett.test} function in the \textbf{stats} package that is part of base R.
+The first test is based on the Bartlett test for constancy of variance across discrete groups. This is  
+provided in R as the \texttt{bartlett.test} function in the \textbf{stats} package that is part of base R. 
 
 In our setting there are no natural groups. We create groups by sorting the data pairs according to the value of $x_i$ from smallest to largest 
 and dividing them into $m$ equal-size groups (i.e., we bin based on quantiles of $x$). 
@@ -762,7 +763,6 @@ As with the Multiple Bartlett test, to avoid dependence on $m$ our test statisti
 This is computed for the actual data, and for $R$ random shufflings. The randomization $p$ value is the proportion of randomizations where the maximum adjusted $r^2$ is 
 larger than that for the real data.  
 
-
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=\textwidth]{figures/test_variance_diagnostics.pdf}
@@ -772,7 +772,7 @@ See text for explanation. Figure made by R script \texttt{test\_variance\_diagno
 \end{figure} 
 
 Figure \ref{fig:ncv} illustrates how these tests perform on simulated non-Gaussian residuals with specified trends in variance as a function of a covariate.
-In all cases 500 simulated residuals were generated from a Johnson SU distribution with mean zero, kurtosis parameter $\tau = 2$ (kurtosis drops to zero as $\tau \to \infty$)
+In all cases 500 simulated residuals were generated from a Johnson SU distribution with mean zero, kurtosis parameter $\tau = 2$ (excess kurtosis drops to zero as $\tau \to \infty$)
 and skewness parameter $\nu$ trending linearly from -2 at $x=0$ to 2 at $x=2$. At the extremes ($\nu = \pm 2, \tau =2$) the distribution has skewness of $\approx \pm 1.5$
 (nonparametric skewness $\pm 0.24$) and kurtosis $\approx 7$ (nonparametric excess kurtosis $0.10$).   
 
@@ -782,8 +782,8 @@ of constant variance, for 500 sets of simulated residuals and $R=2000$ randomiza
 With constant standard deviation (panels G and J) the type-I error rate (i.e., the fraction of false rejections) should be 0.05, 
 and both tests perform quite well. Even with relatively small departures from constant variance (middle and right columns), the tests 
 exhibit reasonable power to detect that the variance is not constant. Most of our case studies have larger sample sizes, and in simulations with a sample size 
-of 1000 instead of 500 the power to detect nonconstant variance at $\alpha = 0.05$ increased to roughly 85\% for both tests (middle column), and roughly 98\% for 
-both tests (right column). 
+of 1000 instead of 500 the power to detect nonconstant variance at $\alpha = 0.05$ increased to roughly 75\% for the middle column example, and roughly 90\% for the
+multiple Bartlett test and 78\% for the Multiple B-spline test for the right column example.  
 
 \section{The Jones-Pewsey SHASH distribution family} 
 \label{sec:SHASHdist} 

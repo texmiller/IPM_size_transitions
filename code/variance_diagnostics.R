@@ -4,7 +4,6 @@
 #####################################################################
 
 library(car); 
-library(gamlss.dist); 
 require(parallel); 
 require(doParallel); 
 require(splines); 
