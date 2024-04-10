@@ -555,8 +555,8 @@ In cases such as this it is convenient to model variance as a function of expect
 The expected (or ``fitted'') values reflect the combined influence of all fixed and random effects, and therefore implicitly account for multiple sources of variation in the variance. 
 %While there are several software packages for simultaneously modeling Gaussian mean and variance as functions of independent variables (including \textbf{mgcv} and \textbf{nlme}), modeling variance as a function of the mean is trickier because they cannot easily be fit simultaneously. 
 
-Directly fitting a model where error variance is a function of fitted values is possible in library \textbf{nlme} fitting functions, but not in \textbf{lme4} (or 
-in \textbf{mgcv} functions for generalized additive models). 
+\new{Directly fitting a model where error variance is a function of fitted values is possible in library \textbf{nlme} fitting functions, but not in \textbf{lme4} (nor 
+in the \textbf{mgcv} functions for generalized additive models). }
 %After MUCH trial and error here is an nlme example that runs: 
 %x = runif(1000)*4; 
 %u = factor(rpois(1000,3));
@@ -565,7 +565,7 @@ in \textbf{mgcv} functions for generalized additive models).
 %plot(x,y);
 %require(nlme);
 %fit = lme(y~x, random = ~1|u, weights = varExp(form = ~fitted(.)));
-But it can still be done, using an iterative re-weighting approach, as follows. 
+But it can still be done through an iterative re-weighting approach, as follows. 
 In \texttt{lmer} weights $w_{i}$ can be used to indicate that the observations $y_{i}$ have error variance proportional to $1/w_i^2$. 
 The iterative steps are as follows, and code that executes these steps may be found in \texttt{orchid\_growth\_modeling.R}. 
 \begin{enumerate}
@@ -573,14 +573,12 @@ The iterative steps are as follows, and code that executes these steps may be fo
 	\item Fit the standard deviation of the residuals as a function of the expected value. 
 	\item Re-fit the expected value, with weights equal to the inverse of the standard deviation estimated in step 2. 
 \end{enumerate}
-We iterated steps 2 and 3 until the weights did not change. This is not elegant, but it works and converges quickly. 
+We iterated steps 2 and 3 until the root mean square change in weights was below $10^{-6}$. This is not elegant, but it works and converges quickly. 
 In step 2, we modeled the log of the standard deviation (because standard deviations must be positive) as a quadratic polynomial in the fitted mean, $log(f(\mu_{i}))=\beta_{0}+\beta_{1}\mu_{i}+\beta_{2}\mu_{i}^2$).  In exploratory analyses we found that the quadratic term provided necessary flexibility to fit the standard deviation. We did this for all candidate models and, for a fair AIC comparison, we then re-fit all candidate models with the weights estimated from the top model. 
 
 The updated model selection continued to favor the size $\times$ flowering interaction model (3), but now with a weaker improvement over the next-best model ($\Delta AIC = 6.7$). 
 The fitted mean (a function of initial size and flowering status) and fitted standard deviation (a function of the fitted mean) are shown in Fig. \ref{fig:resid_diagnostics}E. 
-
-
-
+\new{There was no evidence of a trend in the variance of scaled residuals from this model (Multiple Bartlett test $p=0.18$, Multiple B-spline test $p=0.4$).}  
 
 The best Gaussian model indicated a growth cost associated with flowering at the start of the census interval and a decline in growth variance with increasing expected values. 
 The standardized residuals indicated negative skewness (10--20\% difference in tail weight) and excess kurtosis (10--40\% fatter than Gaussian) across much of the size distribution but both negligible at large expected sizes (Fig. \ref{fig:resid_diagnostics}F). 

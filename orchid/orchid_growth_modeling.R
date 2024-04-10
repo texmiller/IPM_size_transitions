@@ -16,7 +16,7 @@ library(oce)
 tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
 steve = "c:/repos/IPM_size_transitions" 
 home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
-setwd(home); 
+setwd(home); setwd("orchid"); 
 
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
@@ -99,6 +99,23 @@ mean(orchid_grow$GAU_scaled_resids);sd(orchid_grow$GAU_scaled_resids)
 stdev_coef <- out$estimate
 ##this will help with plotting lines
 orchid_grow<-arrange(orchid_grow,GAU_fitted)
+
+
+#############################################################
+# Test for variance trend in scaled residuals 
+#############################################################
+source("../code/variance_diagnostics.R"); 
+
+stopCluster(c1); 
+c1<- makeCluster(8); 
+registerDoParallel(c1);
+out_bartlett = multiple_bartlett_test(orchid_grow$GAU_fitted,orchid_grow$GAU_scaled_resids,3,10,2000); # p=0.18
+out_bs = multiple_bs_test(orchid_grow$GAU_fitted,orchid_grow$GAU_scaled_resids,4,10,2000); # p = 0.40 
+stopCluster(c1);
+
+require(mgcv); 
+out_gam = gam(I(GAU_scaled_resids^2)~GAU_fitted,data=orchid_grow); 
+summary(out_gam); 
 
 ## quantile regressions on stand resids
 k_param=4
