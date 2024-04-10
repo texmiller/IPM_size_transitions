@@ -73,7 +73,6 @@ multiple_bs_test = function(fitted_vals, residuals, min_basis, max_basis, R) {
 	return(list(p_value = p_value, rsq_max_true = rsq_max_true, df_max_true=df_max_true, rsq_max_random = out))
 } 
 
-
 ###############################################################################
 ## Compute minimum Levene test p-value on data and R random 
 ## permutations, scanning across a range of bin numbers.

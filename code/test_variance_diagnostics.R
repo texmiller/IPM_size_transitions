@@ -8,6 +8,8 @@ steve = "c:/repos/IPM_size_transitions"
 home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
 setwd(home); setwd("code"); 
 
+require(gamlss.dist); 
+
 add_panel_label <- function(ltype="a"){
     text <- paste(LETTERS[letters==ltype], ")", sep="")
     mtext(text=text, side=3, adj=0)
@@ -15,13 +17,14 @@ add_panel_label <- function(ltype="a"){
 
 source("variance_diagnostics.R"); 
 
+
 stopCluster(c1); 
 c1<- makeCluster(8); 
 registerDoParallel(c1);
 
-N = 1000; ## number of fitted values 
-nreps = 500; ## number of replicate simulations 
-R = 2000; ## number of randomizations for randomization test  
+N = 500; ## number of fitted values 
+nreps = 250; ## number of replicate simulations 
+R = 1000; ## number of randomizations for randomization test  
 
 pbin = pspline = pbin2 = pspline2 = pbin3 = pspline3 = numeric(nreps); 
 for(jrep in 1:nreps){
@@ -31,25 +34,25 @@ for(jrep in 1:nreps){
 	sd_vals = rep(1,N); 
 	scaled_resids = rJSU(N, mu=rep(0,N), sigma = sd_vals, nu = -2 + 2*fitted_vals, tau = 2); 
 	scaled_resids = (scaled_resids-mean(scaled_resids))/sd(scaled_resids); 
-	out = multiple_bartlett_test(fitted_vals, scaled_resids, 3, 10, R) 
-	pbin[jrep]=out$p_value
-	out = multiple_bs_test(fitted_vals, scaled_resids, 4, 10, R) 
+	#out = multiple_bartlett_test(fitted_vals, scaled_resids, 3, 10, R) 
+	#pbin[jrep]=out$p_value
+	out = multiple_Qbs_test(fitted_vals, scaled_resids, 4, 10, R) 
 	pspline[jrep]=out$p_value
 
 	sd_vals2 =  1  + exp(-2*fitted_vals) 
 	scaled_resids2 = rJSU(N, mu=rep(0,N), sigma = sd_vals2, nu = -2 + 2*fitted_vals, tau = 2); 
 	scaled_resids2 =(scaled_resids2-mean(scaled_resids2))/sd(scaled_resids2); 
-	out = multiple_bartlett_test(fitted_vals, scaled_resids2, 3, 10, R) 
-	pbin2[jrep]=out$p_value
-	out = multiple_bs_test(fitted_vals, scaled_resids2, 4, 10, R) 
+	#out = multiple_bartlett_test(fitted_vals, scaled_resids2, 3, 10, R) 
+	#pbin2[jrep]=out$p_value
+	out = multiple_Qbs_test(fitted_vals, scaled_resids2, 4, 10, R) 
 	pspline2[jrep]=out$p_value
 	
 	sd_vals3 = 1 + 0.4*dnorm(fitted_vals,mean=1,sd=0.3); 
 	scaled_resids3 = rJSU(N, mu=rep(0,N), sigma = sd_vals3, nu = -2 + 2*fitted_vals, tau = 2); 
 	scaled_resids3 = (scaled_resids3-mean(scaled_resids3))/sd(scaled_resids3); 
-	out = multiple_bartlett_test(fitted_vals, scaled_resids3, 3, 10, R) 
-	pbin3[jrep]=out$p_value
-	out = multiple_bs_test(fitted_vals, scaled_resids3, 4, 10, R) 
+	#out = multiple_bartlett_test(fitted_vals, scaled_resids3, 3, 10, R) 
+	#pbin3[jrep]=out$p_value
+	out = multiple_Qbs_test(fitted_vals, scaled_resids3, 4, 10, R) 
 	pspline3[jrep]=out$p_value
 	}
 
@@ -78,5 +81,5 @@ hist(pbin3,20,xlab = "p-values", main=paste0("Multiple Barlett test: power=", me
 hist(pspline3,20,xlab = "p-values", main=paste0("Multiple B-spline test: power=", mean(pspline3<0.05)));  add_panel_label("l"); 
 
 
-dev.copy2pdf(file="../manuscript/figures/test_variance_diagnostics_1000b.pdf"); 
+dev.copy2pdf(file="../manuscript/figures/test_variance_diagnostics_Qbs.pdf"); 
 

@@ -137,7 +137,7 @@ quantile regression instead of binning to estimate trends in skewness and kurtos
 \noindent\textbf{Data accessibility statement:} No original data appear in this paper. Should the paper be accepted, all computer scripts supporting the results will be archived in a Zenodo package, with the DOI included at the end of the article. During peer review, our data and code are available at \url{https://github.com/texmiller/IPM_size_transitions}. 
 
 \bigskip 
-\noindent\textbf{Conflict of interest statement:} None.
+\noindent\textbf{Conflict of interest statement:} The authors have none to declare. 
 
 \newpage
 \linenumbers
@@ -253,8 +253,7 @@ could be used to diagnose whether the aggregate distribution of standardized res
 However, the aggregate distribution may be misleading if properties such as skew and kurtosis vary with size or other covariates. 
 For example, a change from positive skew at small sizes to negative at large sizes might produce zero overall skewness, but really requires a distribution family that can allow both positive and negative skew, such as the skewed Normal or Johnson $S_{U}$ distributions. 
 Alternatively, growth data may lack skew but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
-It is therefore essential to visualize trends in distribution properties with respect to either initial size (in simple models with only size-dependence) or expected future size (for models with multiple fixed effects). 
-%In the case studies below, we rely on quantile regression of the standardized residuals to visualize skew and kurtosis as continuous functions of initial size or expected future size. 
+It is therefore essential to visualize trends in distribution properties with respect to either initial size, or expected future size with models with multiple covariates.  
 Fig. \ref{fig:workflow} includes guidance on how the skew and kurtosis properties of the standardized residuals suggest options for an appropriate growth distribution. 
 In our case studies we exploit the many distributions provided in the \textbf{gamlss} R package \citep{stasinopoulos2007generalized}, but any other distribution families with the necessary properties can be used.  
 
@@ -268,7 +267,7 @@ As we demonstrate below, the functional forms for the mean and standard deviatio
 Our recommendation for this step is based on the fact that parameter estimation using Gaussian regression models is generally robust to deviations from normality \citep{schielzeth2020robustness}, meaning that the fitted mean (as a function of covariates) of the Gaussian model is probably a very good approximation for the fitted mean in the corresponding non-Gaussian model (and if it is not, the next step in the workflow will catch that). 
 The functional forms for skew and kurtosis of the non-Gaussian model can be guided by the qualitative features of the graphical diagnostics (e.g., that skewness switches from positive to negative with size). 
 
-\item \textit{Test the final model through graphical diagnostics comparing simulated and real growth data.} 
+\item \textit{Test the final growth model through graphical diagnostics comparing simulated and real growth data.} 
 \\
 A good model will generate simulated data that look like the real data.  
 Again, it is important to inspect the properties of simulated data conditional on initial size or fitted mean subsequent size, rather than examining the aggregate distribution.   
@@ -403,10 +402,10 @@ We also find positive excess kurtosis for all sizes.
 \end{figure}
 
 We turned to the Johnson's \emph{S-U} (JSU) distribution for improvement. 
-The JSU is a four-parameter, leptokurtic distribution that can accommodate positive or negative skew; it also has the convenient property that location and scale parameters \texttt{mu} and \texttt{sigma} are the mean and standard deviation, respectively, which facilitates the transition from the pilot Gaussian model to a JSU model. 
-The JSU is not available as a distribution family in any of the standard linear or additive modeling packages, to our knowledge, but that is not a barrier as long as we can write a likelihood function, and this is straightforward using the \texttt{dJSU()} function in the \textbf{gamlss.dist}) package. 
-Following the best-fit Gaussian model, we defined \texttt{mu} and \texttt{sigma} of the JSU as second-order polynomials of initial size and, based on signals of skewness and kurtosis in the standardized residuals (Fig. \ref{fig:resid_diagnostics}B), we define parameter \texttt{nu} (which controls skewness) as a linear function of size and \texttt{tau} (which controls kurtosis) as a positive constant; the likelihood function therefore has nine parameters to estimate.
-We fit the model using the \textbf{maxLik} package and starting values for \texttt{mu} and \texttt{sigma} based on estimates from the pilot Gaussian model:
+The JSU is a four-parameter leptokurtic distribution allowing positive or negative skew, with the convenient property that location and scale parameters \texttt{mu} and \texttt{sigma} are the mean and standard deviation, respectively, which facilitates the transition from a pilot Gaussian model. 
+JSU is not available in any standard linear or additive modeling packages, to our knowledge. But that is not a barrier because we can write a likelihood function using the \texttt{dJSU()} function in the \textbf{gamlss.dist}) package. 
+Following the best-fit Gaussian model, we defined \texttt{mu} and \texttt{sigma} of the JSU as quadratic polynomials of initial size and, based on Fig. \ref{fig:resid_diagnostics}B) we define the skewness parameter \texttt{nu} as a linear function of size and kurtosis parameter \texttt{tau} as a positive constant. The likelihood function therefore has nine parameters to estimate.
+We fit the model using the \textbf{maxLik} package\footnote{We chose \textbf{maxLik} because it offers the BHHH optimization method, which has worked well for non-Gaussian likelihoods in our experience.} with starting coefficient values for \texttt{mu} and \texttt{sigma} based on the pilot Gaussian model:
 \begin{lstlisting}
 ## define function that returns the JSU negative log-likelihood
 LogLikJSU=function(pars){
@@ -427,7 +426,7 @@ Data simulation from the fitted JSU model indicates a compelling improvement ove
 To understand the practical consequences of improved growth modeling, we assembled the remainder of the lichen IPM following Shriver et al. \citeyear{shriver2012comparative}. 
 The asymptotic population growth rate $\lambda$ based on Gaussian growth differs from the JSU growth model by about $1\%$ annual population growth (Table \ref{tab:crossspp}), in line with results of Peterson et al. \citeyear{peterson2019improving}. 
 However, even this modest difference can lead to biased estimates of extinction risk from the Gaussian model, particularly over longer time horizons (Fig. \ref{fig:lichen_extinction}). 
-We also explored differences in other life history metrics (Table \ref{tab:crossspp}) \steve{using in part functions from the \cite{hernandez-etal-2024} supplemental code archive.}
+We also explored differences in other life history metrics (Table \ref{tab:crossspp}) using in part functions from the \cite{hernandez-etal-2024} supplemental code archive.
 For example, the JSU growth model predicts values for mean lifespan, mean lifetime reproductive success, and generation time that are 15--25\% lower than the Gaussian growth model. 
 In this case study, properly modeling non-normal size transitions -- which was easy to do with a few extra lines of code -- can have important effects on ecological inferences. 
 \begin{figure}[tbp]
@@ -495,18 +494,18 @@ fitGAU <- gam(list(t1 ~ s(t0,k=4) + s(plot,bs="re") + s(year,bs="re"),
 \end{lstlisting}
 The standardized residuals, accounting for growth variance that peaks at small-to-medium sizes (Fig. \ref{fig:resid_diagnostics}C), show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:resid_diagnostics}D). \new{We also find a statistically significant 
 trend in variance, $p<0.01$ for both Multiple Bartlett and Multiple B-spline tests; script \texttt{cactus\_growth\_modeling\_qgam.R}). However, the trend is too small to 
-worry about: spline regressions (using \texttt{gam} from the \texttt{mgcv} library) of either squared or absolute scaled residuals on either initial size or fitted subsequent size 
-explained under 2\% of the variance. The trend is so weak that it makes no sense to try to remove it, even though the support for the trend is small because of the 
+worry about: spline regressions of either squared or absolute scaled residuals on either initial size or fitted subsequent size (using \texttt{gam} from the \texttt{mgcv} library)
+explained under 2\% of the variance. The trend is so weak that it makes little sense to try to remove it, even though the support for the trend is strong because of 
 large sample size ($n=4844$). } 
 
-So to better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, but both of which may be negligible at some sizes.
+So to better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, both of which may be negligible at some sizes.
 We first tried Johnson's $S_{U}$ and then the skewed $t$ distributions, both of which are limited to positive excess kurtosis.
-Both distributions provided some improvement over the Gaussian, but were not happy with the fit of either. \comment{It would be good to say why: which of our graphical
-diagnostics did not put a smile on your face?} 
-Iterating through the workflow (Fig. \ref{fig:workflow}), we arrived at the SHASH distribution, which is more flexible than either the JSU or skewed $t$, 
-capable of capturing a greater range of kurtosis for a given amount of skew, and vice versa (\cite{jones-pewsey-2009}; Appendix S.1). 
-Furthermore, SHASH is available as an \textbf{mgcv} family, allowing for flexible, non-monotonic size-dependence in skewness and kurtosis without the need for model selection on specific size-dependent functions. Through iterations of trial and error, we found this flexibility was necessary to generate simulated data that compared favorably to the real data. 
-Here, the first argument to \texttt{gam()} is now a four-element list giving the linear predictors for mean, standard deviation, skewness, and kurtosis:
+Both distributions provided some improvement over the Gaussian, but were not happy with the fit of either.
+Iterating through the workflow (Fig. \ref{fig:workflow}), we arrived at the SHASH distribution, which is more flexible, 
+allowing a greater range of kurtosis for a given amount of skew, and vice versa (\cite{jones-pewsey-2009}; Appendix S.1). 
+Through repeated trial and error, we found that this flexibility was necessary to generate simulated data that compared favorably to the real data. 
+Furthermore, SHASH is available as an \textbf{mgcv} family, allowing for flexible, non-monotonic size-dependence in skewness and kurtosis without the need for selecting specific size-dependent functions. 
+Here, the first argument to \texttt{gam()} is now a four-element list specifying the forms of the linear predictors for mean, standard deviation, skewness, and kurtosis:
 \begin{lstlisting}
 fit_shash <- gam(list(t1 ~ s(t0,k=4) + 
     s(plot,bs="re") + s(year_t,bs="re"), # location 
@@ -517,20 +516,17 @@ fit_shash <- gam(list(t1 ~ s(t0,k=4) +
 \end{lstlisting}
 
 Data simulated from the SHASH model compared favorably to the real data (Fig. \ref{fig:cactus_fit}). 
-%The SHASH model over-estimated negative skew at some sizes relative to the signal of skewness in the data (Fig. \ref{fig:cactus_fit}C), but the nature of size-dependent skew in the data is not very biologically plausible and may instead be driven by the tail-wagging tendency of gams. 
-Similar to the lichen case study, we see that correctly modeling skewness and kurtosis improved estimation of the mean and standard deviation (Fig. \ref{fig:cactus_fit}A,B), yielding a growth model that is truer to the data than the pilot Gaussian fit. 
+Similar to the lichen case study, we see that correctly modeling skewness and kurtosis improved estimation of the mean and standard deviation (Fig. \ref{fig:cactus_fit}A,B), yielding a growth model that is truer to the data. 
 
 We explored how improved growth modeling influenced IPM results.
 The $\lambda$ values predicted by Gaussian and SHASH growth functions, corresponding to the average plot and year, were nearly identical (Table \ref{tab:crossspp}) but we could also leverage structure of the study design to quantify demographic variance associated with temporal and spatial heterogeneity.
 We used the fitted random effects from the vital rate models to estimate the asymptotic growth rate for each year ($\lambda_t$), centered on the average plot, and for each plot ($\lambda_p$), centered on the average year.
 We found that the Gaussian growth model tended to over-estimate $\lambda_t$, particularly in the harshest years (Fig. \ref{fig:cactus_lambda}A), and thus under-estimated temporal variance in fitness ($SD(\lambda_{t(Gaussian)})=0.042$, $SD(\lambda_{t(SHASH)})=0.048$). 
 The opposite was true for plot-to-plot variation ($SD(\lambda_{p(Gaussian)})=0.0037$, $SD(\lambda_{p(SHASH)})=0.0028$), although spatial variation in fitness was much lower than temporal variation (Fig. \ref{fig:cactus_lambda}B). 
-The difference in temporal variance would suggest that Gaussian growth modeling would lead to over-estimation of the stochastic growth rate $\lambda_S$, since temporal variance has a negative influence on $\lambda_S$.
-However, this was not the case: stochastic IPMs based on Gaussian and SHASH growth models had nearly identical stochastic growth rates ($\lambda_S(Gaussian)=0.9907$, $\lambda_S(Gaussian)=0.991$). 
+The difference in temporal variance would suggest that Gaussian growth modeling would lead to over-estimation of the stochastic growth rate $\lambda_S$, because temporal variance has a negative effect on $\lambda_S$.
+However, this was not the case: stochastic IPMs based on Gaussian and SHASH growth models had nearly identical stochastic growth rates, $\lambda_S \approx 0.991$).  
 This is likely because temporal fluctuations in vital rates, which is where the SHASH growth model would make a difference, have a weaker influence on $\lambda_S$ than the temporal fluctuations in size structure that they generate \citep{ellis2013role,compagnoni2016effect}. 
-Thus, depending on the target of one's analysis, modeling non-Gaussian size transitions with a Gaussian growth model could bias results in either direction, or make no difference at all. 
-
-%We did so using the `kernel selection' method, sampling transition kernels constructed with year- and plot-specific random effects, rather than sampling year and plot deviates from their fitted variances; the kernel selection approach has the advantage of retaining any spatial or temporal correlation in the vital rates. 
+Thus, depending on the target of the analysis, modeling non-Gaussian size transitions with a Gaussian growth model could bias results in either direction, or make no difference at all. 
 
 \begin{figure}[tbp]
 	\centering
@@ -543,42 +539,49 @@ Thus, depending on the target of one's analysis, modeling non-Gaussian size tran
 \section{Case study: lady orchid, \emph{Orchis purpurea}}
 \label{sec:orchidCaseStudy} 
 Our final case study examines selection on life history strategies in the lady orchid \textit{Orchis purpurea}. 
-In a prior study, Miller et al. \citeyear{miller2012evolutionary} contrasted the growth trajectories from year $t$ to $t+1$ for plants that did or did not flower in year $t$, as a way to quantify costs of reproduction. 
-The different growth kernels were then used in an IPM to quantify evolutionarily stable life history strategies: the optimal flowering size that balances benefits of waiting to flower at larger sizes against the risk of dying before reaching those sizes. 
-The original study assumed a Gaussian distribution of size transitions and allowed for non-constant variance with respect to initial size. 
-Here we re-visit that analysis applying our growth modeling workflow to derive improved growth kernels for flowering and non-flowering orchids. 
-We use this case study to illustrate several new elements and challenges, including modeling skewness and kurtosis as functions of expected future size (instead of initial size).
+In a prior study, Miller et al. \citeyear{miller2012evolutionary} analyzed how flowering or not in year $t$ affected growth from year $t$ to $t+1$, to quantify costs of reproduction. 
+The two growth kernels were then used in an IPM to quantify the optimal flowering size that balances the benefits of waiting to flower at larger sizes against the greater risk of death before flowering. 
+The original study assumed Gaussian size transitions with non-constant variance depending on initial size. 
+Here we re-visit that analysis to derive improved growth kernels for flowering and non-flowering orchids. 
+We use this case study to illustrate several new elements and challenges, including modeling skewness and kurtosis as functions of expected future size.
 
-The data, originated by Dr. Hans Jacquemyn and used here with permission, come from 368 plants in a Belgian population that was censused annually from 2003 through 2011 (for this reanalysis we are using data only from the ``light'' habitat). 
-Size was measured as leaf area ($cm^2$) summed over all leaves, and we used the natural logarithm of total leaf area as the size variable of the IPM. 
+The data, originated by Dr. Hans Jacquemyn and used here with permission, come from 368 plants in a Belgian population that was censused annually from 2003 through 2011. For this reanalysis we use data only from the ``light'' habitat in the original study. 
+We used the natural logarithm of total leaf area as the size variable in the IPM. 
 
-As a variation on software, our pilot Gaussian approach used the \textbf{lme4} package to fit three candidate linear models for size in year $t+1$  that included fixed effects of size in year $t$ (model 1), additive effects of size and flowering status in year $t$ (model 2), or an interaction between size and flowering (model 3), all including random intercepts for year. 
+As a variation on software, we fitted the pilot Gaussian model using the \texttt{lmer} function in the popular \textbf{lme4} package to fit three candidate linear models for size in year $t+1$  that included fixed effects of size in year $t$ (model 1), additive effects of size and flowering status in year $t$ (model 2), or an interaction between size and flowering (model 3), all including random intercepts for year. 
 The interaction model with strongly favored ($\Delta AIC = 10.5$). 
 Unlike our previous case studies, here we have multiple fixed effects (initial size and flowering status) that may influence the variance of future size. 
-In cases such as this, it is often convenient to model variance as a function of expected future size, rather than initial size as we did with the lichens and cacti. 
+In cases such as this it is convenient to model variance as a function of expected future size, rather than initial size as we did with the lichens and cacti. 
 The expected (or ``fitted'') values reflect the combined influence of all fixed and random effects, and therefore implicitly account for multiple sources of variation in the variance. 
-While there are several software packages for simultaneously modeling Gaussian mean and variance as functions of independent variables (including \textbf{mgcv} and \textbf{nlme}), modeling variance as a function of the mean is trickier because they cannot easily be fit simultaneously. 
-Here we use an iterative re-weighting approach -- which is not elegant, but it works. 
+%While there are several software packages for simultaneously modeling Gaussian mean and variance as functions of independent variables (including \textbf{mgcv} and \textbf{nlme}), modeling variance as a function of the mean is trickier because they cannot easily be fit simultaneously. 
 
-For Gaussian models, weights $w_{i}$ can be used to indicate that the observations $y_{i}$ vary in their dispersion around the mean. 
-In general, the iterative steps are as follows, and code to execute these steps may be found in \texttt{orchid\_growth\_modeling.R}. 
+Directly fitting a model where error variance is a function of fitted values is possible in library \textbf{nlme} fitting functions, but not in \textbf{lme4} (or 
+in \textbf{mgcv} functions for generalized additive models). 
+%After MUCH trial and error here is an nlme example that runs: 
+%x = runif(1000)*4; 
+%u = factor(rpois(1000,3));
+%z = rnorm(length(unique(u))); z = sort(z); 
+%y = x + z[u] + 0.4*sqrt(1+x)*rnorm(1000); 
+%plot(x,y);
+%require(nlme);
+%fit = lme(y~x, random = ~1|u, weights = varExp(form = ~fitted(.)));
+But it can still be done, using an iterative re-weighting approach, as follows. 
+In \texttt{lmer} weights $w_{i}$ can be used to indicate that the observations $y_{i}$ have error variance proportional to $1/w_i^2$. 
+The iterative steps are as follows, and code that executes these steps may be found in \texttt{orchid\_growth\_modeling.R}. 
 \begin{enumerate}
-	\item Fit the expected value and normally-distributed residuals with constant standard deviation $\sigma$:
-	$$y_{i} = \mu_{i} + \epsilon_{i}$$
-	$$\epsilon_{i} \sim N(0,\sigma)$$
-	\item Fit the standard deviation of the residuals as a function of the expected value. Weights are derived as the inverse of the fitted variance:
-	$$\epsilon_{i} \sim N(0,f(\mu_{i}))$$
-	$$w_{i}=1/{f(\mu_{i})^2}$$
-	\item Re-fit the observation model, weighting the residual variance according to step 2:
-	$$y_{i} = \mu_{i} + \epsilon_{i}$$
-	$$\epsilon_{i} \sim N(0,\sigma \times \sqrt{w_{i}})$$	
+	\item Fit the expected value assuming Gaussian-distributed residuals with constant standard deviation. 
+	\item Fit the standard deviation of the residuals as a function of the expected value. 
+	\item Re-fit the expected value, with weights equal to the inverse of the standard deviation estimated in step 2. 
 \end{enumerate}
-We iterated steps 2 and 3 until the weights did not change. 
-In step 2, we modeled the standard deviation as a second-order polynomial of the expected value ($log(f(\mu_{i}))=\beta_{0}+\beta_{1}\mu_{i}+\beta_{2}\mu_{i}^2$); in exploratory analyses we found that the the second-order term provided necessary flexibility to fit the standard deviation. 
-We did this for all candidate models and, for fair AIC comparison, we re-fit all candidate models with the same weights, estimated from the top model. 
+We iterated steps 2 and 3 until the weights did not change. This is not elegant, but it works and converges quickly. 
+In step 2, we modeled the log of the standard deviation (because standard deviations must be positive) as a quadratic polynomial in the fitted mean, $log(f(\mu_{i}))=\beta_{0}+\beta_{1}\mu_{i}+\beta_{2}\mu_{i}^2$).  In exploratory analyses we found that the quadratic term provided necessary flexibility to fit the standard deviation. We did this for all candidate models and, for a fair AIC comparison, we then re-fit all candidate models with the weights estimated from the top model. 
 
 The updated model selection continued to favor the size $\times$ flowering interaction model (3), but now with a weaker improvement over the next-best model ($\Delta AIC = 6.7$). 
 The fitted mean (a function of initial size and flowering status) and fitted standard deviation (a function of the fitted mean) are shown in Fig. \ref{fig:resid_diagnostics}E. 
+
+
+
+
 The best Gaussian model indicated a growth cost associated with flowering at the start of the census interval and a decline in growth variance with increasing expected values. 
 The standardized residuals indicated negative skewness (10--20\% difference in tail weight) and excess kurtosis (10--40\% fatter than Gaussian) across much of the size distribution but both negligible at large expected sizes (Fig. \ref{fig:resid_diagnostics}F). 
 
