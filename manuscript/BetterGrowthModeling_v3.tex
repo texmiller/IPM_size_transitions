@@ -757,12 +757,16 @@ in particular it often gives false positives (high type-I error rate on non-Gaus
 However, that $p$ value is a monotonic function of the underlying test statistic. The \emph{Multiple Bartlett test} described in the preceding paragraph is therefore 
 exactly equivalent to a randomization test based on the underlying test statistic, and thus does not rest on any assumptions about the data distribution. 
 
-The \emph{Multiple B-spline test} is based on using B-spline regression to test for smooth trends in the scale of residuals. 
-We regress squared residuals on a B-spline basis in $x$ of some dimension $m$, and record the fraction of variance explained, $r^2$, adjusted for model degrees of freedom.
+The \emph{Multiple B-spline test} is a version of the Breusch-Pagan test \cite{bptest}, also called the Cook-Weisberg test \cite{cwtest}. These (and a number of
+related tests) are based on using regression analysis to test for a trend in the scale of squared residuals. 
+We are interested here in the case where there is a single explanatory variable $x$ (initial size, or fitted subsequent size) but the shape of a possible trend is unknown.  
+We therefore use B-spline regression to allow detection of an arbitrary smooth trend. 
+Squared residuals are regressed on a B-spline basis in $x$ of some dimension $m$, and we record the fraction of variance explained, $r^2$, adjusted for model degrees of freedom.
 Our script uses \texttt{lm} to do the regression, and the adjusted $r^2$ is a component of the fitted model's \texttt{summary}.  
-As with the Multiple Bartlett test, to avoid dependence on $m$ our test statistic is the maximum $r^2$ across a range of $m$ values, typically 4 to 10. 
-This is computed for the actual data, and for $R$ random shufflings. The randomization $p$ value is the proportion of randomizations where the maximum adjusted $r^2$ is 
-larger than that for the real data.  
+As with the Multiple Bartlett test, to avoid dependence on $m$ our test statistic is the maximum $r^2$ across a range of $m$ values, typically 4 to 10, 
+and to avoid distributional assumptions the $p$-value is computed by random permutation of the residuals. 
+The randomization $p$ value is the proportion of randomizations for which the maximum adjusted $r^2$ (across $m$ values) is 
+larger than the same statistic for the real data.  
 
 \begin{figure}[tbp]
 \centering
