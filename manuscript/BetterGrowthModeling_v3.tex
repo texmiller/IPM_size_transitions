@@ -746,25 +746,26 @@ provided in R as the \texttt{bartlett.test} function in the \textbf{stats} packa
 
 In our setting there are no natural groups. We create groups by sorting the data pairs according to the value of $x_i$ from smallest to largest 
 and dividing them into $m$ equal-size groups (i.e., we bin based on quantiles of $x$). 
-The outcome of the test then depends on the bin number $m$. Following the approach of 
-\citet{ye-Jensen-2020}, to avoid choosing $m$ our test statistic is the minimum $p$-value obtained across a range of bin numbers. 
+The outcome of the test then depends on the bin number $m$. This ``investigator degree of freedom'' makes $p$-hacking easy and tempting: 
+loop across a range of $m$ values, and report the largest or smallest $p$ value, as desired. To circumvent this, following 
+the approach of \citet{ye-Jensen-2020}, our test statistic is the minimum $p$-value obtained across a range of $m$ values.  
 With typical growth data we can only hope to identify broad patterns of variation, so we typically scan across $m$ from 3 to 10. 
 This test statistic is computed for the actual data, and for $R$ random shufflings of the $y_i$. The randomization $p$ value is the proportion of 
-randomizations where the Bartlett test $p$-value is smaller than that from the real data.  
+randomizations where the Bartlett test $p$-value is smaller than that from the real data. We used $R=2000$ for results reported in the paper.  
 
 The $p$-value returned by the \texttt{bartlett.test} function assumes Gaussian data and has poor robustness against departures from Gaussian \citep{conover-etal-1981}, 
 in particular it often gives false positives (high type-I error rate on non-Gaussian data with constant variance).  
-However, that $p$ value is a monotonic function of the underlying test statistic. The \emph{Multiple Bartlett test} described in the preceding paragraph is therefore 
+However, the $p$ value is a monotonic function of the underlying test statistic. The \emph{Multiple Bartlett test} described in the preceding paragraph is therefore 
 exactly equivalent to a randomization test based on the underlying test statistic, and thus does not rest on any assumptions about the data distribution. 
 
 The \emph{Multiple B-spline test} is a version of the Breusch-Pagan test \cite{bptest}, also called the Cook-Weisberg test \cite{cwtest}. These (and a number of
-related tests) are based on using regression analysis to test for a trend in the scale of squared residuals. 
-We are interested here in the case where there is a single explanatory variable $x$ (initial size, or fitted subsequent size) but the shape of a possible trend is unknown.  
+related tests) use a regression analysis to test for a trend in the scale of squared residuals with respect to some covariate. 
+For the applications here there is a single covariate $x$ (initial size, or fitted subsequent size) but the shape of a possible trend is unknown.  
 We therefore use B-spline regression to allow detection of an arbitrary smooth trend. 
 Squared residuals are regressed on a B-spline basis in $x$ of some dimension $m$, and we record the fraction of variance explained, $r^2$, adjusted for model degrees of freedom.
-Our script uses \texttt{lm} to do the regression, and the adjusted $r^2$ is a component of the fitted model's \texttt{summary}.  
+Our function uses \texttt{lm} to do the regression, and the adjusted $r^2$ is a component of the fitted model's \texttt{summary}.  
 As with the Multiple Bartlett test, to avoid dependence on $m$ our test statistic is the maximum $r^2$ across a range of $m$ values, typically 4 to 10, 
-and to avoid distributional assumptions the $p$-value is computed by random permutation of the residuals. 
+and to avoid distributional assumptions the $p$-value is again computed by random permutation of the squared residuals. 
 The randomization $p$ value is the proportion of randomizations for which the maximum adjusted $r^2$ (across $m$ values) is 
 larger than the same statistic for the real data.  
 
@@ -789,6 +790,13 @@ and both tests perform quite well. Even with relatively small departures from co
 exhibit reasonable power to detect that the variance is not constant. Most of our case studies have larger sample sizes, and in simulations with a sample size 
 of 1000 instead of 500 the power to detect nonconstant variance at $\alpha = 0.05$ increased to roughly 75\% for the middle column example, and roughly 90\% for the
 multiple Bartlett test and 78\% for the Multiple B-spline test for the right column example.  
+
+There are many other tests for nonconstant variance -- see for example \cite{Farrar2024} -- and the Ye-Hooker approach could
+be used with any of them. Loop across any plausible values for the ``investigator degrees of freedom'', return the lowest $p$-value (or most 
+extreme value of the test statistic), and use permutation of residuals to compute a Monte Carlo $p$-value. We have no evidence that the
+two tests we've chosen to use are especially good. 
+
+
 
 \section{The Jones-Pewsey SHASH distribution family} 
 \label{sec:SHASHdist} 
