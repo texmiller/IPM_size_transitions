@@ -708,7 +708,6 @@ Using tools not available when IPMs were first developed, it is now very easy to
 By generating predicted size transitions that are truer to the data, IPM analysts can narrow the gap between model and nature. 
 
 \newpage 
-%\bibliographystyle{EcologyLetters}
 \bibliographystyle{apalike}
 \bibliography{BetterGrowthModeling}
 
@@ -748,7 +747,7 @@ In our setting there are no natural groups. We create groups by sorting the data
 and dividing them into $m$ equal-size groups (i.e., we bin based on quantiles of $x$). 
 The outcome of the test then depends on the bin number $m$. This ``investigator degree of freedom'' makes $p$-hacking easy and tempting: 
 loop across a range of $m$ values, and report the largest or smallest $p$ value, as desired. To circumvent this, following 
-the approach of \citet{ye-Jensen-2020}, our test statistic is the minimum $p$-value obtained across a range of $m$ values.  
+the approach of \citet{ye-Jensen-2020} (inspired in turn by \cite{sizer-99}), our test statistic is the minimum $p$-value obtained across a range of $m$ values.  
 With typical growth data we can only hope to identify broad patterns of variation, so we typically scan across $m$ from 3 to 10. 
 This test statistic is computed for the actual data, and for $R$ random shufflings of the $y_i$. The randomization $p$ value is the proportion of 
 randomizations where the Bartlett test $p$-value is smaller than that from the real data. We used $R=2000$ for results reported in the paper.  
