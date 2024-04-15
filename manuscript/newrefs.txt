@@ -1,0 +1,54 @@
+@Misc{adler-weak-dryad,
+  author = {Adler, P. B. and Kleinhesselink, A. and Hooker, G. and Taylor, J. B. and Teller, B. and Ellner, S. P.},
+  title  = {Data from: Weak interspecific interactions in a sagebrush steppe? {C}onflicting evidence from observations and experiments. Dryad Data set},
+  year   = {2019},
+  doi    = {10.5061/dryad.96dn293},
+}
+
+@Article{sizer-99,
+author  = {Chaudhuri, P and Marron, JS},
+journal = {Journal of the American Statistical Association},
+title   = {{SiZer} for Exploration of Structures in Curves},
+year    = {1999},
+number  = {447},
+pages   = {807 - 823},
+volume  = {94},
+}
+
+@Manual{Farrar2024,
+title  = {skedastic: Handling Heteroskedasticity in the Linear Regression Model},
+author = {Thomas J. Farrar},
+note   = {R Package Version 2.0.2},
+year   = {2024},
+url    = {https://github.com/tjfarrar/skedastic},
+}
+
+@article(bptest,
+author = {Breusch, TS and Pagan, AR},
+year = {1979},
+title = {A simple test for heteroscedasticity and random coefficient variation},
+journal = {Econometrica},
+volume = {47}, 
+pages = {1287 - 1294},
+} 
+
+@article(cwtest,
+author = {Cook, RD and Weisberg, S},
+year = {1983}, 
+title = {Diagnostics for heteroscedasticity in regression},
+journal = {Biometrika},
+volume = {70},
+pages = {1 - 10}, 
+}
+
+@Article{conover-etal-1981,
+author  = {Conover, W. J. and Johnson, M. E. and Johnson, M. M.},
+journal = {Technometrics},
+title   = {A comparative study of tests for homogeneity of variances, with applications to the outer continental shelf bidding data},
+year    = {1981},
+number  = {4},
+pages   = {351 - 361},
+volume  = {23},
+}
+
+
