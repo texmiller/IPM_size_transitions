@@ -206,7 +206,8 @@ Through empirical case studies we demonstrate how a simple workflow, using tools
 We illustrate our approach with three published case studies (and two additional case studies in the Appendix), including data from our own previous work.
 In each case, the Gaussian assumption does not stand up to close scrutiny. 
 We illustrate how we could have done better, and the consequences of ``doing better'' for our ecological inferences. 
-All of our analyses may be reproduced from code and data that are publicly available (see Data accessibility statement). 
+All of our analyses were carried out in R \citet{r-core} version 4.0 or higher and may be reproduced from code and data that are 
+publicly available (see Data accessibility statement). 
 
 \section{A workflow for growth modeling}
 The modeling workflow that we suggest runs as follows (Fig. \ref{fig:workflow}):
@@ -708,7 +709,7 @@ Using tools not available when IPMs were first developed, it is now very easy to
 By generating predicted size transitions that are truer to the data, IPM analysts can narrow the gap between model and nature. 
 
 \newpage 
-\bibliographystyle{apalike}
+\bibliographystyle{besjournals}
 \bibliography{BetterGrowthModeling}
 
 % ######################## Appendices ##############################
@@ -757,9 +758,9 @@ in particular it often gives false positives (high type-I error rate on non-Gaus
 However, the $p$ value is a monotonic function of the underlying test statistic. The \emph{Multiple Bartlett test} described in the preceding paragraph is therefore 
 exactly equivalent to a randomization test based on the underlying test statistic, and thus does not rest on any assumptions about the data distribution. 
 
-The \emph{Multiple B-spline test} is a version of the Breusch-Pagan test \cite{bptest}, also called the Cook-Weisberg test \cite{cwtest}. These (and a number of
-related tests) use a regression analysis to test for a trend in the scale of squared residuals with respect to some covariate. 
-For the applications here there is a single covariate $x$ (initial size, or fitted subsequent size) but the shape of a possible trend is unknown.  
+The \emph{Multiple B-spline test} is a version of the Breusch-Pagan test, also called the Cook-Weisberg test \citet{fox-weisberg-2018}. These (and a number of
+related tests) use regression analysis to test for a trend in the scale of squared residuals with respect to some covariate. 
+In our applications there is a single covariate $x$ (initial size, or fitted subsequent size) but the shape of a possible trend is unknown.  
 We therefore use B-spline regression to allow detection of an arbitrary smooth trend. 
 Squared residuals are regressed on a B-spline basis in $x$ of some dimension $m$, and we record the fraction of variance explained, $r^2$, adjusted for model degrees of freedom.
 Our function uses \texttt{lm} to do the regression, and the adjusted $r^2$ is a component of the fitted model's \texttt{summary}.  
