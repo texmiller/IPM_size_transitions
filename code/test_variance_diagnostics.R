@@ -36,7 +36,7 @@ for(jrep in 1:nreps){
 	scaled_resids = (scaled_resids-mean(scaled_resids))/sd(scaled_resids); 
 	#out = multiple_bartlett_test(fitted_vals, scaled_resids, 3, 10, R) 
 	#pbin[jrep]=out$p_value
-	out = multiple_Qbs_test(fitted_vals, scaled_resids, 4, 10, R) 
+	out = multiple_bs_test(fitted_vals, scaled_resids, 4, 10, R) 
 	pspline[jrep]=out$p_value
 
 	sd_vals2 =  1  + exp(-2*fitted_vals) 
@@ -44,7 +44,7 @@ for(jrep in 1:nreps){
 	scaled_resids2 =(scaled_resids2-mean(scaled_resids2))/sd(scaled_resids2); 
 	#out = multiple_bartlett_test(fitted_vals, scaled_resids2, 3, 10, R) 
 	#pbin2[jrep]=out$p_value
-	out = multiple_Qbs_test(fitted_vals, scaled_resids2, 4, 10, R) 
+	out = multiple_bs_test(fitted_vals, scaled_resids2, 4, 10, R) 
 	pspline2[jrep]=out$p_value
 	
 	sd_vals3 = 1 + 0.4*dnorm(fitted_vals,mean=1,sd=0.3); 
@@ -52,7 +52,7 @@ for(jrep in 1:nreps){
 	scaled_resids3 = (scaled_resids3-mean(scaled_resids3))/sd(scaled_resids3); 
 	#out = multiple_bartlett_test(fitted_vals, scaled_resids3, 3, 10, R) 
 	#pbin3[jrep]=out$p_value
-	out = multiple_Qbs_test(fitted_vals, scaled_resids3, 4, 10, R) 
+	out = multiple_bs_test(fitted_vals, scaled_resids3, 4, 10, R) 
 	pspline3[jrep]=out$p_value
 	}
 

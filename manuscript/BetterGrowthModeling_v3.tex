@@ -158,9 +158,6 @@ quantile regression instead of binning to estimate trends in skewness and kurtos
 demography; growth; integral projection model; kurtosis; skewness
 
 \newpage
-\tableofcontents
-
-\newpage
 \section{Introduction}
 
 Structured demographic models -- matrix and integral projection models (MPMs and IPMs) -- are powerful tools for data-driven modeling of population and community dynamics that are widely used in basic and applied settings. 
@@ -229,7 +226,7 @@ In particular, log-transformation often reduces or eliminates heteroskedasticity
 and also helps avoid eviction at small sizes \citep{williams2012avoiding}. 
 
 \new{The fitted mean and standard deviation functions should be checked before going any further and modified if necessary. 
-If the functions are accurate, the standardized residuals (residuals scaled by the standard deviation function) should have zero mean and unit variance, both overall and as a function of original size or fitted mean values. 
+If those functions are accurate, the standardized residuals (residuals scaled by the standard deviation function) should have zero mean and unit variance, both overall and as a function of original size or fitted mean values. 
 Looking at a plot of residuals versus fitted values is often recommended to check for omitted trends in mean or variance. 
 But such plots can be misleading about variance trends, because data sparsity in the tails of a size distribution can create a visual impression of low variance. 
 One of us recently found that the actual variance trend in a tree growth model (identified by maximum likelihood) was the exact opposite of what appeared to be true in a residuals plot, because of data sparsity.  
@@ -245,14 +242,14 @@ and therefore accepted the fitted standard deviation function.}
 from Gaussian, and to choose a more appropriate distribution.}
 \\
 If the Gaussian pilot model is valid, the standardized residuals should be Gaussian with no skew or excess kurtosis.  
-This criterion provides the basis for deciding whether to accept a Gaussian growth model or explore alternatives. 
-If the standardized residuals are satisfactorily Gaussian, skip to the final step of the workflow. 
+This criterion provides the basis for deciding whether to accept a Gaussian growth model (and so skip to the
+last step of the workflow), or explore alternatives. 
 
 Growth data may deviate from Gaussian in many ways, and the nature of those deviations can guide the search for a better distribution. 
-Frequentist tests such as the D'Agostino test of skewness \citep{d1970transformation} and the Anscombe-Glynn test of kurtosis \citep{anscombe1983distribution} 
-could be used to diagnose whether the aggregate distribution of standardized residuals deviates from normality (R package \textbf{moments} \citep{komsta2015moments}). 
-However, the aggregate distribution may be misleading if properties such as skew and kurtosis vary with size or other covariates. 
-For example, a change from positive skew at small sizes to negative at large sizes might produce zero overall skewness, but really requires a distribution family that can allow both positive and negative skew, such as the skewed Normal or Johnson $S_{U}$ distributions. 
+Tests such as the D'Agostino test of skewness \citep{d1970transformation} and the Anscombe-Glynn test of kurtosis \citep{anscombe1983distribution} 
+can be used to diagnose whether the aggregate distribution of standardized residuals deviates from normality \citep{komsta2015moments}. 
+However, the aggregate distribution may be misleading if skew or kurtosis vary with size or other covariates. 
+A change from positive skewness at small sizes to negative skewness at large sizes might produce zero overall skewness, but really requires a distribution family that can allow both positive and negative skew, such as the skewed Normal or Johnson $S_{U}$ distributions. 
 Alternatively, growth data may lack skew but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
 It is therefore essential to visualize trends in distribution properties with respect to either initial size, or expected future size with models with multiple covariates.  
 Fig. \ref{fig:workflow} includes guidance on how the skew and kurtosis properties of the standardized residuals suggest options for an appropriate growth distribution. 
@@ -438,9 +435,10 @@ In this case study, properly modeling non-normal size transitions -- which was e
 \end{figure} 
 
 \begin{table}[tbp]
+\renewcommand{\arraystretch}{1.5}
 	\centering
 	\begingroup\fontsize{9pt}{10pt}\selectfont
-	\begin{tabular}{rp{1.5cm}|p{1.5cm}p{1.5cm}p{1.5cm}p{1.5cm}p{1.5cm}}
+	\begin{tabular}{rp{1.5cm}|p{1cm}p{1.5cm}p{1.75cm}p{1.7cm}p{1.5cm}}
 		{\textbf{Species}} & {\textbf{Growth model}} & {\textbf{$\lambda$}} & {\textbf{Lifespan}} & {\textbf{Lifetime reproductive output}} & {\textbf{Age at reproduction}} & {\textbf{Generation time}} \\ 
 		\hline
 		Lichen & Gaussian & 1.001 & 6.443 & 1.031 & 5.588 & 33.869 \\ 
@@ -661,19 +659,16 @@ of the growth distribution (e.g., 0.01 and 0.99) as a function of initial size, 
 
 Rather than picking one distribution (such as the beta) as a new default, we prefer leveraging the vast arsenal of continuous probability distributions -- all at one's fingertips with a few lines of code -- so that the data and their particular deviations from normality can guide the choice of a better distribution. 
 Nonetheless, in our analyses we found ourselves coming back time and again to a few ``usual suspects''. 
-The four-parameter SHASH distribution, for example, 
-%is able to flexibly accommodate independent, size-dependent variation in variance, skewness, and kurtosis, and it is available as a distribution family in the well-developed \textbf{mgcv} package. 
-%In our case studies it 
-was consistently among the top non-Gaussian candidates, was our model of choice for several data sets, and is available in the well-developed \textbf{mgcv} package. 
+The four-parameter SHASH distribution, for example, was consistently among the top non-Gaussian candidates, was our model of choice for several data sets, 
+and is available in the well-developed \textbf{mgcv} package. 
 If one needs or wants a default distribution, one could do worse than the SHASH. 
 In cases where size transitions are consistently leptokurtic, Johnson's S-U (used for lichens) and the skewed $t$ (used for orchids) distributions are easy to fit with custom likelihood functions. 
-\comment{SPE: I don't think this is true for SHASH: All of the distributions we have used (and the specific parameterizations we implemented) share the property that their location and scale parameters correspond to the mean and standard deviation, which is not essential but it facilitates interpretation and an intuitive connection to the pilot Gaussian model. } 
-The five-parameter skewed generalized $t$ (sgt) is highly flexible, generalizing many other continuous distributions, but it does not have the useful property that the location and scale parameters equal the mean and standard deviation, and in our experience it can be hard to fit. 
+The five-parameter skewed generalized $t$ (sgt) is highly flexible, generalizing many other continuous distributions, but in our experience it can be hard to fit. 
 Finally, finding an appropriate non-Gaussian alternative does not solve all the problems of growth modeling. 
 ``Eviction'' from the approximating matrix of the IPM kernel is an ever-present danger and requires vigilance to detect and correct \citep{williams2012avoiding}. 
 
 In all of our case studies, non-Gaussian growth models always yielded more satisfying fits to size transition data than the Gaussian models published in those papers. 
-However, much to our relief, none of these re-analyses yielded a ``gotcha'' result that overturned results of the original study. 
+However, to our relief, none of these re-analyses yielded a ``gotcha'' result that overturned results of the original study. 
 In this small sampling of case studies, improved growth modeling had weak to modest effects on IPM results, similar in magnitude to the results of \cite{peterson2019improving}. 
 We caution against taking too much comfort in this outcome; in other scenarios the choice of the growth distribution could be more consequential. 
 It is worth noting that most of our case studies focused on perennial life histories (perennial plants and lichens) characterized by relatively slow growth, heavy losses during recruitment, and high survival once established, and these species all had mean lifespans between one and six years and generation times on the order of decades. 
@@ -687,8 +682,8 @@ Across our case studies we have attempted to illustrate a diversity of software 
 We like generalized additive models (gams) for their flexibility and for \textbf{mgcv}'s numerous options for distribution families and overall speed and reliability. 
 However, there are some applications for which classical parametric regression would be preferable because the coefficients carry biological meaning.
 For example, regression coefficients may be targets of natural selection \citep{rees2016evolving} and may combine to influence traits of interest such as the expected size at flowering (e.g. in Fig. \ref{fig:orchid_ESS}A), a function of the intercept and slope of the size-dependent flowering function \citep{metcalf2003evolutionary}. 
-Some potentially useful but relatively obscure distributions may not be available in linear modeling software packages, but that should not be a barrier to their use: as we have illustrated in several case studies, custom likelihood functions open up diverse possibilities for non-Gaussian growth modeling without sacrificing the complex, multi-level features that one might be accustomed to fitting in \textbf{lme4}, for example. 
-We have illustrated fitting growth models using maximum likelihood but Bayesian analysis is another option that may further broaden the options of non-Gaussian candidate distributions and may help estimate hard-to-fit parameters through the brute force of sampling algorithms. 
+Some potentially useful distributions are not available in linear modeling software packages, but that should not be a barrier to their use: as we have illustrated in several case studies, custom likelihood functions allow non-Gaussian growth modeling without sacrificing the complex, multi-level features that one might be accustomed to fitting in \textbf{lme4}, for example. 
+Bayesian analysis may further broaden the options for non-Gaussian candidate distributions and may help estimate hard-to-fit parameters through the brute force of sampling algorithms. 
 Bayesian analysis also provides a natural way to propagate uncertainty from the vital rate sub-models through the predictions of the IPM \citep{elderd2016quantifying}. 
 
 This paper has focused on size transitions, but IPMs have been extended in ways that capture other continuous state variables, and the same problems and solutions we propose should apply in those cases. 
@@ -701,10 +696,16 @@ The non-Gaussian models that we have considered here are not a panacea.
 For example, none of them allow bimodal growth, such as might occur if herbivore- or pathogen-attached individuals experience rapid tissue loss. 
 When the shape of the growth distribution is roughly constant, a nonparametric IPM growth kernel can be derived from a kernel density estimate for scaled residuals \citep[][p. 288]{ellner-etal-2016}. 
 Outside that special situation, analogous approaches require choosing multiple smoothing parameters, which is very challenging. 
-We are currently exploring with collaborators whether ``targeted learning'' approaches developed for causal inference \citep{vande-rose-2011} can be used to circumvent smoothing parameter selection. Targeted learning starts with a pilot model and updates it iteratively to achieve unbiased estimates and valid confidence intervals for a particular ``target'' quantity (such as $\lambda$ or mean lifespan). Preliminary results suggest that targeted learning with a deliberately under-smoothed pilot model works well for complex growth patterns (G. Hooker and Y. Zhou, \emph{personal communication}). But nonparametric methods are data-hungry, and targeted learning is no exception. When departures from Gaussian are quantitative rather than qualitative, parametric modeling as in this paper will make more efficient use of limited data.} 
+We are currently exploring whether ``targeted learning'' approaches developed for causal inference \citep{vande-rose-2011} can be used to circumvent smoothing parameter selection. Targeted learning starts with a pilot model and updates it iteratively to achieve unbiased estimates and valid confidence intervals for a chosen ``target'' quantity, such as $\lambda$ or mean lifespan. Preliminary results suggest that targeted learning with a deliberately under-smoothed pilot model works well for complex growth patterns (G. Hooker and Y. Zhou, \emph{personal communication}). But nonparametric methods are data-hungry, and targeted learning is no exception. When departures from Gaussian are quantitative rather than qualitative, parametric modeling as in this paper will make more efficient use of limited data.}
+
+\new{Evaluating the full model is no less important than evaluating the growth kernel. Ecological models are often built using all available data, leaving none to be used for testing. 
+But models can still be tested using features of the data not used in model construction \citep{getz-etal-2018}. 
+Data-driven IPMs are usually built from one-step demographic transitions, possibly augmented by time series of total population size. 
+Testing can be based on predicted patterns at other scales such as size distributions (or their mean and variation over time), and the mean and variance across individuals of age and size at first reproduction, age and size at death, and other life-history traits. 
+Study designs should consider the importance of quantifying patterns that can be used to evaluate the final fitted model, while collecting the data to build the model.} 
 
  \subsection*{Conclusion}
-Gaussian-distributed size transitions are probably the exception, not the rule, yet two decades-worth of IPM studies have relied overwhelmingly on Gaussian growth models. 
+Gaussian-distributed size transitions are probably the exception, not the rule, yet two decades of IPM studies have relied overwhelmingly on Gaussian growth models. 
 Using tools not available when IPMs were first developed, it is now very easy to do much better without any sacrifice of richness or complexity of covariates and random effects. 
 By generating predicted size transitions that are truer to the data, IPM analysts can narrow the gap between model and nature. 
 
@@ -1030,6 +1031,8 @@ The mean and standard deviation are both fitted as smoothing spline functions of
 Fig. \ref{fig:coral_diagnostics}A shows the log-transformed data and Gaussian model. 
 The mean function (solid red curve) is visually nearly linear, but the fitted spline is strongly favored over a linear model for the mean ($\Delta AIC \approx 9$). 
 The spline for standard deviation $\sigma$ versus initial size reflects the evident greater variability in growth at smaller sizes.  
+\new{We find no evidence of non-constant variance in the scaled residuals (Multiple Bartlett test $p=0.86$, Multiple B-spline test 
+$p = 0.26$, $R=5000$ randomizations.} 
 
 \begin{figure}[tbp]
 	\centering
@@ -1038,7 +1041,7 @@ The spline for standard deviation $\sigma$ versus initial size reflects the evid
 	\label{fig:coral_diagnostics}
 \end{figure} 
 
-There are no blatant signs of trouble in the pilot Gaussian model, but quantile regressions on the scaled residuals, and the NP Skewness and Kurtosis metrics derived from them (Eq. \ref{eqn:NPskew} and \ref{eqn:NPkurt}), suggest deviations from normality (Fig. \ref{fig:coral_diagnostics}B).
+While there are no blatant signs of trouble in the pilot Gaussian model, quantile regressions on the scaled residuals, and the NP Skewness and Kurtosis metrics derived from them (Eq. \ref{eqn:NPskew} and \ref{eqn:NPkurt}), suggest deviations from normality (Fig. \ref{fig:coral_diagnostics}B).
 Specifically, skewness switches from negative to positive across the size range, with smaller corals more prone to extreme shrinkage and larger corals more prone to extreme growth.  
 Kurtosis also changes direction over the size distribution, with thinner tails than Gaussian at small sizes and fatter tails at large sizes. 
 The fitted nonparametric moments suggest that the upper and lower tails of size transition probabilities may differ by up to 20\%, and the weight of the tails may be \>20\% greater or less than Gaussian, depending on initial size -- not overwhelming deficiencies, but not trivial either. 
