@@ -493,7 +493,7 @@ fitGAU <- gam(list(t1 ~ s(t0,k=4) + s(plot,bs="re") + s(year,bs="re"),
 The standardized residuals, accounting for growth variance that peaks at small-to-medium sizes (Fig. \ref{fig:resid_diagnostics}C), show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:resid_diagnostics}D). \new{We also find a statistically significant 
 trend in variance, $p<0.01$ for both Multiple Bartlett and Multiple B-spline tests; script \texttt{cactus\_growth\_modeling\_qgam.R}). However, the trend is too small to 
 worry about: spline regressions of either squared or absolute scaled residuals on either initial size or fitted subsequent size (using \texttt{gam} from the \texttt{mgcv} library)
-explained under 2\% of the variance. The trend is so weak that it makes little sense to try to remove it, even though the support for the trend is strong because of 
+explained under 2\% of the variance. Because the trend is so weak, it makes little sense to try to remove it, even though evidence for the trend's existence is strong because of 
 large sample size ($n=4844$). } 
 
 So to better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, both of which may be negligible at some sizes.
@@ -805,7 +805,7 @@ Z = \sinh (\delta \; \mbox{asinh}(X_{\epsilon,\delta}) - \epsilon)
 \ee
 and $Z$ has a Normal(0,1) distribution. Equivalently, 
 \be
-X_{\epsilon,\delta} = \sinh \left( \delta^{-1} (\mbox{asinh}(Z) + \epsilon)\right).
+X_{\epsilon,\delta} = \sinh \left( \delta^{-1} (\mbox{asinh}(Z) + \epsilon)\right), \quad Z \sim \mathcal{N}(0,1).
 \label{eqn:JP2}
 \ee
 Parameters $\delta=1, \; \epsilon=0$ give the Normal(0,1) distribution. Skewness has the sign of $\epsilon$, and
@@ -824,7 +824,7 @@ four-parameter families, and come very close to the theoretical limit of kurtosi
 Additionally, eqn. \eqref{eqn:JP2} makes it straighforward to generate random numbers and to compute 
 the probability density, cumulative distribution, and quantile functions. There are also analytic formulas for the first four moments
 \citep[][p. 764]{jones-pewsey-2009}. \new{These make it possible to define a reparameterized form of the distribution in which the
-location parameter is the mean, and the scale parameter is the standard deviation. This reparameterized form can then be used in
+location parameter is the mean, and the scale parameter is the standard deviation. That form can then be used in
 custom likelihood functions that ``import'' the fitted mean and standard deviation from the Gaussian pilot model, 
 in the same way that the skewed $t$ distribution was used in our lady orchid case study. 
 Code for this reparameterized form of the distribution is provided in our code archive script \texttt{JPfuns.R}.}  
@@ -838,15 +838,15 @@ that this property can be problematic for parameter estimation, because of a rid
 $\epsilon/\delta$. Another problem is that when $\delta$ is large, changes in $\epsilon$ have little effect. 
 
 To avoid those problems, we recommend writing a custom likelihood function in terms of 
-skewness and kurtosis parameters $\lambda$ and $\tau$, setting $\delta = e^{\tau}, \epsilon =  e^{\tau} \lambda$ in the SHASH distribution. 
-$\lambda$ can take any real value, and the distribution's skew has the same sign as $\lambda$. 
+skewness and kurtosis parameters $\lambda$ and $\tau$, setting $\delta = e^{\tau}, \; \epsilon =  e^{\tau} \lambda$ in the 
+reparameterized SHASH distribution. $\lambda$ can take any real value, and the distribution's skew has the same sign as $\lambda$. 
 $\tau$ also can take any real value, with negative values giving thinner than Gaussian tails 
 and positive values giving fatter than Gaussian tails. 
 
 It is still the case that skewness and kurtosis jointly depend on $\tau$ and $\lambda$, but the
 ``crosstalk'' is weaker than that between $\delta$ and $\epsilon$. 
 As a result, we found that likelihood optimization is numerically more stable when the likelihood function is 
-written as a function of $\tau$ and $\lambda$ rather than $\delta$ and $\epsilon$. 
+written as a function of $\tau$ and $\lambda$ rather than $\delta$ and $\epsilon$, in addition to $\mu$ and $\sigma$.  
 
 \section{Estimating random effects in non-Gaussian models using shrinkage}
 \label{sec:shrinkageFits}
@@ -854,8 +854,8 @@ Specialized software for fitting mixed effects models only allow a subset, usual
 are useful for modeling growth.\footnote{The \textbf{gamlss} package includes many distributions, but in our experience even with 
 simple random effects structure the fitting algorithms often fail to converge, fail to find the global optimum, or   
 even get turned around and start seeking likelihood minima. 
-\textbf{gamlss.dist} has some incomplete or inaccurate help pages,
-but the distributions we have worked with seem to be reliable if you check the source code to be sure about what they are
+\textbf{gamlss.dist} has some incomplete or inaccurate help pages, 
+but the distributions we have worked with seem to be reliable if you read the source code to be sure about what they are
 actually computing.} One way past this limitation is Bayesian estimation. Here we describe another option, 
 introduced by \citet{link-nichols-1994} and \citet{gould-nichols-1998}: 
 fitting the model in a fixed effects framework by Maximum Likelihood, followed by shrinkage of coefficient estimates. 
@@ -960,7 +960,8 @@ The expected sample variance of the adjusted estimates $\widetilde{a}_t$ is very
 The $\widetilde{a}_t$ therefore approximate the actual amount of parameter variation, and are analogous to the 
 year-specific estimated random effects from a mixed effects model. 
 
-The take-home message is that estimating random effects from fitted regression coefficients is very simple: 
+The take-home message is that estimating random effects from fitted year-specific regression 
+coefficients is very simple. Continuing from the last code listing above: 
 \begin{lstlisting}
 # Variance-covariance matrices for intercepts and slopes
 V1 = V[1:T,1:T]; V2 = V[(T+1):(2*T),(T+1):(2*T)]; 

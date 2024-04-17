@@ -61,7 +61,7 @@ LATR_grow = LATR_grow[e,];
 
 # fit pilot gaussian growth model with mgcv
 ## define k parameter (basis number) for global use
-k_param<-4
+k_param<-6
 # specify sd as constant then re-fit with iterative re-weighting
 LATR_GAU <- gam(list(log_volume_t1~s(log_volume_t,k=k_param) + s(dens_scaled,k=k_param) + s(unique.transect,bs="re"),~1), 
                      family="gaulss", data=LATR_grow, method="ML",gamma=1.4) 
@@ -97,6 +97,29 @@ mean(LATR_grow$GAU_scaled_resids);sd(LATR_grow$GAU_scaled_resids)
 jarque.test(LATR_grow$GAU_scaled_resids) # normality test: FAILS, P < 0.001 
 anscombe.test(LATR_grow$GAU_scaled_resids) # kurtosis: FAILS, P < 0.001 
 agostino.test(LATR_grow$GAU_scaled_resids) # skewness: FAILS, P<0.001 
+
+
+################# Test for non-constant variance 
+source("../code/variance_diagnostics.R"); 
+
+stopCluster(c1); 
+c1<- makeCluster(8); 
+registerDoParallel(c1);
+R = 5000; 
+out_bartlett = multiple_bartlett_test(LATR_grow$GAU_mean,LATR_grow$GAU_scaled_resids, 3, 10, R) ## p=0.03
+out_bs = multiple_bs_test(LATR_grow$GAU_mean,LATR_grow$GAU_scaled_resids, 4, 10, R) ## p = 0.47; 
+
+out_bartlett = multiple_bartlett_test(LATR_grow$dens_scaled,LATR_grow$GAU_scaled_resids, 3, 10, R);
+out_bartlett$p_value; 
+ 
+out_bs = multiple_bs_test(LATR_grow$dens_scaled,LATR_grow$GAU_scaled_resids, 4, 10, R)  
+out_bs$p_value; 
+
+stopCluster(c1);
+
+
+
+
 
 ## quantile regressions on stand resids
 S.05<-qgam(GAU_scaled_resids~s(GAU_mean,k=k_param), data=LATR_grow,qu=0.05)

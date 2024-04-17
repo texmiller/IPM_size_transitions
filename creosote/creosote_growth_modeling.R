@@ -130,13 +130,32 @@ agostino.test(scaledResids) # skewness: FAILS, P<0.001
 
 px = fitted(LATR_lmer_best); py=scaledResids; 
 par(mfrow=c(2,2),bty="l",mar=c(4,4,2,1),mgp=c(2.2,1,0),cex.axis=1.4,cex.lab=1.4);   
+
 ##### Alternatively, use nonparametric measures of skew and excess kurtosis. 
 z = rollMomentsNP(px,py,windows=8,smooth=TRUE,scaled=TRUE) 
 
 ## there is still a size trend in the stdev of the residuals. hmm. ### Fixed! 
-
 plot(LATR$d.stand,scaledResids) #-- there is clearly greater variance at low density, which is what I would expect
 plot(log(LATR$vol_t),scaledResids) 
+
+
+################# Test for non-constant variance 
+source("../code/variance_diagnostics.R"); 
+
+stopCluster(c1); 
+c1<- makeCluster(8); 
+registerDoParallel(c1);
+R = 5000; 
+out_bartlett = multiple_bartlett_test(LATR$d.stand, scaledResids, 3, 6, R) ## p=0.09
+out_bs = multiple_bs_test(LATR$d.stand, scaledResids, 4, 10, R) ## p = 0.97; 
+
+out_bartlett = multiple_bartlett_test(fitted_vals, scaledResids, 3, 6, R) ## p=0.01
+out_bs = multiple_bs_test(fitted_vals, scaledResids, 4, 10, R) ## p = 0.47; 
+
+out_bartlett = multiple_bartlett_test(LATR$vol_t, scaledResids, 3, 6, R) ## p=0.02
+out_bs = multiple_bs_test(log(LATR$vol_t), scaledResids, 4, 10, R) ## p = 0.09; 
+
+stopCluster(c1);
 
 # visualize kernel
 ##dummy variable for initial size
