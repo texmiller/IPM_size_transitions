@@ -56,13 +56,13 @@ for(jrep in 1:nreps){
 	pspline3[jrep]=out$p_value
 	}
 
-	
+
 stopCluster(c1); 
 
 graphics.off(); dev.new(width=14,height=11); 
 par(mfcol=c(4,3),mar=c(4,4,2,1),cex.axis=1.3,cex.lab=1.5,mgp=c(2.1,1,0), bty="l");
 
-hist(fitted_vals, 11, xlab = "Scaled residuals", main=""); add_panel_label("a"); 
+hist(scaled_resids, 11, xlab = "Scaled residuals", main=""); add_panel_label("a"); 
 plot(fitted_vals,scaled_resids,xlab="Fitted values", ylab="Scaled residuals"); add_panel_label("d"); 
 matpoints(fitted_vals,cbind(-2*sd_vals,2*sd_vals),type="l",lty=2,col="black"); 
 hist(pbin,xlab = "p-values", main=paste0("Multiple Bartlett test: type-I error rate ", mean(pbin<0.05)));  add_panel_label("g"); 

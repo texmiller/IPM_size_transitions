@@ -117,10 +117,6 @@ out_bs$p_value;
 
 stopCluster(c1);
 
-
-
-
-
 ## quantile regressions on stand resids
 S.05<-qgam(GAU_scaled_resids~s(GAU_mean,k=k_param), data=LATR_grow,qu=0.05)
 S.10<-qgam(GAU_scaled_resids~s(GAU_mean,k=k_param), data=LATR_grow,qu=0.1)
