@@ -461,7 +461,7 @@ In this case study, properly modeling non-normal size transitions -- which was e
 \end{table}
 
 One could argue that the lichen data set was a convenient ``straw man'' to disqualify Gaussian growth, because it was recognized by the original and subsequent analysts that size transitions had a strongly skewed distribution \citep{shriver2012comparative,peterson2019improving}. 
-In all remaining case studies, including those in the Appendix, we re-examine growth data that were modeled as Gaussian in published IPM studies. 
+In all remaining case studies, including those in the Appendix, we re-examine growth data that were modeled as Gaussian in the original published analysis.  
 
 \begin{figure}[tbp]
 	\centering
@@ -553,7 +553,7 @@ In cases such as this it is convenient to model variance as a function of expect
 The expected (or ``fitted'') values reflect the combined influence of all fixed and random effects, and therefore implicitly account for multiple sources of variation in the variance. 
 %While there are several software packages for simultaneously modeling Gaussian mean and variance as functions of independent variables (including \textbf{mgcv} and \textbf{nlme}), modeling variance as a function of the mean is trickier because they cannot easily be fit simultaneously. 
 
-\new{Directly fitting a model where error variance is a function of fitted values is possible in library \textbf{nlme} fitting functions, but not in \textbf{lme4} (nor 
+\new{Directly fitting a model where error variance is a function of fitted values is possible in library \textbf{nlme} fitting functions, but not with \texttt{lmer} (nor 
 in the \textbf{mgcv} functions for generalized additive models). }
 %After MUCH trial and error here is an nlme example that runs: 
 %x = runif(1000)*4; 
@@ -563,20 +563,21 @@ in the \textbf{mgcv} functions for generalized additive models). }
 %plot(x,y);
 %require(nlme);
 %fit = lme(y~x, random = ~1|u, weights = varExp(form = ~fitted(.)));
-But it can still be done through an iterative re-weighting approach, as follows. 
-In \texttt{lmer} weights $w_{i}$ can be used to indicate that the observations $y_{i}$ have error variance proportional to $1/w_i^2$. 
-The iterative steps are as follows, and code that executes these steps may be found in \texttt{orchid\_growth\_modeling.R}. 
+But it can still be done with \texttt{lmer} through an iterative re-weighting approach, as follows. 
+In \texttt{lmer}, weights $w_{i}$ can be used to indicate that the observations $y_{i}$ have error variance proportional to $1/w_i^2$. 
+The iterative steps are as follows, and code that executes these steps is in \texttt{orchid\_growth\_modeling.R}. 
 \begin{enumerate}
-	\item Fit the expected value assuming Gaussian-distributed residuals with constant standard deviation. 
-	\item Fit the standard deviation of the residuals as a function of the expected value. 
-	\item Re-fit the expected value, with weights equal to the inverse of the standard deviation estimated in step 2. 
+	\item Fit the expected value assuming Gaussian-distributed residuals with constant variance. 
+	\item Fit the standard deviation of the residuals as a function of the corresponding fitted value. 
+	\item Re-fit the model, with weights equal to the inverse of the standard deviation estimated in step 2. 
 \end{enumerate}
 We iterated steps 2 and 3 until the root mean square change in weights was below $10^{-6}$. This is not elegant, but it works and converges quickly. 
-In step 2, we modeled the log of the standard deviation (because standard deviations must be positive) as a quadratic polynomial in the fitted mean, $log(f(\mu_{i}))=\beta_{0}+\beta_{1}\mu_{i}+\beta_{2}\mu_{i}^2$).  In exploratory analyses we found that the quadratic term provided necessary flexibility to fit the standard deviation. We did this for all candidate models and, for a fair AIC comparison, we then re-fit all candidate models with the weights estimated from the top model. 
+In step 2, we modeled the log of the standard deviation (because standard deviations cannot be negative) as a quadratic polynomial in the fitted mean, $log(f(\mu_{i}))=\beta_{0}+\beta_{1}\mu_{i}+\beta_{2}\mu_{i}^2$).  In exploratory analyses we found that the quadratic term was necessary to fit the standard deviation. 
+We did this for all candidate models and, for a fair AIC comparison, we then re-fit all candidate models with the weights estimated from the top model. 
 
 The updated model selection continued to favor the size $\times$ flowering interaction model (3), but now with a weaker improvement over the next-best model ($\Delta AIC = 6.7$). 
 The fitted mean (a function of initial size and flowering status) and fitted standard deviation (a function of the fitted mean) are shown in Fig. \ref{fig:resid_diagnostics}E. 
-\new{There was no evidence of a trend in the variance of scaled residuals from this model (Multiple Bartlett test $p=0.18$, Multiple B-spline test $p=0.4$).}  
+\new{There was no evidence of non-constant variance in the scaled residuals as a function of fitted values (Multiple Bartlett test $p=0.18$, Multiple B-spline test $p=0.4$).}  
 
 The best Gaussian model indicated a growth cost associated with flowering at the start of the census interval and a decline in growth variance with increasing expected values. 
 The standardized residuals indicated negative skewness (10--20\% difference in tail weight) and excess kurtosis (10--40\% fatter than Gaussian) across much of the size distribution but both negligible at large expected sizes (Fig. \ref{fig:resid_diagnostics}F). 
@@ -728,17 +729,17 @@ By generating predicted size transitions that are truer to the data, IPM analyst
 
 \centerline{\Large{\textbf{Appendices}}}
 
-\section{Nonparametric tests for nonconstant variance}
+\section{\new{Nonparametric tests for nonconstant variance}}
 \label{sec:VarianceTests}  
 
 The tests that we describe here use randomization to test for unspecified trends in the variance of a response $y$ as a 
 function of a covariate $x$, given data pairs $(x_i,y_i),  i = 1,2, \cdots, n$. 
 In this paper $y$ is the set of standardized residuals from a pilot model, and $x$ is a covariate in the pilot model such as initial size or fitted mean subsequent size. 
 
-These tests are used in our suggested workflow specifically to test for correct specification of variance trends in the raw residuals. We therefore build our
-tests from statistics based on squared residuals. Tests based on squared residuals are generally less robust against non-Gaussian data than tests
-using other measures of residual magnitude such as absolute residuals, or the log or square root of absolute residuals \citep{conover-etal-1981}. 
-We therefore use randomization methods to obtain $p$-values that are not dependent on any assumptions about the data distribution. 
+These tests are used in our suggested workflow specifically to test for correct specification of the variance trend in growth increments. 
+We therefore build our tests from statistics based on squared residuals. Tests based on squared residuals are generally less robust against non-Gaussian data than tests
+using other measures such as absolute residuals, or the log or square root of absolute residuals \citep{conover-etal-1981}. 
+We therefore use randomization methods to obtain $p$-values that do not depend on any assumption about the data distribution. 
 
 The first test is based on the Bartlett test for constancy of variance across discrete groups. This is  
 available as the \texttt{bartlett.test} function in the \textbf{stats} package in base R. 
@@ -754,22 +755,22 @@ randomizations where the Bartlett test $p$-value is smaller than that from the r
 
 The $p$-value returned by the \texttt{bartlett.test} function assumes Gaussian data and has poor robustness against departures from Gaussian \citep{conover-etal-1981}, 
 in particular it often gives false positives (high type-I error rate on non-Gaussian data with constant variance).  
-However, the $p$ value is a monotonic function of the underlying test statistic. The \emph{Multiple Bartlett test} described in the preceding paragraph is therefore 
-exactly equivalent to a randomization test based on the underlying test statistic, and thus does not rest on any assumptions about the data distribution. 
+However, the returned $p$ value is a monotonic function of the underlying test statistic. The \emph{Multiple Bartlett test} described in the preceding paragraph is therefore 
+exactly equivalent to a randomization test based on the underlying test statistic for nonconstant variance, and thus does not rest on any assumptions about the data distribution. 
 
 The \emph{Multiple B-spline test} is a version of the Breusch-Pagan test, also called the Cook-Weisberg test \citep{fox-weisberg-2018}. 
-This (and a number of related tests) uses regression analysis to test for a trend in the scale of squared residuals with respect to some covariate. 
-In our applications there is a single covariate $x$ (initial size, or fitted subsequent size) but the shape of a possible trend is unknown.  
+This test (and a number of related tests) uses regression analysis to test for a trend in the scale of squared residuals with respect to some covariate. 
+In our applications there is a single covariate $x$ (initial size, fitted subsequent size, or a model covariate) but the shape of a possible trend is unknown.  
 We therefore use B-spline regression to allow detection of an arbitrary smooth trend. 
 Squared residuals are regressed on a B-spline basis in $x$ of some dimension $m$, and we record the fraction of variance explained, $r^2$, adjusted for model degrees of freedom.
 Our function uses \texttt{bs} to create the spline basis and \texttt{lm} to do the regression (both are part of base R), and the adjusted $r^2$ is a component of the fitted model's \texttt{summary}.  
-As with the Multiple Bartlett test, to avoid dependence on $m$ our test statistic is the maximum $r^2$ across a range of $m$ values, typically 4 to 10, and to avoid distributional assumptions the $p$-value is again computed by random permutation of the squared residuals. 
+As with the Multiple Bartlett test, to avoid dependence on $m$ our test statistic is the maximum $r^2$ across a range of $m$ values, typically 4 to 10, and to avoid distributional assumptions the $p$-value is again computed through random permutation of the squared residuals. 
 The randomization $p$ value is the proportion of randomizations for which the maximum adjusted $r^2$ (across $m$ values) is 
 larger than the same statistic for the real data.  
 
 \begin{figure}[tbp]
 \centering
-\includegraphics[width=\textwidth]{figures/test_variance_diagnostics.pdf}
+\includegraphics[width=\textwidth]{figures/test_variance_diagnostics_500.pdf}
 \caption{Examples of applying the Multiple Bartlett test and Multiple B-spline test to simulated non-Gaussian residuals with known trends in variance, sample size $n=500$. 
 See text for explanation. Figure made by R script \texttt{test\_variance\_diagnostics.R} in our code archive. }
 \label{fig:ncv}
@@ -777,20 +778,21 @@ See text for explanation. Figure made by R script \texttt{test\_variance\_diagno
 
 Figure \ref{fig:ncv} illustrates how these tests perform on simulated non-Gaussian residuals with specified trends in variance as a function of a covariate.
 In all cases 500 simulated residuals were generated from a Johnson SU distribution with mean zero, kurtosis parameter $\tau = 2$ (excess kurtosis drops to zero as $\tau \to \infty$)
-and skewness parameter $\nu$ trending linearly from -2 at $x=0$ to 2 at $x=2$. At the extremes ($\nu = \pm 2, \tau =2$) the distribution has skewness of $\approx \pm 1.5$
+and skewness parameter $\nu$ trending linearly from -2 at $x=0$ to 2 at $x=2$. At the extremes ($\nu =\pm 2, \tau=2$) the distribution has skewness of $\approx \pm 1.5$
 (nonparametric skewness $\pm 0.24$) and kurtosis $\approx 7$ (nonparametric excess kurtosis $0.10$).   
 
 The top row shows the overall distribution of simulated residuals, and the second row shows residuals as a function of the covariate, with the true standard deviation 
-function plotted as a dashed line. The third row and fourth rows show the test results, using $p \le 0.05$ as the criterion for rejecting the null hypothesis
+function indicated by dashed lines at $\pm 2$ standard deviations. 
+The third row and fourth rows show the test results, using $p \le 0.05$ as the criterion for rejecting the null hypothesis
 of constant variance, for 500 sets of simulated residuals and $R=2000$ randomizations to compute the $p$-value for each set.  
 With constant standard deviation (panels G and J) the type-I error rate (i.e., the fraction of false rejections) should be 0.05, 
 and both tests perform quite well. Even with relatively small departures from constant variance (middle and right columns), the tests 
-exhibit reasonable power to detect that the variance is not constant. Most of our case studies have larger sample sizes, and in simulations with a sample size 
-of 1000 instead of 500 the power to detect nonconstant variance at $\alpha = 0.05$ increased to roughly 75\% for the middle column example, and roughly 90\% for the
-multiple Bartlett test and 78\% for the Multiple B-spline test for the right column example.  
+exhibit reasonable power to detect that the variance is not constant. Most of our case studies have larger sample sizes, and in simulations with a sample sizes 
+of 1000 instead of 500, the type-I error rates were below $0.06$ and the power to detect nonconstant variance at $\alpha = 0.05$ was 
+over 85\% for both tests and both of the examples in the Figure with non-constant variance. 
 
 There are many other tests for nonconstant variance -- see for example \cite{Farrar2024} -- and the same scan-and-randomize approach could
-be layered onto any of them. We chose two test that seemed maximally different from each other (discrete versus very smooth variation), and where the base test
+be layered onto any of them. We chose two tests that seemed maximally different from each other (discrete versus very smooth variation), and where the base test
 is fast enough to allow a large number of randomizations. 
 
 \section{The Jones-Pewsey SHASH distribution family} 
@@ -999,7 +1001,7 @@ generated from the fitted growth model for  \emph{Pseudoroegneria spicata}. Figu
 \section{Additional case studies}
 \label{sec:moreCases}
 
-\subsection{Case study: Sea fan corals, \emph{Gorgonia ventalina}}
+\subsection{Sea fan corals, \emph{Gorgonia ventalina}}
 \label{sec:seafans}
 \cite{bruno-etal-2011} developed an IPM to understand the rise and fall of a fungal pathogen \emph{Aspergillus sydowii} in Caribbean sea fan corals \emph{G. ventalina}. 
 The model was based on repeated observations of marked corals in permanent transects at several sites near Akumal, Mexico, recording disease status (infected/uninfected) and the area of uninfected tissue. 
@@ -1105,7 +1107,7 @@ To minimize the risk of overfitting we specified the number of ``knots'' (\textt
 But it is always important to plot the fitted splines and make sure they do not wag unrealistically. 
 If they do, parametric regression may be a better choice. 
 
-\subsection{Case study: creosotebush, \emph{Larrea tridentata}}
+\subsection{Creosotebush, \emph{Larrea tridentata}}
 \label{sec:creosotebush}
 Our next case study comes from our studies of the woody shrub creosotebush (\emph{Larrea tridentata}) at the Sevilleta Long-Term Ecological Research (LTER) site in central New Mexico, US. 
 At this site as elsewhere in the Southwest US, creosotebush is encroaching into desert grassland habitats.
@@ -1137,7 +1139,11 @@ Using the fitted values from this initial model, we updated the standard deviati
 \end{figure} 
 
 The resulting Gaussian growth model predicts strong initial size-dependence and weak and slightly nonlinear (but monotonic) negative density dependence (Fig. \ref{fig:creosote_diagnostics}A). 
-The model accounts for non-constant variance, which indicate greater dispersion for smaller values of expected size (Fig. \ref{fig:creosote_diagnostics}B).  
+The model accounts for non-constant variance, which indicate greater dispersion for smaller values of expected size (Fig. \ref{fig:creosote_diagnostics}B). 
+\new{We tested for non-constant variance of scaled residuals as a function of initial size, predicted subsequent size, and weighted density. One result was statistically significant, 
+the Multiple Bartlett test for a trend with respect to predicted subsequent size ($p = 0.02$; $p>0.2$ for all other tests). But as in the cactus case study in the main text, the large sample size
+(1562 growth observations) allowed convincing evidence of a minuscule trend, explaining under 1\% of the trend in either squared or absolute residuals, using linear or spline models.} 
+ 
 Quantiles of the standardized residuals indicate that skew and excess kurtosis are both greater at smaller sizes (Fig. \ref{fig:creosote_diagnostics}C).
 Skewness is close to zero for larger plants (the best-sampled size range) but excess kurtosis remains positive for large plants (ca. 10\% heavier tails than Gaussian). 
 As a candidate for improvement, we turned to the Johnson's $S_{U}$ (JSU) distribution, a four-parameter, leptokurtic distribution capable of skew in either direction. 
@@ -1184,10 +1190,10 @@ Weak size-dependence in survival likely explains why the improvement in growth m
 
 \subsection{Case study: pike, \emph{Esox lucius}}
 \label{sec:pike}
-Our final case study comes from a long-term study of pike (\emph{Esox lucius}) at Windemere in the English Lake District, UK. 
+Our final case study comes from a long-term (51 year) study of pike (\emph{Esox lucius}) at Windemere in the English Lake District, UK. 
 Fish were gill-netted and destructively sampled to retrieve otoliths. 
 Lengths (cm) were recorded at the time of sampling and back-casted to estimate length in the preceding year. 
-There were size transitions in the data set. 
+There were 26501 size transitions in the data set. 
 These data are publicly available \citep{winfield2013pikegrowth}, as are data on size-specific fertility and survival \citep{winfield2013pikesurvival,winfield2013pikefecundity}, and have been analyzed in previous IPM studies \citep{vindenes2014effects,stubberud2019effects}. 
 Previous authors modeled growth using a log-normal distribution to ensure that change in length was non-negative. 
 Here, we do not attempt to reproduce the published IPMs but rather use the growth data as an additional test case of non-Gaussian growth modeling for a short-lived vertebrate. 
@@ -1205,8 +1211,13 @@ pike$fitted_mean<-pike_gau_pred,1
 pike$fitted_sd<-1/pike_gau_pred[,2]
 pike$scaledResids=residuals(pike_gau,type="response")/fitted_sd
 \end{lstlisting}
-Growth variance strongly decreased with initial size and size transitions were strongly positively skewed, with up to a 75\% difference in tail weight at small sizes (Fig. \ref{fig:pike_diagnostics}). 
-Size transitions were fat-tailed at small initial sizes but were consistent with Gaussian tails at large initial sizes. 
+\new{With the very large sample size, we once again found very strong evidence ($p<0.001$, Multiple Bartlett and Multiple B-spline tests) for a minuscule variance trend, 
+that accounting for under 1\% of the variance in squared or absolute scaled residuals as a function of initial size or predicted subsequent size; R script
+\texttt{PikeGrowthModeling\_qgam.R}.} 
+
+Growth variance strongly decreased with initial size and size transitions were strongly positively skewed, with up to a 75\% difference in 
+tail weight at small sizes (Fig. \ref{fig:pike_diagnostics}). Size transitions were fat-tailed at small initial sizes but were consistent with 
+Gaussian tails at large initial sizes. 
 
 \begin{figure}[tbp]
 	\centering
@@ -1214,6 +1225,7 @@ Size transitions were fat-tailed at small initial sizes but were consistent with
 	\caption{\textbf{A}, Size transition data for pike, \emph{Esox lucius}, and fitted gam with mean (red) and standard deviation (blue) of future size conditional on current size.  \textbf{B}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (red) and excess kurtosis (blue) derived from them. Black lines in \textbf{B} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles.}
 	\label{fig:pike_diagnostics}
 \end{figure} 
+
 
 Our improved growth model was a SHASH gam that defined all four parameters as smooth functions of initial size.
 \begin{lstlisting}
@@ -1224,25 +1236,65 @@ pike_gam_shash <- gam(list(t1 ~ s(t0,k=4), # <- model for location
 	data = pike, family = shash,  optimizer = "efs")
 \end{lstlisting}
 We also tried gamma regression on the change in size, to ensure strictly increasing size transitions, but found that this was not necessary to prevent shrinkage and did not provide as good a fit as the SHASH. 
-Data simulated from the SHASH and Gaussian models are shown in \tom{Fig. \ref{}}{Tom will get this uploaded once the simulations are done.}.
+Data simulated from the SHASH and Gaussian models are shown in Fig. \ref{fig:pikeSims}. \new{The SHASH is an improvement over the Gaussian for most initial sizes. It fails 
+to capture the skewness growth distribution of the largest fish, but that will have little effect because the fitted mean and standard deviation imply, correctly, that those
+fish will have very small and nearly deterministic growth increments until they reach the size at which growth ceases (Figs. \ref{fig:pike_diagnostics}A, \ref{fig:pikeSims}A).  }
 
-For the remainder of the IPM, we fit gams for survival and egg production as smooth functions of size. 
-Parameter values for fertilization probability, fraction female (the IPM is female-dominant), and probability of survival from egg to 1-yo came from \cite{stubberud2019effects}, Table 2. 
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/pike_growth_sims.pdf}
+	\caption{Comparisons between real pike data and data simulated from Gaussian and SHASH growth models for nonparametric measures of mean, standard deviation, 
+	skewness, and excess kurtosis of future size conditional on current size. 
+		Moments of the future size distribution are plotted with respect to initial size. The dashed line in the top-left panel is the 1:1 line. 
+		Figure made by script \texttt{PikeGrowthModeling\_qgam.R}.}
+	\label{fig:pikeSims}
+\end{figure} 
+
+For the other components of the IPM, we fit GAMs for survival and egg production as smooth functions of size. 
+Parameter values for fertilization probability, fraction female (the IPM is female-dominant), and probability of survival from egg to 1-yo 
+came from \cite{stubberud2019effects}, Table 2. 
+
+Predictions from the SHASH- and Gaussian-growth IPMs (Table \ref{tab:pike}) are uniformly remarkably similar. 
+
+\begin{table}[ht]
+\caption{Comparison of predictions from pike IPMS using fitted Gaussian and SHASH growth models.} 
+\centering
+\begin{tabular}{rrr}
+  \hline
+ & Gaussian & SHASH \\ 
+  \hline
+$\lambda$ & 1.76 & 1.76 \\ 
+  Mean lifespan & 1.12 & 1.12 \\ 
+  SD lifespan & 0.53 & 0.53 \\ 
+  Skewness lifespan & 9.31 & 9.20 \\ 
+ Mean conditional lifespan & 3.37 & 3.39 \\ 
+ Mean LRO & 1.17 & 1.24 \\ 
+ SD LRO & 14.93 & 15.55 \\ 
+ Skewneww LRO & 25.59 & 24.55 \\ 
+ Prob. of reproducing & 0.21 & 0.20 \\ 
+ Mean age reproduction & 1.31 & 1.30 \\ 
+  Generation time $T_a$ & 2.19 & 2.20 \\ 
+  Generation time $\mu_1(v)$ & 4.81 & 4.79 \\ 
+  Generation time $R_0$ & 3.28 & 3.28 \\ 
+   \hline
+\end{tabular}
+\label{tab:pike}
+\end{table}
+
+
+\clearpage 
  
-\clearpage
-\newpage  
-
 \section{Additional Figures}
 \label{sec:additionalFigs}
  
- \begin{figure}[tbp]
+ \begin{figure}[h!]
  	\centering
  	\includegraphics[width=1.0\textwidth]{figures/cactus_SHASH_fit.pdf}
  	\caption{Comparisons among real cactus data and data simulated from Gaussian and SHASH growth models for mean, standard deviation, NP skewness, and NP excess kurtosis of future size conditional on current size. Figure made by script \texttt{cactus\_growth\_modeling\_qgam.R}.}
  	\label{fig:cactus_fit}
  \end{figure} 
 
-\begin{figure}[tbp]
+\begin{figure}[h!]
 	\centering
 	\includegraphics[width=1.0\textwidth]{figures/orchid_SST_fit.pdf}
 	\caption{Comparisons between real orchid data and data simulated from Gaussian and skewed $t$ growth models for mean, standard deviation, NP skewness, and NP kurtosis of future size conditional on current size. Top row (\textbf{A}-\textbf{D}) shows plants that were vegetative at the start of the transition year and bottom row (\textbf{E}-\textbf{H}) shows plants that were flowering at the start of the transition year. Figure made by script \texttt{orchid\_growth\_modeling\_rq.R}.}
