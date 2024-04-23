@@ -692,16 +692,16 @@ Such models must define distributions of future infection load conditional on cu
 user-defined size classes as the transition probabilities in a (possibly large) matrix model \citep{doak-critical-2021}. 
 The non-Gaussian models that we have considered here are not a panacea. 
 For example, none of them allow bimodal growth, such as might occur if herbivore- or pathogen-attached individuals experience rapid tissue loss. 
-When the shape of the growth distribution is roughly constant, a nonparametric IPM growth kernel can be derived from a kernel density estimate for scaled residuals \citep[][p. 288]{ellner-etal-2016}. 
+When the shape of the growth distribution is roughly constant, a nonparametric IPM growth kernel can be defined from a kernel density estimate for scaled residuals \citep[][p. 288]{ellner-etal-2016}. 
 Outside that special situation, nonparametric approaches require choosing multiple smoothing parameters, which is very challenging. 
-We are currently exploring whether ``targeted learning'' approaches developed for causal inference \citep{vande-rose-2011} can be used to circumvent smoothing parameter selection. Targeted learning starts with a pilot model and updates it iteratively to achieve unbiased estimates and valid confidence intervals for a chosen ``target'' quantity, such as $\lambda$ or mean lifespan. Preliminary results suggest that targeted learning with a deliberately somewhat under-smoothed pilot model works well for complex growth patterns (G. Hooker and Y. Zhou, \emph{personal communication}). But nonparametric methods are data-hungry, and targeted learning is no exception. When departures from Gaussian are quantitative rather than qualitative, parametric modeling will make more efficient use of limited data.}
+We are currently exploring whether ``targeted learning'' approaches developed for causal inference \citep{vande-rose-2011} can be used to circumvent smoothing parameter selection. Targeted learning starts with a pilot model and updates it iteratively to achieve unbiased estimates and valid confidence intervals for a particular ``target'' quantity, such as $\lambda$ or mean lifespan. Preliminary results suggest that targeted learning with a deliberately under-smoothed pilot model works well for complex growth patterns (G. Hooker and Y. Zhou, \emph{personal communication}). But nonparametric methods are data-hungry, and targeted learning is no exception. When departures from Gaussian are quantitative rather than qualitative, parametric modeling will make more efficient use of limited data.}
 
-\new{Evaluating the full model is no less important than evaluating the growth kernel. 
-Ecological models are often built using all available data, leaving none to be used for testing. 
-But models can still be tested using features of the data not used in model construction \citep{getz-etal-2018}. 
-Data-driven IPMs are usually built from one-step demographic transitions, possibly augmented by time series of total population size. 
-Testing can be based on predicted patterns at other scales such as size distributions (or their mean and variation over time), and the mean and variance across individuals of age and size at first reproduction, age and size at death, and other life-history traits, if those
-were quantified while collecting individual-level data to construct the model.} 
+\new{Evaluating the full model is as important as evaluating the growth kernel. 
+Ecological models are often built using all available data, leaving none to be used for model testing. 
+But models can still be evaluated using features of the data not used in model construction \citep{getz-etal-2018}. 
+Data-driven IPMs are usually built from one-step demographic transitions, and possibly time series of total population size. 
+Testing can be based on predicted patterns at other scales such as size distributions (or their mean and variation over time), and the mean and variance across individuals life history traits such as 
+age and size at first reproduction or at death, and total number of offspring or breeding attempts over the lifetime or up to a particular age, so long as those were quantified during the demographic study.} 
 
  \subsection*{Conclusion}
 Gaussian-distributed size transitions are probably the exception in nature, not the rule, yet two decades of IPM studies have relied overwhelmingly on Gaussian growth models. 

@@ -17,6 +17,7 @@ library(popbio)
 library(moments)
 library(maxLik)
 library(wesanderson)
+library(doParallel) 
 
 # function for converting cactus size measurements to volume
 volume <- function(h, w, p){
@@ -85,13 +86,16 @@ CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="pearson")
 ########################################################################### 
 ## Diagnostics on fitted SD function: strong evidence for a tiny problem 
 ###########################################################################
-c1<- makeCluster(8); 
-registerDoParallel(c1);
-out = multiple_bartlett_test(CYIM_grow$fitted_norfx, CYIM_grow$scaledResids, 3, 10, 1000);
-out$p_value; # zero! 
 
-out = multiple_bs_test(CYIM_grow$fitted_norfx, CYIM_grow$scaledResids, 4, 10, 5000) 
-out$p_value; ## zero!  
+source("../code/variance_diagnostics.R"); 
+
+c1<- makeCluster(6); 
+registerDoParallel(c1);
+out_bartlett = multiple_bartlett_test(CYIM_grow$fitted_norfx, CYIM_grow$scaledResids, 3, 10, 1000);
+out_bartlett$p_value; # zero! 
+
+out_bs = multiple_bs_test(CYIM_grow$fitted_norfx, CYIM_grow$scaledResids, 4, 10, 5000) 
+out_bs$p_value; ## zero!  
 stopCluster(c1); 
 
 ### p-values are tiny, but the effect size is also tiny! So don't worry about it. 
