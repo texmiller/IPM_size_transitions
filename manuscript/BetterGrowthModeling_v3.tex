@@ -226,17 +226,18 @@ In particular, log-transformation often reduces or eliminates heteroskedasticity
 and also helps avoid eviction at small sizes \citep{williams2012avoiding}. 
 
 \new{The fitted mean and variance functions should be checked before going any further, and modified if necessary. 
-If those functions are accurate, the standardized residuals (residuals scaled by the standard deviation function) should have zero mean and unit variance, both overall and as a function of original size or fitted mean values. 
-Plotting residuals versus fitted values is often recommended to check for omitted trends in mean or variance. 
-But such plots can be misleading about variance trends, because data sparsity in the tails of a size distribution can create a visual impression of low variance. 
-One of us recently found that the actual variance trend in a tree growth model (identified by maximum likelihood) was the exact opposite of what appeared to be true in a residuals plot, because of sparse data on large trees.  
-So for this step we recommend using formal statistical tests for nonconstant variance. 
-The script \texttt{variance\_diagnostics.R} in our code archive provides two randomization tests 
-for an unspecified trend in variance as a function of a covariate, \texttt{multiple\_bartlett\_test} and \texttt{multiple\_bs\_test},   
-described in Supplement section \ref{sec:VarianceTests}. 
-However, what really matters for growth modeling is effect size, not $p$-value.  
-For example in our cactus case study, with over 4800 observed size transitions, we found strong evidence ($p<0.01$) for a minuscule trend, 
-and therefore accepted the pilot mean and variance functions.} 
+If those functions are perfectly accurate, the standardized residuals (residuals scaled by the standard deviation function) should have zero mean and 
+unit variance, both overall and as a function of original size or fitted mean values. 
+However, the inescapable bias-variance tradeoff implies that good estimates of the mean and variance functions will be somewhat smoothed, 
+and scaled residuals will consequently exhibit some variation in location and scale. Given enough data, statistical tests 
+will detect that variation. But what matters for growth modeling is the effect size, not the $p$ value. 
+For example, in our cactus case study, with over 4800 observed size transitions, several tests for nonconstant variance 
+of scaled residuals were highly significant ($p<0.01$), even though the trend proved to be minuscule. We therefore recommend, after a wasted month
+doing the opposite, not performing statistical tests for the presence of trends. Instead, take their presence for granted and quantify their importance  
+by fitting nonparametric regression models for residuals (trend in mean) and absolute residuals (trend in variance) as a function of initial size or
+fitted value. The mean and variance functions can be accepted if the $r^2$ of the spline regressions is small. 
+Our advice to use absolute rather than squared residuals is based on \citet{conover-etal-1981}, who found that this resulted in
+greater robustness with non-Gaussian data, in statistical tests for nonconstant variance across discrete groups.}  
 
 \item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate 
 from Gaussian, and to choose a more appropriate distribution.}

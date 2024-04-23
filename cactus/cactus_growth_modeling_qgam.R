@@ -86,25 +86,45 @@ CYIM_grow$scaledResids=residuals(CYIM_grow_m1,type="pearson")
 ########################################################################### 
 ## Diagnostics on fitted SD function: strong evidence for a tiny problem 
 ###########################################################################
-
 source("../code/variance_diagnostics.R"); 
 
 c1<- makeCluster(6); 
 registerDoParallel(c1);
-out_bartlett = multiple_bartlett_test(CYIM_grow$fitted_norfx, CYIM_grow$scaledResids, 3, 10, 1000);
-out_bartlett$p_value; # zero! 
+out_bartlett = multiple_bartlett_test(CYIM_grow$fitted_norfx, CYIM_grow$scaledResids, 3, 10, 2500);
+out_bartlett$p_value; # .004 
 
-out_bs = multiple_bs_test(CYIM_grow$fitted_norfx, CYIM_grow$scaledResids, 4, 10, 5000) 
-out_bs$p_value; ## zero!  
+out_ss = ss_test(CYIM_grow$fitted_norfx, CYIM_grow$scaledResids, 2500) 
+out_ss$p_value; ## 0.01  
+
 stopCluster(c1); 
 
 ### p-values are tiny, but the effect size is also tiny! So don't worry about it. 
-vfit = gam(abs(scaledResids)~s(logvol_t), data=CYIM_grow); ## R-sq.(adj) =  0.0152 
-vfit2 = gam(I(scaledResids^2)~s(logvol_t), data=CYIM_grow); ## R-sq.(adj) =  0.0076 
+vfit = gam(abs(scaledResids)~s(logvol_t), data=CYIM_grow, gamma=1.4); ## R-sq.(adj) =  0.0152 
+vfit2 = gam(abs(scaledResids)~s(fitted_norfx), data=CYIM_grow, gamma=1.4); ## R-sq.(adj) =  0.0153 
+vfit3 = rsq.smooth.spline(CYIM_grow$logvol_t,abs(CYIM_grow$scaledResids),penalty=1.4)  # R-sq and R-sq(adj) < 0.02 
 
-vfit3 = gam(abs(scaledResids)~s(fitted_norfx), data=CYIM_grow); ## R-sq.(adj) =  0.0155 
-vfit4 = gam(I(scaledResids^2)~s(fitted_norfx), data=CYIM_grow); ## R-sq.(adj) =  0.0078 
+mfit = rsq.smooth.spline(CYIM_grow$logvol_t,CYIM_grow$scaledResids,penalty=1.4) 
 
+
+
+##########################################################################
+#  Visualize the problem  
+##########################################################################
+fit = vfit3$fit; 
+x = CYIM_grow$logvol_t; y = abs(CYIM_grow$scaledResids); # save some writing 
+plot(x,y,col="gray50");
+points(fit$x,fit$y,type="l",lty=1,col=c("red"),lwd=2);
+
+
+e = order(x); x = x[e]; 
+y=abs(y[e]); rx = rank(x)/length(x);  ## absolute residuals versus rank of fitted values  
+rdata = data.frame(rx = rx, x = x, y = y); 
+S.25 = qgam(y~s(x,k=4), qu = 0.25, data = rdata)
+S.50 = qgam(y~s(x,k=4), qu = 0.5, data = rdata)
+S.75 = qgam(y~s(x,k=4), qu = 0.75, data = rdata)
+q25 = predict(S.25); q50 = predict(S.50); q75 = predict(S.75); 
+plot(x,y,col="gray50");
+mean(abs(e1)); mean(abs(e2)); 
 
 ##are the standardized residuals gaussian? -- no
 jarque.test(CYIM_grow$scaledResids) # normality test: FAILS, P < 0.001 
