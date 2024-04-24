@@ -19,8 +19,8 @@ require(gamlss); require(AICcmodavg);
 require(tidyverse); require(maxLik); require(qgam)
 library(gamlss.dist)
 
-source("../Diagnostics.R"); 
-source("../fitChosenDists.R"); 
+source("../code/Diagnostics.R"); 
+source("../code/fitChosenDists.R"); 
 source("AkumalCoralsSetup.R"); # load the data frame on healthy corals 
 
 PLOTTING = TRUE; 
@@ -65,12 +65,20 @@ stopCluster(c1);
 c1<- makeCluster(8); 
 registerDoParallel(c1);
 
-R = 5000; 
-out_bartlett = multiple_bartlett_test(XH$logarea.t0, XH$scaledResids, 3, 6, R)  ## p = 0.86
-out_bs = multiple_bs_test(XH$logarea.t0, XH$scaledResids, 4, 10, R) ## p = 0.24; 
-
+R = 2500; 
+out_levene = multiple_levene_test(XH$logarea.t0, XH$scaledResids, 3, 8, R)  ## p = 0.56
+out_ss = ss_test(XH$logarea.t0, XH$scaledResids, R) ## p = 0.55; 
 stopCluster(c1); 
 
+
+### No trend in mean  
+mfit = rsq.smooth.spline(XH$logarea.t0, XH$scaledResids) 
+mfit$rsq; mfit$adj.rsq
+
+
+### No trend in variance 
+vfit = rsq.smooth.spline(XH$logarea.t0, abs(XH$scaledResids));  
+vfit$rsq; vfit$adj.rsq
 
 
 ## quantile regressions on stand resids

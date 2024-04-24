@@ -121,14 +121,25 @@ fitGAU = fitGAU22; rm(fitGAU22); rm(fitGAU0); rm(fitGAU00);
 
 ####################################################################### 
 ## Diagnostics on fitted parametric SD function: no problems! 
-c1<- makeCluster(8); 
-registerDoParallel(c1);
-out = multiple_bartlett_test(XH$fitted, XH$scaledResids, 3, 10, 5000);
-out$p_value; ## 0.71
 
-out = multiple_bs_test(XH$fitted, XH$scaledResids, 4, 10, 5000) 
-out$p_value; ## 0.90; 
+source("../code/variance_diagnostics.R"); 
+
+c1<- makeCluster(6); 
+registerDoParallel(c1);
+out = multiple_levene_test(XH$fitted, XH$scaledResids, 3, 8, 2500);
 stopCluster(c1); 
+out$p_value; ## 0.87
+
+out = ss_test(XH$fitted, XH$scaledResids,2500) 
+out$p_value; ## 0.70; 
+
+rsq.smooth.spline(XH$fitted, XH$scaledResids)$rsq;  
+rsq.smooth.spline(XH$fitted, abs(XH$scaledResids))$rsq;  
+
+rsq.smooth.spline(XH$t0, XH$scaledResids)$rsq;  
+rsq.smooth.spline(XH$t0, abs(XH$scaledResids))$rsq;  
+
+
 #######################################################################
 
 ## quantile regressions on standardized  residuals 

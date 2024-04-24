@@ -128,7 +128,7 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 
 \bigskip 
 \noindent\textbf{Acknowledgements:} This research was supported by US NSF grants DEB-1933497 to SPE and DEB-1754468, 2208857, and 2225027 to TEXM. Giles Hooker gave us the very good idea to use 
-quantile regression instead of binning to estimate trends in skewness and kurtosis, and suggested the SiZer-like approach to testing for variance trends. 
+quantile regression instead of binning to estimate trends in skewness and kurtosis. 
 
 \bigskip 
 \noindent\textbf{Authorship statement:} All authors discussed all aspects of the research and contributed to developing methods, analyzing data, and writing and revising the paper.  
@@ -226,23 +226,23 @@ In particular, log-transformation often reduces or eliminates heteroskedasticity
 and also helps avoid eviction at small sizes \citep{williams2012avoiding}. 
 
 \new{The fitted mean and variance functions should be checked before going any further, and modified if necessary. 
-If those functions are perfectly accurate, the standardized residuals (residuals scaled by the standard deviation function) should have zero mean and 
+If those functions are perfectly accurate, the standardized residuals (residuals scaled by the standard deviation function) will zero mean and 
 unit variance, both overall and as a function of original size or fitted mean values. 
-However, the inescapable bias-variance tradeoff implies that good estimates of the mean and variance functions will be somewhat smoothed, 
-and scaled residuals will consequently exhibit some variation in location and scale. Given enough data, statistical tests 
+However, the inescapable bias-variance tradeoff implies that good function estimates are somewhat smoothed, 
+so scaled residuals will always retain some variation in location and scale. Given enough data, statistical tests 
 will detect that variation. But what matters for growth modeling is the effect size, not the $p$ value. 
 For example, in our cactus case study, with over 4800 observed size transitions, several tests for nonconstant variance 
-of scaled residuals were highly significant ($p<0.01$), even though the trend proved to be minuscule. We therefore recommend, after a wasted month
-doing the opposite, not performing statistical tests for the presence of trends. Instead, take their presence for granted and quantify their importance  
-by fitting nonparametric regression models for residuals (trend in mean) and absolute residuals (trend in variance) as a function of initial size or
-fitted value. The mean and variance functions can be accepted if the $r^2$ of the spline regressions is small. 
-Our advice to use absolute rather than squared residuals is based on \citet{conover-etal-1981}, who found that this resulted in
-greater robustness with non-Gaussian data, in statistical tests for nonconstant variance across discrete groups.}  
+of scaled residuals were highly significant ($p<0.01$), even though the trend proved to be minuscule. We therefore recommend not performing statistical 
+tests for the presence of trends in scaled residuals (despite wasting a month honing suitable tests). Instead, take the presence of (hopefully small) trends for granted, 
+and quantify their importance by fitting nonparametric regression models for residuals (trend in mean) and absolute residuals (trend in variance) 
+as a function of initial size or fitted value. The mean and variance functions can be accepted if regressions have a low $r^2$. 
+Our advice to use absolute rather than squared residuals is based on \citet{conover-etal-1981}, who found that this improved the type-I error 
+rate on non-Gaussian data in statistical tests for nonconstant variance across discrete groups.}  
 
 \item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate 
 from Gaussian, and to choose a more appropriate distribution.}
 \\
-If the Gaussian pilot model is valid, the standardized residuals should be Gaussian with no skew or excess kurtosis.  
+If a Gaussian growth model is valid, the standardized residuals should be Gaussian with zero skewness or excess kurtosis.  
 This criterion provides the basis for deciding whether to accept a Gaussian growth model (and so skip to the
 last step of the workflow), or explore alternatives. 
 
@@ -386,8 +386,11 @@ d$fitted_mean = predict(fitGAU,type="response")[,1]
 d$fitted_sd <- 1/predict(fitGAU,type="response")[,2]
 d$scaledResids=residuals(fitGAU,type="response")/d$fitted_sd
 \end{lstlisting}
-The data and fitted mean and standard deviation are shown in Fig. \ref{fig:resid_diagnostics}A. \new{We did not find any statistically significant variance trends in the 
-resulting scaled residuals (Fig. \ref{fig:resid_diagnostics}B; $p>0.7$ for Multiple Bartlett test and Multiple B-spline test; script \texttt{Vulpicida\_IPMs.R}).} 
+The data and fitted mean and standard deviation are shown in Fig. \ref{fig:resid_diagnostics}A. 
+\new{Spline regression did not detect any trends in the mean or variance of the resulting scaled residuals 
+as a function of initial size or fitted values (adjusted $r^2 < 0.01$; script \texttt{Vulpicida\_IPMs.R}).} 
+%\new{We did not find any statistically significant variance trends in the 
+% resulting scaled residuals $p>0.7$ for Multiple Leven test and Smoothing Spline test; script \texttt{Vulpicida\_IPMs.R}).} 
 
 Quantile regression on the scaled residuals generates the diagnostics shown in Fig. \ref{fig:resid_diagnostics}B (see script \texttt{Vulpicida\_IPMS.R}).
 As expected based on previous analyses, visual analysis of the standardized residuals indicated negative skew, especially at larger sizes (Fig. \ref{fig:resid_diagnostics}B).
@@ -491,12 +494,16 @@ We begin the growth modeling workflow, as above, with a generalized additive mod
 fitGAU <- gam(list(t1 ~ s(t0,k=4) + s(plot,bs="re") + s(year,bs="re"), 
 	~s(t0,k=4)), data=cactus, family=gaulss())
 \end{lstlisting}
-The standardized residuals, accounting for growth variance that peaks at small-to-medium sizes (Fig. \ref{fig:resid_diagnostics}C), show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:resid_diagnostics}D). \new{We also find a statistically significant 
-trend in variance, $p<0.01$ for both Multiple Bartlett and Multiple B-spline tests; script \texttt{cactus\_growth\_modeling\_qgam.R}). However, the trend is too small to 
-worry about: spline regressions of either squared or absolute scaled residuals on either initial size or fitted subsequent size (using \texttt{gam} from the \texttt{mgcv} library)
-explained under 2\% of the variance. Because the trend is so weak, it makes little sense to try to remove it, even though evidence for the trend's existence is strong because of 
-large sample size ($n=4844$). } 
+\new{The growth variance is estimated to peak at small to medium sizes (Fig. \ref{fig:resid_diagnostics}C). Spline regression detected no trends in the mean of the resulting standardized
+residuals, and only a minuscule amount of variation in the variance (adjusted $r^2 < 0.02$;  script \texttt{cactus\_growth\_modeling\_qgam.R}). }  
+%The standardized residuals, accounting for growth variance that peaks at small-to-medium sizes (Fig. \ref{fig:resid_diagnostics}C), show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:resid_diagnostics}D). 
+%\new{We also find a statistically significant 
+%trend in variance, $p<0.01$ for both Multiple Levene and Smoothing spline tests; script \texttt{cactus\_growth\_modeling\_qgam.R}). However, the trend is too small to 
+%worry about: spline regressions of either squared or absolute scaled residuals on either initial size or fitted subsequent size (using \texttt{gam} from the \texttt{mgcv} library)
+%explained under 2\% of the variance. Because the trend is so weak, it makes little sense to try to remove it, even though evidence for the trend's existence is strong because of 
+%large sample size ($n=4844$). } 
 
+The standardized residuals show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:resid_diagnostics}D).
 So to better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, both of which may be negligible at some sizes.
 We first tried Johnson's $S_{U}$ and then the skewed $t$ distributions, both of which are limited to positive excess kurtosis.
 Both distributions provided some improvement over the Gaussian, but were not happy with the fit of either.
@@ -554,7 +561,7 @@ In cases such as this it is convenient to model variance as a function of expect
 The expected (or ``fitted'') values reflect the combined influence of all fixed and random effects, and therefore implicitly account for multiple sources of variation in the variance. 
 %While there are several software packages for simultaneously modeling Gaussian mean and variance as functions of independent variables (including \textbf{mgcv} and \textbf{nlme}), modeling variance as a function of the mean is trickier because they cannot easily be fit simultaneously. 
 
-\new{Directly fitting a model where error variance is a function of fitted values is possible in library \textbf{nlme} fitting functions, but not with \texttt{lmer} (nor 
+\new{Directly fitting a model where error variance is a function of fitted values is possible in \textbf{nlme} fitting functions, but not with \texttt{lmer} (nor 
 in the \textbf{mgcv} functions for generalized additive models). }
 %After MUCH trial and error here is an nlme example that runs: 
 %x = runif(1000)*4; 
@@ -578,7 +585,9 @@ We did this for all candidate models and, for a fair AIC comparison, we then re-
 
 The updated model selection continued to favor the size $\times$ flowering interaction model (3), but now with a weaker improvement over the next-best model ($\Delta AIC = 6.7$). 
 The fitted mean (a function of initial size and flowering status) and fitted standard deviation (a function of the fitted mean) are shown in Fig. \ref{fig:resid_diagnostics}E. 
-\new{There was no evidence of non-constant variance in the scaled residuals as a function of fitted values (Multiple Bartlett test $p=0.18$, Multiple B-spline test $p=0.4$).}  
+\new{Spline regression did not find any trends in the mean or variance of the resulting standardized residuals as a function of initial size or fitted values (adjusted $r^2 < 0.01$; 
+R script \texttt{orchid\_growth\_modeling.R}).}  
+% \new{There was no evidence of non-constant variance in the scaled residuals as a function of fitted values (Multiple Bartlett test $p=0.18$, Multiple B-spline test $p=0.4$).}  
 
 The best Gaussian model indicated a growth cost associated with flowering at the start of the census interval and a decline in growth variance with increasing expected values. 
 The standardized residuals indicated negative skewness (10--20\% difference in tail weight) and excess kurtosis (10--40\% fatter than Gaussian) across much of the size distribution but both negligible at large expected sizes (Fig. \ref{fig:resid_diagnostics}F). 
@@ -706,7 +715,7 @@ age and size at first reproduction or at death, and total number of offspring or
 
  \subsection*{Conclusion}
 Gaussian-distributed size transitions are probably the exception in nature, not the rule, yet two decades of IPM studies have relied overwhelmingly on Gaussian growth models. 
-But using tools not available when IPMs were first developed, it is now very easy to do much better without sacrificing the freedom to specify models with multiple covariates and random effects.  
+Using tools not available when IPMs were first developed, it is now easy to do much better without sacrificing the ability to specify models with multiple covariates and random effects.  
 By generating predicted size transitions that are truer to the data, IPM analysts can narrow the gap between model and nature. 
 
 \newpage 
@@ -733,6 +742,8 @@ By generating predicted size transitions that are truer to the data, IPM analyst
 \section{\new{Nonparametric tests for nonconstant variance}}
 \label{sec:VarianceTests}  
 
+\textbf{NOTE: this is no longer needed, based on the advice to not do statistical tests for trends in scaled residuals} 
+
 The tests that we describe here use randomization to test for unspecified trends in the variance of a response $y$ as a 
 function of a covariate $x$, given data pairs $(x_i,y_i),  i = 1,2, \cdots, n$. 
 In this paper $y$ is the set of standardized residuals from a pilot model, and $x$ is a covariate in the pilot model such as initial size or fitted mean subsequent size. 
@@ -742,37 +753,36 @@ We therefore build our tests from statistics based on squared residuals. Tests b
 using other measures such as absolute residuals, or the log or square root of absolute residuals \citep{conover-etal-1981}. 
 We therefore use randomization methods to obtain $p$-values that do not depend on any assumption about the data distribution. 
 
-The first test is based on the Bartlett test for constancy of variance across discrete groups. This is  
-available as the \texttt{bartlett.test} function in the \textbf{stats} package in base R. 
+The first test is based on the Levene test for constancy of variance across discrete groups. This is  
+available as the \texttt{leveneTest} function in the \textbf{car} R package \citep{fox-weisberg-2018}. 
 
 In our setting there are no natural groups. We create groups by sorting the data pairs according to the value of $x_i$ from smallest to largest 
 and dividing them into $m$ equal-size groups (i.e., we bin based on quantiles of $x$). 
 The outcome of the test then depends on the bin number $m$. This ``investigator degree of freedom'' makes $p$-hacking easy and tempting: 
 loop across a range of $m$ values, and report the largest or smallest $p$ value, as desired. To circumvent this, following 
 the approach of \citet{ye-Jensen-2020} (inspired in turn by \cite{sizer-99}), our test statistic is the minimum $p$-value obtained across a range of $m$ values.  
-With typical growth data we can only hope to identify broad patterns of variation, so we typically scan across $m$ from 3 to 10. 
-This test statistic is computed for the actual data, and for $R$ random shufflings of the $y_i$. The randomization $p$ value is the proportion of 
-randomizations where the Bartlett test $p$-value is smaller than that from the real data. We used $R=2000$ for results reported in the paper.  
+With typical growth data we can only hope to identify broad patterns of variation, so we typically scan across $m$ from 3 to 8. 
+This test statistic is computed for the actual data, and for $R$ random shufflings of the $y_i$, using \texttt{leveneTest} with 
+default settings (which correspond to the recommendations of \citet{conover-etal-1981}). 
+The randomization $p$ value is the proportion of randomizations where the Levene test $p$-value is smaller than that from the real data. 
 
-The $p$-value returned by the \texttt{bartlett.test} function assumes Gaussian data and has poor robustness against departures from Gaussian \citep{conover-etal-1981}, 
-in particular it often gives false positives (high type-I error rate on non-Gaussian data with constant variance).  
-However, the returned $p$ value is a monotonic function of the underlying test statistic. The \emph{Multiple Bartlett test} described in the preceding paragraph is therefore 
-exactly equivalent to a randomization test based on the underlying test statistic for nonconstant variance, and thus does not rest on any assumptions about the data distribution. 
+The $p$-value returned by the \texttt{leveneTest} function assumes Gaussian data.   
+However, the returned $p$ value is a monotonic function of the underlying test statistic. The \emph{Multiple Levene test} 
+described in the preceding paragraph is therefore exactly equivalent to a randomization test based on the 
+underlying test statistic for nonconstant variance, and thus does not rest on any assumptions about the data distribution. 
 
-The \emph{Multiple B-spline test} is a version of the Breusch-Pagan test, also called the Cook-Weisberg test \citep{fox-weisberg-2018}. 
+The \emph{Smoothing spline test} is a version of the Breusch-Pagan test, also called the Cook-Weisberg test \citep{fox-weisberg-2018}. 
 This test (and a number of related tests) uses regression analysis to test for a trend in the scale of squared residuals with respect to some covariate. 
 In our applications there is a single covariate $x$ (initial size, fitted subsequent size, or a model covariate) but the shape of a possible trend is unknown.  
-We therefore use B-spline regression to allow detection of an arbitrary smooth trend. 
-Squared residuals are regressed on a B-spline basis in $x$ of some dimension $m$, and we record the fraction of variance explained, $r^2$, adjusted for model degrees of freedom.
-Our function uses \texttt{bs} to create the spline basis and \texttt{lm} to do the regression (both are part of base R), and the adjusted $r^2$ is a component of the fitted model's \texttt{summary}.  
-As with the Multiple Bartlett test, to avoid dependence on $m$ our test statistic is the maximum $r^2$ across a range of $m$ values, typically 4 to 10, and to avoid distributional assumptions the $p$-value is again computed through random permutation of the squared residuals. 
-The randomization $p$ value is the proportion of randomizations for which the maximum adjusted $r^2$ (across $m$ values) is 
-larger than the same statistic for the real data.  
+We therefore use spline regression to allow detection of an arbitrary smooth trend. Specifically, we use the \texttt{smooth.spline} function in base R 
+to regress absolute residuals on $x$, and we record the fraction of variance explained, $r^2$, adjusted for model degrees of 
+freedom (returned as \texttt{df} by \texttt{smooth.spline}). The $p$-value is again computed through random permutation of the absolute residuals. 
+The randomization $p$ value is the proportion of randomizations for which adjusted $r^2$ is larger than the adjusted $r^2$ for the real data.  
 
 \begin{figure}[tbp]
 \centering
 \includegraphics[width=\textwidth]{figures/test_variance_diagnostics_500.pdf}
-\caption{Examples of applying the Multiple Bartlett test and Multiple B-spline test to simulated non-Gaussian residuals with known trends in variance, sample size $n=500$. 
+\caption{Examples of applying the Multiple Levene test and Smoothing spline test to simulated non-Gaussian residuals with known trends in variance, sample size $n=500$. 
 See text for explanation. Figure made by R script \texttt{test\_variance\_diagnostics.R} in our code archive. }
 \label{fig:ncv}
 \end{figure} 
@@ -785,16 +795,14 @@ and skewness parameter $\nu$ trending linearly from -2 at $x=0$ to 2 at $x=2$. A
 The top row shows the overall distribution of simulated residuals, and the second row shows residuals as a function of the covariate, with the true standard deviation 
 function indicated by dashed lines at $\pm 2$ standard deviations. 
 The third row and fourth rows show the test results, using $p \le 0.05$ as the criterion for rejecting the null hypothesis
-of constant variance, for 500 sets of simulated residuals and $R=2000$ randomizations to compute the $p$-value for each set.  
+of constant variance, for 200 sets of simulated residuals and $R=1000$ randomizations to compute the $p$-value for each set.  
 With constant standard deviation (panels G and J) the type-I error rate (i.e., the fraction of false rejections) should be 0.05, 
 and both tests perform quite well. Even with relatively small departures from constant variance (middle and right columns), the tests 
-exhibit reasonable power to detect that the variance is not constant. Most of our case studies have larger sample sizes, and in simulations with a sample sizes 
-of 1000 instead of 500, the type-I error rates were below $0.06$ and the power to detect nonconstant variance at $\alpha = 0.05$ was 
-over 85\% for both tests and both of the examples in the Figure with non-constant variance. 
+exhibit reasonable power to detect that the variance is not constant. Most of our case studies have larger sample sizes, often much larger. 
 
-There are many other tests for nonconstant variance -- see for example \cite{Farrar2024} -- and the same scan-and-randomize approach could
-be layered onto any of them. We chose two tests that seemed maximally different from each other (discrete versus very smooth variation), and where the base test
-is fast enough to allow a large number of randomizations. 
+There are many other tests for nonconstant variance -- see for example \cite{Farrar2024}. 
+We chose two tests that seemed maximally different from each other (discrete versus very smooth variation), and 
+where the base test is fast enough to allow a large number of randomizations. 
 
 \section{The Jones-Pewsey SHASH distribution family} 
 \label{sec:SHASHdist} 
@@ -1029,8 +1037,9 @@ The mean and standard deviation are both fitted as smoothing spline functions of
 Fig. \ref{fig:coral_diagnostics}A shows the log-transformed data and Gaussian model. 
 The mean function (solid red curve) is visually nearly linear, but the fitted spline is strongly favored over a linear model for the mean ($\Delta AIC \approx 9$). 
 The spline for standard deviation $\sigma$ versus initial size reflects the evident greater variability in growth at smaller sizes.  
-\new{We find no evidence of non-constant variance in the scaled residuals (Multiple Bartlett test $p=0.86$, Multiple B-spline test 
-$p = 0.26$, $R=5000$ randomizations.} 
+%\new{We find no evidence of non-constant variance in the scaled residuals (Multiple Levene test $p=0.56$, Smoothing spline test 
+%$p = 0.55$, $R=2500$ randomizations.} 
+\new{Spline regression did not detect any trends in the mean or variance of scaled residuals (adjusted $r^2 < 0.01$, R script \texttt{AkumalCorals\_qgam.R}).}  
 
 \begin{figure}[tbp]
 	\centering

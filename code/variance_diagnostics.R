@@ -52,6 +52,46 @@ multiple_bartlett_test = function(fitted_vals, residuals, min_bins, max_bins, R)
 			bins_min_true=bins_min_true, bin_variances = vars, bin_medians=medians))
 } 
 
+###############################################################################
+## Compute minimum Levene test p-value on data and R random 
+## permutations, scanning across a range of bin numbers.
+## This uses the leveneTest() from car package, with 5% trimmed means 
+## to give some robustness against outliers. Not used in the paper 
+## because it is based on absolute rather than squared residuals, and 
+## (more practically) the multiple_bartlett_test seems to perform better
+## in test cases (admittedly, just a few). But what the heck, we wrote it
+## so we might as well give it to you. 
+###############################################################################
+multiple_levene_test = function(fitted_vals, residuals, min_bins, max_bins, R) {
+	e = order(fitted_vals); 
+	fitted_vals = fitted_vals[e]; residuals = residuals[e];   
+	indexx = seq_along(residuals)
+	p_true=rep(NA,max_bins); 
+	for(nbins in min_bins:max_bins){
+		u = nbins*indexx/(1 + max(indexx)); 
+		u = floor(u); u = factor(u); 
+		p_true[nbins] = leveneTest(residuals,u)$"Pr(>F)"[[1]]
+	}
+	p_min_true = min(p_true,na.rm=TRUE); 
+	bins_min_true = which.min(p_true); 
+
+	out = foreach(j=1:R,.combine = c,.packages="car") %dopar% 
+    {
+	ran_resids = sample(residuals);
+	p_ran = rep(NA,max_bins); 
+	for(nbins in min_bins:max_bins) {
+	u = nbins*indexx/(1 + max(indexx)); 
+	u = floor(u); u = factor(u);  
+	p_ran[nbins] = leveneTest(ran_resids, u)$"Pr(>F)"[[1]]
+	}	
+	min(p_ran,na.rm=TRUE); 
+}
+	p_value = mean(out < p_min_true); ## how many randomizations exceed the true value? 
+	return(list(p_value = p_value, p_min_true = p_min_true, p_true = p_true, bins_min_true=bins_min_true, p_min_random = out))
+} 
+
+
+
 
 #################################################################
 ## Compute maximum b-spline r^2 value on data and R random 
@@ -95,37 +135,31 @@ multiple_bs_test = function(fitted_vals, residuals, min_basis, max_basis, R) {
 } 
 
 
-#################################################################
-## Compute smooth.spline r^2 on data and R random permutations
-#################################################################
-ss_test = function(fitted_vals, resids,R) {
-	e = order(fitted_vals); 
-	fitted_vals = fitted_vals[e]; resids = resids[e]; 
-	fit = smooth.spline(fitted_vals,I(resids^2),penalty=1.4)
-	yhat = predict(fit,fitted_vals)$y; 
-	e1 = resids^2 - mean(resids^2); 
-	e2 = resids^2 -yhat;
-	rsq_true = 1 - mean(e2^2)/mean(e1^2);  
-	
-	px = fitted_vals; py = yhat; 
-	
-	out = foreach(j=1:R,.combine = c,.packages="stats") %dopar% 
+
+####################################################################
+## Use smooth.spline to test for smooth trend in residual variance, 
+## based on permutation of either squared or absolute residuals. 
+## Compute smooth.spline r^2 on data and R random permutations. 
+####################################################################
+ss_test = function(fitted_vals, resids, R, absolute=TRUE) {
+	if(absolute) {resids=abs(resids)} else {resids=resids^2};   
+
+	fit_true = rsq.smooth.spline(fitted_vals,resids);  
+	rsq_true = fit_true$adj.rsq; 
+
+	out = foreach(j=1:R,.combine = c,.packages="stats",.export="rsq.smooth.spline") %dopar% 
 		{
-		ran_resids = sample(resids);
-		fit = smooth.spline(fitted_vals,I(ran_resids^2),penalty=1.4)
-		yhat = predict(fit,fitted_vals)$y; 
-		e2 = ran_resids^2 - yhat;
-	    1 - mean(e2^2)/mean(e1^2);  
-		}
+		rsq.smooth.spline(fitted_vals,sample(resids))$adj.rsq; 
+ 		}
 	p_value = mean(out > rsq_true); ## how extreme is the true value? 
-	return(list(p_value = p_value, rsq_true = rsq_true, trend_x = px, trend_y = py))
+	return(list(p_value = p_value, rsq_true = rsq_true, trend_x = fit_true$x, trend_y = fit_true$yhat))
 } 
 
-
-#########################################################
-## Compute a smooth spline and its rsq, given x and y
-## values and the value of the penalty argument
-#########################################################
+###########################################################
+## Fit a smooth.spline object to (x,y) data. Return the 
+## fit, the input data sorted by x, the fitted values, 
+## the r^2 and adjusted r^2 based on the edf of the smooth. 
+##########################################################
 rsq.smooth.spline = function(x,y,penalty=1.4) {
 	e = order(x); x=x[e]; y = y[e]; 
 	object = smooth.spline(x,y,penalty=penalty) 
@@ -134,43 +168,6 @@ rsq.smooth.spline = function(x,y,penalty=1.4) {
 	rsq = 1 - sum(resids^2)/sum((y - mean(y))^2); 
 	n = length(y); k = object$df; 
 	adj.rsq = 1 - ((1-rsq)*(n-1)/(n-k-1)); 
-	return(list(fit=object,rsq=rsq,adj.rsq = adj.rsq))
+	return(list(fit=object,x = x, y = y, yhat = yhat, rsq = rsq, adj.rsq = adj.rsq))
 }	
 	
-###############################################################################
-## Compute minimum Levene test p-value on data and R random 
-## permutations, scanning across a range of bin numbers.
-## This uses the leveneTest() from car package, with 5% trimmed means 
-## to give some robustness against outliers. Not used in the paper 
-## because it is based on absolute rather than squared residuals, and 
-## (more practically) the multiple_bartlett_test seems to perform better
-## in test cases (admittedly, just a few). But what the heck, we wrote it
-## so we might as well give it to you. 
-###############################################################################
-multiple_levene_test = function(fitted_vals, residuals, min_bins, max_bins, R) {
-	e = order(fitted_vals); 
-	fitted_vals = fitted_vals[e]; residuals = residuals[e];   
-	indexx = seq_along(residuals)
-	p_true=rep(NA,max_bins); 
-	for(nbins in min_bins:max_bins){
-		u = nbins*indexx/(1 + max(indexx)); 
-		u = floor(u); u = factor(u); 
-		p_true[nbins] = leveneTest(residuals,u,trim=0.05)$"Pr(>F)"[[1]]
-	}
-	p_min_true = min(p_true,na.rm=TRUE); 
-	bins_min_true = which.min(p_true); 
-
-	out = foreach(j=1:R,.combine = c,.packages="car") %dopar% 
-    {
-	ran_resids = sample(residuals);
-	p_ran = rep(NA,max_bins); 
-	for(nbins in min_bins:max_bins) {
-	u = nbins*indexx/(1 + max(indexx)); 
-	u = floor(u); u = factor(u);  
-	p_ran[nbins] = leveneTest_2(ran_resids, u,trim=0.05)$"Pr(>F)"[[1]]
-	}	
-	min(p_ran,na.rm=TRUE); 
-}
-	p_value = mean(out < p_min_true); ## how many randomizations exceed the true value? 
-	return(list(p_value = p_value, p_min_true = p_min_true, p_true = p_true, bins_min_true=bins_min_true, p_min_random = out))
-} 

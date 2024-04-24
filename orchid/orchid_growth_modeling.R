@@ -16,7 +16,7 @@ library(oce)
 tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
 steve = "c:/repos/IPM_size_transitions" 
 home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
-setwd(home); setwd("orchid"); 
+setwd(home); 
 
 ## functions
 Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
@@ -104,18 +104,38 @@ orchid_grow<-arrange(orchid_grow,GAU_fitted)
 #############################################################
 # Test for variance trend in scaled residuals 
 #############################################################
-source("../code/variance_diagnostics.R"); 
+source("code/variance_diagnostics.R"); 
 
 stopCluster(c1); 
-c1<- makeCluster(8); 
+c1<- makeCluster(6); 
 registerDoParallel(c1);
-out_bartlett = multiple_bartlett_test(orchid_grow$GAU_fitted,orchid_grow$GAU_scaled_resids,3,10,2000); # p=0.18
-out_bs = multiple_bs_test(orchid_grow$GAU_fitted,orchid_grow$GAU_scaled_resids,4,10,2000); # p = 0.40 
+out_levene = multiple_levene_test(orchid_grow$GAU_fitted,orchid_grow$GAU_scaled_resids,3,8,2500); 
+out_levene$p_value; # p=0.09
+out_levene = multiple_levene_test(orchid_grow$log_area_t,orchid_grow$GAU_scaled_resids,3,8,2500); 
+out_levene$p_value; # p=0.14
+
+out_ss = ss_test(orchid_grow$GAU_fitted,orchid_grow$GAU_scaled_resids,2500); 
+out_ss$p_value; # p=0.22
+out_ss = ss_test(orchid_grow$log_area_t,orchid_grow$GAU_scaled_resids,2500); 
+out_ss$p_value; # p=0.22
 stopCluster(c1);
 
-require(mgcv); 
-out_gam = gam(I(GAU_scaled_resids^2)~GAU_fitted,data=orchid_grow); 
-summary(out_gam); 
+### No trend in mean  
+mfit = rsq.smooth.spline(orchid_grow$GAU_fitted,orchid_grow$GAU_scaled_resids) 
+mfit$rsq; mfit$adj.rsq
+mfit = rsq.smooth.spline(orchig_grow$log_area_t,orchid_grow$GAU_scaled_resids) 
+mfit$rsq; mfit$adj.rsq
+
+
+### No trend in variance 
+vfit = rsq.smooth.spline(orchid_grow$GAU_fitted,abs(orchid_grow$GAU_scaled_resids)) 
+vfit$rsq; vfit$adj.rsq
+vfit = rsq.smooth.spline(orchid_grow$log_area_t,abs(orchid_grow$GAU_scaled_resids)) 
+vfit$rsq; vfit$adj.rsq
+
+
+
+ 
 
 ## quantile regressions on stand resids
 k_param=4
