@@ -115,6 +115,7 @@ vfit$rsq; vfit$adj.rsq; sd(vfit$yhat)/mean(vfit$yhat);
 vfit = rsq.smooth.spline(CYIM_grow$fitted_norfx,abs(CYIM_grow$scaledResids)) 
 vfit$rsq; vfit$adj.rsq; sd(vfit$yhat)/mean(vfit$yhat); 
 
+save(CYIM_grow,file="CYIM_grow.Rdata"); 
 
 ##########################################################################
 #  Visualize the problem  

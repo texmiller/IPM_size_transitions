@@ -3,6 +3,7 @@
 library(xtable)
 
 rm(list=ls(all=TRUE))
+require(scales); 
 
 tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
 steve = "c:/repos/IPM_size_transitions" 

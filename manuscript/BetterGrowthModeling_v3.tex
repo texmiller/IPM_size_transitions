@@ -229,15 +229,17 @@ and also helps avoid eviction at small sizes \citep{williams2012avoiding}.
 If those functions are perfectly accurate, the standardized residuals (residuals scaled by the standard deviation function) will zero mean and 
 unit variance, both overall and as a function of original size or fitted mean values. 
 However, the inescapable bias-variance tradeoff implies that good function estimates are somewhat smoothed, 
-so scaled residuals will always retain some variation in location and scale. Given enough data, statistical tests 
+so scaled residuals will usually retain some variation in location and scale. Given enough data, statistical tests 
 will detect that variation. But what matters for growth modeling is the effect size, not the $p$ value. 
 For example, in our cactus case study, with over 4800 observed size transitions, several tests for nonconstant variance 
-of scaled residuals were highly significant ($p<0.01$), even though the trend proved to be minuscule. We therefore recommend not performing statistical 
-tests for the presence of trends in scaled residuals (despite wasting a month honing suitable tests). Instead, take the presence of (hopefully small) trends for granted, 
-and quantify their importance by fitting nonparametric regression models for residuals (trend in mean) and absolute residuals (trend in variance) 
-as a function of initial size or fitted value. The mean and variance functions can be accepted if regressions have a low $r^2$. 
-Our advice to use absolute rather than squared residuals is based on \citet{conover-etal-1981}, who found that this improved the type-I error 
-rate on non-Gaussian data in statistical tests for nonconstant variance across discrete groups.}  
+of scaled residuals were highly significant ($p<0.01$), even though the trend proved to be small. We therefore recommend against performing statistical 
+tests for the presence of trends in scaled residuals (despite wasting a month on honing suitable tests). Instead, we take the presence 
+of trends for granted and assess their importance by fitting and plotting nonparametric 
+regression models for residuals (trend in mean) and absolute residuals (trend in variance) as a function of initial size or fitted value. 
+The mean and variance functions can be accepted if the fitted regression curves are nearly constant. 
+Our advice to use absolute rather than squared residuals to characterize trends in variance 
+is based on \citet{conover-etal-1981}, who found that this improved the type-I error 
+rate of statistical tests for nonconstant variance across discrete groups with non-Gaussian data.}  
 
 \item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate 
 from Gaussian, and to choose a more appropriate distribution.}
