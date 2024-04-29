@@ -196,7 +196,7 @@ Abandoning these convenient tools for the sake of more flexible growth modeling 
 The question we address here is: how can ecologists escape the apparent trade-off between realistically capturing the variance, skew, and kurtosis of size transition data on the one hand, and flexibly including the multiple covariates and random effects that often have substantial impacts on demographic rates?  
 In this article, we offer an answer. 
 
-Our goal here is to present and illustrate a general and practical ``recipe'' that moves growth modeling past the standards set over 20 years ago, using software tools available now.\footnote{Our statements about availability are based on what existing tools reliably deliver, in our experience, not on what they may promise.} 
+Our goal here is to present and illustrate a general practical ``recipe'' that moves growth modeling past the standards set over 20 years ago, using software tools available now.\footnote{Our statements about availability are based on what current software reliably delivers, in our experience, not on what they may promise.} 
 Like any recipe, users may need to make substitutions or add ingredients to suit their needs. 
 We emphasize graphical diagnostics for developing and evaluating growth models, rather than a process centered on statistical model selection. 
 Through empirical case studies we demonstrate how a simple workflow, using tools that were nonexistent or not readily available when IPMs first came into use, makes it straightforward and relatively easy to identify when the default model is a poor fit to the data, and to then choose and fit a better growth model that is no harder to use in practice. 
@@ -233,7 +233,7 @@ so scaled residuals will usually retain some variation in location and scale. Gi
 will detect that variation. But what matters for growth modeling is the effect size, not the $p$ value. 
 For example, in our cactus case study, with over 4800 observed size transitions, several tests for nonconstant variance 
 of scaled residuals were highly significant ($p<0.01$), even though the trend proved to be small. We therefore recommend against performing statistical 
-tests for the presence of trends in scaled residuals (despite wasting a month on honing suitable tests). Instead, we take the presence 
+tests for trends in scaled residuals (despite wasting a month on honing suitable tests). Instead, we take the presence 
 of trends for granted and assess their importance by fitting and plotting nonparametric 
 regression models for residuals (trend in mean) and absolute residuals (trend in variance) as a function of initial size or fitted value. 
 The mean and variance functions can be accepted if the fitted regression curves are nearly constant. 
@@ -272,9 +272,9 @@ The functional forms for skew and kurtosis of the non-Gaussian model can be guid
 A good model will generate simulated data that look like the real data.  
 Again, it is important to inspect the properties of simulated data conditional on initial size or fitted mean subsequent size, rather than examining the aggregate distribution.   
 We provide examples below of informative comparisons between simulated and real data, based mainly on quantiles. 
-If the simulated data do not correspond well with real data, alternative (possibly more flexible) growth distributions should be explored, or more complex functions relating distribution parameters to size and other covariates. 
-However, we again caution that full-blown model selection is high risk with low expected reward. 
-Instead, alternative models should be chosen to remedy major discrepancies between real and simulated size transitions, and at most slightly modified based on final diagnostics and statistical tests.
+If the simulated data do not correspond well with real data, alternative or more flexible distribution families should be considered, or more complex functions relating distribution parameters to size and other covariates. 
+Again, we caution that formal model selection with so many available options is high risk with little expected reward. 
+Instead, the final model should remedy all observable discrepancies between real and simulated growth distributions, and at most slightly modified based on final diagnostics and statistical tests.
 
 \end{enumerate}
 
@@ -389,17 +389,28 @@ d$fitted_sd <- 1/predict(fitGAU,type="response")[,2]
 d$scaledResids=residuals(fitGAU,type="response")/d$fitted_sd
 \end{lstlisting}
 The data and fitted mean and standard deviation are shown in Fig. \ref{fig:resid_diagnostics}A. 
-\new{Spline regression did not detect any trends in the mean or variance of the resulting scaled residuals 
-as a function of initial size or fitted values (adjusted $r^2 < 0.01$; script \texttt{Vulpicida\_IPMs.R}).} 
+\new{Spline regressions on predicted mean subsequent size did not detect any trends in the mean or variance of the resulting scaled residuals 
+as a function of initial size or fitted values (Fig. \ref{fig:diagnose_pilot}A,B; script \texttt{Vulpicida\_IPMs.R}). The spline curves are not actually  
+constant (i.e. their standard deviations, given above each panel, are actually positive), but the trends are much too small to be worth fixing.} 
 %\new{We did not find any statistically significant variance trends in the 
 % resulting scaled residuals $p>0.7$ for Multiple Leven test and Smoothing Spline test; script \texttt{Vulpicida\_IPMs.R}).} 
 
 Quantile regression on the scaled residuals generates the diagnostics shown in Fig. \ref{fig:resid_diagnostics}B (see script \texttt{Vulpicida\_IPMS.R}).
 As expected based on previous analyses, visual analysis of the standardized residuals indicated negative skew, especially at larger sizes (Fig. \ref{fig:resid_diagnostics}B).
 We also find positive excess kurtosis for all sizes. 
+
 \begin{figure}[tbp]
 	\centering
-	\includegraphics[width=1.0\textwidth]{figures/combo_resid_diagnostics.pdf}
+	\includegraphics[width=0.95\textwidth]{figures/cactus_k=6.pdf}
+	\caption{Diagnostic plot for trends in the mean or variance of scaled residuals from a pilot Gaussian model, for the lichen (\emph{Vulpicida pinastri}) \textbf{A,B}, cactus \emph{Cylindriopuntia imbricata} \textbf{C,D}, and orchid \emph{Orchis purpurea} \textbf{E,F} case studies. In \textbf{A,C,E} the standardized residuals are plotted, and in \textbf{B,D,F} the absolute values of
+standardized residuals, as functions of fitted mean subsequent size values. The solid curves are cubic splines (R function \texttt{smooth.spline}) fitted by generalized cross-validation with a modest over-penalization of model degrees of freedom to prevent overfitting (\texttt{penalty}=1.4 as recommended by \citet{gu-2002}). The numbers appearing above each panel are the standard deviation of the values on the spline regression curve, evaluated at the fitted values. Figure made by script \texttt{crossspp\_diagnose\_pilot.R}.}
+	\label{fig:diagnose_pilot}
+\end{figure}
+
+
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=0.95\textwidth]{figures/combo_resid_diagnostics.pdf}
 	\caption{Best Gaussian models and diagnostics of standardized residuals for lichen (\emph{Vulpicida pinastri}) \textbf{A,B}, cactus \emph{Cylindriopuntia imbricata} \textbf{C,D}, and orchid \emph{Orchis purpurea} \textbf{E,F} case studies. \textbf{A,C}, fitted mean (red) and standard deviation (blue) of size at time $t+1$ conditional on initial size at time $t$. \textbf{E}, fitted means for plants that were vegetative (solid line) or flowering (dashed line) at the start of the census interval and standard deviation as a function of the fitted mean (inset). \textbf{B,D,F} Quantile regressions of scaled residuals (lines show 5\%, 10\%, 25\%, 50\%, 75\%, 90\%, and 95\% quantiles) and non-parametric measures of skewness (blue) and excess kurtosis (red) derived from them. In \textbf{B,D} scaled residuals are shown with respect to initial size and in \textbf{F} they are shown with respect to fitted values. Figure made by script \texttt{crossspp\_growth.R}.}
 	\label{fig:resid_diagnostics}
 \end{figure}
@@ -496,14 +507,8 @@ We begin the growth modeling workflow, as above, with a generalized additive mod
 fitGAU <- gam(list(t1 ~ s(t0,k=4) + s(plot,bs="re") + s(year,bs="re"), 
 	~s(t0,k=4)), data=cactus, family=gaulss())
 \end{lstlisting}
-\new{The growth variance is estimated to peak at small to medium sizes (Fig. \ref{fig:resid_diagnostics}C). Spline regression detected no trends in the mean of the resulting standardized
-residuals, and only a minuscule amount of variation in the variance (adjusted $r^2 < 0.02$;  script \texttt{cactus\_growth\_modeling\_qgam.R}). }  
-%The standardized residuals, accounting for growth variance that peaks at small-to-medium sizes (Fig. \ref{fig:resid_diagnostics}C), show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:resid_diagnostics}D). 
-%\new{We also find a statistically significant 
-%trend in variance, $p<0.01$ for both Multiple Levene and Smoothing spline tests; script \texttt{cactus\_growth\_modeling\_qgam.R}). However, the trend is too small to 
-%worry about: spline regressions of either squared or absolute scaled residuals on either initial size or fitted subsequent size (using \texttt{gam} from the \texttt{mgcv} library)
-%explained under 2\% of the variance. Because the trend is so weak, it makes little sense to try to remove it, even though evidence for the trend's existence is strong because of 
-%large sample size ($n=4844$). } 
+\new{The growth variance is estimated to peak at small to medium sizes (Fig. \ref{fig:resid_diagnostics}C). Spline regression detected essentially no trend in the 
+mean of the resulting standardized residuals, and only a small amount of variation in the variance (Fig. \ref{fig:diagnose_pilot}C,D). }  
 
 The standardized residuals show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:resid_diagnostics}D).
 So to better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, both of which may be negligible at some sizes.
@@ -587,9 +592,7 @@ We did this for all candidate models and, for a fair AIC comparison, we then re-
 
 The updated model selection continued to favor the size $\times$ flowering interaction model (3), but now with a weaker improvement over the next-best model ($\Delta AIC = 6.7$). 
 The fitted mean (a function of initial size and flowering status) and fitted standard deviation (a function of the fitted mean) are shown in Fig. \ref{fig:resid_diagnostics}E. 
-\new{Spline regression did not find any trends in the mean or variance of the resulting standardized residuals as a function of initial size or fitted values (adjusted $r^2 < 0.01$; 
-R script \texttt{orchid\_growth\_modeling.R}).}  
-% \new{There was no evidence of non-constant variance in the scaled residuals as a function of fitted values (Multiple Bartlett test $p=0.18$, Multiple B-spline test $p=0.4$).}  
+\new{Spline regression found no trend in the mean of the resulting standardized residuals, and only small variation in the variance (Fig. \ref{fig:diagnose_pilot}E,F).}  
 
 The best Gaussian model indicated a growth cost associated with flowering at the start of the census interval and a decline in growth variance with increasing expected values. 
 The standardized residuals indicated negative skewness (10--20\% difference in tail weight) and excess kurtosis (10--40\% fatter than Gaussian) across much of the size distribution but both negligible at large expected sizes (Fig. \ref{fig:resid_diagnostics}F). 
@@ -666,7 +669,7 @@ to be mentioned in the Introduction --- maybe this whole paragraph should just b
 These authors developed a creative approach in which size data are transformed onto a $[0,1]$ scale and size transitions on that scale are modeled using beta regression. 
 The beta distribution can accommodate positive, negative, or zero skew, potentially varying with size, so the Peterson et al. approach is a 
 flexible option for skewed growth data. 
-However, beta regression also has some limitations: common beta regression packages do not fit random effects (e.g., \textbf{betareg} \citep{cribari2010beta}) or do not do so reliably (in our experience \textbf{gamlss} regressions are numerically unstable); and the two-parameter beta distribution does not allow skewness and kurtosis to be fitted independently. Additionally, the initial transformation onto $[0,1]$ scale requires estimating extreme quantiles of the growth distribution (e.g., 0.01 and 0.99) as a function of initial size. In our experience the results can be  very sensitive to how size-dependence is modeled, and model selection is challenging for extreme quantiles where data are (by definition) sparse. 
+However, beta regression also has some limitations: common beta regression packages do not fit random effects (e.g., \textbf{betareg} \citep{cribari2010beta}) or do not do so reliably (in our experience \textbf{gamlss} regressions are numerically unstable); and the two-parameter beta distribution does not allow skewness and kurtosis to be fitted independently. Additionally, the initial transformation onto $[0,1]$ scale requires estimating extreme quantiles of the growth distribution (e.g., 0.01 and 0.99) as a function of initial size. In our experience those quantile estimates can be very sensitive to how size-dependence is modeled, and model selection is challenging for extreme quantiles where data are (by definition) sparse. 
 
 Rather than picking one distribution (such as the beta) as a new default, users can leverage the vast arsenal of continuous probability distributions -- all at one's fingertips with a few lines of code -- so that the data and their particular deviations from normality can guide the choice of a better distribution. 
 Nonetheless, in our analyses we found ourselves coming back time and again to a few ``usual suspects''. 
@@ -744,7 +747,7 @@ By generating predicted size transitions that are truer to the data, IPM analyst
 \section{\new{Nonparametric tests for nonconstant variance}}
 \label{sec:VarianceTests}  
 
-\textbf{NOTE: this is no longer needed, based on the advice to not do statistical tests for trends in scaled residuals} 
+\textbf{NOTE: this is no longer needed, based on the advice to not do statistical tests for trends in scaled residuals. Another paper, maybe?} 
 
 The tests that we describe here use randomization to test for unspecified trends in the variance of a response $y$ as a 
 function of a covariate $x$, given data pairs $(x_i,y_i),  i = 1,2, \cdots, n$. 
@@ -840,7 +843,7 @@ the probability density, cumulative distribution, and quantile functions. There 
 location parameter is the mean, and the scale parameter is the standard deviation. That form can then be used in
 custom likelihood functions that ``import'' the fitted mean and standard deviation from the Gaussian pilot model, 
 in the same way that the skewed $t$ distribution was used in our lady orchid case study. 
-Code for this reparameterized form of the distribution is provided in our code archive script \texttt{JPfuns.R}.}  
+Code for this reparameterized form of the distribution is provided in our code archive script \texttt{JPfuns.R}. \textbf{NOTE: this code still needs to be tested!}}  
 
 It eventually transpired that none of our case studies involved fitting a SHASH distribution through a ``custom'' likelihood 
 function (though this was transiently the case). But for the sake of possible future applications, we record here some 
