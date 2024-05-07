@@ -225,19 +225,16 @@ relationships highly nonlinear}. %beta regression
 In particular, log-transformation often reduces or eliminates heteroskedasticity in growth data \citep{ellner-etal-2016} 
 and also helps avoid eviction at small sizes \citep{williams2012avoiding}. 
 
-\new{The fitted mean and variance functions should be checked before going any further, and modified if necessary. 
-If those functions are perfectly accurate, the standardized residuals (residuals scaled by the standard deviation function) 
-will have zero mean and unit variance, both overall and as a function of original size or fitted mean values. 
-However, the inescapable bias-variance tradeoff implies that good function estimates are somewhat smoothed, 
-so scaled residuals will usually retain some variation in location and scale. Given enough data, statistical tests 
-will detect that variation. But what matters for growth modeling is effect size, not $p$ value. 
-We therefore recommend taking the presence of trends for granted, and assessing their importance by fitting and
-plotting nonparametric regression models for residuals (trend in mean) and absolute residuals (trend in variance) 
-as a function of initial size or fitted value. These are essentially two panels from R's \texttt{plot} function 
-for linear models, except that we use spline regression to allow data-driven choice of curve smoothness,   
-and absolute residuals rather than their square roots so that the fitted curve is in the same units as the residuals.
-The mean and variance functions can then be accepted if the fitted regression curves are nearly constant. 
-} 
+\new{The fitted mean and variance functions should be checked before going any further. 
+If they are perfectly accurate, the standardized residuals (residuals scaled by the standard deviation function) 
+will have zero mean and unit variance, overall and as a function of original size or fitted mean values. 
+However, good function estimates (parametric or nonparametric) are somewhat smoothed because of the inescapable bias-variance tradeoff,  
+so scaled residuals will retain some variation in location and scale. Given enough data, statistical tests
+will detect that variation (this sounds simple enough, but we lost a month figuring it out). 
+We therefore take the presence of trends for granted, 
+and assess their importance by fitting and plotting nonparametric regression models for 
+residuals (trend in mean) and absolute residuals (trend in variance) as a function of initial size or 
+fitted value. The mean and variance functions can then be accepted if the fitted regression curves are nearly constant.} 
 
 \item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate 
 from Gaussian, and to choose a more appropriate distribution.}
@@ -741,71 +738,6 @@ By generating predicted size transitions that are truer to the data, IPM analyst
 \renewcommand{\thesection}{S.\arabic{section}}
 
 \centerline{\Large{\textbf{Appendices}}}
-
-\section{\new{Nonparametric tests for nonconstant variance}}
-\label{sec:VarianceTests}  
-
-\textbf{NOTE: this is no longer needed, based on the advice to not do statistical tests for trends in scaled residuals. Another paper, maybe?} 
-
-The tests that we describe here use randomization to test for unspecified trends in the variance of a response $y$ as a 
-function of a covariate $x$, given data pairs $(x_i,y_i),  i = 1,2, \cdots, n$. 
-In this paper $y$ is the set of standardized residuals from a pilot model, and $x$ is a covariate in the pilot model such as initial size or fitted mean subsequent size. 
-
-These tests are used in our suggested workflow specifically to test for correct specification of the variance trend in growth increments. 
-We therefore build our tests from statistics based on squared residuals. Tests based on squared residuals are generally less robust against non-Gaussian data than tests
-using other measures such as absolute residuals, or the log or square root of absolute residuals \citep{conover-etal-1981}. 
-We therefore use randomization methods to obtain $p$-values that do not depend on any assumption about the data distribution. 
-
-The first test is based on the Levene test for constancy of variance across discrete groups. This is  
-available as the \texttt{leveneTest} function in the \textbf{car} R package \citep{fox-weisberg-2018}. 
-
-In our setting there are no natural groups. We create groups by sorting the data pairs according to the value of $x_i$ from smallest to largest 
-and dividing them into $m$ equal-size groups (i.e., we bin based on quantiles of $x$). 
-The outcome of the test then depends on the bin number $m$. This ``investigator degree of freedom'' makes $p$-hacking easy and tempting: 
-loop across a range of $m$ values, and report the largest or smallest $p$ value, as desired. To circumvent this, following 
-the approach of \citet{ye-Jensen-2020} (inspired in turn by \cite{sizer-99}), our test statistic is the minimum $p$-value obtained across a range of $m$ values.  
-With typical growth data we can only hope to identify broad patterns of variation, so we typically scan across $m$ from 3 to 8. 
-This test statistic is computed for the actual data, and for $R$ random shufflings of the $y_i$, using \texttt{leveneTest} with 
-default settings (which correspond to the recommendations of \citet{conover-etal-1981}). 
-The randomization $p$ value is the proportion of randomizations where the Levene test $p$-value is smaller than that from the real data. 
-
-The $p$-value returned by the \texttt{leveneTest} function assumes Gaussian data.   
-However, the returned $p$ value is a monotonic function of the underlying test statistic. The \emph{Multiple Levene test} 
-described in the preceding paragraph is therefore exactly equivalent to a randomization test based on the 
-underlying test statistic for nonconstant variance, and thus does not rest on any assumptions about the data distribution. 
-
-The \emph{Smoothing spline test} is a version of the Breusch-Pagan test, also called the Cook-Weisberg test \citep{fox-weisberg-2018}. 
-This test (and a number of related tests) uses regression analysis to test for a trend in the scale of squared residuals with respect to some covariate. 
-In our applications there is a single covariate $x$ (initial size, fitted subsequent size, or a model covariate) but the shape of a possible trend is unknown.  
-We therefore use spline regression to allow detection of an arbitrary smooth trend. Specifically, we use the \texttt{smooth.spline} function in base R 
-to regress absolute residuals on $x$, and we record the fraction of variance explained, $r^2$, adjusted for model degrees of 
-freedom (returned as \texttt{df} by \texttt{smooth.spline}). The $p$-value is again computed through random permutation of the absolute residuals. 
-The randomization $p$ value is the proportion of randomizations for which adjusted $r^2$ is larger than the adjusted $r^2$ for the real data.  
-
-\begin{figure}[tbp]
-\centering
-\includegraphics[width=\textwidth]{figures/test_variance_diagnostics_500.pdf}
-\caption{Examples of applying the Multiple Levene test and Smoothing spline test to simulated non-Gaussian residuals with known trends in variance, sample size $n=500$. 
-See text for explanation. Figure made by R script \texttt{test\_variance\_diagnostics.R} in our code archive. }
-\label{fig:ncv}
-\end{figure} 
-
-Figure \ref{fig:ncv} illustrates how these tests perform on simulated non-Gaussian residuals with specified trends in variance as a function of a covariate.
-In all cases 500 simulated residuals were generated from a Johnson SU distribution with mean zero, kurtosis parameter $\tau = 2$ (excess kurtosis drops to zero as $\tau \to \infty$)
-and skewness parameter $\nu$ trending linearly from -2 at $x=0$ to 2 at $x=2$. At the extremes ($\nu =\pm 2, \tau=2$) the distribution has skewness of $\approx \pm 1.5$
-(nonparametric skewness $\pm 0.24$) and kurtosis $\approx 7$ (nonparametric excess kurtosis $0.10$).   
-
-The top row shows the overall distribution of simulated residuals, and the second row shows residuals as a function of the covariate, with the true standard deviation 
-function indicated by dashed lines at $\pm 2$ standard deviations. 
-The third row and fourth rows show the test results, using $p \le 0.05$ as the criterion for rejecting the null hypothesis
-of constant variance, for 200 sets of simulated residuals and $R=1000$ randomizations to compute the $p$-value for each set.  
-With constant standard deviation (panels G and J) the type-I error rate (i.e., the fraction of false rejections) should be 0.05, 
-and both tests perform quite well. Even with relatively small departures from constant variance (middle and right columns), the tests 
-exhibit reasonable power to detect that the variance is not constant. Most of our case studies have larger sample sizes, often much larger. 
-
-There are many other tests for nonconstant variance -- see for example \cite{Farrar2024}. 
-We chose two tests that seemed maximally different from each other (discrete versus very smooth variation), and 
-where the base test is fast enough to allow a large number of randomizations. 
 
 \section{The Jones-Pewsey SHASH distribution family} 
 \label{sec:SHASHdist} 
