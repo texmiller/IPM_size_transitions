@@ -41,9 +41,9 @@ multiple_bartlett_test = function(fitted_vals, residuals, min_bins, max_bins, R)
 	ran_resids = sample(residuals);
 	p_ran = rep(NA,max_bins); 
 	for(nbins in min_bins:max_bins) {
-	u = nbins*indexx/(1 + max(indexx)); 
-	u = floor(u); u = factor(u);  
-	p_ran[nbins] = bartlett.test(ran_resids, u)$p.value
+		u = nbins*indexx/(1 + max(indexx)); 
+		u = floor(u); u = factor(u);  
+		p_ran[nbins] = bartlett.test(ran_resids, u)$p.value
 	}	
 	min(p_ran,na.rm=TRUE); 
 }
