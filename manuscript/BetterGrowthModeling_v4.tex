@@ -227,14 +227,13 @@ and also helps avoid eviction at small sizes \citep{williams2012avoiding}.
 
 \new{The fitted mean and variance functions should be checked before going any further. 
 If they are perfectly accurate, the standardized residuals (residuals scaled by the standard deviation function) 
-will have zero mean and unit variance, overall and as a function of original size or fitted mean values. 
+will have zero mean and unit variance overall, and will exhibit no trends as a function of original size or fitted mean values. 
 However, good function estimates (parametric or nonparametric) are somewhat smoothed because of the inescapable bias-variance tradeoff,  
-so scaled residuals will retain some variation in location and scale. Given enough data, statistical tests
-will detect that variation (this sounds simple enough, but we lost a month figuring it out). 
-We therefore take the presence of trends for granted, 
-and assess their importance by fitting and plotting nonparametric regression models for 
+so scaled residuals will retain some variation in location and scale. Statistical tests
+will detect that variation, given enough data. We therefore take for granted the presence of trends in mean and variance, 
+and assess their importance by fitting nonparametric spline regression models for 
 residuals (trend in mean) and absolute residuals (trend in variance) as a function of initial size or 
-fitted value. The mean and variance functions can then be accepted if the fitted regression curves are nearly constant.} 
+fitted value. The mean and variance functions can be accepted if the regression curves are nearly constant.} 
 
 \item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate 
 from Gaussian, and to choose a more appropriate distribution.}
@@ -245,7 +244,7 @@ last step of the workflow), or explore alternatives.
 
 Growth data may deviate from Gaussian in many ways, and the nature of the deviations can guide the search for a better distribution. 
 Tests such as the D'Agostino test of skewness \citep{d1970transformation} and the Anscombe-Glynn test of kurtosis \citep{anscombe1983distribution} 
-can be used to diagnose whether standardized residuals in aggregate deviate from normality \citep{komsta2015moments}. 
+can be used to diagnose whether the standardized residuals in aggregate deviate from normality \citep{komsta2015moments}. 
 However, the aggregate distribution may be misleading if skew or kurtosis vary with size or other covariates. 
 A change from positive skewness at small sizes to negative skewness at large sizes might produce zero overall skewness, but really requires a distribution family that can allow both positive and negative skew, such as the skewed Normal or Johnson $S_{U}$ distributions. 
 Alternatively, growth data may lack skew but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
@@ -383,25 +382,18 @@ d$fitted_mean = predict(fitGAU,type="response")[,1]
 d$fitted_sd <- 1/predict(fitGAU,type="response")[,2]
 d$scaledResids=residuals(fitGAU,type="response")/d$fitted_sd
 \end{lstlisting}
-The data and fitted mean and standard deviation are shown in Fig. \ref{fig:resid_diagnostics}A. 
-\new{Spline regressions on predicted mean subsequent size did not detect any trends in the mean or variance of the resulting scaled residuals 
-as a function of initial size or fitted values (Fig. \ref{fig:diagnose_pilot}A,B; script \texttt{Vulpicida\_IPMs.R}). The spline curves are not actually  
-constant (i.e. their standard deviations, given above each panel, are actually positive), but the trends are much too small to be worth fixing.} 
+The data and fitted mean and standard deviation are shown in Fig. \ref{fig:resid_diagnostics}A, \new{and
+the diagnostic plots are in Fig. \ref{fig:diagnose_pilot}A,B. Our diagnostic plots are similar to plots 
+made by R's \texttt{plot.lm} function, except that we use spline regression to allow data-driven choice 
+of curve smoothness, and use absolute residuals (rather than their square roots) so that the standard deviation of the regression curve is 
+on the same scale as the residuals. 	The spline curves are not actually  
+constant  -- their standard deviations, given above each panel, are actually positive -- but the trends are much too small to be worth fixing.} 
 %\new{We did not find any statistically significant variance trends in the 
 % resulting scaled residuals $p>0.7$ for Multiple Leven test and Smoothing Spline test; script \texttt{Vulpicida\_IPMs.R}).} 
 
-Quantile regression on the scaled residuals generates the diagnostics shown in Fig. \ref{fig:resid_diagnostics}B (see script \texttt{Vulpicida\_IPMS.R}).
+Quantile regression on the scaled residuals generates the skewness and kurtosis diagnostics shown in Fig. \ref{fig:resid_diagnostics}B (see script \texttt{Vulpicida\_IPMS.R}).
 As expected based on previous analyses, visual analysis of the standardized residuals indicated negative skew, especially at larger sizes (Fig. \ref{fig:resid_diagnostics}B).
 We also find positive excess kurtosis for all sizes. 
-
-\begin{figure}[tbp]
-	\centering
-	\includegraphics[width=0.95\textwidth]{figures/cactus_k=6.pdf}
-	\caption{Diagnostic plot for trends in the mean or variance of scaled residuals from a pilot Gaussian model, for the lichen (\emph{Vulpicida pinastri}) \textbf{A,B}, cactus \emph{Cylindriopuntia imbricata} \textbf{C,D}, and orchid \emph{Orchis purpurea} \textbf{E,F} case studies. In \textbf{A,C,E} the standardized residuals are plotted, and in \textbf{B,D,F} the absolute values of
-standardized residuals, as functions of fitted mean subsequent size values. The solid curves are cubic splines (R function \texttt{smooth.spline}) fitted by generalized cross-validation with a modest over-penalization of model degrees of freedom to prevent overfitting (\texttt{penalty}=1.4 as recommended by \citet{gu-2002}). The numbers appearing above each panel are the standard deviation of the values on the spline regression curve, evaluated at the fitted values. Figure made by script \texttt{crossspp\_diagnose\_pilot.R}.}
-	\label{fig:diagnose_pilot}
-\end{figure}
-
 
 \begin{figure}[tbp]
 	\centering
@@ -409,6 +401,17 @@ standardized residuals, as functions of fitted mean subsequent size values. The 
 	\caption{Best Gaussian models and diagnostics of standardized residuals for lichen (\emph{Vulpicida pinastri}) \textbf{A,B}, cactus \emph{Cylindriopuntia imbricata} \textbf{C,D}, and orchid \emph{Orchis purpurea} \textbf{E,F} case studies. \textbf{A,C}, fitted mean (red) and standard deviation (blue) of size at time $t+1$ conditional on initial size at time $t$. \textbf{E}, fitted means for plants that were vegetative (solid line) or flowering (dashed line) at the start of the census interval and standard deviation as a function of the fitted mean (inset). \textbf{B,D,F} Quantile regressions of scaled residuals (lines show 5\%, 10\%, 25\%, 50\%, 75\%, 90\%, and 95\% quantiles) and non-parametric measures of skewness (blue) and excess kurtosis (red) derived from them. In \textbf{B,D} scaled residuals are shown with respect to initial size and in \textbf{F} they are shown with respect to fitted values. Figure made by script \texttt{crossspp\_growth.R}.}
 	\label{fig:resid_diagnostics}
 \end{figure}
+
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=0.95\textwidth]{figures/cactus_k=6.pdf}
+	\caption{Diagnostic plot for trends in the mean or variance of scaled residuals from a pilot Gaussian model, for the lichen (\emph{Vulpicida pinastri}) \textbf{A,B}, cactus \emph{Cylindriopuntia imbricata} \textbf{C,D}, and orchid \emph{Orchis purpurea} \textbf{E,F} case studies. 
+In \textbf{A,C,E} the standardized residuals are plotted, and in \textbf{B,D,F} the absolute values of
+standardized residuals, as functions of fitted mean subsequent size values. The solid curves are cubic splines (R function \texttt{smooth.spline}) fitted by generalized cross-validation with a modest over-penalization of model degrees of freedom to prevent overfitting (\texttt{penalty}=1.4 as recommended by \citet{gu-2002}). The numbers appearing above each panel are the standard deviation of the values on the spline regression curve, evaluated at all of the 
+fitted values. Figure made by script \texttt{crossspp\_diagnose\_pilot.R}.}
+	\label{fig:diagnose_pilot}
+\end{figure}
+
 
 We turned to the Johnson's \emph{S-U} (JSU) distribution for improvement. 
 The JSU is a four-parameter leptokurtic distribution allowing positive or negative skew, with the convenient property that location and scale parameters \texttt{mu} and \texttt{sigma} are the mean and standard deviation, respectively, which facilitates the transition from a pilot Gaussian model. 
