@@ -127,8 +127,7 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 \noindent\textbf{Running header:} Better growth modeling for IPMs
 
 \bigskip 
-\noindent\textbf{Acknowledgements:} This research was supported by US NSF grants DEB-1933497 to SPE and DEB-1754468, 2208857, and 2225027 to TEXM. Giles Hooker gave us the very good idea to use 
-quantile regression instead of binning to estimate trends in skewness and kurtosis. 
+\noindent\textbf{Acknowledgements:} This research was supported by US NSF grants DEB-1933497 to SPE and DEB-1754468, 2208857, and 2225027 to TEXM. The Sevilleta LTER (source of the cactus and creosote case studies) is supported by DEB-1655499 and DEB-1748133. Giles Hooker gave us the very good idea to use quantile regression instead of binning to estimate trends in skewness and kurtosis. Ali Campbell and Jacob Moutouama provided helpful discussion and comments on the manuscript. 
 
 \bigskip 
 \noindent\textbf{Authorship statement:} All authors discussed all aspects of the research and contributed to developing methods, analyzing data, and writing and revising the paper.  
@@ -147,10 +146,10 @@ quantile regression instead of binning to estimate trends in skewness and kurtos
 \section*{Abstract} 
 
 \begin{enumerate}
-	\item Integral Projection Models (IPMs) are widely used for studying the dynamics of continuously size-structured populations. IPMs require a growth sub-model that describes the probability distribution of future size conditional on current size and covariates. Over the past two decades, most IPM studies have assumed that this distribution is Gaussian, despite repeated calls for non-Gaussian approaches that accommodate skewness and kurtosis known to occur in size transition data. %set the context for and purpose of the work
-	\item We provide a general workflow for modeling size transitions that accommodates non-Gaussian growth patterns while retaining the desirable features that Gaussian approaches typically provide, ecologically important covariates and random effects. Our approach emphasizes visual diagnostics of residuals from pilot Gaussian models and quantile-based metrics of skewness and kurtosis that vet the fit of the Gaussian distribution and guide selection of an alternative, if necessary. We illustrate our methods by reanalyzing size transition data from published IPM studies, targeting a diversity of demographic quantities including population growth rate, extinction risk, and evolutionarily stable life history strategies. %indicate the approach and methods
+	\item Integral Projection Models (IPMs) are widely used for studying the dynamics of continuously size-structured populations. IPMs require a growth sub-model that describes the probability distribution of future size conditional on current size and any covariates. Over the past two decades, most IPM studies have assumed that this distribution is Gaussian, despite repeated calls for non-Gaussian approaches that accommodate skewness and kurtosis known to occur in size transition data. %set the context for and purpose of the work
+	\item We provide a general workflow for modeling size transitions that accommodates non-Gaussian growth patterns while retaining the desirable features that Gaussian approaches typically provide: ecologically important covariates and random effects. Our approach emphasizes visual diagnostics of residuals from pilot Gaussian models and quantile-based metrics of skewness and kurtosis that vet the fit of the Gaussian distribution and guide selection of an alternative, if necessary. We illustrate our methods by reanalyzing size transition data from published IPM studies, targeting a diversity of demographic quantities including population growth rate, extinction risk, and evolutionarily stable life history strategies. %indicate the approach and methods
 	\item Across five case studies, skewness and excess kurtosis were common features of size transition data and non-Gaussian growth models consistently generated simulated data that were more consistent with the real data than pilot Gaussian models. However, in these case studies, the effects of ``improved'' growth modeling on IPM results were moderate to weak, and differed in direction or magnitude between different outputs from the same model. 
-	\item Using tools that were not available when IPMs were first developed, it is now possible to fit non-Gaussian models to size transition data without sacrificing ecological complexity; our worked examples demonstrate how, including open-access data and computing scripts. Doing so, as guided by careful interrogation of the data, will result in models that better represents the populations for which they are intended. %identify the conclusions and the wider implications
+	\item Using tools that were not available when IPMs were first developed, it is now possible to fit non-Gaussian models to size transition data without sacrificing ecological complexity; our worked examples demonstrate how, including open-access data and computing scripts. Doing so, as guided by careful interrogation of the data, will result in models that better represent the populations for which they are intended. %identify the conclusions and the wider implications
 \end{enumerate}
 
 %alphabetical order not exceeding eight words or short phrases
@@ -184,11 +183,13 @@ Size transitions may also exhibit excess kurtosis (``fat tails''), where extreme
 
 The observation that the Normal (or Gaussian) distribution may poorly describe size transitions in real organisms has been made before,  
 and several studies have emphasized that alternative distributions should be explored \citep{easterling2000size,peterson2019improving,rees2014building,williams2012avoiding}. 
+%acknowledge more about Peterson here?
 Nonetheless, default use of Gaussian growth distributions (often with non-constant variance) remains the standard practice. 
-The general state-of-the-art in the literature appears to remain where it was 20 or so years ago, using the default model without pausing to examine critically whether or not it actually describes the data well.  
+The general state-of-the-art in the literature appears to remain where it was 20 or so years ago, using the default Gaussian model without pausing to examine critically whether or not it actually describes the data well.  
 We are guilty of this, ourselves. 
 
 The persistence of Gaussian growth models is understandable. 
+%The Gaussian is the maximum entropy distribution for real-valued observations with finite variance. 
 There is a long tradition of statistical modeling built on the assumption of normally distributed residuals with constant variance.
 Popular pacakges such as lme4 \citep{bates2007lme4}, mgcv \citep{wood-2017}, and MCMCglmm \citep{hadfield2010mcmc} make it easy to fit growth models with potentially complex fixed- and random-effect structures, but the possible distributions of continuous responses are limited, and default to Gaussian.
 Abandoning these convenient tools for the sake of more flexible growth modeling means, it may seem, sacrificing the flexibility to rigorously model diverse and potentially complex sources of variation in growth, some of which may be the motivation driving the study in the first place.
@@ -215,7 +216,7 @@ This step is familiar to most IPM users, as it is the start and end of the stand
 A well-fitted Gaussian model accurately describes the mean and variance of future size conditional on current size and possibly on other measured covariates or random effects. 
 This step may include model selection to identify which treatment effects or environmental drivers affect the mean and/or variance of future size. 
 Non-constant variance is often fitted in a two-stage process, first fitting mean growth assuming constant variance, then doing a regression relating the squared residuals to initial size or the fitted mean of subsequent size. 
-Fitting mean and variance simultaneously, as can be done with R packages \textbf{mgcv} and \textbf{nmle}, is advantageous when possible because incorrectly assuming constant variance can affect model selection for the mean. 
+Fitting mean and variance simultaneously as functions of initial size, as can be done with R packages \textbf{mgcv} and \textbf{nmle}, is advantageous when possible because incorrectly assuming constant variance can affect model selection for the mean. 
 But two-step fitting may be convenient when there are multiple fixed and random effects that can affect growth variance, because the fitted mean value implicitly accounts for all of them. 
 We illustrate both one-step and two-step approaches in the case studies below. 
 
@@ -224,16 +225,17 @@ A variance-stabilizing transformation may still be useful if it does not create 
 relationships highly nonlinear}. %beta regression
 In particular, log-transformation often reduces or eliminates heteroskedasticity in growth data \citep{ellner-etal-2016} 
 and also helps avoid eviction at small sizes \citep{williams2012avoiding}. 
+We use natural log transformations of size data in the case studies below. 
 
-\new{The fitted mean and variance functions should be checked before going any further. 
-If they are perfectly accurate, the standardized residuals (residuals scaled by the standard deviation function) 
-will have zero mean and unit variance overall, and will exhibit no trends as a function of original size or fitted mean values. 
-However, good function estimates (parametric or nonparametric) are somewhat smoothed because of the inescapable bias-variance tradeoff,  
-so scaled residuals will retain some variation in location and scale. Statistical tests
-will detect that variation, given enough data. We therefore take for granted the presence of trends in mean and variance, 
-and assess their importance by fitting nonparametric spline regression models for 
-residuals (trend in mean) and absolute residuals (trend in variance) as a function of initial size or 
-fitted value. The mean and variance functions can be accepted if the regression curves are nearly constant.} 
+The fitted mean and variance functions should be checked before going any further. 
+If they are perfectly accurate, the standardized residuals (residuals scaled by the standard deviation) will have zero mean and unit variance in aggregate, and will exhibit no trends as a function of original size or fitted mean values. 
+However, fitted functions for the mean and variance are somewhat smoothed because of the inescapable bias-variance tradeoff,  
+so scaled residuals will retain some variation in location (close to but not exactly zero) and scale (close to but not exactly one). 
+Statistical tests can detect that variation, given enough data. 
+We therefore take for granted the presence of trends in mean and variance, and assess their importance by fitting nonparametric spline regression models for residuals (trend in mean) and absolute residuals (trend in variance) as a function of initial size or fitted value. 
+The mean and variance functions can be accepted if the regression curves for their scaled residuals are nearly flat. 
+If the scaled residuals exhibit a significant trend in mean or variance, the pilot Gaussian model should be updated until that trend disappears. 
+We provide examples of such ``updates'' in the case studies below. 
 
 \item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate 
 from Gaussian, and to choose a more appropriate distribution.}
