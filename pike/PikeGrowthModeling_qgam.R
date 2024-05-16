@@ -65,7 +65,8 @@ plot(pike_final$log_t0,pike_final$log_t1)
 abline(0,1)
 
 ## pilot gaussian with mgcv
-pike_gau<-gam(list(log_t1 ~ s(log_t0,k=4), ~s(log_t0,k=4)), data=pike_final, family=gaulss())
+## I am using k=6 in the final SHASH model (see below) so keeping the same for pilot Gaussian
+pike_gau<-gam(list(log_t1 ~ s(log_t0,k=5), ~s(log_t0,k=5)), data=pike_final, family=gaulss())
 pike_gau_pred<-predict(pike_gau,type="response")
 ## scale residuals by fitted sd
 fitted_sd<-1/pike_gau_pred[,2]
@@ -172,28 +173,28 @@ lines(size_dummy,dnorm(size_dummy,
 abline(v=pike_final$log_t0[nrow(pike_final)],col="blue")
 
 ## gonna try a gam shash (bc that's what's easy in mgcv)
-pike_gam_shash <- gam(list(log_t1 ~ s(log_t0,k=4), # <- model for location 
-                           ~ s(log_t0,k=4),   # <- model for log-scale
-                           ~ s(log_t0,k=4),   # <- model for skewness
-                           ~ s(log_t0,k=4)), # <- model for log-kurtosis
+## k=6 gave better correspondence between real and sim data than k=4
+pike_gam_shash <- gam(list(log_t1 ~ s(log_t0,k=5), # <- model for location 
+                           ~ s(log_t0,k=5),   # <- model for log-scale
+                           ~ s(log_t0,k=5),   # <- model for skewness
+                           ~ s(log_t0,k=5)), # <- model for log-kurtosis
                       data = pike_final, 
                       family = shash,  
                       optimizer = "efs")
-
 pike_shash_pred <- predict(pike_gam_shash,type="response")
 
 ## also, out of curiosity, gonna fit a gamma to growth data (they can only increase)
-pike_gam_gamma <- gam(list(log_growth+0.0001 ~ s(log_t0,k=4), ~ s(t0,k=4)),
-                      data=pike_final,family=gammals)
-plot(pike_final$t0,pike_final$log_growth+0.0001)
-points(pike_final$t0,predict(pike_gam_gamma,type="response")[,1],col="red")
+#pike_gam_gamma <- gam(list(log_growth+0.0001 ~ s(log_t0,k=6), ~ s(t0,k=6)),
+#                      data=pike_final,family=gammals)
+#plot(pike_final$t0,pike_final$log_growth+0.0001)
+#points(pike_final$t0,predict(pike_gam_gamma,type="response")[,1],col="red")
 
 ## simulate data from fitted models
-n_sim<-50
+n_sim<-10
 ## four sets of simulated data!
 GAUsim_mean<-GAUsim_sd<-GAUsim_skew<-GAUsim_kurt<-matrix(NA,nrow=nrow(pike_final),ncol=n_sim)
 SHASHsim_mean<-SHASHsim_sd<-SHASHsim_skew<-SHASHsim_kurt<-matrix(NA,nrow=nrow(pike_final),ncol=n_sim)
-# GAMMAsim_mean<-GAMMAsim_sd<-GAMMAsim_skew<-GAMMAsim_kurt<-matrix(NA,nrow=nrow(pike_final),ncol=n_sim)
+#GAMMAsim_mean<-GAMMAsim_sd<-GAMMAsim_skew<-GAMMAsim_kurt<-matrix(NA,nrow=nrow(pike_final),ncol=n_sim)
 
 for(i in 1:n_sim){
   cat("################# Simulation number ", i, "\n") 
@@ -207,8 +208,8 @@ for(i in 1:n_sim){
                                              nu=pike_shash_pred[,3],
                                              tau=exp(pike_shash_pred[,4]))
   
-  pike_final$log_t1.sim.GAMMA <- pike_final$log_t0 + 
-    rgamma(n=nrow(pike_final),shape=1/exp(fitted(pike_gam_gamma)[,2]),scale=fitted(pike_gam_gamma)[,1]*exp(fitted(pike_gam_gamma)[,2]))
+  #pike_final$log_t1.sim.GAMMA <- pike_final$log_t0 + 
+  #  rgamma(n=nrow(pike_final),shape=1/exp(fitted(pike_gam_gamma)[,2]),scale=fitted(pike_gam_gamma)[,1]*exp(fitted(pike_gam_gamma)[,2]))
   
   ## Qreg on sim data
   q.05.GAU<-predict(qgam(log_t1.sim.GAU~s(log_t0,k=4),data=pike_final,qu=0.05)) 
@@ -270,7 +271,7 @@ abline(0,1,lty=2,col="blue");
 for(i in 1:n_sim){
   lines(pike_final$log_t0,GAUsim_mean[,i],col=alpha("tomato",0.5),pch=".")
   lines(pike_final$log_t0,SHASHsim_mean[,i],col=alpha("cornflowerblue",0.5),pch=".")
-  # lines(pike_final$log_t0,GAMMAsim_mean[,i],col=alpha("green",0.25),pch=".")
+  #lines(pike_final$log_t0,GAMMAsim_mean[,i],col=alpha("green",0.25),pch=".")
 }
 lines(pike_final$log_t0,Q.mean(q.25,q.50,q.75),col="black",pch=".",cex=2)
 legend("topleft",legend=c("Real data","Gaussian simulation",
@@ -282,7 +283,7 @@ plot(pike_final$log_t0,Q.sd(q.25,q.75),type="n",
 for(i in 1:n_sim){
   lines(pike_final$log_t0,GAUsim_sd[,i],col=alpha("tomato",0.5),pch=".")
   lines(pike_final$log_t0,SHASHsim_sd[,i],col=alpha("cornflowerblue",0.5),pch=".")
-  # lines(pike_final$log_t0,GAMMAsim_sd[,i],col=alpha("green",0.25),pch=".")
+  #lines(pike_final$log_t0,GAMMAsim_sd[,i],col=alpha("green",0.25),pch=".")
 }
 lines(pike_final$log_t0,Q.sd(q.25,q.75),col="black",pch=".",cex=2)
 
@@ -291,7 +292,7 @@ plot(pike_final$log_t0,Q.skewness(q.10,q.50,q.90),type="n",
 for(i in 1:n_sim){
   lines(pike_final$log_t0,GAUsim_skew[,i],col=alpha("tomato",0.5),pch=".")
   lines(pike_final$log_t0,SHASHsim_skew[,i],col=alpha("cornflowerblue",0.5),pch=".")
-  # lines(pike_final$log_t0,GAMMAsim_skew[,i],col=alpha("green",0.25),pch=".")
+  #lines(pike_final$log_t0,GAMMAsim_skew[,i],col=alpha("green",0.25),pch=".")
 }
 lines(pike_final$log_t0,Q.skewness(q.10,q.50,q.90),col="black",pch=".",cex=2)
 
@@ -300,7 +301,7 @@ plot(pike_final$log_t0,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
 for(i in 1:n_sim){
   lines(pike_final$log_t0,GAUsim_kurt[,i],col=alpha("tomato",0.2),pch=".")
   lines(pike_final$log_t0,SHASHsim_kurt[,i],col=alpha("cornflowerblue",0.5),pch=".")
-  # lines(pike_final$log_t0,GAMMAsim_kurt[,i],col=alpha("green",0.25),pch=".")
+  #lines(pike_final$log_t0,GAMMAsim_kurt[,i],col=alpha("green",0.25),pch=".")
 }
 lines(pike_final$log_t0,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",pch=".",cex=2)
 ## looks like it's going to be a SHASH IPM
@@ -338,7 +339,7 @@ pike_surv <- read_csv("pike/data/PikeSurvivalData1953_1990.csv") %>%
   mutate(log_t0 = log(Length)) %>% 
   arrange(log_t0)
 
-pike_surv_gam <- gam(Survival ~ s(log_t0,k=4),data = pike_surv,family = binomial)
+pike_surv_gam <- gam(Survival ~ s(log_t0,k=5),data = pike_surv,family = binomial)
 plot(pike_surv$log_t0,pike_surv$Survival)
 lines(pike_surv$log_t0,fitted(pike_surv_gam))
 
@@ -347,7 +348,7 @@ pike_fert <- read_csv("pike/data/FecundityData1963_2002.csv") %>%
   mutate(log_t0 = log(Length),
          log_eggs = log(Eggs)) %>% 
   arrange(log_t0)
-pike_fert_gam <- gam(Eggs ~ s(log_t0,k=4),data = pike_fert,family = nb)
+pike_fert_gam <- gam(Eggs ~ s(log_t0,k=5),data = pike_fert,family = nb)
 plot(pike_fert$log_t0,pike_fert$Eggs)
 lines(pike_fert$log_t0,fitted(pike_fert_gam))
 
@@ -398,11 +399,11 @@ fx<-function(x){
 }
 
 #SIZE DISTRIBUTION OF RECRUITS
-recruit.size<-function(y){
-  dnorm(x=y,
-        mean=pike_recruitsize_gau$coefficients[1],
-        sd=exp(pike_recruitsize_gau$coefficients[2]))
-}
+#recruit.size<-function(y){
+#  dnorm(x=y,
+#        mean=pike_recruitsize_gau$coefficients[1],
+#        sd=exp(pike_recruitsize_gau$coefficients[2]))
+#}
 
 recruit.size<-function(y){
   dSHASHo2(y,
@@ -420,7 +421,7 @@ fxy<-function(x,y){
 
 ##PUT IT ALL TOGETHER
 ## defaults here come from experimentation in the basement
-ApproxMatrix <- function(ext.lower=0,ext.upper=0.1,mat.size=600,dist){
+ApproxMatrix <- function(ext.lower=0,ext.upper=0.1,mat.size=800,dist){
   # Matrix size and size extensions (upper and lower integration limits)
   n <- mat.size
   L <- min(pike_final$log_t0) - ext.lower
@@ -442,11 +443,23 @@ ApproxMatrix <- function(ext.lower=0,ext.upper=0.1,mat.size=600,dist){
   return(list(IPMmat = IPMmat, Fmat = Fmat, Pmat = Pmat, meshpts = y))
 }
 
-GAU_IPM<-ApproxMatrix(dist="GAU")
-SHASH_IPM<-ApproxMatrix(dist="SHASH")
+## check effect of matrix dimension
+dims<-seq(100,1000,100)
+lambda_GAU<-lambda_SHASH<-c()
+for(i in 1:length(dims)){
+  lambda_GAU[i]<-lambda(ApproxMatrix(dist="GAU",mat.size=dims[i])$IPMmat)
+  lambda_SHASH[i]<-lambda(ApproxMatrix(dist="SHASH",mat.size=dims[i])$IPMmat)
+}
+plot(dims,lambda_SHASH)
+points(dims,lambda_GAU,col="red")
+## it looks very stable for lambda, but eviction remains a problem
+## unless we go to very high dimension, because the growth kernel becomes very spiky at the upper size limit
 
-plot(colSums(GAU_IPM$Pmat) / sx(GAU_IPM$meshpts))
-plot(colSums(SHASH_IPM$Pmat) / sx(SHASH_IPM$meshpts))
+GAU_IPM<-ApproxMatrix(dist="GAU",mat.size=1000)
+SHASH_IPM<-ApproxMatrix(dist="SHASH",mat.size=1000)
+plot(GAU_IPM$meshpts,colSums(GAU_IPM$Pmat) / sx(GAU_IPM$meshpts))
+plot(SHASH_IPM$meshpts,colSums(SHASH_IPM$Pmat) / sx(SHASH_IPM$meshpts))
+## It takes a matrix dimension of about 1000 to chop up the growth kernel appropriately
 
 ## write out for cross-spp analysis
 write_rds(list(GAU_IPM=GAU_IPM,SHASH_IPM=SHASH_IPM),file="pike/pike_out.rds")
