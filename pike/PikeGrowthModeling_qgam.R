@@ -108,6 +108,16 @@ fit = gam(I(scaledResids^2)~s(log_t0),data=pike_final)  ## p<0.001, under 1\% of
 fit = gam(abs(scaledResids)~s(log_t0),data = pike_final)  ## p<0.001, under 2\% of variance
 stopCluster(c1); 
  
+mfit = rsq.smooth.spline(pike_gau_pred[,1],pike_final$scaledResids) 
+mfit$rsq; mfit$adj.rsq; sd(mfit$yhat);  
+plot(pike_gau_pred[,1],pike_final$scaledResids)
+points(mfit$x,mfit$yhat,type="l",col="red",lty=1,lwd=2);  
+
+vfit = rsq.smooth.spline(pike_gau_pred[,1],abs(pike_final$scaledResids)) 
+vfit$rsq; vfit$adj.rsq; sd(vfit$yhat)/mean(vfit$yhat); 
+plot(pike_gau_pred[,1],abs(pike_final$scaledResids))
+points(vfit$x,vfit$yhat,type="l",col="blue",lty=1,lwd=2);  
+     
 ##############################################################
 # Back to Tom 
 ##############################################################
@@ -190,7 +200,7 @@ pike_shash_pred <- predict(pike_gam_shash,type="response")
 #points(pike_final$t0,predict(pike_gam_gamma,type="response")[,1],col="red")
 
 ## simulate data from fitted models
-n_sim<-10
+n_sim<-100
 ## four sets of simulated data!
 GAUsim_mean<-GAUsim_sd<-GAUsim_skew<-GAUsim_kurt<-matrix(NA,nrow=nrow(pike_final),ncol=n_sim)
 SHASHsim_mean<-SHASHsim_sd<-SHASHsim_skew<-SHASHsim_kurt<-matrix(NA,nrow=nrow(pike_final),ncol=n_sim)
@@ -263,6 +273,47 @@ q.95<-predict(qgam(log_t1~s(log_t0,k=4), data=pike_final,qu=0.95))
 ##########################################################################
 ## Plotting: comparison of simulation results with real data
 ##########################################################################
+
+pdf("manuscript/figures/pike_SHASH_fit.pdf",height = 8, width = 8, useDingbats = F)
+par(mfrow=c(2,2),mar=c(4,4,1,1),cex.lab=1.25,mgp=c(2.1,1,0))
+plot(pike_final$log_t0,Q.mean(q.25,q.50,q.75),type="n",
+     xlab="Size(t)",ylab="Mean size(t+1)",ylim=c(min(GAUsim_mean),max(SHASHsim_mean)+.1))
+abline(0,1,lty=2,col="gray")
+title(main="A",adj=0,font=3)
+matpoints(pike_final$log_t0,GAUsim_mean,col=alpha("tomato",0.25),type="l",lty=1)
+matpoints(pike_final$log_t0,.1+SHASHsim_mean,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+lines(pike_final$log_t0,Q.mean(q.25,q.50,q.75),col="black",lwd=2)
+lines(pike_final$log_t0,.1+Q.mean(q.25,q.50,q.75),col="black",lwd=2)
+legend("topleft",legend=c("Real data","Simulated from Gaussian",
+                          "Simulated from SHASH + offset"),
+       lty=1,col=c("black","tomato","cornflowerblue"),cex=0.9,bty="n")
+
+plot(pike_final$log_t0,Q.sd(q.25,q.75),type="n",
+     xlab="Size(t)",ylab="SD size(t+1)",ylim=c(min(GAUsim_sd),.1+max(SHASHsim_sd)))
+title(main="B",adj=0,font=3)
+matpoints(pike_final$log_t0,GAUsim_sd,col=alpha("tomato",0.25),type="l",lty=1)
+matpoints(pike_final$log_t0,.1+SHASHsim_sd,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+lines(pike_final$log_t0,Q.sd(q.25,q.75),col="black",lwd=2)
+lines(pike_final$log_t0,.1+Q.sd(q.25,q.75),col="black",lwd=2)
+
+plot(pike_final$log_t0,Q.skewness(q.10,q.50,q.90), type="n", 
+     xlab="Size(t)",ylab="Skewness size(t+1)",ylim=c(min(Q.skewness(q.10,q.50,q.90)),1+max(Q.skewness(q.10,q.50,q.90))))
+title(main="C",adj=0,font=3)
+matpoints(pike_final$log_t0,GAUsim_skew,col=alpha("tomato",0.25),type="l",lty=1)
+matpoints(pike_final$log_t0,1+SHASHsim_skew,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+lines(pike_final$log_t0,Q.skewness(q.10,q.50,q.90),col="black",lwd=2)
+lines(pike_final$log_t0,1+Q.skewness(q.10,q.50,q.90),col="black",lwd=2)
+
+plot(pike_final$log_t0,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
+     xlab="Size(t)",ylab="Kurtosis size(t+1)",ylim=c(min(Q.kurtosis(q.05,q.25,q.75,q.95)),1+max(Q.kurtosis(q.05,q.25,q.75,q.95))))
+title(main="D",adj=0,font=3)
+matpoints(pike_final$log_t0,GAUsim_kurt,col=alpha("tomato",0.25),type="l",lty=1)
+matpoints(pike_final$log_t0,1+SHASHsim_kurt,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+lines(pike_final$log_t0,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",lwd=2)
+lines(pike_final$log_t0,1+Q.kurtosis(q.05,q.25,q.75,q.95),col="black",lwd=2)
+dev.off()
+
+
 par(mfrow=c(2,2),mar=c(4,4,1,1),cex.axis=1.3,cex.lab=1.3,mgp=c(2.2,1,0))
 
 plot(pike_final$log_t0,Q.mean(q.25,q.50,q.75),type="n",
