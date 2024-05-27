@@ -63,6 +63,9 @@ pike_trans_year %>% filter(!is.na(t0) & !is.na(t1)) %>%
 plot(pike_final$t0,pike_final$t1)
 plot(pike_final$log_t0,pike_final$log_t1)
 abline(0,1)
+plot(pike_final$t0,pike_final$growth)
+plot(pike_final$log_t0,pike_final$log_growth)
+plot(sqrt(pike_final$t0),sqrt(pike_final$t1))
 
 ## pilot gaussian with mgcv
 ## I am using k=6 in the final SHASH model (see below) so keeping the same for pilot Gaussian
