@@ -45,7 +45,7 @@ Q.kurtosis<-function(q.05,q.25,q.75,q.95){
 #########################################################################
 fitGAU <- gam(list(logarea.t1~s(logarea.t0),~s(logarea.t0)), data=XH, gamma=1.4,family=gaulss())
 summary(fitGAU); plot(fitGAU); 
-sav
+
 ## the mean looks almost linear; is there evidence against this? 
 fitGAU0 <- gam(list(logarea.t1~logarea.t0,~s(logarea.t0)), data=XH, gamma=1.4, family=gaulss())
 AIC(fitGAU); AIC(fitGAU0); # yes, Delta AIC of about 9 in favor of the spline 
@@ -73,12 +73,12 @@ stopCluster(c1);
 
 ### No trend in mean  
 mfit = rsq.smooth.spline(XH$logarea.t0, XH$scaledResids) 
-mfit$rsq; mfit$adj.rsq
+mfit$rsq; mfit$adj.rsq; sd(mfit$yhat)
 
 
 ### No trend in variance 
 vfit = rsq.smooth.spline(XH$logarea.t0, abs(XH$scaledResids));  
-vfit$rsq; vfit$adj.rsq
+vfit$rsq; vfit$adj.rsq; sd(vfit$yhat)
 
 
 ## quantile regressions on stand resids
