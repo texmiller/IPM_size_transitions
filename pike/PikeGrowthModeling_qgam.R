@@ -1,6 +1,7 @@
 ## Purpose: analyze pike growth data and diagnose appropriate growth kernel
 ## Here using gam and qgam analysis of growth data and standardized residuals
 ## Author: Tom Miller (mash-up with code by Steve Ellner)
+rm(list=ls(all=TRUE))
 
 
 ### move to the right local directory 
