@@ -68,7 +68,7 @@ plot(pike_final$log_t0,pike_final$log_growth)
 plot(sqrt(pike_final$t0),sqrt(pike_final$t1))
 
 ## pilot gaussian with mgcv
-## I am using k=6 in the final SHASH model (see below) so keeping the same for pilot Gaussian
+## I am using k=5 in the final SHASH model (see below) so keeping the same for pilot Gaussian
 pike_gau<-gam(list(log_t1 ~ s(log_t0,k=5), ~s(log_t0,k=5)), data=pike_final, family=gaulss())
 pike_gau_pred<-predict(pike_gau,type="response")
 ## scale residuals by fitted sd
@@ -115,12 +115,38 @@ mfit = rsq.smooth.spline(pike_gau_pred[,1],pike_final$scaledResids)
 mfit$rsq; mfit$adj.rsq; sd(mfit$yhat);  
 plot(pike_gau_pred[,1],pike_final$scaledResids)
 points(mfit$x,mfit$yhat,type="l",col="red",lty=1,lwd=2);  
+title(paste("SD=",round(sd(mfit$yhat),3)))
 
 vfit = rsq.smooth.spline(pike_gau_pred[,1],abs(pike_final$scaledResids)) 
-vfit$rsq; vfit$adj.rsq; sd(vfit$yhat)/mean(vfit$yhat); 
+vfit$rsq; vfit$adj.rsq; sd(vfit$yhat); 
 plot(pike_gau_pred[,1],abs(pike_final$scaledResids))
 points(vfit$x,vfit$yhat,type="l",col="blue",lty=1,lwd=2);  
-     
+title(paste("SD=",round(sd(vfit$yhat),3)))
+
+#how much lower could I get sd(yhat) and rsq with higher basis number?
+sd_m<-sd_v<-c()
+rsq_m<-rsq_v<-c()
+for(k in 4:15){
+  pike_gau<-gam(list(log_t1 ~ s(log_t0,k=k), ~s(log_t0,k=k)), data=pike_final, family=gaulss())
+  pike_gau_pred<-predict(pike_gau,type="response")
+  ## scale residuals by fitted sd
+  fitted_sd<-1/pike_gau_pred[,2]
+  pike_final$scaledResids=residuals(pike_gau,type="response")/fitted_sd
+  mfit = rsq.smooth.spline(pike_gau_pred[,1],pike_final$scaledResids) 
+  vfit = rsq.smooth.spline(pike_gau_pred[,1],abs(pike_final$scaledResids)) 
+  sd_m[k-3]<-sd(mfit$yhat)
+  sd_v[k-3]<-sd(vfit$yhat)
+  rsq_m[k-3]<-mfit$rsq
+  rsq_v[k-3]<-vfit$rsq
+}
+
+plot(4:15,sd_m,xlab="Number of basis functions",ylab="SD",ylim=c(0,.2))
+points(4:15,sd_v,col="red")
+legend("topright",legend=c("mean","variance"),col=c("black","red"),pch=1)
+plot(4:15,rsq_m,xlab="Number of basis functions",ylab="Rsq")
+points(4:15,rsq_v,col="red")  
+
+
 ##############################################################
 # Back to Tom 
 ##############################################################
@@ -186,7 +212,7 @@ lines(size_dummy,dnorm(size_dummy,
 abline(v=pike_final$log_t0[nrow(pike_final)],col="blue")
 
 ## gonna try a gam shash (bc that's what's easy in mgcv)
-## k=6 gave better correspondence between real and sim data than k=4
+## k=5 gave better correspondence between real and sim data than k=4
 pike_gam_shash <- gam(list(log_t1 ~ s(log_t0,k=5), # <- model for location 
                            ~ s(log_t0,k=5),   # <- model for log-scale
                            ~ s(log_t0,k=5),   # <- model for skewness
