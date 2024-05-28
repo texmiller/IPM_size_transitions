@@ -1,6 +1,7 @@
 # purpose: assemble data figures and tables using data and model outputs 
 # combining multiple case studies
 library(xtable)
+library(oce)
 
 rm(list=ls(all=TRUE))
 require(scales); 
@@ -34,7 +35,7 @@ plot(lichen$lichen_grow$t0,lichen$lichen_grow$fitted_sd,col="blue3",type="l",lwd
 axis(side = 4, at = pretty(range(lichen$lichen_grow$fitted_sd)),cex.axis=0.8)
 mtext("Standard deviation", side = 4, line = 2,cex=0.7)
 legend("topleft",legend=c("Fitted mean","Fitted sd"),bg="white",lwd=1.5,col=c("red3","blue3"),cex=0.8)
-title("A",font=3,adj=0)
+title("A - lichen",font=3,adj=0)
 
 plot(lichen$lichen_grow$t0,lichen$lichen_grow$scaledResids,col=alpha("black",alpha_val),cex.axis=0.8,
      xlab=" ",ylab=" ")
@@ -67,7 +68,7 @@ plot(cactus$cactus_grow$logvol_t,cactus$cactus_grow$fitted_sd,col="blue3",lwd=2,
      axes = FALSE, xlab = "", ylab = "",type="l")
 axis(side = 4, at = pretty(range(cactus$cactus_grow$fitted_sd)))
 mtext("Standard deviation", side = 4, line = 2,cex=0.7)
-title("C",font=3,adj=0)
+title("C - cactus",font=3,adj=0)
 
 plot(cactus$cactus_grow$logvol_t,cactus$cactus_grow$scaledResids,col=alpha("black",alpha_val),
      xlab=" ",ylab=" ")
@@ -109,7 +110,7 @@ plotInset(2.5, 0.25, 7, 2,
                       ylab = "Std Dev",cex.lab=0.8,
                       cex.axis = 0.5, mgp = c(3/2, 1/2, 0)),
           mar = c(0, 3, 0, 0))
-title("E",font=3,adj=0)
+title("E - orchid",font=3,adj=0)
 
 plot(orchid$orchid_grow$GAU_fitted,orchid$orchid_grow$GAU_scaled_resids,
      col=alpha("black",alpha_val),xlab=" ",ylab=" ")
