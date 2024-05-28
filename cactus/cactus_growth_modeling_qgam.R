@@ -539,7 +539,7 @@ axis(1,at=1:11,labels=1:11)
 points(as.numeric(studyplots),lambda_p_SHASH[as.numeric(studyplots)],col=alpha(cols[1],0.85),pch=16,type="p",cex=1.5)
 points(as.numeric(studyplots),lambda_p_GAU[as.numeric(studyplots)],col=alpha(cols[5],0.85),pch=16,type="p",cex=1.5)
 title("B",adj=0,font=3)
-legend("topleft",legend=c("SHASH","Gaussian"),title="Growth function:",
+legend("bottomleft",legend=c("SHASH","Gaussian"),title="Growth function:",
        pch=16,col=cols[c(1,5)],bty="n")
 box()
 dev.off()
