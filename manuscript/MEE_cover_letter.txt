@@ -1,0 +1,15 @@
+To the editorial board:
+
+We are pleased to submit our manuscript for your consideration. In it we provide a practical guide to modeling size transitions for Integral Projection Model (IPM) applications, with the goal of advancing the field beyond out-dated standards of analysis. 
+
+IPMs are widely used in ecology, evolution, and conservation biology to study the dynamics of populations structured by continuous state variables, most commonly size. The size transition sub-model of IPMs is typically assumed to follow a Gaussian distribution of future size conditional on current size. However, real size transition data is commonly skewed and/or leptokurtic -- properties that violate Gaussian assumptions. The question we address here is: how can ecologists escape the apparent trade-off between realistically capturing the variance, skew, and kurtosis of size transition data on the one hand, and flexibly including the multiple covariates and random effects that often have substantial impacts on demographic rates?  In this article, we offer an answer. 
+
+We describe a pratical and general workflow of growth modeling based on visually intuitive diagnostics. From a pilot Gaussian model, this approach provides criteria to evaluate whether the pilot model is adequate and to select a more appropriate alternative, if needed. We illustrate our approach with worked examples that revisit published IPM studies, including our own, where Gaussian assumptions do not stand up to scrutiny. 
+
+None of the tools we use here are new, but they have been slow to trickle into demography and population biology. We hope that this paper will encourage IPM analysts to abandon default (and usually bad) assumptions of growth modeling so that a more inquisitive process can take its place, resulting in a model that is truer to the population for which it is intended. 
+
+All of our data and code are publicly available on Github and in published data packages, as described in our Data Accessibility Statement. We opt out of double-blind review. 
+
+Sincerely,
+Tom Miller
+Steve Ellner
