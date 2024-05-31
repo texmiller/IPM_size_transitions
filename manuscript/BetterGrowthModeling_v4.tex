@@ -510,8 +510,7 @@ fitGAU <- gam(list(t1 ~ s(t0,k=4) + s(plot,bs="re") + s(year,bs="re"),
 \end{lstlisting}
 The growth variance is estimated to peak at small to medium sizes (Fig. \ref{fig:resid_diagnostics}C). 
 \new{Here we define the standard deviation with $k=6$ basis functions because, in preliminary analysis, we found a moderate variance trend in the standardized residuals using $k=4$. 
-We were able to remedy the issue by providing greater flexibility for the model to fit size-dependent variance. 
-With this revision, spline regression detected essentially no trend in the mean of the resulting standardized residuals, and only a small amount of variation in the variance (Fig. \ref{fig:diagnose_pilot}C,D).}
+With this greater flexibility to fit size-dependent variance, spline regression detected essentially no trend in the mean of the resulting standardized residuals, and only a small amount of variation in the variance (Fig. \ref{fig:diagnose_pilot}C,D).}
 
 The standardized residuals show clear signals of negative skew and positive excess kurtosis across most of the size distribution but strongest in the middle of the size distribution (Fig. \ref{fig:resid_diagnostics}D).
 So to better capture size transitions, we need a distribution with negative skew and positive excess kurtosis, both of which may be negligible at some sizes.
@@ -716,7 +715,7 @@ Such models must define distributions of future infection load conditional on cu
 From the outset there have been concerns about ``how well these methods [IPM growth kernels] can deal with different patterns of growth, stasis, and shrinkage'' \citep[][p. 200]{morris-doak-2002}, compared to ``binning'' methods that use observed transition frequencies between user-defined size classes as the transition probabilities in a (possibly large) matrix model \citep{doak-critical-2021}. 
 The non-Gaussian models that we have considered here are not a panacea. 
 For example, none of them allow bimodal growth, such as might occur if herbivore- or pathogen-attached individuals experience rapid tissue loss. 
-When the shape of the growth distribution is \tom{roughly constant}{I don't know what you mean by ``constant'' here. Constant with respect to what?}, a nonparametric IPM growth kernel can be defined from a kernel density estimate for scaled residuals \citep[][p. 288]{ellner-etal-2016}. 
+When the shape of the growth distribution is \new{nearly the same for all initial sizes}, a nonparametric IPM growth kernel can be defined from a kernel density estimate for scaled residuals \citep[][p. 288]{ellner-etal-2016}. 
 Outside that special situation, nonparametric approaches require choosing multiple smoothing parameters, which is very challenging. 
 We are currently exploring whether ``targeted learning'' approaches developed for causal inference \citep{vande-rose-2011} can be used to circumvent smoothing parameter selection. 
 Targeted learning starts with a pilot model and updates it iteratively to achieve unbiased estimates and valid confidence intervals for a particular ``target'' quantity, such as $\lambda$ or mean lifespan. 
