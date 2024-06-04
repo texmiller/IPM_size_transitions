@@ -56,30 +56,21 @@ AIC(fitGAU); AIC(fitGAU00);  # Delta AIC < 2, so perhaps weak evidence
 
 ## proceeding with fitGAU as "best" Gaussian model
 fitted_sd<-1/predict(fitGAU,type="response")[,2]
-XH$scaledResids=residuals(fitGAU,type="response")/fitted_sd
+fitGAU$scaledResids = XH$scaledResids=residuals(fitGAU,type="response")/fitted_sd
+fitGAU$fitted = predict(fitGAU,type="response")[,1]
+
+saveRDS(fitGAU,file="Akumal_corals.rds"); 
 
 ################# Test for non-constant variance 
 source("../code/variance_diagnostics.R"); 
-
-stopCluster(c1); 
-c1<- makeCluster(8); 
-registerDoParallel(c1);
-
-R = 2500; 
-out_levene = multiple_levene_test(XH$logarea.t0, XH$scaledResids, 3, 8, R)  ## p = 0.56
-out_ss = ss_test(XH$logarea.t0, XH$scaledResids, R) ## p = 0.55; 
-stopCluster(c1); 
-
 
 ### No trend in mean  
 mfit = rsq.smooth.spline(XH$logarea.t0, XH$scaledResids) 
 mfit$rsq; mfit$adj.rsq; sd(mfit$yhat)
 
-
 ### No trend in variance 
 vfit = rsq.smooth.spline(XH$logarea.t0, abs(XH$scaledResids));  
 vfit$rsq; vfit$adj.rsq; sd(vfit$yhat)
-
 
 ## quantile regressions on stand resids
 S.05<-qgam(scaledResids~s(logarea.t0,k=4), data=XH,qu=0.05)

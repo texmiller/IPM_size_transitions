@@ -1,10 +1,10 @@
 # purpose: assemble data figures and tables using data and model outputs 
 # combining multiple case studies
-library(xtable)
-library(oce)
+
 
 rm(list=ls(all=TRUE))
-require(scales); 
+require(scales); library(xtable)
+library(oce); library(lme4) 
 
 tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
 steve = "c:/repos/IPM_size_transitions" 
