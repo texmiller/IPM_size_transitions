@@ -3,7 +3,6 @@
 ## Author: Tom Miller (mash-up with code by Steve Ellner)
 rm(list=ls(all=TRUE))
 
-
 ### move to the right local directory 
 tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
 steve = "c:/repos/IPM_size_transitions" 
@@ -74,7 +73,10 @@ pike_gau<-gam(list(log_t1 ~ s(log_t0,k=5), ~s(log_t0,k=5)), data=pike_final, fam
 pike_gau_pred<-predict(pike_gau,type="response")
 ## scale residuals by fitted sd
 fitted_sd<-1/pike_gau_pred[,2]
-pike_final$scaledResids=residuals(pike_gau,type="response")/fitted_sd
+
+pike_gau$scaledResids = pike_final$scaledResids=residuals(pike_gau,type="response")/fitted_sd
+pike_gau$fitted = pike_gau_pred[,1];
+
 
 ## residuals should have mean zero, unit variance...
 ## ...in aggregate
@@ -87,6 +89,7 @@ pike_final %>%
             sd_stdresid = sd(scaledResids))
 ## not too bad
   
+saveRDS(pike_gau,file="pike/pike_Gau_pilot.rds");  
 
 ##############################################################
 # Steve interposes: test for constant variance 

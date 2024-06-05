@@ -974,24 +974,17 @@ The mean and standard deviation are both fitted as smoothing spline functions of
 Fig. \ref{fig:coral_diagnostics}A shows the log-transformed data and Gaussian model. 
 The mean function (solid red curve) is visually nearly linear, but the fitted spline is strongly favored over a linear model for the mean ($\Delta AIC \approx 9$). 
 The spline for standard deviation $\sigma$ versus initial size reflects the evident greater variability in growth at smaller sizes.  
-%\new{We find no evidence of non-constant variance in the scaled residuals (Multiple Levene test $p=0.56$, Smoothing spline test 
-%$p = 0.55$, $R=2500$ randomizations.} 
-Spline regression did not detect any trends in the mean or variance of scaled residuals (R script \texttt{crosssp\_diagnose\_pilot.R}; see Fig. \ref{fig:diagnose_pilot_supplement}. 
+Spline regression found only very small trends in the mean or variance of scaled residuals (R script \texttt{crosssp\_diagnose\_pilot.R}; see Fig. \ref{fig:diagnose_pilot_supplement}A,B). 
 
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=0.95\textwidth]{figures/diagnose_pilot_supplement.pdf}
-	\caption{Diagnostic plot for trends in the mean (left column) or variance (right column) of scaled residuals from a pilot Gaussian model, for the sea fan corals \textbf{A,B}, 
-	AND SOME OTHER case studies. 
+	\caption{Diagnostic plot for trends in the mean (left column) or variance (right column) of scaled residuals from a pilot Gaussian model, for the sea fan corals \textbf{A,B}, creosote bush \textbf{C,D}, and pike \textbf{E,F}. 
 In \textbf{A,C,E} the standardized residuals are plotted, and in \textbf{B,D,F} the absolute values of
 standardized residuals, as functions of fitted mean subsequent size values. The solid curves are cubic splines (R function \texttt{smooth.spline}) fitted by generalized cross-validation with a modest over-penalization of model degrees of freedom to prevent overfitting (\texttt{penalty}=1.4 as recommended by \citet{gu-2002}). The numbers appearing above each panel are the standard deviation of the values on the spline regression curve, evaluated at all of the 
 fitted values. Figure made by script \texttt{crossspp\_diagnose\_pilot.R}.}
 \label{fig:diagnose_pilot_supplement}
 \end{figure}
-
-
-
-
 
 
 \begin{figure}[tbp]
@@ -1088,7 +1081,12 @@ We used the \texttt{gaulss} family and, as a starting point, fit a constant stan
 	s(dens_scaled,k=4) + s(unique.transect,bs="re"),~1), 
 	family="gaulss", data=LATR_grow, method="ML",gamma=1.4) 
 \end{lstlisting}
-Using the fitted values from this initial model, we updated the standard deviation to be a smooth function of fitted values, and iterated the fitting until the weights stopped changing, following the same steps as in the orchid case study. 
+Using the fitted values from this initial model, we updated the standard deviation function to be a smooth function of fitted values, and iterated the fitting until the weights stopped changing, following the same steps as in the orchid case study. As
+with tree cholla cactus, the standard deviation function required $k=6$ basis functions to pass our graphical 
+diagnostic (Fig. \ref{fig:diagnose_pilot_supplement}C,D). The remaining small, nearly linear trend in the scale of
+standardized residuals (Fig. \ref{fig:diagnose_pilot_supplement}D) is not improved by using $k=8$ basis functions, 
+and appears to be driven by high leverage points in a region of relatively sparse data, so we did not attempt
+to further improve the pilot model. 
 
 \begin{figure}[tbp]
 	\centering
@@ -1096,7 +1094,6 @@ Using the fitted values from this initial model, we updated the standard deviati
 	\caption{\textbf{A}, Creosotebush size transition data with respect to initial size (colors) and local weighted density (sum of sizes of all plants within a five-meter transect window). Size is quantified as the natural logarithm of plant volume ($cm^3$). \textbf{B}, Standard deviation of size at time $t+1$ as a function of expected size at $t+1$ (the fitted values), estimated by iterative re-weighting. \textbf{C}, Quantile regressions of scaled residuals on size and nonparametric estimates of skewness (blue) and excess kurtosis (red) derived from them. Black lines in \textbf{C} show the 5th, 10th, 25th, 50th, 75th, 90th, and 95th quantiles. All figures made by script \texttt{creosote\_growth\_modeling.R}.}
 	\label{fig:creosote_diagnostics}
 \end{figure} 
-
 The resulting Gaussian growth model predicts strong initial size-dependence and weak and slightly nonlinear (but monotonic) negative density dependence (Fig. \ref{fig:creosote_diagnostics}A). 
 The model indicates non-constant variance, with greater dispersion at smaller sizes (Fig. \ref{fig:creosote_diagnostics}B). 
 
@@ -1157,7 +1154,7 @@ Here, we do not attempt to reproduce the published IPMs but rather use the growt
 
 With no additional covariates or random effects, this is a simple growth model of final size conditional on initial size. 
 We use the natural log of length. 
-Our first step was a Gaussian model of $log(length)$ where the mean and standard deviation are smooth functions of initial size fit using the \texttt{gaulss()} family in \textbf{mgcv}. 
+Our first step was a Gaussian model of $\log(length)$ where the mean and standard deviation are smooth functions of initial size fit using the \texttt{gaulss()} family in \textbf{mgcv}. 
 We then derive the scaled residuals from the fitted mean and standard deviation:
 \begin{lstlisting}
 # pike is the data frame
@@ -1168,11 +1165,16 @@ pike$fitted_mean<-pike_gau_pred,1
 pike$fitted_sd<-1/pike_gau_pred[,2]
 pike$scaledResids=residuals(pike_gau,type="response")/fitted_sd
 \end{lstlisting}
-Based on preliminary fits we found that a basis function number of $k=5$ was necessary to minimize variance trends in the standardized residuals. 
-Nonetheless, with the very large sample size, we once again found evidence ($p<0.001$, Multiple Bartlett and Multiple B-spline tests) for a minuscule variance trend, that accounted for under 1\% of the variance in squared or absolute scaled residuals as a function of initial size or predicted subsequent size; R script
-\texttt{PikeGrowthModeling\_qgam.R}. 
+Based on preliminary fits we found that a basis function number of $k=5$ was necessary to minimize variance trends in the standardized residuals. \new{Even so, because of the very large sample size, our graphical diagnostics for the
+pilot mean and standard deviation functions (Fig. \ref{fig:diagnose_pilot_supplement}E,F) detected small-scale 
+deviations from constant mean and variance. Note that individual sizes in this study were recorded somewhat coarsely 
+(nearest 1cm). That accounts for the striking visual patterns in the scaled residuals, and probably also 
+accounts for the small-scale patterns in the diagnostic regression curves (Fig. \ref{fig:diagnose_pilot_supplement}E,F). 
+In order to remove the small-scale wiggles in the diagnostic splines, we would have to introduce
+small-scale wiggles in the mean and variance functions, which are unlikely to be real features of pike growth
+trajectories. So while we are not entirely satisfied with our pilot model, we see no way to improve it.} 
 
-Growth variance strongly decreased with initial size and size transitions were strongly positively skewed, with up to a 75\% difference in tail weight at small sizes (Fig. \ref{fig:pike_diagnostics}B). 
+The estimate growth variance strongly decreased with initial size, and size transitions were strongly positively skewed, with up to a 75\% difference in tail weight at small sizes (Fig. \ref{fig:pike_diagnostics}B). 
 Size transitions were fat-tailed at small initial sizes but were consistent with Gaussian tails at large initial sizes. 
 
 \begin{figure}[tbp]
@@ -1182,7 +1184,6 @@ Size transitions were fat-tailed at small initial sizes but were consistent with
 	\label{fig:pike_diagnostics}
 \end{figure} 
 
-
 Our improved growth model was a SHASH gam that defined all four parameters as smooth functions of initial size.
 \begin{lstlisting}
 pike_gam_shash <- gam(list(t1 ~ s(t0,k=5), # <- model for location 
@@ -1191,7 +1192,7 @@ pike_gam_shash <- gam(list(t1 ~ s(t0,k=5), # <- model for location
 	~ s(t0,k=5)), # <- model for log-kurtosis
 	data = pike, family = shash,  optimizer = "efs")
 \end{lstlisting}
-We also tried gamma regression on the change in size, to ensure strictly increasing size transitions, but found that this was not necessary to prevent shrinkage and did not provide as good a fit as the SHASH. 
+We also tried gamma regression on the change in size, to ensure strictly increasing size transitions, but found that this was not actually necessary to prevent shrinkage and did not provide as good a fit as the SHASH. 
 Data simulated from the SHASH and Gaussian models are shown in Fig. \ref{fig:pikeSims}. 
 The SHASH is an improvement over the Gaussian for most initial sizes. 
 It fails to capture kurtosis of the largest fish, but that will have little effect because the fitted mean and standard deviation imply, correctly, that those

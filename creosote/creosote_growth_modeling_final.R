@@ -93,6 +93,8 @@ LATR_grow$GAU_scaled_resids <- residuals(LATR_GAU_best,type="pearson")
 ## should be mean zero unit variance
 mean(LATR_grow$GAU_scaled_resids);sd(LATR_grow$GAU_scaled_resids)
 
+saveRDS(LATR_grow,file="creosote_Gau_pilot.rds"); 
+
 ##are the standardized residuals gaussian? -- no
 jarque.test(LATR_grow$GAU_scaled_resids) # normality test: FAILS, P < 0.001 
 anscombe.test(LATR_grow$GAU_scaled_resids) # kurtosis: FAILS, P < 0.001 
@@ -209,6 +211,9 @@ mtext("Skewness", side = 4, line = 2,col="blue",cex=0.7)
 mtext("Excess Kurtosis", side = 4, line =3,col="red",cex=0.7)
 title("C",adj=0,font=3)
 dev.off()
+
+
+
 
 ## based on these results I will fit a JSU distribution to the residuals
 ## will need to fit variance, skew, and kurtosis as functions of the mean
