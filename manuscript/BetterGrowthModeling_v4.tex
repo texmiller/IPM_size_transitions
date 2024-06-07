@@ -13,7 +13,8 @@
 \setlist{topsep=.125em,itemsep=-0.15em,leftmargin=0.75cm}
 \setlength{\parindent}{0.35in}
 
-\usepackage[sc]{mathpazo} %Like Palatino with extensive math support
+% \usepackage[sc]{mathpazo} %Like Palatino with extensive math support
+\usepackage{mathptmx} %Like Palatino with extensive math support
 \usepackage[nodisplayskipstretch]{setspace} 
 \usepackage[subtle]{savetrees}
 
@@ -67,15 +68,7 @@ deletekeywords={on,by,data,R,Q,mean,var,sd,log,family,na,options,q,weights,effec
 \DeclareGraphicsExtensions{.eps}
 \fi
 
-\DeclareMathOperator{\Ex}{\mathbb{E}}
-\DeclareMathOperator{\var}{\textit{Var}}
-\DeclareMathOperator{\cov}{\textit{Cov}}
-
-
 %%%%%%%%% Macros to simplify using our notation 
-\newcommand{\s}[1]{{#1}^{\#}}
-\newcommand{\f}[1]{{#1}^{\flat}}
-\newcommand{\sr}[1]{{#1}^{*}}
 \newcommand{\br}[1]{\langle {#1} \rangle} 
 \newcommand{\bs}{\backslash} 
 \def\alphat{\widetilde{\alpha}}
@@ -97,7 +90,7 @@ deletekeywords={on,by,data,R,Q,mean,var,sd,log,family,na,options,q,weights,effec
 
 \newcommand{\red}{\textcolor{red}}
 
-\title{My, how you've grown: a practical guide to modeling size transitions for Integral Projection Model (IPM) applications}
+\title{My, how you've grown: \\ A practical guide to modeling size transitions \\ for Integral Projection Model (IPM) applications}
 
 \author[a]{Tom E.X. Miller\thanks{Corresponding author. Department of BioSciences, Rice University,
 Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
@@ -136,19 +129,19 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 %350 word limit on abstract, must be numbered 1-4
 
 %TC:ignore
-\section{Abstract} 
+\noindent 
+\textbf{\large{Abstract}} 
 
 \begin{enumerate}
 	\item Integral Projection Models (IPMs) are widely used for studying the dynamics of continuously size-structured populations. IPMs require a growth sub-model that describes the probability distribution of future size conditional on current size and any covariates. Over the past two decades, most IPM studies have assumed that this distribution is Gaussian, despite repeated calls for non-Gaussian models that accommodate the skewness and kurtosis known to occur in size transition data. %set the context for and purpose of the work
-	\item We provide a general approach to modeling size transitions that accommodates non-Gaussian growth patterns while retaining the desirable features that Gaussian approaches typically provide: ecologically important covariates and random effects. Our approach emphasizes visual diagnostics of residuals from pilot Gaussian models and quantile-based metrics of skewness and kurtosis that vet the fit of the Gaussian distribution and guide selection of an alternative, if necessary. We illustrate our methods by reanalyzing size transition data from published IPM studies, targeting a diversity of demographic quantities including population growth rate, extinction risk, and evolutionarily stable life history strategies. %indicate the approach and methods
+	\item We provide a general approach for modeling size transitions that accommodates non-Gaussian growth patterns while retaining the desirable features that Gaussian approaches typically provide: ecologically important covariates and random effects. Our approach emphasizes visual diagnostics of residuals from pilot Gaussian models and quantile-based metrics of skewness and kurtosis that vet the fit of the Gaussian distribution and guide selection of an alternative, if necessary. We illustrate our methods by reanalyzing size transition data from published IPM studies, targeting a diversity of demographic quantities including population growth rate, extinction risk, and evolutionarily stable life history strategies. %indicate the approach and methods
 	\item Across five case studies, skewness and excess kurtosis were common features of size transition data and non-Gaussian growth models consistently generated simulated data that were more consistent with the real data than pilot Gaussian models. However, in these case studies, the effects of ``improved'' growth modeling on IPM results were moderate to weak, and differed in direction or magnitude between different outputs from the same model. 
 	\item Using tools that were not available when IPMs were first developed, it is now possible to fit non-Gaussian models to size transition data without sacrificing ecological complexity; our worked examples demonstrate how, including open-access data and computing scripts. Doing so, as guided by careful interrogation of the data, will result in models that better represent the populations for which they are intended. %identify the conclusions and the wider implications
 \end{enumerate}
 
-
 %alphabetical order not exceeding eight words or short phrases
-\subsection*{Keywords}
-demography; growth; integral projection model; kurtosis; skewness
+\noindent 
+\textbf{Keywords}: demography; growth; integral projection model; kurtosis; skewness
 
 %TC:endignore
 
@@ -249,8 +242,8 @@ In our case studies we exploit the many distributions in the \textbf{gamlss} R p
 
 \item \textit{Refit the growth model using the chosen distribution.}
 \\
-In models with multiple covariates and/or random effects, each potentially affecting several distribution parameters in different ways, ``refit the model'' could entail a massive model selection process to identify the ``right'' or ``best'' non-Gaussian model. 
-And with so many options, model uncertainty may be overwhelming and over-fitting becomes a significant risk even when precautions against it are taken. 
+In models with multiple covariates and/or random effects, each potentially affecting several distribution parameters, ``refit the model'' could entail a massive model selection process to identify the ``best'' non-Gaussian model. 
+With so many options, model uncertainty may be overwhelming and over-fitting becomes a significant risk even when precautions against it are taken. 
 
 We therefore argue for adopting a more modest goal: remedy the defects evident in the standardized residuals of the Gaussian model. 
 This recommendation is based on the finding that parameter estimation using Gaussian regression models is generally robust to deviations from normality of the residuals \citep{schielzeth2020robustness}. 
@@ -283,10 +276,7 @@ except for the skewed generalized $t$, which is available in the package \textbf
 \section{How should skewness and kurtosis be measured?}
 \label{sec:NPmeasures} 
 Non-Gaussian growth modeling requires scrutinizing the skewness and kurtosis of standardized residuals, so measurement of these properties warrants attention. 
-The standard measures are based on the third and fourth central moments, respectively, of the distribution: 
-\be
-\mbox{Skewness} = \frac{m_3}{\sigma^3}, \quad \mbox{Excess kurtosis} = \frac{m_4}{\sigma^4}-3
-\ee
+The standard measures are based on the third and fourth central moments, respectively, of the distribution: skewness = $m_3/\sigma^3$, excess kurtosis = $m_4/\sigma^4-3$
 where $m_k = \mathbb{E}(X - \bar{X})^k$ is the $k^{th}$ central moment of a random variable $X$ and $\sigma^2$ is the variance (second central moment). 
 A Gaussian distribution has zero skewness and zero excess kurtosis. 
 
