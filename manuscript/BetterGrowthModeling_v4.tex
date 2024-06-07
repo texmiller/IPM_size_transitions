@@ -191,16 +191,16 @@ We are guilty of this, ourselves.
 
 The persistence of Gaussian growth models is understandable. 
 %The Gaussian is the maximum entropy distribution for real-valued observations with finite variance. 
-There is a long tradition of statistical modeling built on the assumption of normally distributed residuals with constant variance.
+% There is a long tradition of statistical modeling built on the assumption of normally distributed residuals with constant variance.
 Popular pacakges such as lme4 \citep{bates2007lme4}, mgcv \citep{wood-2017}, and MCMCglmm \citep{hadfield2010mcmc} make it easy to fit growth models with potentially complex fixed- and random-effect structures, but the possible distributions of continuous responses are limited, and default to Gaussian. 
-Abandoning these convenient tools for the sake of more flexible growth modeling means, it may seem, sacrificing the flexibility to rigorously model diverse and potentially complex sources of variation in growth, some of which may be the motivation driving the study in the first place.
+Abandoning these convenient tools for the sake of more flexible growth modeling means, it may seem, sacrificing the flexibility to model diverse sources of demographic variation, some of which may be the motivation driving the study in the first place.
 
-Our goal here is to present and illustrate a general practical ``recipe'' that moves growth modeling past the standards set over 20 years ago. 
-Using software tools that are now readily accessible, we believe that ecologists can escape the apparent trade-off between realistically modeling non-Gaussian size transition data, and flexibly including the multiple covariates and random effects that often have substantial impacts on demographic rates.\footnote{Our statements about software availability are based on what current software reliably delivers in our personal experience, not on what they promise.} 
-Like any recipe, users may need to make substitutions or add ingredients to suit their needs. 
+Our goal here is to present and illustrate a practical ``recipe'' that moves growth modeling past the standards set over 20 years ago. 
+Using software tools that are now readily accessible, we believe that ecologists can escape the apparent trade-off between realistically modeling non-Gaussian size transitions, and flexibly including the multiple covariates and random effects that often have substantial impacts on demographic rates.\footnote{Our statements about software availability are based on what current software reliably delivers in our personal experience, not on what they promise.} 
+As with any recipe, users may need to make substitutions or add ingredients to suit their needs. 
 We emphasize graphical diagnostics for developing and evaluating growth models, rather than a process centered on statistical model selection. 
 Through empirical case studies we demonstrate how a simple workflow, using tools that were nonexistent or not readily available when IPMs first came into use, makes it straightforward and relatively easy to identify when the default model is a poor fit to the data, and to then choose and fit a better growth model that is no harder to use in practice. 
-We illustrate our approach with three published case studies (and two additional case studies in the Appendix), including data from our own previous work.
+We illustrate our approach with three published case studies (and two additional case studies in the Appendix), including examples from our own previous work.
 In each case, the Gaussian assumption does not stand up to close scrutiny. 
 We illustrate how we could have done better, and the consequences of ``doing better'' for our ecological inferences. 
 All analyses were carried out in R \citep{r-core} version 4.0 or higher and may be reproduced from publicly available code and data (see \emph{Data Accessibility Statement}). 
@@ -225,13 +225,13 @@ In particular, log-transformation often reduces or eliminates heteroskedasticity
 and also helps avoid eviction at small sizes \citep{williams2012avoiding}. 
 
 The fitted mean and variance functions should be checked before going any further. 
-If they are perfectly accurate, the standardized residuals (residuals scaled by the standard deviation) will have zero mean and unit variance, and will exhibit no trends as a function of original size or fitted mean values. 
+If they are perfectly accurate, standardized residuals (residuals scaled by the standard deviation) will have zero mean and unit variance, and will exhibit no trends as a function of original size or fitted mean values. 
 However, good estimates of the mean and variance functions are somewhat smoothed because of the inescapable bias-variance tradeoff,  
-so scaled residuals will retain some variation in location (nearly but not exactly zero) and scale (nearly but not exactly one). 
-Given enough data, statistical tests will detect that variation and reject the mean and variance functions. 
+so scaled residuals will retain some variation in location and scale. 
+Given enough data, statistical tests will detect that variation.  
 So instead, we take for granted the presence of trends in mean and variance, and assess their importance by fitting nonparametric spline regression models for residuals (trend in mean) and absolute residuals (trend in variance) as a function of initial size or fitted value. 
 The mean and variance functions can be accepted if the regression curves for the scaled residuals are nearly flat. 
-If the scaled residuals exhibit a significant trend in mean or variance with respect to initial size or fitted value, the pilot Gaussian model should be revised until that trend disappears. 
+Otherwise, the pilot Gaussian model should be revised until trends in mean or variance disappear. 
 % We illustrate such ``revisions'' in the case studies below. 
 
 \item \textit{Use statistical and graphical diagnostics to identify if and how the standardized residuals deviate 
@@ -244,15 +244,15 @@ Growth data may deviate from Gaussian in many ways, and the nature of the deviat
 Tests such as the D'Agostino test of skewness \citep{d1970transformation} and the Anscombe-Glynn test of kurtosis \citep{anscombe1983distribution} 
 can be used to diagnose whether the standardized residuals, in aggregate, deviate from normality \citep{komsta2015moments}. 
 However, the aggregate distribution may be misleading if skewness or kurtosis vary with size or other covariates. 
-A change from positive skewness at small sizes to negative skewness at large sizes might produce zero overall skewness, but really requires a distribution family that can allow both positive and negative skew, such as the skewed Normal or Johnson $S_{U}$ distributions. 
-Alternatively, growth data may lack skew but may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
+Data changing from positive skewness at small sizes to negative skewness at large sizes might produce zero overall skewness, but really requires a distribution family that can allow both positive and negative skew, such as the skewed Normal or Johnson $S_{U}$ distributions. 
+Alternatively, growth data may exhibit leptokurtosis (in which case the $t$ distribution may be a good choice) or may shift from platykurtosis to leptokurtosis depending on initial size (in which case the power exponential distribution may be a good choice). 
 It is therefore essential to visualize trends in distribution properties with respect to either initial size, or expected future size for models with multiple covariates.  
 Fig. \ref{fig:workflow} includes guidance on how the skew and kurtosis properties of the standardized residuals suggest options for an appropriate growth distribution. 
-In our case studies we exploit the many distributions provided in the \textbf{gamlss} R package \citep{stasinopoulos2007generalized}, but any other distribution families with the necessary properties can be used.  
+In our case studies we exploit the many distributions in the \textbf{gamlss} R package \citep{stasinopoulos2007generalized}, but any other distribution families with the necessary properties can be used.  
 
 \item \textit{Refit the growth model using the chosen distribution.}
 \\
-In models with multiple covariates and/or random effects, each potentially affecting several distribution parameters (location, scale, skew, kurtosis) in different ways, ``refit the model'' could entail a massive model selection process to identify the ``right'' or ``best'' non-Gaussian model. 
+In models with multiple covariates and/or random effects, each potentially affecting several distribution parameters in different ways, ``refit the model'' could entail a massive model selection process to identify the ``right'' or ``best'' non-Gaussian model. 
 And with so many options, model uncertainty may be overwhelming and over-fitting becomes a significant risk even when precautions against it are taken. 
 
 We therefore argue for adopting a more modest goal: remedy the evident defects in the standardized residuals of the Gaussian model. 
