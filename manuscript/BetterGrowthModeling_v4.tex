@@ -131,13 +131,17 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 %TC:ignore
 \noindent 
 \textbf{\large{Abstract}} 
+% ESA Statistical Report limit: 200 words
 
-\begin{enumerate}
-	\item Integral Projection Models (IPMs) are widely used for studying the dynamics of continuously size-structured populations. IPMs require a growth sub-model that describes the probability distribution of future size conditional on current size and any covariates. Over the past two decades, most IPM studies have assumed that this distribution is Gaussian, despite repeated calls for non-Gaussian models that accommodate the skewness and kurtosis known to occur in size transition data. %set the context for and purpose of the work
-	\item We provide a general approach for modeling size transitions that accommodates non-Gaussian growth patterns while retaining the desirable features that Gaussian approaches typically provide: ecologically important covariates and random effects. Our approach emphasizes visual diagnostics of residuals from pilot Gaussian models and quantile-based metrics of skewness and kurtosis that vet the fit of the Gaussian distribution and guide selection of an alternative, if necessary. We illustrate our methods by reanalyzing size transition data from published IPM studies, targeting a diversity of demographic quantities including population growth rate, extinction risk, and evolutionarily stable life history strategies. %indicate the approach and methods
-	\item Across five case studies, skewness and excess kurtosis were common features of size transition data and non-Gaussian growth models consistently generated simulated data that were more consistent with the real data than pilot Gaussian models. However, in these case studies, the effects of ``improved'' growth modeling on IPM results were moderate to weak, and differed in direction or magnitude between different outputs from the same model. 
-	\item Using tools that were not available when IPMs were first developed, it is now possible to fit non-Gaussian models to size transition data without sacrificing ecological complexity; our worked examples demonstrate how, including open-access data and computing scripts. Doing so, as guided by careful interrogation of the data, will result in models that better represent the populations for which they are intended. %identify the conclusions and the wider implications
-\end{enumerate}
+Integral Projection Models (IPMs) are widely used for studying continuously size-structured populations. 
+IPMs require a growth sub-model that describes the probability of future size conditional on current size and any covariates. 
+Most IPM studies assume that this distribution is Gaussian, despite calls for non-Gaussian models that accommodate skewness and excess kurtosis. 
+We provide a general workflow for accommodating non-Gaussian growth patterns while retaining important covariates and random effects. 
+Our approach emphasizes visual diagnostics from pilot Gaussian models and quantile-based metrics of skewness and kurtosis that guide selection of a non-Gaussian alternative, if necessary. 
+Across five case studies, skewness and excess kurtosis were common features of growth data and non-Gaussian models consistently generated simulated data that were more consistent with real data than pilot Gaussian models. 
+However, effects of ``improved'' growth modeling on IPM results were moderate to weak, and differed in direction or magnitude between different outputs from the same model. 
+Using tools not available when IPMs were first developed, it is now possible to fit non-Gaussian models to growth data without sacrificing ecological complexity. 
+Doing so, as guided by careful interrogation of the data, will result in models that better represent the populations for which they are intended. 
 
 %alphabetical order not exceeding eight words or short phrases
 \noindent 
@@ -158,7 +162,7 @@ The relative ease of regression analyses, accommodating multiple covariates (e.g
 The vital rate regressions (or ``sub-models'') are the bridge between the individual-level data and the population-level model and its predictions; it is important to get those right.
 
 Compared to other vital rates, growth is special. 
-The survival and reproduction sub-models only need to provide a single predicted value as functions of size (we use ``size'' as the name for whatever continuous variable defines the population structure, which could instead be immune competence, mother's weight, etc.).   
+The survival and reproduction sub-models only need to provide a single predicted value as functions of size (we use ``size'' as the name for whatever continuous variable defines the population structure).   
 But the growth model must specify the full probability distribution of subsequent size conditional on initial size, defining the  
 growth `kernel' $G(z',z)$ that gives the probability density of future size $z'$ at time $t+1$ conditional on current size $z$ at time $t$. 
 Whenever survival and reproduction are size-dependent, the entire distribution of size transitions can strongly influence IPM predictions because it governs how frequently size changes are much greater or much lower than average. 
@@ -174,8 +178,7 @@ The observation that the Normal (or Gaussian) distribution may poorly describe s
 and several studies have emphasized that alternative distributions should be explored \citep{easterling2000size,peterson2019improving,rees2014building,williams2012avoiding}. 
 For example, Peterson et al. \citeyear{peterson2019improving} showed that skewness in size transitions could be modeled through beta regression on transformed data (for reasons we describe below, this approach also has some drawbacks),
 or by fitting a skewed Normal distribution. 
-\new{They showed that incorporating skew could have important consequences for model-based inferences, and concluded that ``testing of alternative distributions for growth$\ldots$ become standard in the construction of size-structured
-population models.''}
+They showed that incorporating skew could have important consequences for model-based inferences, and concluded that ``testing of alternative distributions for growth$\ldots$ [should] become standard in the construction of size-structured population models.''
 Nonetheless, default use of Gaussian growth distributions (often with non-constant variance) remains the standard practice. 
 The general state-of-the-art in the literature appears to remain where it was 20 or so years ago, using the default Gaussian model without examining critically whether or not it actually describes the data well.  
 We are guilty of this, ourselves. 
@@ -187,14 +190,14 @@ Popular pacakges such as lme4 \citep{bates2007lme4}, mgcv \citep{wood-2017}, and
 Abandoning these convenient tools for the sake of more flexible growth modeling means, it may seem, sacrificing the flexibility to model diverse sources of demographic variation, some of which may be the motivation driving the study in the first place.
 
 Our goal here is to present and illustrate a practical ``recipe'' that moves growth modeling past the standards set over 20 years ago. 
-Using software tools that are now readily accessible, we believe that ecologists can escape the apparent trade-off between realistically modeling non-Gaussian size transitions, and flexibly including the multiple covariates and random effects that often have substantial impacts on demographic rates.\footnote{Our statements about software availability are based on what current software reliably delivers in our personal experience, not on what they promise.} 
+Using software tools that are now readily accessible, we believe that ecologists can escape the apparent trade-off between realistically modeling non-Gaussian size transitions and flexibly including the multiple covariates and random effects that often have substantial impacts on demographic rates.\footnote{Our statements about software availability are based on what current software reliably delivers in our personal experience, not on what they promise.} 
 As with any recipe, users may need to make substitutions or add ingredients to suit their needs. 
 We emphasize graphical diagnostics for developing and evaluating growth models, rather than a process centered on statistical model selection. 
 Through empirical case studies we demonstrate how tools that were nonexistent or not readily available when IPMs first came into use now make it straightforward and relatively easy to identify when the default model is a poor fit to the data, and to then choose and fit a better growth model that is no harder to use in practice. 
-We illustrate our approach with three published case studies (and two additional case studies in the Appendix), including examples from our own previous work.
+We illustrate our approach with three published case studies (and two additional case studies in the Supporting Information), including examples from our own previous work.
 In each case, the Gaussian assumption does not stand up to close scrutiny. 
 We illustrate how we could have done better, and the consequences of ``doing better'' for our ecological inferences. 
-All analyses were carried out in R \citep{r-core} version 4.0 or higher and may be reproduced from publicly available code and data (see \emph{Data Accessibility Statement}). 
+All analyses were carried out in R \citep{r-core} version 4.0 or higher and may be reproduced from publicly available code and data (see \emph{Data Availability Statement}). 
 
 \section{Flexible growth modeling}
 The modeling process that we suggest runs as follows (Fig. \ref{fig:workflow}):
@@ -596,7 +599,6 @@ However, rather than re-fitting all parameters of the skewed $t$ model, as we di
 This is easy because the \textbf{gamlss.dist} package provides a parameterization of the skewed $t$ in which the location parameter $\mu$ is the mean and scale parameter $\sigma$ is the standard deviation \citep{rigby2019distributions}. 
 The hybrid likelihood looks like this:
 \begin{lstlisting}
-## t0 and t1 are current and future size observations, log(leaf area). 
 ## GAU_fitted and GAU_sd are mean & standard deviation from the best Gaussian.
 ## pars is a vector of parameters to be estimated.
 SSTLogLik=function(pars){
@@ -611,14 +613,13 @@ p0<-c(0,0,0,0)
 ## fit with maxLik
 SSTout=maxLik(logLik=SSTLogLik,start=p0*exp(0.2*rnorm(length(p0)))) 
 \end{lstlisting}
-
 Based on diagnostics of the standardized residuals, parameters that control skewness and kurtosis are defined as linear functions of the mean, and those coefficients are estimated by maximum likelihood (note that the \verb|tau| parameter uses a $\log(x-2)$ link function). 
 This approach relies on the robustness of fitted Gaussian models to deviations from normality, which implies that the fitted mean and variance from a Gaussian model are good approximations for the fitted mean and variance of the corresponding non-Gaussian model. 
 If one is skeptical of this approach, it is possible to simultaneously re-fit all parameters of the skewed $t$. 
 However, recall that unlike the lichen case study, the pilot Gaussian model here includes random year effects, and the expected values getting passed into \verb|dSST| account for this source of variation. 
 Estimating random effects ``from scratch'' with a custom likelihood model is possible (we provide guidance on doing this with a ``shrinkage'' approach, in Appendix S.2), but generally should not be necessary. 
 Instead, a key advantage of the hybrid approach is retention of the fitted random effects and associated variance components, which get shuttled from the Gaussian model into the non-Gaussian model without any fuss (though it was critical to use a parameterization of the skewed $t$ for which \verb|mu| is the mean and \verb|sigma| is the standard deviation). 
-And, if this approach does not ``work'' (i.e., deviations from normality biased the fitted values of the Gaussian model) one would quickly that find out when comparing simulated with real data. 
+And, if this approach does not ``work'' (i.e., deviations from normality biased the fitted values of the Gaussian model) one would quickly find out when comparing simulated with real data. 
 In this case, size transition data simulated from this model corresponded favorably to the real data, much better than the pilot Gaussian model, including improvements in the standard deviation, skewness, and kurtosis of future size (Fig. \ref{fig:orchid_SST_fit}). 
 
 Finally, we used the improved growth model to revisit key results of the original study. 
