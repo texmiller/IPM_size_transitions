@@ -1,23 +1,25 @@
 \documentclass[12pt]{article}
 \usepackage{amsmath,amsfonts,amssymb,graphicx,authblk}
 \usepackage[font={footnotesize,singlespacing},labelfont=bf]{caption}
-\usepackage{titlesec,blkarray, bm} 
+\usepackage{blkarray, bm} 
 \usepackage{float,afterpage}
 \usepackage[running,mathlines]{lineno}
-\usepackage[vmargin=1in,hmargin=1in,verbose,letterpaper,tmargin=2.54cm,bmargin=2.54cm,lmargin=2.54cm,rmargin=2.54cm]{geometry}
+\usepackage[verbose,letterpaper,tmargin=2.54cm,bmargin=2.54cm,lmargin=2.54cm,rmargin=2.54cm]{geometry}
 \usepackage[authoryear,sort]{natbib}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{hyperref}
 
 
+\usepackage[compact,small]{titlesec}
+\usepackage[moderate]{savetrees}
+
 \usepackage{enumitem}
-\setlist{topsep=.125em,itemsep=-0.15em,leftmargin=0.75cm}
+\setlist{topsep=.1em,itemsep=-0.2em,leftmargin=0.75cm}
 \setlength{\parindent}{0.35in}
 
 % \usepackage[sc]{mathpazo} %Like Palatino with extensive math support
 \usepackage{mathptmx} %Like Palatino with extensive math support
 \usepackage[nodisplayskipstretch]{setspace} 
-\usepackage[subtle]{savetrees}
 
 % Coloring of R code listings
 \usepackage[formats]{listings}
@@ -91,6 +93,7 @@ deletekeywords={on,by,data,R,Q,mean,var,sd,log,family,na,options,q,weights,effec
 
 \newcommand{\red}{\textcolor{red}}
 
+
 \title{My, how you've grown: \\ A practical guide to modeling size transitions \\ for Integral Projection Model (IPM) applications}
 
 \author[a]{Tom E.X. Miller\thanks{Corresponding author. Department of BioSciences, Rice University,
@@ -104,8 +107,9 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 \sloppy
 
 \begin{document}
-\begin{spacing}{1.9}
-	
+
+\begin{spacing}{1.7} 
+
 \maketitle
 \bigskip 
 \noindent\textbf{Submitted to:} \textit{Ecology} (Statistical Report)
@@ -124,6 +128,9 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 %350 word limit on abstract, must be numbered 1-4
 
 %TC:ignore
+
+\end{spacing} 
+\begin{spacing}{1.9}
 \noindent 
 \textbf{\large{Abstract}} 
 % ESA Statistical Report limit: 200 words
@@ -185,7 +192,7 @@ Using software tools that are now readily accessible, ecologists can escape the 
 As with any recipe, users may need to make substitutions or add ingredients to suit their needs. 
 We emphasize graphical diagnostics for developing and evaluating growth models, rather than a process centered on statistical tests or model selection. 
 Through empirical case studies we demonstrate how tools that were nonexistent or not readily available when IPMs first came into use now make it straightforward and relatively easy to identify when the default model is a poor fit to the data, and to then choose and fit a better growth model that is no harder to use in practice. 
-We illustrate our approach by revisiting three published case studies (and two additional case studies in the Supporting Information), including examples from our own previous work.
+We illustrate our approach by revisiting three published case studies (and three additional case studies in the Supporting Information), including examples from our own previous work.
 In each case, the Gaussian assumption does not stand up to close scrutiny. 
 We illustrate how we could have done better, and the consequences of ``doing better'' for our ecological inferences. 
 All analyses were carried out in R \citep{r-core} version 4.0 or higher and may be reproduced from publicly available code and data (see \emph{Data Availability Statement}). 
@@ -317,21 +324,15 @@ Figure \ref{fig:NPmoments}C,D illustrate how, applied to the same simulated samp
 Also note that, in contrast to the moment-based measures, numerically small values of the nonparametric measures (e.g., 0.1 or 0.2) should not be disregarded, because both measures are scaled so that a value of 1 indicates extremely large departures from a Gaussian distribution. 
 
 Using quantile-based measures carries the added value that quantile regression can be used to estimate how they vary with initial size or expected future size. 
-In the examples below, we use the \textbf{qgam} package \citep{fasiolo2020qgam} to fit spline quantile regression models, which have the flexibility to accommodate nonlinear size-dependence in skewness and kurtosis. 
-One risk of a spline regression is that fitted quantiles may be excessively ``wiggly'' without constraints on their complexity; with realistic amounts of data, we can hope to estimate broad trends in distribution shape, but not fine-scale variation.  
+In the examples below, we use the \textbf{qgam} package \citep{fasiolo2020qgam} to fit spline quantile regression models, which accommodate nonlinear size-dependence in skewness and kurtosis. 
+One risk of spline regression is that fitted quantiles may be excessively ``wiggly'' without constraints on their complexity; with realistic amounts of data, we can hope to estimate broad trends in distribution shape, but not fine-scale variation.  
 In the examples below, we limit complexity by fitting splines with $k=4$ basis functions unless otherwise noted. 
 Parametric quantile regression is also an option. 
 
 For consistency we also use quantile-based measures of mean and standard deviation when comparing real and simulated data, and use quantile regression to visualize their trends.  
 Specifically, following \cite{wan2014estimating},
 \be
-\mbox{NP Mean}  = \frac{q_{0.25} + q_{0.5} + q_{0.75}}{3}
-\label{eqn:NPmean}
-\ee
-and
-\be
-\mbox{NP SD}  = \frac{q_{0.75} - q_{0.25}}{1.35}.
-\label{eqn:NPsd}
+\mbox{NP Mean}  = \frac{q_{0.25} + q_{0.5} + q_{0.75}}{3}, \quad  \mbox{NP SD}  = \frac{q_{0.75} - q_{0.25}}{1.35}.
 \ee
 
 \section{Case study: lichen, \emph{Vulpicida pinastri}}
@@ -348,8 +349,7 @@ With initial size as the only predictor, a convient way to fit a Gaussian model 
 Following a bit of model selection, we fit the mean and standard deviation of future size as second-order polynomials of current size\footnote{\texttt{gam()} is most commonly used to fit smooth splines (\texttt{s()}) for predictor variables, but it can also fit simpler, parametric regressions.}, then calculated the scaled residuals from the fitted mean and standard deviation.
 Here, the first argument to \texttt{gam()} is a two-element list that defines the linear predictors for mean and sd:
 \begin{lstlisting}
-# d is the data frame
-# t0 and t1 are initial and final thallus area, respectively
+# d is the data frame; t0,t1 are initial & final thallus area, respectively
 fitGAU <- gam(list(t1~t0 + I(t0^2), ~t0 + I(t0^2)), data=d, family=gaulss())
 d$fitted_mean = predict(fitGAU,type="response")[,1]
 d$fitted_sd <- 1/predict(fitGAU,type="response")[,2]
@@ -377,7 +377,7 @@ We also find positive excess kurtosis for all sizes.
 	\includegraphics[width=0.95\textwidth]{figures/cactus_k=6.pdf}
 	\caption{Diagnostic plot for trends in the mean (left column) or variance (right column) of scaled residuals from a pilot Gaussian model, for the lichen (\emph{Vulpicida pinastri}) \textbf{A,B}, cactus \emph{Cylindriopuntia imbricata} \textbf{C,D}, and orchid \emph{Orchis purpurea} \textbf{E,F} case studies. 
 		In \textbf{A,C,E} the standardized residuals are plotted, and in \textbf{B,D,F} the absolute values of
-		standardized residuals, as functions of fitted mean subsequent size values. The solid curves are cubic splines (R function \texttt{smooth.spline}) fitted by generalized cross-validation with a modest over-penalization of model degrees of freedom to prevent overfitting (\texttt{penalty}=1.4 as recommended by \citet{gu-2002}). The numbers appearing above each panel are the standard deviation of the values on the spline regression curve, evaluated at all of the 
+		standardized residuals, as functions of fitted mean subsequent size values. The solid curves are cubic splines (R function \texttt{smooth.spline}) fitted by generalized cross-validation with a modest over-penalization of model degrees of freedom to prevent overfitting (\texttt{penalty}=1.4 as recommended by \citet{gu-2013}). The numbers appearing above each panel are the standard deviation of the values on the spline regression curve, evaluated at all of the 
 		fitted values. Figure made by script \texttt{crossspp\_diagnose\_pilot.R}.}
 	\label{fig:diagnose_pilot}
 \end{figure}
@@ -391,11 +391,9 @@ We fit the model using the \textbf{maxLik} package\footnote{We chose \textbf{max
 \begin{lstlisting}
 ## define function that returns the JSU negative log-likelihood
 LogLikJSU=function(pars){
-	dJSU(t1, 
-	mu=pars[1]+pars[2]*t0+pars[3]*t0^2,
+	dJSU(t1, mu=pars[1]+pars[2]*t0+pars[3]*t0^2,
 	sigma=exp(pars[4]+pars[5]*t0+pars[6]*t0^2),
-	nu = pars[7]+pars[8]*t0,
-	tau = exp(pars[9]), log=TRUE)
+	nu = pars[7]+pars[8]*t0, tau = exp(pars[9]), log=TRUE)
 }
 ## starting parameter values
 p0<-c(coef(fitGAU)[1:6],0,0,0)
@@ -422,8 +420,9 @@ In this case study, properly modeling non-normal size transitions -- which was e
 
 \begin{table}[tbp]
 \renewcommand{\arraystretch}{1.5}
+	\caption{Life history attributes derived from IPM kernels that included Gaussian or ``improved'' growth sub-models for five case studies. The improved distributions were JSU (lichen, creosote), SHASH (cactus, pike), and skewed $t$ (orchid). Pike and creosote case studies are presented in the Supporting Information. Table can be reproduced from script \texttt{crossspp\_growth.R}.}
 	\centering
-	\begingroup\fontsize{9pt}{10pt}\selectfont
+	\begingroup\fontsize{10pt}{11pt}\selectfont
 	\begin{tabular}{rp{1.5cm}|p{1.5cm}p{1.5cm}p{1.5cm}p{1.5cm}p{1.5cm}}
 	{\textbf{Species}} & {\textbf{Growth model}} & {\textbf{$\lambda$}} & {\textbf{Lifespan}} & {\textbf{Lifetime reproductive output}} & {\textbf{Age at reproduction}} & {\textbf{Generation time}} \\ 
 	\hline
@@ -441,9 +440,9 @@ In this case study, properly modeling non-normal size transitions -- which was e
 	\hline
 	Creosote & Gaussian & 1.039 & 21651.948 & 1998.486 & 29.338 & 241517.676 \\ 
 	(\textit{Larrea tridentata}) & Improved & 1.04 & 19613.824 & 1814.89 & 31.668 & 215330.883 \\ 
+	\hline 
 	\end{tabular}
 	\endgroup
-	\caption{Life history attributes derived from IPM kernels that included Gaussian or ``improved'' growth sub-models for five case studies. The improved distributions were JSU (lichen, creosote), SHASH (cactus, pike), and skewed $t$ (orchid). Pike and creosote case studies are presented in the Supporting Information. Table can be reproduced from script \texttt{crossspp\_growth.R}.}
 	\label{tab:crossspp}
 \end{table}
 
@@ -452,7 +451,7 @@ In all remaining case studies, including those in the Supporting Information, we
 
 \begin{figure}[tbp]
 	\centering
-	\includegraphics[width=0.5\textwidth]{figures/lichen_extinction_risk}
+	\includegraphics[width=0.65\textwidth,height=3.5in]{figures/lichen_extinction_risk}
 	\caption{Extinction risk estimated from individual-based simulation of IPMs based on Gaussian and Johnson's S-U (JSU) growth distributions. Figure made by script \texttt{Vuplicida\_IPMs.R}.}
 	\label{fig:lichen_extinction}
 \end{figure} 
@@ -586,13 +585,10 @@ SSTLogLik=function(pars){
 	dSST(log_area_t1, 
 	mu=GAU_fitted, sigma=GAU_sd,
 	nu = exp(pars[1] + pars[2]*GAU_fitted),
-	tau = exp(pars[3] + pars[4]*GAU_fitted)+2, 
-	log=TRUE)
+	tau = exp(pars[3] + pars[4]*GAU_fitted)+2, log=TRUE)
 }
-## starting parameters
-p0<-c(0,0,0,0)
-## fit with maxLik
-SSTout=maxLik(logLik=SSTLogLik,start=p0*exp(0.2*rnorm(length(p0)))) 
+p0<-c(0,0,0,0) ## default starting parameters
+SSTout=maxLik(logLik=SSTLogLik,start=p0) ## fit with maxLik
 \end{lstlisting}
 Based on diagnostics of the standardized residuals, parameters that control skewness and kurtosis are defined as linear functions of the mean (note that the \verb|tau| parameter uses a $\log(x-2)$ link function). 
 This approach relies on the robustness of fitted Gaussian models to deviations from normality, which implies that the fitted mean and variance from a Gaussian model are good approximations for the fitted mean and variance of the corresponding non-Gaussian model. 
@@ -662,7 +658,7 @@ For some case studies, one might argue that non-Gaussian modeling was not worth 
 We caution against taking too much comfort in weak effects of ``improved'' growth modeling; in other scenarios the choice of the growth distribution could be more consequential. 
 It is worth noting that most of our case studies focused on perennial life histories (perennial plants and lichens) characterized by relatively slow growth, heavy losses during recruitment, and high survival once established, and these species all had mean lifespans between one and six years and generation times on the order of decades. 
 Life histories such as these may be relatively robust to subtle features of the growth kernel. 
-In the Supporting Information we present two additional case studies that broaden our life history coverage, including pike (\emph{Esox lucius}), a fish with a generation time of four to five years and creosotebush (\emph{Larrea tridentata}), a desert shrub that is virtually immortal once established with a generation time exceeding 200,000 years. 
+In the Supporting Information we present three additional case studies that broaden our life history coverage, including pike (\emph{Esox lucius}), a fish with a generation time of four to five years and creosotebush (\emph{Larrea tridentata}), a desert shrub that is virtually immortal once established with a generation time exceeding 200,000 years. 
 Life history metrics from the ``fast'' fish population were no more sensitive to improved growth modeling than those of the perennial plants and lichens, while the creosotebush generation time differed by $>25,000$ years between Gaussian and improved growth models (Table \ref{tab:crossspp}). 
 More systematic comparative analyses may provide insight into which types of species and life histories are more likely to exhibit strong skewness and kurtosis, and which demographic quantities are more or less sensitive to these features of size transition. 
 %It is also worth noting, as we saw in several case studies, that different outputs from the same model can be more or less sensitive to the choice of growth distribution. 
@@ -700,15 +696,301 @@ By generating predicted size transitions that are truer to the data, IPM analyst
 \bigskip 
 \noindent\textbf{Conflict of interest statement:} The authors have none to declare. 
 
-\newpage 
-%\section{Bibliography} 
-\bibliographystyle{besjournals}
-\bibliography{BetterGrowthModeling}
+%\bibliographystyle{besjournals}
+%\bibliography{BetterGrowthModeling}
+
+\begin{thebibliography}{62}
+\providecommand{\natexlab}[1]{#1}
+
+\bibitem[{Adler \emph{et~al.}(2019)Adler, Kleinhesselink, Hooker, Taylor,
+  Teller \& Ellner}]{adler-weak-dryad}
+Adler, P.B., Kleinhesselink, A., Hooker, G., Taylor, J.B., Teller, B. \&
+  Ellner, S.P. (2019) Data from: Weak interspecific interactions in a sagebrush
+  steppe? {C}onflicting evidence from observations and experiments. {D}ryad
+  {D}ata set. \url{https://doi.org/10.5061/dryad.96dn293}.
+
+\bibitem[{Anscombe \& Glynn(1983)}]{anscombe1983distribution}
+Anscombe, F.J. \& Glynn, W.J. (1983) Distribution of the kurtosis statistic
+  $b_2$ for normal samples. \emph{Biometrika} \textbf{70}, 227--234.
+
+\bibitem[{Bates \emph{et~al.}(2015)Bates, M{\"a}chler, Bolker \&
+  Walker}]{bates2007lme4}
+Bates, D., M{\"a}chler, M., Bolker, B. \& Walker, S. (2015) Fitting linear
+  mixed-effects models using {lme4}. \emph{Journal of Statistical Software}
+  \textbf{67}, 1--48.
+
+\bibitem[{Compagnoni \emph{et~al.}(2016)Compagnoni, Bibian, Ochocki, Rogers,
+  Schultz, Sneck, Elderd, Iler, Inouye, Jacquemyn
+  \emph{et~al.}}]{compagnoni2016effect}
+Compagnoni, A., Bibian, A.J., Ochocki, B.M., Rogers, H.S., Schultz, E.L.,
+  Sneck, M.E., Elderd, B.D., Iler, A.M., Inouye, D.W., Jacquemyn, H.
+  \emph{et~al.} (2016) The effect of demographic correlations on the stochastic
+  population dynamics of perennial plants. \emph{Ecological Monographs}
+  \textbf{86}, 480--494.
+
+\bibitem[{Conn \emph{et~al.}(2018)Conn, Johnson, Williams, Melin \&
+  Hooten}]{conn2018guide}
+Conn, P.B., Johnson, D.S., Williams, P.J., Melin, S.R. \& Hooten, M.B. (2018) A
+  guide to {B}ayesian model checking for ecologists. \emph{Ecological
+  Monographs} \textbf{88}, 526--542.
+
+\bibitem[{Cooch \& White(2020, accessed 5/17/2020)}]{cooch-white-2020}
+Cooch, E.G. \& White, G.C. (2020, accessed 5/17/2020) \emph{Program MARK - a
+  'gentle introduction'}. phidot.org.
+
+\bibitem[{Coulson(2012)}]{Coulson:2012fk}
+Coulson, T. (2012) {I}ntegral projections models, their construction and use in
+  posing hypotheses in ecology. \emph{Oikos} \textbf{121}, 1337--1350.
+
+\bibitem[{Cribari-Neto \& Zeileis(2010)}]{cribari2010beta}
+Cribari-Neto, F. \& Zeileis, A. (2010) Beta regression in {R}. \emph{Journal of
+  statistical software} \textbf{34}, 1--24.
+
+\bibitem[{Crone(2016)}]{crone2016contrasting}
+Crone, E.E. (2016) Contrasting effects of spatial heterogeneity and
+  environmental stochasticity on population dynamics of a perennial wildflower.
+  \emph{Journal of Ecology} \textbf{104}, 281--291.
+
+\bibitem[{Czachura \& Miller(2020)}]{czachurademographic}
+Czachura, K. \& Miller, T.E. (2020) Demographic back-casting reveals that
+  subtle dimensions of climate change have strong effects on population
+  viability. \emph{Journal of Ecology} \textbf{108}, 2557--2570.
+
+\bibitem[{D'Agostino(1970)}]{d1970transformation}
+D'Agostino, R.B. (1970) Transformation to normality of the null distribution of
+ $g_1$. \emph{Biometrika} \textbf{57}, 679--681.
+
+\bibitem[{Davis(2015)}]{davis-2015}
+Davis, C. (2015) \emph{sgt: Skewed Generalized T Distribution Tree}. R package
+  version 2.0.
+
+\bibitem[{Doak \emph{et~al.}(2021)Doak, Waddle, Langendorf, Louthan,
+  Isabelle~Chardon, Dibner, Keinath, Lombardi, Steenbock, Shriver, Linares,
+  Bego\~{n}a Garcia, Funk, Fitzpatrick, Morris \&
+  DeMarche}]{doak-critical-2021}
+Doak, D.F., Waddle, E., Langendorf, R.E., Louthan, A.M., Isabelle~Chardon, N.,
+  Dibner, R.R., Keinath, D.A., Lombardi, E., Steenbock, C., Shriver, R.K.,
+  Linares, C., Bego\~{n}a Garcia, M., Funk, W.C., Fitzpatrick, S.W., Morris,
+  W.F. \& DeMarche, M.L. (2021) A critical comparison of integral projection
+  and matrix projection models for demographic analysis. \emph{Ecological
+  Monographs} \textbf{91}, e01447.
+
+\bibitem[{Easterling \emph{et~al.}(2000)Easterling, Ellner \&
+  Dixon}]{easterling2000size}
+Easterling, M.R., Ellner, S.P. \& Dixon, P.M. (2000) Size-specific sensitivity:
+  applying a new structured population model. \emph{Ecology} \textbf{81},
+  694--708.
+
+\bibitem[{Elderd \& Miller(2016)}]{elderd2016quantifying}
+Elderd, B.D. \& Miller, T.E. (2016) Quantifying demographic uncertainty:
+  {B}ayesian methods for integral projection models. \emph{Ecological
+  Monographs} \textbf{86}, 125--144.
+
+\bibitem[{Ellis \& Crone(2013)}]{ellis2013role}
+Ellis, M.M. \& Crone, E.E. (2013) The role of transient dynamics in stochastic
+  population growth for nine perennial plants. \emph{Ecology} \textbf{94},
+  1681--1686.
+
+\bibitem[{Ellner \emph{et~al.}(2022)Ellner, Adler, Childs, Hooker, Miller \&
+  Rees}]{ellner2022critical}
+Ellner, S.P., Adler, P.B., Childs, D.Z., Hooker, G., Miller, T.E. \& Rees, M.
+  (2022) A critical comparison of integral projection and matrix projection
+  models for demographic analysis: Comment. \emph{Ecology} \textbf{103}, e3605.
+
+\bibitem[{Ellner \emph{et~al.}(2016)Ellner, Childs \& Rees}]{ellner-etal-2016}
+Ellner, S.P., Childs, D.Z. \& Rees, M. (2016) \emph{Data-driven Modeling of
+  Structured Populations: A Practical Guide to the Integral Projection Model}.
+  Springer, New York.
+
+\bibitem[{Fasiolo \emph{et~al.}(2020)Fasiolo, Wood, Zaffran, Nedellec \&
+  Goude}]{fasiolo2020qgam}
+Fasiolo, M., Wood, S.N., Zaffran, M., Nedellec, R. \& Goude, Y. (2020) qgam:
+  {B}ayesian non-parametric quantile regression modelling in {R}. \emph{arXiv
+  preprint arXiv:2007.03303} .
+
+\bibitem[{Gu(2013)}]{gu-2013}
+Gu, C. (2013) \emph{Smoothing Spline ANOVA Models}. Springer Science+Business
+  Media, New York, 2 edn.
+
+\bibitem[{Hadfield \emph{et~al.}(2010)}]{hadfield2010mcmc}
+Hadfield, J.D. \emph{et~al.} (2010) {MCMC} methods for multi-response
+  generalized linear mixed models: the mcmcglmm r package. \emph{Journal of
+  Statistical Software} \textbf{33}, 1--22.
+
+\bibitem[{H{\'e}rault \emph{et~al.}(2011)H{\'e}rault, Bachelot, Poorter, Rossi,
+  Bongers, Chave, Paine, Wagner \& Baraloto}]{herault2011functional}
+H{\'e}rault, B., Bachelot, B., Poorter, L., Rossi, V., Bongers, F., Chave, J.,
+  Paine, C.T., Wagner, F. \& Baraloto, C. (2011) Functional traits shape
+  ontogenetic growth trajectories of rain forest tree species. \emph{Journal of
+  ecology} \textbf{99}, 1431--1440.
+
+\bibitem[{Hern\'{a}ndez \emph{et~al.}(2024)Hern\'{a}ndez, Ellner, Snyder \&
+  Hooker}]{hernandez-etal-2024}
+Hern\'{a}ndez, C.M., Ellner, S.P., Snyder, R.E. \& Hooker, G. (2024) The
+  natural history of luck: A synthesis study of structured population models.
+  \emph{Ecology Letters} pp. 0 -- 1.
+
+\bibitem[{Komsta \& Novomestky(2015)}]{komsta2015moments}
+Komsta, L. \& Novomestky, F. (2015) moments: Moments, cumulants, skewness,
+  kurtosis and related tests. \emph{R package version} \textbf{0.14.1}.
+
+\bibitem[{Louthan \emph{et~al.}(2022)Louthan, Keighron, Kiekebusch, Cayton,
+  Terando \& Morris}]{louthan2022climate}
+Louthan, A.M., Keighron, M., Kiekebusch, E., Cayton, H., Terando, A. \& Morris,
+  W.F. (2022) Climate change weakens the impact of disturbance interval on the
+  growth rate of natural populations of venus flytrap. \emph{Ecological
+  Monographs} \textbf{92}, e1528.
+
+\bibitem[{McGillivray(1986)}]{mcgillivray-1986}
+McGillivray, H. (1986) Skewness and asymmetry: measures and orderings.
+  \emph{Annals of Statistics} \textbf{14}, 994--1011.
+
+\bibitem[{Metcalf \emph{et~al.}(2015)Metcalf, Ellner, Childs,
+  Salguero-G{\'o}mez, Merow, McMahon, Jongejans \& Rees}]{metcalf-etal-2015}
+Metcalf, C.J.E., Ellner, S.P., Childs, D.Z., Salguero-G{\'o}mez, R., Merow, C.,
+  McMahon, S.M., Jongejans, E. \& Rees, M. (2015) {S}tatistical modelling of
+  annual variation for inference on stochastic population dynamics using
+  {I}ntegral {P}rojection {M}odels. \emph{Methods in Ecology and Evolution}
+  \textbf{6}, 1007--1017.
+
+\bibitem[{Metcalf \emph{et~al.}(2003)Metcalf, Rose \&
+  Rees}]{metcalf2003evolutionary}
+Metcalf, J.C., Rose, K.E. \& Rees, M. (2003) Evolutionary demography of
+  monocarpic perennials. \emph{Trends in Ecology \& Evolution} \textbf{18},
+  471--480.
+
+\bibitem[{Miller(2020)}]{cactusdata}
+Miller, T.E. (2020) Long-term study of tree cholla demography in the los pinos
+  mountains, sevilleta national wildlife refuge.
+  \url{https://doi.org/10.6073/pasta/dd06df3f950afe4a4642306182237d13}.
+
+\bibitem[{Miller \emph{et~al.}(2009)Miller, Louda, Rose \&
+  Eckberg}]{miller2009impacts}
+Miller, T.E., Louda, S.M., Rose, K.A. \& Eckberg, J.O. (2009) Impacts of insect
+  herbivory on cactus population dynamics: experimental demography across an
+  environmental gradient. \emph{Ecological Monographs} \textbf{79}, 155--172.
+
+\bibitem[{Miller \emph{et~al.}(2012)Miller, Williams, Jongejans, Brys \&
+  Jacquemyn}]{miller2012evolutionary}
+Miller, T.E., Williams, J.L., Jongejans, E., Brys, R. \& Jacquemyn, H. (2012)
+  Evolutionary demography of iteroparous plants: incorporating non-lethal costs
+  of reproduction into integral projection models. \emph{Proceedings of the
+  Royal Society B: Biological Sciences} \textbf{279}, 2831--2840.
+
+\bibitem[{Morris \& Doak(2002)}]{morris-doak-2002}
+Morris, W.F. \& Doak, D.F. (2002) \emph{Quantitative Conservation Biology:
+  Theory and Practice of Population Viability Analysis}. Sinauer Associates,
+  Sunderland, Mass.
+
+\bibitem[{Ohm \& Miller(2014)}]{ohm2014balancing}
+Ohm, J.R. \& Miller, T.E. (2014) Balancing anti-herbivore benefits and
+  anti-pollinator costs of defensive mutualists. \emph{Ecology} \textbf{95},
+  2924--2935.
+
+\bibitem[{Ozgul \emph{et~al.}(2010)Ozgul, Childs, Oli, Armitage, Blumstein,
+  Olson, Tuljapurkar \& Coulson}]{ozgul2010coupled}
+Ozgul, A., Childs, D.Z., Oli, M.K., Armitage, K.B., Blumstein, D.T., Olson,
+  L.E., Tuljapurkar, S. \& Coulson, T. (2010) Coupled dynamics of body mass and
+  population growth in response to environmental change. \emph{Nature}
+  \textbf{466}, 482--485.
+
+\bibitem[{Peterson \emph{et~al.}(2019)Peterson, Morris, Linares \&
+  Doak}]{peterson2019improving}
+Peterson, M.L., Morris, W., Linares, C. \& Doak, D. (2019) Improving structured
+  population models with more realistic representations of non-normal growth.
+  \emph{Methods in Ecology and Evolution} \textbf{10}, 1431--1444.
+
+\bibitem[{Plard \emph{et~al.}(2018)Plard, Schindler, Arlettaz \&
+  Schaub}]{plard2018sex}
+Plard, F., Schindler, S., Arlettaz, R. \& Schaub, M. (2018) Sex-specific
+  heterogeneity in fixed morphological traits influences individual fitness in
+  a monogamous bird population. \emph{The American Naturalist} \textbf{191},
+  106--119.
+
+\bibitem[{{R Core Team}(2022)}]{r-core}
+{R Core Team} (2022) \emph{R: A Language and Environment for Statistical
+  Computing}. R Foundation for Statistical Computing, Vienna, Austria.
+
+\bibitem[{Rees \emph{et~al.}(2014)Rees, Childs \& Ellner}]{rees2014building}
+Rees, M., Childs, D.Z. \& Ellner, S.P. (2014) Building integral projection
+  models: a user's guide. \emph{Journal of Animal Ecology} \textbf{83},
+  528--545.
+
+\bibitem[{Rees \& Ellner(2016)}]{rees2016evolving}
+Rees, M. \& Ellner, S.P. (2016) Evolving integral projection models:
+  evolutionary demography meets eco-evolutionary dynamics. \emph{Methods in
+  Ecology and Evolution} \textbf{7}, 157--170.
+
+\bibitem[{Rigby \emph{et~al.}(2019)Rigby, Stasinopoulos, Heller \&
+  De~Bastiani}]{rigby2019distributions}
+Rigby, R.A., Stasinopoulos, M.D., Heller, G.Z. \& De~Bastiani, F. (2019)
+  \emph{Distributions for modeling location, scale, and shape: Using GAMLSS in
+  R}. CRC press.
+
+\bibitem[{Salguero-G{\'o}mez \& Casper(2010)}]{salguero2010keeping}
+Salguero-G{\'o}mez, R. \& Casper, B.B. (2010) Keeping plant shrinkage in the
+  demographic loop. \emph{Journal of Ecology} \textbf{98}, 312--323.
+
+\bibitem[{Schielzeth \emph{et~al.}(2020)Schielzeth, Dingemanse, Nakagawa,
+  Westneat, Allegue, Teplitsky, R{\'e}ale, Dochtermann, Garamszegi \&
+  Araya-Ajoy}]{schielzeth2020robustness}
+Schielzeth, H., Dingemanse, N.J., Nakagawa, S., Westneat, D.F., Allegue, H.,
+  Teplitsky, C., R{\'e}ale, D., Dochtermann, N.A., Garamszegi, L.Z. \&
+  Araya-Ajoy, Y.G. (2020) Robustness of linear mixed-effects models to
+  violations of distributional assumptions. \emph{Methods in ecology and
+  evolution} \textbf{11}, 1141--1152.
+
+\bibitem[{Shriver \emph{et~al.}(2012)Shriver, Cutler \&
+  Doak}]{shriver2012comparative}
+Shriver, R.K., Cutler, K. \& Doak, D.F. (2012) Comparative demography of an
+  epiphytic lichen: support for general life history patterns and solutions to
+  common problems in demographic parameter estimation. \emph{Oecologia}
+  \textbf{170}, 137--146.
+
+\bibitem[{Stasinopoulos \emph{et~al.}(2007)Stasinopoulos, Rigby
+  \emph{et~al.}}]{stasinopoulos2007generalized}
+Stasinopoulos, D.M., Rigby, R.A. \emph{et~al.} (2007) Generalized additive
+  models for location scale and shape ({GAMLSS}) in r. \emph{Journal of
+  Statistical Software} \textbf{23}, 1--46.
+
+\bibitem[{Stubberud \emph{et~al.}(2019)Stubberud, Vindenes, V{\o}llestad,
+  Winfield, Stenseth \& Langangen}]{stubberud2019effects}
+Stubberud, M.W., Vindenes, Y., V{\o}llestad, L.A., Winfield, I.J., Stenseth,
+  N.C. \& Langangen, {\O}. (2019) Effects of size-and sex-selective harvesting:
+  An integral projection model approach. \emph{Ecology and Evolution}
+  \textbf{9}, 12556--12570.
+
+\bibitem[{van~der Laan \& Rose(2011)}]{vande-rose-2011}
+van~der Laan, M.J. \& Rose, S. (2011) \emph{Targeted Learning: Causal Inference
+  for Observational and Experimental Data}. Springer Science and Business
+  Media.
+
+\bibitem[{Wan \emph{et~al.}(2014)Wan, Wang, Liu \& Tong}]{wan2014estimating}
+Wan, X., Wang, W., Liu, J. \& Tong, T. (2014) Estimating the sample mean and
+  standard deviation from the sample size, median, range and/or interquartile
+  range. \emph{BMC medical research methodology} \textbf{14}, 1--13.
+
+\bibitem[{Williams \emph{et~al.}(2012)Williams, Miller \&
+  Ellner}]{williams2012avoiding}
+Williams, J.L., Miller, T.E. \& Ellner, S.P. (2012) Avoiding unintentional
+  eviction from integral projection models. \emph{Ecology} \textbf{93},
+  2008--2014.
+  
+  
+\bibitem[{Wood(2017)}]{wood-2017}
+Wood, S. (2017) \emph{Generalized Additive Models: An Introduction with R}.
+  Chapman and Hall/CRC, 2 edn.
+
+\bibitem[{Zhang(2014)}]{zhang2014comparative}
+Zhang, J.L. (2014) Comparative investigation of three {B}ayesian $p$ values.
+  \emph{Computational Statistics \& Data Analysis} \textbf{79}, 277--291.
+
+\end{thebibliography}
 
 % ######################## Appendices ##############################
 \newpage 
 \clearpage 
-% \setcounter{page}{1}
+\setcounter{page}{1}
 \setcounter{equation}{0}
 \setcounter{figure}{0}
 \setcounter{section}{0}
@@ -720,6 +1002,8 @@ By generating predicted size transitions that are truer to the data, IPM analyst
 
 %TC:ignore 
 
+\end{spacing} 
+\begin{spacing}{1.35} 
 \centerline{\Large{\textbf{Supporting Information}}}
 
 \section{The Jones-Pewsey SHASH distribution family} 
@@ -908,7 +1192,7 @@ var2.hat = mean(fixed.fx2^2) - mean(diag(V2)) +
 shrinkRanSlope = fixed.fx2*sqrt(var2.hat/(var2.hat + diag(V2))); 
 \end{lstlisting}
 
-Figure \ref{fig:compareShrinkage} shows the results for one artificial ``data'' set, having $T=22$ years and growth measurments on 
+Figure \ref{fig:compareShrinkage} shows the results for one artificial ``data'' set, having $T=22$ years and growth measurements on 
 about 175 individuals per year on average. The true random year effects (that were used to generate the data) are recovered
 with good accuracy and no bias. In particular there is no sign of extreme values being pulled in too far
 towards the mean, which would cause an S-shaped graph of estimated versus true values. 
@@ -959,7 +1243,7 @@ Spline regression found only very small trends in the mean or variance of scaled
 	\includegraphics[width=0.95\textwidth]{figures/diagnose_pilot_supplement.pdf}
 	\caption{Diagnostic plot for trends in the mean (left column) or variance (right column) of scaled residuals from a pilot Gaussian model, for the sea fan corals \textbf{A,B}, creosote bush \textbf{C,D}, and pike \textbf{E,F}. 
 In \textbf{A,C,E} the standardized residuals are plotted, and in \textbf{B,D,F} the absolute values of
-standardized residuals, as functions of fitted mean subsequent size values. The solid curves are cubic splines (R function \texttt{smooth.spline}) fitted by generalized cross-validation with a modest over-penalization of model degrees of freedom to prevent overfitting (\texttt{penalty}=1.4 as recommended by \citet{gu-2002}). The numbers appearing above each panel are the standard deviation of the values on the spline regression curve, evaluated at all of the 
+standardized residuals, as functions of fitted mean subsequent size values. The solid curves are cubic splines (R function \texttt{smooth.spline}) fitted by generalized cross-validation with a modest over-penalization of model degrees of freedom to prevent overfitting (\texttt{penalty}=1.4 as recommended by \citet{gu-2013}). The numbers appearing above each panel are the standard deviation of the values on the spline regression curve, evaluated at all of the 
 fitted values. Figure made by script \texttt{crossspp\_diagnose\_pilot.R}.}
 \label{fig:diagnose_pilot_supplement}
 \end{figure}
@@ -1211,6 +1495,82 @@ Predictions from the SHASH- and Gaussian-growth IPMs (Table \ref{tab:crossspp}) 
 	\label{fig:orchid_SST_fit}
 \end{figure} 
 
+\clearpage
+\newpage 
+
+\begin{thebibliography}{62}
+\providecommand{\natexlab}[1]{#1}
+
+\bibitem[{Bruno \emph{et~al.}(2011)Bruno, Ellner, Vu, Kim \&
+  Harvell}]{bruno-etal-2011}
+Bruno, J.F., Ellner, S.P., Vu, I., Kim, K. \& Harvell, C.D. (2011) Impacts of
+  aspergillosis on sea fan coral demography: modeling a moving target.
+  \emph{Ecological Monographs} \textbf{81}, 123--139.
+
+\bibitem[{Drees \emph{et~al.}(2023)Drees, Ochocki, Collins \&
+  Miller}]{drees2023demography}
+Drees, T., Ochocki, B.M., Collins, S.L. \& Miller, T.E. (2023) Demography and
+  dispersal at a grass-shrub ecotone: a spatial integral projection model for
+  woody plant encroachment. \emph{Ecological Monographs} p. e1574.
+
+\bibitem[{Gould \& Nichols(1998)}]{gould-nichols-1998}
+Gould, W.R. \& Nichols, J.D. (1998) Estimation of temporal variability of
+  survival in animal populations. \emph{Ecology} \textbf{79}, 2531 -- 2538.
+
+\bibitem[{Jones \& Pewsey(2009)}]{jones-pewsey-2009}
+Jones, M. \& Pewsey, A. (2009) Sinh-arcsinh distributions. \emph{Biometrika}
+  \textbf{96}, 761 -- 780.
+
+\bibitem[{Jones \emph{et~al.}(2011)Jones, Rosco \& Pewsey}]{jones-etal-1994}
+Jones, M.C., Rosco, J.F. \& Pewsey, A. (2011) Skewness-invariant measures of
+  kurtosis. \emph{The American Statistician} \textbf{65}, 89 -- 95.
+
+\bibitem[{Link \& Nichols(1994)}]{link-nichols-1994}
+Link, W.A. \& Nichols, J.D. (1994) On the importance of sampling variance to
+  investigations of temporal variation in animal population size. \emph{Oikos}
+  \textbf{69}, 539 -- 544.
+
+\bibitem[{Ochocki \emph{et~al.}(2023)Ochocki, Drees \& Miller}]{shrubdata}
+Ochocki, B.M., Drees, T. \& Miller, T.E. (2023) Density-dependent demography of
+  creosote bush (larrea tridentata) along grass-shrub ecotones.
+  \url{https://doi.org/10.6073/pasta/ca53c16f16dcf9fb11f3ee99ea5445ac}.
+
+\bibitem[{Vindenes \emph{et~al.}(2014)Vindenes, Edeline, Ohlberger, Langangen,
+  Winfield, Stenseth \& V{\o}llestad}]{vindenes2014effects}
+Vindenes, Y., Edeline, E., Ohlberger, J., Langangen, {\O}., Winfield, I.J.,
+  Stenseth, N.C. \& V{\o}llestad, L.A. (2014) Effects of climate change on
+  trait-based dynamics of a top predator in freshwater ecosystems. \emph{The
+  American Naturalist} \textbf{183}, 243--256.
+
+\bibitem[{Winfield \emph{et~al.}(2013{\natexlab{a}})Winfield, Fletcher \&
+  James}]{winfield2013pikefecundity}
+Winfield, I., Fletcher, J. \& James, J. (2013{\natexlab{a}}) Pike fecundity
+  data 1963-2002. NERC Environmental Information Data Centre,
+  \url{https://doi.org/10.5285/b8886915-14cb-44df-86fa-7ab718acf49a}.
+
+\bibitem[{Winfield \emph{et~al.}(2013{\natexlab{b}})Winfield, Fletcher \&
+  James}]{winfield2013pikegrowth}
+Winfield, I., Fletcher, J. \& James, J. (2013{\natexlab{b}}) Pike growth data
+  1944-1995. NERC Environmental Information Data Centre, \url{
+  https://doi.org/10.5285/637d60d6-1571-49af-93f7-24c1279d884d}.
+
+\bibitem[{Winfield \emph{et~al.}(2013{\natexlab{c}})Winfield, Fletcher \&
+  James}]{winfield2013pikesurvival}
+Winfield, I., Fletcher, J. \& James, J. (2013{\natexlab{c}}) Pike survival data
+  1953-1990. NERC Environmental Information Data Centre,
+  \url{https://doi.org/10.5285/813e07dd-2135-49bc-93c6-83999e442b36}.
+
+\end{thebibliography}
+
+
+
+
+
+
+
+
 %TC:endignore
+
 \end{spacing}
+
 \end{document}
