@@ -54,7 +54,7 @@ dshash_mgcv = function(x,mu=0,sigma=1,epsilon=0,delta=1) {
 	return(Cz*exp(-0.5*Sz^2)*fac/sigma)
 }	
 
-COMPARING = TRUE; 
+COMPARING = FALSE; 
 if(COMPARING) {
 mu = rnorm(1); sigma=runif(1)*5; epsilon=rnorm(1); delta=exp(rnorm(1)); 
 integrate(function(x) dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
@@ -144,7 +144,8 @@ JPvar = function(epsilon,delta) {
 
 TESTING=FALSE; 
 if(TESTING) { #---- Check mean and var; compare with dSHASHo in gamlss.dist 
-  require(gamlss.dist)
+
+require(gamlss.dist)
 JPmean(0,1); JPvar(0,1);  # Gives N(0,1), so values should be 0, 1 
 
 x=seq(-5,5,length=100); 
