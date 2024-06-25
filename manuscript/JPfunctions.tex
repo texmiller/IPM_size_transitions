@@ -123,20 +123,18 @@ The density function for $X_{\epsilon,\delta}$ is given by \citet[][eqn. 2]{jone
 \be
 \begin{aligned}
  f_{x \vert \epsilon,\delta} & = C(x) \exp\{-S(x)^2/2\} \{2\pi(1+x^2)\}^{-1/2}  \\
-\mbox{ where }  S(x) & = \mbox{sinh}(\delta \mbox{asinh}(x)- \epsilon), 	\mbox{ and } \; C(x) = \sqrt{1 + S(x)^2}. 
+\mbox{ where }  S(x) & = \mbox{sinh}(\delta \mbox{ asinh}(x)- \epsilon), 	\mbox{ and } \; C(x) = \sqrt{1 + S(x)^2}. 
 \end{aligned} 
 \ee
 
 The general four-parameter distribution with location parameter $\mu$ and scale parameter $\sigma$ is defined as the distribution 
-of $\mu + \sigma X_{\epsilon, \delta}$; its density function is 
-\be
-\begin{aligned}
-f(x| \mu,\sigma,\epsilon,\delta) & = C(z) \exp\{-S(z)^2/2\} \{2\pi(1+z^2)\}^{-1/2}/\sigma, \\
-\mbox{where } z & = (x-\mu)/(\sigma \delta). 
-\end{aligned}
-\ee
-This is often called the SHASH distribution; in \textbf{gamlss} it is the \texttt{SHASHo2} distribution. 
-
+of $\mu + \sigma X_{\epsilon, \delta}$. This is often called the SHASH distribution; in \textbf{gamlss} it is the \texttt{SHASHo2} distribution. 
+%\be
+%\begin{aligned}
+%f(x| \mu,\sigma,\epsilon,\delta) & = C(z) \exp\{-S(z)^2/2\} \{2\pi(1+z^2)\}^{-1/2}/\sigma, \\
+%\mbox{where } z & = (x-\mu)/(\sigma \delta). 
+%\end{aligned}
+%\ee
 As is the case for most four-parameter distributions, $\mu$ is not the mean, $\sigma$ is not the standard deviation, $\epsilon$ is not
 the skew and $\delta$ is not the kurtosis of the SHASH distribution. All else being equal, 
 \begin{itemize}
@@ -144,7 +142,7 @@ the skew and $\delta$ is not the kurtosis of the SHASH distribution. All else be
 \item larger $|\epsilon|$ gives higher asymmetry with the sign of $\epsilon$ determining the direction, 
 \item larger $\delta>0$ gives lighter tails. 
 \end{itemize} 
-With $\epsilon=0, \dlBut all moments are jointly determined by all four parameters. 
+But all moments are jointly determined by all four parameters. 
 
 The countervailing advantage of the SHASH family is that the attainable combinations of skewness and kurtosis are very broad compared to other 
 four-parameter families, and come very close to the theoretical limit of kurtosis as a function of skewness \citep[][Fig.  2]{jones-pewsey-2009}. 
@@ -156,6 +154,19 @@ The formulas for the first and second moments make it possible to define a repar
 $\mu$ is the mean and the scale parameter $\sigma$ is the standard deviation. This form can then be used in
 custom likelihood functions that ``import'' the fitted mean and standard deviation from the Gaussian pilot model, 
 in the same way that the skewed $t$ distribution was used in our lady orchid case study. 
+
+
+
+
+
+
+
+
+
+
+
+
+
 Code for this reparameterized form of the distribution is provided in our code archive script \texttt{JPfuns.R}. 
 
 It eventually transpired that none of our case studies involved fitting a SHASH distribution through a ``custom'' likelihood 
