@@ -39,69 +39,13 @@
 ######################################################################      
  
  
- ###############################################################
- ## The mgcv parameterization for gam family 'shash'. 
- ## mu and sigma control location and scale, epsilon determines
- ## skewness (same sign as epsilon), and delta > 0 controls tail
- ## weight. Tails are heavier than Gaussian for delta>1, lighter
- ## for delta < 1. 
- ###############################################################
-dshash_mgcv = function(x,mu=0,sigma=1,epsilon=0,delta=1) {  
-	z = (x - mu)/(sigma*delta); 
-	Sz = sinh(delta*asinh(z) - epsilon); 
-	Cz = sqrt( 1 + Sz^2 )
-	fac = 1/sqrt(2*pi*(1+z^2));
-	return(Cz*exp(-0.5*Sz^2)*fac/sigma)
-}	
 
-COMPARING = FALSE; 
-if(COMPARING) {
-mu = rnorm(1); sigma=runif(1)*5; epsilon=rnorm(1); delta=exp(rnorm(1)); 
-integrate(function(x) dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
-
-m1 = integrate(function(x) x*dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
-m2 =  integrate(function(x) (x^2)*dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
-m3 = integrate(function(x) ((x-m1)^3)*dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
-m4 = integrate(function(x) ((x-m1)^4)*dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
-cat(mu, sigma, m1, sqrt(m2-m1^2), m3, m4,"\n"); 
-
-require(gamlss.dist); 
-m1 = integrate(function(x) x*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
-m2 =  integrate(function(x) (x^2)*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
-m3 = integrate(function(x) ((x-m1)^3)*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
-m4 = integrate(function(x) ((x-m1)^4)*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
-cat(mu, sigma, m1, sqrt(m2-m1^2), m3, m4,"\n"); 
-
-x = 2*rbeta(25000,3,3); x = sort(x); 
-y = rSHASHo2(25000,mu = 1 + x + x^2, sigma = 0.5*exp(x/2), 0.5, 0.7); 
-plot(x,y); 
-require(mgcv); 
-fit.gam = gam(list(y~s(x),~s(x), ~1, ~1),family="shash"); 
-out = predict(fit.gam,type="response");  
-par(mfrow=c(2,1)); 
-plot(x,out[,1]) 
-points(x,1+x+x^2,type="l",col="red",lwd=2); 
-plot(x,exp(out[,2])); 
-points(x,0.5*exp(x/2),type="l",col="red",lwd=2); 
-
-
-} 
- 
 ##########################################################
 ##              JP Distribution 
 ## Functions for the two-parameter JP distribution 
 ## See Jones & Pewsey 2009, p. 764.  
 ## epsilon is real-valued, delta > 0
 ##########################################################
-
-## Utility function for mean and variance 
-Pq = function(q) {
-    fac=exp(0.25)/sqrt(8*pi); 
-    t1 = besselK(x=1/4, nu = 0.5*(q+1)); 
-    t2 = besselK(x=1/4, nu = 0.5*(q-1)); 
-    return(fac*(t1+t2))
-}
-
 
 #### Probability density function
 dJP = function(x,epsilon,delta) {
@@ -130,8 +74,74 @@ rJP = function(n, epsilon=0, delta=1){
     return (qJP(U,epsilon,delta))
 }
 
+ ########################################################################
+ ## The mgcv parameterization for gam family 'shash'. 
+ ## mu and sigma control location and scale, epsilon determines
+ ## skewness (same sign as epsilon), and delta > 0 tail weight. 
+ ## Tails are heavier than Gaussian for delta>1, lighter for delta < 1. 
+ ########################################################################
+dshash_mgcv = function(x,mu=0,sigma=1,epsilon=0,delta=1) {  
+	z = (x - mu)/(sigma*delta); 
+	Sz = sinh(delta*asinh(z) - epsilon); 
+	Cz = sqrt( 1 + Sz^2 )
+	fac = 1/sqrt(2*pi*(1+z^2));
+	return(Cz*exp(-0.5*Sz^2)*fac/sigma)
+}	
 
-### Mean and variance 
+COMPARING = TRUE; 
+if(COMPARING) {
+mu = rnorm(1); sigma=runif(1)*5; epsilon=rnorm(1); delta=exp(rnorm(1)); 
+integrate(function(x) dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+
+m1 = integrate(function(x) x*dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+m2 =  integrate(function(x) (x^2)*dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+m3 = integrate(function(x) ((x-m1)^3)*dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+m4 = integrate(function(x) ((x-m1)^4)*dshash_mgcv(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+cat(mu, sigma, m1, sqrt(m2-m1^2), m3, m4,"\n"); 
+
+require(gamlss.dist); 
+m1 = integrate(function(x) x*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+m2 =  integrate(function(x) (x^2)*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+m3 = integrate(function(x) ((x-m1)^3)*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+m4 = integrate(function(x) ((x-m1)^4)*dSHASHo2(x,mu,sigma,epsilon,delta), -Inf, Inf)$value
+cat(mu, sigma, m1, sqrt(m2-m1^2), m3, m4,"\n"); 
+
+for(j in 1:10){ 
+	x = rnorm(1); mu = rnorm(1); sigma=runif(1)*5; epsilon=rnorm(1); delta=exp(rnorm(1)); 
+	u = dshash_mgcv(x,mu,sigma,epsilon,delta)
+	v = dSHASHo2(x,mu,sigma,epsilon,delta)
+	cat(j,u,v,"\n"); 
+}
+
+
+
+x = 2*rbeta(25000,3,3); x = sort(x); 
+y = rSHASHo2(25000,mu = 1 + x + x^2, sigma = 0.5*exp(x/2), 0.5, 0.7); 
+plot(x,y); 
+require(mgcv); 
+fit.gam = gam(list(y~s(x),~s(x), ~1, ~1),family="shash"); 
+out = predict(fit.gam,type="response");  
+par(mfrow=c(2,1)); 
+plot(x,out[,1]) 
+points(x,1+x+x^2,type="l",col="red",lwd=2); 
+plot(x,exp(out[,2])); 
+points(x,0.5*exp(x/2),type="l",col="red",lwd=2); 
+
+
+} 
+ 
+######################################################
+## Mean and variance 
+######################################################
+
+## Utility function for mean and variance 
+Pq = function(q) {
+    fac=exp(0.25)/sqrt(8*pi); 
+    t1 = besselK(x=1/4, nu = 0.5*(q+1)); 
+    t2 = besselK(x=1/4, nu = 0.5*(q-1)); 
+    return(fac*(t1+t2))
+}
+
 JPmean = function(epsilon,delta) {
         sinh(epsilon/delta)*Pq(1/delta)
 }
