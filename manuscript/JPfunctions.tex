@@ -97,7 +97,7 @@ deletekeywords={on,by,data,R,Q,mean,var,sd,log,family,na,options,q,weights,effec
 \linenumbers
 \centerline{\Large{\textbf{Supporting Information}}}
 
-\section{The Jones-Pewsey sinh-arcsinh distributions} 
+\section{The Jones-Pewsey (2009) sinh-arcsinh distributions} 
 \label{sec:SHASHdist} 
 \citet{jones-pewsey-2009} introduced a tractable generalization of the Normal distribution with two 
 additional parameters determining asymmetry (skewness), and tail weight (kurtosis) which can be  
@@ -125,11 +125,13 @@ C(x)  & =  \sqrt{1 + S(x)^2} = \mbox{cosh}(\delta \mbox{ asinh}(x)- \epsilon).
 \end{aligned} 
 \ee
 The attainable combinations of skewness and kurtosis are 
-very broad compared to other four-parameter families, and come very close to the theoretical limit of
+very broad compared to other families, and come very close to the theoretical limit of
 kurtosis as a function of skewness \citep[][Fig.  2]{jones-pewsey-2009}. 
 Additionally, eqn. \eqref{eqn:JP2} makes it straightforward to generate random numbers and to compute 
 the probability density, cumulative distribution, and quantile functions. 
-There are also analytic formulas for the first four moments \citep[][p. 764]{jones-pewsey-2009}.
+There are also analytic formulas for the first four non-central 
+moments \citep[][p. 764]{jones-pewsey-2009} in terms of the Bessel function $K_{\nu}$, which is
+\texttt{BesselK} in base R and \texttt{besselk} in \textsc{Matlab} and GNU \textsc{Octave}.
 
 \citet{jones-pewsey-2009} defined a four-parameter distribution with location 
 parameter $\mu$ and scale parameter $\sigma$ as the distribution of $\mu + \sigma X_{\epsilon, \delta}$, 
@@ -140,8 +142,8 @@ f_{\mu, \sigma,  \epsilon,\delta}(x)  = \sigma^{-1}f_{ \epsilon,\delta}( \sigma^
 \ee
 Terminology on this distribution has become somewhat confused. in the \textbf{mgcv} R package 
 it is called \texttt{shash}, while in the \textbf{gamlss} package it is called \texttt{SHASHo2} 
-and \texttt{SHASH} is a differently parameterized form of the distribution. To get around 
-this confusion we will refer to \eqref{eqn:JP4} as the JP4 distribution (``Jones-Pewsey 4 parameter''), 
+and \texttt{SHASH} is a related but different distribution. To sidestep 
+this confusion we refer to \eqref{eqn:JP4} as the JP4 distribution (``Jones-Pewsey 4 parameter''), 
 and refer to \eqref{eqn:JP2} as JP2. 
 % with density functions $f_{JP4}$ and $f_{JP2}$ respectively.  
 
@@ -169,12 +171,7 @@ Differentiating both sides with respect to $x$, the probability distribution fun
 f_{JPS}(x \vert \mu, \sigma, \epsilon, \delta) =  \frac{s(\epsilon,\delta)}{\sigma} 
 f_{ \epsilon,\delta}\left(m(\epsilon,\delta) + \frac{s(\epsilon,\delta)}{\sigma}(x - \mu) \right) 
 \ee
-Code for the JP2 and JPS distributions with the usual \texttt{d,p,q,r} functions are provided 
-in our code archive script \texttt{JPfuns.R}. 
 
-It eventually transpired that none of our case studies involved fitting a SHASH distribution through a ``custom'' likelihood 
-function (though this was transiently the case). But for the sake of possible future applications, we record here some 
-advice for doing so based on our experience. 
 
 Eqn. \eqref{eqn:JP2} shows that the JP2 distribution depends on $\epsilon$ only through the ratio $\epsilon/\delta$. We have found
 that this property can be problematic for parameter estimation, because of a ridge in the likelihood surface with constant  
@@ -184,16 +181,19 @@ To avoid those problems, we recommend writing likelihood functions in terms of
 skewness and kurtosis parameters $\lambda$ and $\tau$, defined by $\delta = e^{-\tau}, \; \epsilon =  \delta \lambda$ in the 
 JPS distribution. We will refer to this as the JPR distribution, with probability density 
 \be
-f_{JPR}(x \vert \mu, \sigma, \lambda, \tau) = f_{JPS}(x \vert \mu, \sigma, e^{-\tau}\lambda,  e^{\tau}). 
+f_{JPR}(x \vert \mu, \sigma, \lambda, \tau) = f_{JPS}(x \vert \mu, \sigma, e^{-\tau}\lambda,  e^{-\tau}). 
 \ee
-$\lambda$ can take any real value, and the distribution's skew has the same sign as $\lambda$. 
+$\lambda$ can take any real value, and the distribution's skewness has the same sign as $\lambda$. 
 $\tau$ also can take any real value, with negative values giving thinner than Gaussian tails 
 and positive values giving fatter than Gaussian tails. 
 
 It is still the case that skewness and kurtosis jointly depend on $\tau$ and $\lambda$, but the
 ``crosstalk'' is weaker than that between $\delta$ and $\epsilon$. 
 As a result, we found that likelihood optimization is numerically more stable when the likelihood function is 
-written as a function of $\tau$ and $\lambda$ rather than $\delta$ and $\epsilon$, in addition to $\mu$ and $\sigma$.  
+written as a function of $\tau$ and $\lambda$ rather than $\delta$ and $\epsilon$. 
+
+Code for the JP2, JPS, and JPR distributions with the usual \texttt{d,p,q,r} functions are provided 
+in our code archive script \texttt{JP\_funs.R}. 
 
 \begin{thebibliography}{62}
 \providecommand{\natexlab}[1]{#1}
