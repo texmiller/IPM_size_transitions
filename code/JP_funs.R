@@ -1,4 +1,4 @@
-##################################################################
+####################################################################
 ## Functions for Jones-Pewsey (JP) distribution and relatives.  
 ##
 ## (1) JP2(epsilon, delta) 
@@ -18,19 +18,20 @@
 ##
 ## (2) JPS(mu,sigma,epsilon, delta) 
 ##     This is a four-parameter family in which the JP2(epsilon,delta) 
-##     distribution is shifted and scaled to have mean=mu, standard 
-##     deviation=sigma, for all values of epsilon and delta. To our 
+##     distribution is shifted and scaled to have mean=mu, and standard 
+##     deviation=sigma, for ALL values of epsilon and delta. To our 
 ##	   knowledge it has not been introduced elsewhere. 
 ##
+##
 ## (3) JPR(mu, sigma, lambda, tau) 
-##     This is the "reparameterised" JPS distribution. The skewness
+##     This is a "reparameterised" JPS distribution. The skewness
 ##     and kurtosis parameters are lambda = exp(-delta) and 
-## 	   tau = epsilon/delta.  This reparameterization reduces the 
+## 	   tau = epsilon/delta. This reparameterization reduces the 
 ## 	   undesirable feature of JPS that changes in the tail-weight 
-## 	   parameter also have a large effect on skewness, and results 
-##     in more reliable parameter estimation.
+## 	   parameter also have a large effect on skewness, and improves 
+##     the reliability of parameter estimation.
 ##  
-######################################################################      
+########################################################################      
  
  
 ##########################################################
@@ -64,12 +65,12 @@ pJP2 = function (x, epsilon = 0, delta = 1) {
 ### Random number generation 
 rJP2 = function(n, epsilon=0, delta=1){
     U = runif(n); 
-    return (qJP(U,epsilon,delta))
+    return (qJP2(U,epsilon,delta))
 }
 
-########################################################
+##########################################
 ## Mean and variance of JP2 
-########################################################
+##########################################
 
 ## Utility function, see Jones and Pewsey (2009, p. 764)
 Pq = function(q) {
@@ -85,7 +86,7 @@ JP2mean = function(epsilon,delta) {
 
 JP2var = function(epsilon,delta) {
         EX2 = 0.5*(cosh(2*epsilon/delta)*Pq(2/delta) -1)
-        return( EX2 - JPmean(epsilon,delta)^2 ) 
+        return( EX2 - JP2mean(epsilon,delta)^2 ) 
 }        
 
 JP2sd = function(epsilon,delta) { sqrt(JP2var(epsilon,delta)) } 
@@ -116,6 +117,14 @@ rJPS = function(n, mean=0, sd=1, epsilon=0, delta=1){
 
 
 
+
+
+
+
+
+
+
+
 #### quantile function 
 qJPS = function(p, mean=0, sd=1, epsilon=0, delta=1) {
     q = qJP2(p,epsilon,delta); 
@@ -131,32 +140,6 @@ pSJP = function (q, epsilon = 0, delta = 1) {
    qs = mu + sigma*q
    return(pJP(qs,epsilon,delta))
 }
-
-    
-TESTING=FALSE;     
-if(TESTING) {
-# Testing the moments 
-for(j in 1:10) {
- epsilon=rnorm(1); delta=exp(rnorm(1)); 
- u = integrate(function(x) dSJP(x,epsilon,delta),-Inf,Inf)$value # should equal 1. 
- v = integrate(function(x) x*dSJP(x,epsilon,delta), -Inf, Inf)$value   # should equal 0 
- z = integrate(function(x) (x^2)*dSJP(x,epsilon,delta), -Inf, Inf)$value   # should equal 1 
-cat(round(u,digits=6), round(v,digits=6), round(z,digits=6), "\n"); 
-}
-
-## Testing the RNG -- do we recover the parameters that generated the "data"? 
-par(mfrow=c(2,1)); 
-X = rSJP(50000,epsilon=-0.5,delta=.25);
-NLL = function(p) {
-    eps=p[1]; del=p[2]; 
-    -sum(log(dSJP(X,eps,del)))
-}
-
-fit=optim(par=c(0,1), NLL, control=list(maxit=50000,trace=4)); 
-fit$par;     
-
-} 
-
 
 ######################################################
 # Nonparametric skew and kurtosis functions. 
