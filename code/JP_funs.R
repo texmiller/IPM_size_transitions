@@ -197,11 +197,12 @@ JPR_NPkurtosis = function(lambda=0,tau=0,p=0.05) {
 	return(u); 
 }	
 
-########################################################################
+#######################################################################
 ## Fit parameters (epsilon, delta) of JP2 by maximum Likelihood, 
-## using BHHH from MaxLik. 
-## Maximization uses multistart with random initial parameters,
-## with input parameter nstart specifying the number of random starts. 
+## using MaxLik, BHHH alternating with NM. Maximization 
+## uses multistart with random initial parameters centered on an intial
+## guess (input parameter 'start'). Input parameter 'nstart' specifies 
+## the number of random starts. 
 #######################################################################
 
 require(maxLik); 
@@ -218,7 +219,7 @@ JP2_maxLik <- function(y,nstart=10,start = c(epsilon=0,log.delta = 0), sigma.sta
     startj = start + sigma.start*rnorm(2); 
     fit = maxLik(logLik=LogLik1,start=startj, response=y, method="BHHH",control=list(iterlim=5000,printLevel=1),
                 finalHessian=FALSE);  
-    fit = maxLik(logLik=LogLik1,start=fit$estimate, response=y, method="BHHH",control=list(iterlim=5000,printLevel=1),
+    fit = maxLik(logLik=LogLik1,start=fit$estimate, response=y, method="NM",control=list(iterlim=5000,printLevel=1),
                 finalHessian=FALSE);             
     fit = maxLik(logLik=LogLik1,start=fit$estimate, response=y, method="BHHH",control=list(iterlim=5000,printLevel=1),
                 finalHessian=FALSE);     
@@ -236,10 +237,11 @@ JP2_maxLik <- function(y,nstart=10,start = c(epsilon=0,log.delta = 0), sigma.sta
 }
 
 ########################################################################
-## Fit parameters (lambda, tau) of JPR by maximum Likelihood 
-## using BHHH from MaxLik.
-## Maximization uses multistart with random initial parameters,
-## with input parameter nstart specifying the number of random starts. 
+## Fit all four parameters of JPR distribution by maximum Likelihood 
+## using MaxLik, BHHH alternating with Nelder-Mead. Maximization 
+## uses multistart with random initial parameters centered on an intial
+## guess (input parameter 'start'). Input parameter 'nstart' specifies 
+## the number of random starts. 
 #######################################################################
 
 JPR_maxLik <- function(y,nstart=10,start = c(mean=0, log.sd = 0,lambda=0,tau=0), sigma.start=0.2 ) {
@@ -247,21 +249,22 @@ JPR_maxLik <- function(y,nstart=10,start = c(mean=0, log.sd = 0,lambda=0,tau=0),
   LogLik1=function(pars,response){
 	mean = pars[1]; sd = exp(pars[2]); 
     lambda=pars[3]; tau = pars[4]
-    delta=exp(-tau); epsilon=lambda*delta;
-    val = dJPS(response, mean, sd, lambda, tau);  
+    val = dJPR(response, mean, sd, lambda, tau);  
     return(log(val)); 
   }  
     
-  bestPars=numeric(2); bestMax=-10^17; 
+  bestPars=numeric(4); bestMax=-10^17; 
   for(jrep in 1:nstart) {
     startj = start + sigma.start*rnorm(4); 
     fit = maxLik(logLik=LogLik1,start=startj,response=y, method="BHHH",control=list(iterlim=5000,printLevel=1),
                 finalHessian=FALSE); 
+    fit = maxLik(logLik=LogLik1,start=fit$estimate, response=y, method="NM",control=list(iterlim=5000,printLevel=1),
+                finalHessian=FALSE);    
     fit = maxLik(logLik=LogLik1,start=fit$estimate, response=y, method="BHHH",control=list(iterlim=5000,printLevel=1),
-                finalHessian=FALSE);     
+                finalHessian=FALSE); 				
     
-    if(fit$maximum==0) fit$maximum = -10^16; 	# failed fit
-    if(fit$code>2) fit$maximum = -10^16; 		# failed fit
+    if(fit$maximum==0) fit$maximum = -(10^16); 	# failed fit
+    if(fit$code>2) fit$maximum = -(10^16); 		# failed fit
     if(fit$maximum > bestMax)	{bestPars=fit$estimate; bestMax=fit$maximum; bestFit=fit;}
     cat("ML fit ", jrep,fit$maximum," <--------------------->", "\n"); 
   }	
