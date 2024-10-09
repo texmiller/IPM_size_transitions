@@ -108,7 +108,7 @@ IPM_G = mk_K_G(200,L=L,U=U,L1 = L1, U1 = U1); Re(eigen(IPM_G$K)$values[1]);
 chop_meshpts = pmax(pmin(IPM_G$meshpts,U1),L1) 
   
 ########################################### 
-## SHASH 
+## SHASH (NO, we used a JSU in the paper!!!) 
 ###########################################
 muE_fun <- splinefun(t0,muE, method="natural")
 log_sigE_fun <- splinefun(t0,log(sigE), method="natural")
