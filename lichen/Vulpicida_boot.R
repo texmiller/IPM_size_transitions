@@ -9,16 +9,21 @@ steve = "c:/repos/IPM_size_transitions"
 home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
 setwd(home); setwd("lichen"); 
 
-## source("Vulpicida_boot.R"); 
+## source("Vulpicida_boot_dopar.R"); 
 
 # require(car); require(zoo); require(moments); require(mgcv); 
 # require(gamlss); require(AICcmodavg); 
 # require(tidyverse); require(maxLik); require(qgam); require(exactLTRE)
 
 require(mgcv); require(gamlss.dist); require(exactLTRE); 
+require(maxLik); require(doParallel); 
 
 source("../code/metaluck_fns_CMH.R"); 
 source("../code/bca.R"); 
+
+##################################################################
+##  Functions for making the IPMs 
+##################################################################
 
 ############### Fecundity function (from Shriver et al. model) 
 ## Area can be negative and fecundity evaluates at zero
@@ -30,27 +35,8 @@ fx = function(Area) {
 	return(0.047*u)
 }	
 
-################# Read in data 
-XH_true = read.csv("Vulpicida raw data.csv"); 
-e = order(XH_true$t0); XH_true = XH_true[e,]; 
-
-bootreps = 501; 
-traits_G = traits_JSU = matrix(NA,bootreps,5); ## to hold life history outputs 
-
-for(bootrep in 1:bootreps){ ################### START bootstrap loop !!!!!!!!!!!!
-
-e = sample(1:nrow(XH_true),nrow(XH_true), replace=TRUE); 
-XH = XH_true[e,]; 
-e = order(XH$t0); XH = XH[e,]; 
-if(bootrep==1) XH = XH_true; ### first time, use the real data! 
-
-# hist(XH$t0,25,xlim=range(XH_true$t0)); 
-
-############### Survival modeling 
-fit2 = glm(survival~sqrt(t0) + t0,data=XH,family="binomial"); 
-surv_coefs = coef(fit2); 
-
-## survival, set up so that area can be negative and survival evaluates at zero
+## Survival, logistic regression on sqrt(area) and area. 
+## Area x can be negative and survival evaluates at zero
 sx = function(x)  {
   a = pmax(0,x)
   u1 = surv_coefs[1] + surv_coefs[2]*sqrt(a) + surv_coefs[3]*a 
@@ -58,18 +44,17 @@ sx = function(x)  {
   p1[x < 0]=0; 
   return(p1);
 }	
-	
-########################################################################
-#  Gaussian growth model: final choice  
-########################################################################
-XH = XH[XH$survival==1,]; ## discard those dead at (t+1); 
-fitGAU <- gam(list(t1~t0 + I(t0^2), ~t0 + I(t0^2)), data=XH, gamma=1.4,family=gaulss())
 
-################################################################# 
-## Make the GAUSSIAN IPM, compute traits and store 
-#################################################################
-L=-1; U=10; L1 = 0.2; U1 = 7; # limits of the data for eviction-prevention 
+############### JSU log-likelihood function 
+LogLikJSU=function(pars,response){
+  dJSU(response, 
+       mu=pars[1] + pars[2]*XH$t0 + pars[3]*(XH$t0^2),
+       sigma=exp(pars[4] + pars[5]*XH$t0 + pars[6]*(XH$t0^2)),
+       nu = pars[7] + pars[8]*XH$t0,
+       tau = exp(pars[9]), log=TRUE)
+}
 
+############## Functions to make the Gaussian IPM 
 mu_G = function(x) {coef(fitGAU)[1]  +  coef(fitGAU)[2]*x  + coef(fitGAU)[3]*x^2} 
 sd_G = function(x) {exp(coef(fitGAU)[4]   + coef(fitGAU)[5]*x + coef(fitGAU)[6]*x^2)}  
 G_z1z_G = function(z1,z) {sx(z)*dnorm(z1,mu_G(z),sd_G(z)) }
@@ -83,11 +68,65 @@ mk_K_G <- function(m, L, U, L1, U1) {
 	return(list(K = K, meshpts = meshpts, P = P, F = F))
 }
 
+############## Functions to make the JSU IPM 
+muJSU_fun <- function(z){outJSU$estimate[1]+outJSU$estimate[2]*z+outJSU$estimate[3]*z^2}
+sigJSU_fun <- function(z){exp(outJSU$estimate[4]+outJSU$estimate[5]*z+outJSU$estimate[6]*z^2)}
+epsJSU_fun <- function(z){outJSU$estimate[7]+outJSU$estimate[8]*z}
+delJSU_fun <- function(z){exp(outJSU$estimate[9])}
+
+G_z1z_J = function(z1,z) {sx(z)*dJSU(z1,muJSU_fun(z),sigJSU_fun(z),epsJSU_fun(z),delJSU_fun(z))}
+
+mk_K_J <- function(m, L, U, L1, U1) {
+  # mesh points 
+  h <- (U - L)/m
+  meshpts <- L + ((1:m) - 1/2) * h
+  K <- P <- h * (outer(meshpts, pmax(pmin(meshpts, U1),L1),G_z1z_J))
+  K[1,] = K[1,] + matrix(fx(meshpts),nrow=1); F = K - P; 
+  return(list(K = K, meshpts = meshpts, P = P, F = F))
+}
+
+
+##################################################################
+##  Doing the bootstrap
+##################################################################
+
+################# Read in data 
+XH_true = read.csv("Vulpicida raw data.csv"); 
+e = order(XH_true$t0); XH_true = XH_true[e,]; 
+
+c1 = makeCluster(16)
+registerDoParallel(c1); 
+clusterExport(c1,varlist=objects()); 
+
+bootreps = 501; 
+################### START bootstrap loop !!!!!!!!!!!!
+traits = foreach(bootrep = 1:bootreps,.packages = c("maxLik","gamlss.dist","mgcv"))%dopar%
+{ 
+e = sample(1:nrow(XH_true),nrow(XH_true), replace=TRUE); 
+XH = XH_true[e,]; 
+e = order(XH$t0); XH = XH[e,]; 
+if(bootrep==1) XH = XH_true; ### first time, use the real data! 
+
+############### Survival modeling 
+fit2 = glm(survival~sqrt(t0) + t0,data=XH,family="binomial"); 
+surv_coefs = coef(fit2); 
+
+########################################################################
+#  Gaussian growth model: final choice  
+########################################################################
+XH = XH[XH$survival==1,]; ## discard those dead at (t+1); 
+fitGAU <- gam(list(t1~t0 + I(t0^2), ~t0 + I(t0^2)), data=XH, gamma=1.4,family=gaulss())
+
+################################################################# 
+## Make the GAUSSIAN IPM, compute traits and store 
+#################################################################
+L=-1; U=10; L1 = 0.2; U1 = 7; # limits of the data for eviction-prevention 
+
 IPM_G = mk_K_G(200,L=L,U=U,L1 = L1, U1 = U1); lambda = Re(eigen(IPM_G$K)$values[1]);
 matU = IPM_G$P; matF = IPM_G$F; 
 lichen_c0 = rep(0,nrow(matU)); lichen_c0[1]=1
 
-traits_G[bootrep,]<-c(
+traits_G <-c(
   lambda, 
   mean_lifespan(matU, mixdist=lichen_c0),
   mean_LRO(matU,matF,mixdist=lichen_c0),
@@ -97,32 +136,89 @@ traits_G[bootrep,]<-c(
 
 cat(bootrep, signif(lambda,3), "\n"); 
 
+################################################################# 
+## Make the JSU IPM, compute traits and store 
+#################################################################
+
+p0<-c(coef(fitGAU)[1:6],0,0,0)
+## fit with maxlik
+outJSU=maxLik(logLik=LogLikJSU,start=p0*exp(0.2*rnorm(length(p0))), response=XH$t1,
+              method="BHHH",control=list(iterlim=5000,printLevel=0),finalHessian=FALSE); 
+outJSU=maxLik(logLik=LogLikJSU,start=outJSU$estimate,response=XH$t1,
+              method="NM",control=list(iterlim=5000,printLevel=0),finalHessian=FALSE); 
+outJSU=maxLik(logLik=LogLikJSU,start=outJSU$estimate,response=XH$t1,
+              method="BHHH",control=list(iterlim=5000,printLevel=0),finalHessian=FALSE); 
+
+IPM_J =mk_K_J(200,L=L,U=U,L1 = L1, U1 = U1); lambda = Re(eigen(IPM_J$K)$values[1]);
+
+### JSU
+matU = IPM_J$P; matF = IPM_J$F; c0 = rep(0,nrow(matU)); c0[1]=1; 
+traits_JSU<-c(
+  lambda, 
+  mean_lifespan(matU, mixdist=lichen_c0),
+  mean_LRO(matU,matF,mixdist=lichen_c0),
+  mean_age_repro(matU,matF,mixdist=lichen_c0),
+  gen_time_mu1_v(matU,matF)
+)
+
+cat(bootrep, signif(lambda,3), "\n")
+c(traits_G,traits_JSU); 
+
 } ################### END bootstrap loop !!!!!!!!!!!!
 
+theta = matrix(unlist(traits),ncol=10,byrow=TRUE); 
+traits_G = theta[,1:5]; traits_JSU = theta[,6:10]; 
+
 traits_G_true = traits_G[1,]; ## should match the paper 
+traits_JSU_true = traits_JSU[1,]; ## should match the paper 
+
+################################################### 
+## Output results: GAUSSIAN 
+###################################################
 
 traits_G_boot = traits_G[-1,]; 
 xbar = apply(traits_G_boot,2,mean); 
 xsd = apply(traits_G_boot,2,var)^0.5; 
 
-#### Compute a 'basic bootstrap interval' 
-BB = matrix(NA,bootreps-1,5); 
-for(j in 1:5) BB[,j] = 2*traits_G_true[j] - traits_G_boot[,j] 
-LQ = apply(BB,2,function(x) quantile(x,0.025)); 
-UQ = apply(BB,2,function(x) quantile(x,0.975));  
-
-
 ### Compute BCA intervals 
-CI = matrix(NA,2,5); 
+CI_G = matrix(NA,2,5); 
 for(j in 1:5) {
-	CI[1:2,j]=bca(traits_G_boot[,j], conf.level = 0.95) 
+	CI_G[1:2,j]=bca(traits_G_boot[,j], conf.level = 0.95) 
 }
 
+cat("GAUSSIAN", "\n"); 
 cat("point    ", signif(traits_G_true,3),"\n"); 
 cat("boot mean", signif(xbar,3),"\n"); 
 cat("boot sd  ", signif(xsd,3), "\n"); 
 cat("BCA 95% confidence intervals", "\n") 
-print(signif(CI,3)); 
+print(signif(CI_G,3)); 
 
 graphics.off(); par(mfrow=c(3,2)); 
 for(j in 1:5) hist(traits_G_boot[,j]); 
+
+
+###################################################
+##### Output results: JSU
+###################################################
+
+traits_JSU_boot = traits_JSU[-1,]; 
+xbar = apply(traits_JSU_boot,2,mean); 
+xsd = apply(traits_JSU_boot,2,var)^0.5; 
+
+### Compute BCA intervals 
+CI_J = matrix(NA,2,5); 
+for(j in 1:5) {
+	CI_J[1:2,j]=bca(traits_JSU_boot[,j], conf.level = 0.95) 
+}
+
+cat("JSU", "\n");  
+cat("point    ", signif(traits_JSU_true,3),"\n"); 
+cat("boot mean", signif(xbar,3),"\n"); 
+cat("boot sd  ", signif(xsd,3), "\n"); 
+cat("BCA 95% confidence intervals", "\n") 
+print(signif(CI_J,3)); 
+
+dev.new(); par(mfrow=c(3,2)); 
+for(j in 1:5) hist(traits_JSU_boot[,j]); 
+
+save.image(file="Vulpicida_boot.Oct.15.Rdata"); 
