@@ -1,0 +1,147 @@
+% ======================================================= %
+% Document: TEMPLATE FOR RESPONSES TO REVIEWERS
+% Author: Andrea Ballatore
+% Date: Jan 7, 2013
+% Source: https://raw.githubusercontent.com/ucd-spatial/Datasets/master/tex_response_to_reviewers_template/responses_to_reviewers.tex
+% Modified by Eduard Szöcs, 10.03.2015
+% ======================================================= %
+\documentclass[12pt]{article}
+
+% packages
+\usepackage{xr}
+\externaldocument[ms-]{BetterGrowthModeling_Ecology_Revision1}
+
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage[usenames,dvipsnames]{xcolor}
+\usepackage{color}
+\definecolor{mygray}{gray}{0.6}
+\usepackage[utf8]{inputenc}
+\usepackage[onehalfspacing]{setspace}
+\usepackage[
+	round,	%(defaultage in the main file and \input ) for round parentheses;
+	colon,	% (default) to separate multiple citations with colons;
+	authoryear,% (default) for author-year citations;
+	sort,		% orders multiple citations into the sequence in which they
+]{natbib}
+\usepackage[%disable
+	]{todonotes}
+
+\usepackage{anysize}
+\marginsize{2.5cm}{2.5cm}{1.5cm}{2.5cm}
+
+% macros
+% add a counter
+\newcounter{cN}
+\setcounter{cN}{0}
+
+\newcommand{\comment}[1]{
+	\vspace{2em}
+	\refstepcounter{cN} % incrment counter
+	\noindent \hangindent=0em \textbf{\textcolor{Maroon}{\uline{Comment \thecN}:~}}\emph{``#1''}
+	}
+
+\newcommand{\response}[1]{
+	\\[0.25em]
+	\hangindent=2.3em \textbf{\textcolor{NavyBlue}{\uline{Response}:~}}#1
+	}
+
+\newcommand{\revise}[1]{{\color{Mahogany}{#1}}}
+
+\usepackage[normalem]{ulem}
+\definecolor{darkred}{rgb}{1,.6,.6}
+\DeclareRobustCommand\problemline{\bgroup\markoverwith{\textcolor{darkred}{\rule[-0.9ex]{4pt}{3pt}}}\ULon}
+\DeclareRobustCommand{\problem}[1]{\problemline{#1}} % soul
+\setcounter{secnumdepth}{-1}
+
+\begin{document}
+% ======================================================= %
+\title{Manuscript ECY24-0612 --- Response to reviewers}
+
+\maketitle
+% ======================================================= %
+\noindent To the editorial board,
+
+Thank you for the opportunity to submit a revision of our manuscript to \emph{Ecology}. Our major changes include the following:
+\begin{enumerate}
+	\item We have 
+	\item We have also
+\end{enumerate}
+
+We describe these and other changes in greater detail below, where we reproduce comments from the associate editor and reviewers and provide our point-by-point responses. 
+All of our changes are denoted in the revised manuscript with \revise{Mahogany font}. 
+We think the review process has greatly strengthened our work such that it is now suitable for publication.
+We hope you agree. 
+
+\vspace{2em}
+Sincerely,
+
+Tom Miller
+
+Steve Ellner
+
+\newpage
+
+% ======================================================= %
+\section{Response to Reviewer 1}
+\vspace{-2em}
+
+\comment{Miller and Ellner present a well written and useful guide to assessing and modeling non-gaussian growth in developing integral projection models. As the authors point out, calls for non-gaussian growth models for IPMs have been common, but the tools to do this have often been less clear. The authors produce a well-organized and clearly written recipe book to begin to tackle this challenge. I think the manuscript will absolutely be useful to folks that work in this field and will move discussion on this topic forward. I think it’s very worthy of publication once my questions below regarding uncertainty have been addressed.}
+\response{We appreciate this reviewer's supportive comments and constructive suggestions.}
+
+\comment{My primary concern, which should be easily addressable in a revision, relates to the lack of uncertainty quantification in any of the IPM outputs. The authors demonstrate differences in the two models (Table 1, Fig 7, etc.), but use only point predictions, not accounting for demographic parameter or other uncertainty that are buried in the models. My strong suspicion (although I would be happy to be proven wrong) is that there would be overlap in the inference derived from the gaussian and non-gaussian models, even in the lichen and creosote case study, after accounting for uncertainty. Especially since the improved model contains several more parameters to estimate each of which have uncertainty. The authors point to Bayesian methods as a natural way incorporate this uncertainty, but uncertainty quantification and propagation is an essential part of any statistical modeling that needs to be included regardless of the approach. I think of uncertainty quantification is part of the “getting it right” the authors speak to on line 412.}
+\response{}
+
+\comment{I also think there is a larger philosophical question buried in here that the authors may also be able to begin to address. A question that is part of a larger discussion that the users of structured population models (which I consider myself part of) need to have.  Do we need models that attempt to capture more aspects of biological reality or do we just need to be more realistic in how we quantify and propagate uncertainty? The whole purpose of including uncertainty is to acknowledge that we recognize that any model will be wrong.}
+\response{}
+
+\comment{A final general note.  It’s worth keeping in mind, even when there are differences in predictions between the two approaches, we don’t know which one is producing more accurate predictions of things like life history characteristics (lifespan, generation time, etc). Models that best match observed data do not always provide the most accurate predictions (bias-variance tradeoff), so just seeing differences is not necessarily evidence of improvement.  }
+\response{}
+
+\comment{193: I am not 100\% convinced that having a single model for skewed growth is always advantageous, rather than a mixture model. In some instances, particularly forecasting, mixture model approaches such as described in Shriver et al. 2012 may have some advantage over the authors proposed approach. If there are different processes leading to “normal growth and shrinkage” vs. “extreme shrinkage” these processes may drive by different factors and not always covary. Thus, the most biologically accurate model would account for these processes separately }
+\response{}
+
+\comment{Table 1: I think these are interesting differences, but I don’t think the authors can claim they are as meaningful without including estimates of uncertainty. At the very least the inference of the life history parameters in Table 1 should account parameter uncertainty from the demographic rates estimated from data. }
+\response{}
+
+\comment{308: Claims of over- or under-estimation in this case have to be relative to the other model, the truth is not known. Also similar to table 1, I find it very challenging to know if this is really a meaningful difference without uncertainty quantified.}
+\response{} 
+
+\comment{412: One could argue we will never get it exactly right, that is why uncertainty quantification is so important. }
+\response{}
+
+\comment{Supplement: 659: I try not to be dogmatic in my statistical thinking, but I do find myself thinking throughout this that Bayesian estimation would not just be an alternative, but perhaps simpler.}
+\response{}
+
+\section{Response to Reviewers 2 and 3}
+\vspace{-2em}
+
+\comment{Overall, we genuinely enjoyed reading the paper. It is a good fit for the journal and article type, and we are very confident it will be valued by everyone who works with IPMs.
+\\
+\\
+Minor comments
+Though we think the manuscript is more or less publishable in its current state, we have a few minor suggestions that might improve it.
+}
+\response{}
+
+\comment{Given the authors’ experience, could they speculate about what kind of IPM metrics are more likely to be impacted by adopting the wrong growth model? Our intuition is that population growth metrics (PGR, R0) are likely reasonably robust to growth kernel assumptions, whereas lifecycle metrics will be more sensitive to those assumptions.}
+\response{}
+
+\comment{In the sentence beginning on line 287 “Through repeated trial and error…”, it would be helpful to see that unpacked a little bit. i.e., what does the error part of that process look like in this context? Being shown what does not work is as useful as seeing what works. }
+\response{}
+
+\comment{Similarly, in the sentence beginning on line 366, “We were happier with skewed t”, it would be useful to know why the authors were happier with skewed t (i.e., by what standard was it judged to be a better fit than the alternatives).}
+\response{}
+
+\comment{The figures (e.g., Figure 3) are neither black and white printable nor colourblind friendly. This could be easily remedied by using a colourblind-friendly palette or using different line types to represent the two values being plotted rather than shades of red and blue with very similar values.}
+\response{}
+
+\comment{Figure 5 doesn’t have panel letters (c.f., figures 3 and 4 for example), and there is a typo on line 337, “The interaction model with strongly favoured...” should read “...was strongly favoured...”. }
+\response{}
+
+\comment{In the paragraph which begins on line 47 the authors use both normal and Gaussian in the context of the distribution. Choose one and stick with it rather than using both?}
+\response{}
+
+% ======================================================= %
+\end{document}
+% ======================================================= %
