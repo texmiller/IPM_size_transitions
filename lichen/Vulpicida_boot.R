@@ -14,9 +14,11 @@ setwd(home); setwd("lichen");
 # require(car); require(zoo); require(moments); require(mgcv); 
 # require(gamlss); require(AICcmodavg); 
 # require(tidyverse); require(maxLik); require(qgam); require(exactLTRE)
-# library(gamlss.dist)
 
-source("../code/metaluck_fns_CMH.R")
+require(mgcv); require(gamlss.dist); require(exactLTRE); 
+
+source("../code/metaluck_fns_CMH.R"); 
+source("../code/bca.R"); 
 
 ############### Fecundity function (from Shriver et al. model) 
 ## Area can be negative and fecundity evaluates at zero
@@ -97,14 +99,30 @@ cat(bootrep, signif(lambda,3), "\n");
 
 } ################### END bootstrap loop !!!!!!!!!!!!
 
-traits_G_true = traits_G[1,]; cat(signif(traits_G_true,4),"\n"); ## should match the paper 
+traits_G_true = traits_G[1,]; ## should match the paper 
 
 traits_G_boot = traits_G[-1,]; 
-u = apply(traits_G_boot,2,mean); cat(signif(u,4),"\n"); 
-u = apply(traits_G_boot,2,var)^0.5; cat(signif(u,4),"\n"); 
-u = apply(traits_G_boot,2,function(x) quantile(x,0.025)); cat(signif(u,4),"\n"); 
-u = apply(traits_G_boot,2,function(x) quantile(x,0.975)); cat(signif(u,4),"\n"); 
+xbar = apply(traits_G_boot,2,mean); 
+xsd = apply(traits_G_boot,2,var)^0.5; 
+
+#### Compute a 'basic bootstrap interval' 
+BB = matrix(NA,bootreps-1,5); 
+for(j in 1:5) BB[,j] = 2*traits_G_true[j] - traits_G_boot[,j] 
+LQ = apply(BB,2,function(x) quantile(x,0.025)); 
+UQ = apply(BB,2,function(x) quantile(x,0.975));  
+
+
+### Compute BCA intervals 
+CI = matrix(NA,2,5); 
+for(j in 1:5) {
+	CI[1:2,j]=bca(traits_G_boot[,j], conf.level = 0.95) 
+}
+
+cat("point    ", signif(traits_G_true,3),"\n"); 
+cat("boot mean", signif(xbar,3),"\n"); 
+cat("boot sd  ", signif(xsd,3), "\n"); 
+cat("BCA 95% confidence intervals", "\n") 
+print(signif(CI,3)); 
 
 graphics.off(); par(mfrow=c(3,2)); 
-
 for(j in 1:5) hist(traits_G_boot[,j]); 
