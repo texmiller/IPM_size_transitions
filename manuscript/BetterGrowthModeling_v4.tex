@@ -1063,8 +1063,8 @@ and $\sigma$ is not the standard deviation (additionally, $\epsilon$ is not the 
 We therefore define a new four-parameter distribution family, JPS, by shifting and scaling JP2
 so that the location parameter $\mu$ is the mean, and the scale parameter $\sigma$ is the standard deviation. 
 This form can then be used in custom likelihood functions that ``import'' the fitted mean 
-and standard deviation from a Gaussian pilot model, in the same way that the skewed $t$ distribution was used in our 
-lady orchid case study. 
+and standard deviation from a Gaussian pilot model, in the same way that the skewed $t$ distribution 
+was used in our lady orchid case study. 
 
 Let $m(\epsilon,\delta)$ and $s(\epsilon, \delta)$ denote the mean and standard deviation of the 
 JP2 distribution. Then define 
@@ -1105,7 +1105,7 @@ $\tau$ also can take any real value, with negative values giving thinner than Ga
 and positive values giving fatter than Gaussian tails. Because $\delta$ depends only on $\tau$, 
 JPR also has the property that the nonparametric kurtosis depends only on the tail-weight parameter $\tau$. 
 
-It is still the case that the skewness and parametric kurtosis depend on both $\lambda$ and $\tau$, but the
+It is still the case that the ordinary skewness and kurtosis depend on both $\lambda$ and $\tau$, but the
 ``crosstalk'' is weaker than that between $\epsilon$ and $\delta$ (in particular, the tail-weight parameter
 has much less effect on the skewness).  
 As a result, we found that likelihood optimization is numerically more stable when the likelihood function is 
