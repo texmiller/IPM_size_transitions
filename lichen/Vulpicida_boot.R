@@ -9,7 +9,7 @@ steve = "c:/repos/IPM_size_transitions"
 home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
 setwd(home); setwd("lichen"); 
 
-## source("Vulpicida_boot_dopar.R"); 
+## source("Vulpicida_boot.R"); 
 
 # require(car); require(zoo); require(moments); require(mgcv); 
 # require(gamlss); require(AICcmodavg); 
@@ -26,17 +26,18 @@ source("../code/bca.R");
 ##################################################################
 
 ############### Fecundity function (from Shriver et al. model) 
-## Area can be negative and fecundity evaluates at zero
-fx = function(Area) {
-    a = pmax(0,Area)
-	r = sqrt(a/pi);
+## Size (sqrt area) can be negative and fecundity evaluates at zero
+## Recruitment is 0.047*circumference
+## Note, bootstrap does not include uncertainty in this! 
+fx = function(t0) {
+	area = pmax(0,t0)^2
+	r = sqrt(area/pi);
 	u = 2*pi*r; 
-	u[Area <0] = 0; 
 	return(0.047*u)
-}	
+}		
 
-## Survival, logistic regression on sqrt(area) and area. 
-## Area x can be negative and survival evaluates at zero
+## Survival, best-fitting regression model on full data set 
+## Size x (=sqrt area) can be negative and survival evaluates at zero
 sx = function(x)  {
   a = pmax(0,x)
   u1 = surv_coefs[1] + surv_coefs[2]*sqrt(a) + surv_coefs[3]*a 
@@ -94,7 +95,8 @@ mk_K_J <- function(m, L, U, L1, U1) {
 XH_true = read.csv("Vulpicida raw data.csv"); 
 e = order(XH_true$t0); XH_true = XH_true[e,]; 
 
-c1 = makeCluster(16)
+ncores = detectCores(logical=FALSE)-2; 
+c1 = makeCluster(ncores)
 registerDoParallel(c1); 
 clusterExport(c1,varlist=objects()); 
 
@@ -164,7 +166,8 @@ traits_JSU<-c(
 cat(bootrep, signif(lambda,3), "\n")
 c(traits_G,traits_JSU); 
 
-} ################### END bootstrap loop !!!!!!!!!!!!
+} 
+stopCluster(c1); ################### END bootstrap loop !!!!!!!!!!!!
 
 theta = matrix(unlist(traits),ncol=10,byrow=TRUE); 
 traits_G = theta[,1:5]; traits_JSU = theta[,6:10]; 
@@ -221,4 +224,4 @@ print(signif(CI_J,3));
 dev.new(); par(mfrow=c(3,2)); 
 for(j in 1:5) hist(traits_JSU_boot[,j]); 
 
-save.image(file="Vulpicida_boot.Oct.15.Rdata"); 
+save.image(file="Vulpicida_boot.Oct.16.Rdata"); 

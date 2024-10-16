@@ -42,17 +42,19 @@ e = order(XH$t0); XH = XH[e,];
 ############### Survival modeling 
 plot(XH$t0,XH$survival); 
 
-fit1 = glm(survival~sqrt(t0),data=XH,family="binomial"); 
-fit2 = glm(survival~sqrt(t0) + t0,data=XH,family="binomial"); 
-fit3 = gam(survival~s(sqrt(t0)),data=XH,family="binomial"); 
-## AIC goes for fit2, \Delta AIC of about 3. 
+fit1 = glm(survival~ t0,data=XH,family="binomial"); 
+fit2 = glm(survival~ t0 + I(t0^2),data=XH,family="binomial"); 
+fit3 = gam(survival~s(t0),data=XH,family="binomial"); 
+fit4 = glm(survival~ sqrt(t0) + t0, data=XH, family="binomial"); 
+## AIC goes for fit4, \Delta AIC of about 1.5 relative to gam, 
+## 5 relative to other parametric fits. 
 #(Intercept)    sqrt(t0)          t0 
 #  -1.649455    5.363115   -1.249375 
 
 ## survival, set up so that area can be negative and survival evaluates at zero
 sx = function(x)  {
-  a = pmax(0,x)
-  u1 = -1.649455  + 5.363115*sqrt(a) - 1.249375*a 
+  x1 = pmax(0,x)
+  u1 = -1.649455  + 5.363115*sqrt(x1) - 1.249375*x1 
   p1 = exp(u1)/(1+exp(u1)); 	 
   p1[x < 0]=0; 
   return(p1);
@@ -67,12 +69,11 @@ plot(tbar,pbar,pch=16,xlim=range(XH$t0),ylim=c(0.9,1));
 points(XH$t0,sx(XH$t0),type="l",lty=1); 
 
 ############### Fecundity function (from Shriver et al. model) 
-## Area can be negative and fecundity evaluates at zero
-fx = function(Area) {
-    a = pmax(0,Area)
-	r = sqrt(a/pi);
+## size t0 (=sqrt(area)) can be negative and fecundity evaluates at zero
+fx = function(t0) {
+	area = pmax(0,t0)^2
+	r = sqrt(area/pi);
 	u = 2*pi*r; 
-	u[Area <0] = 0; 
 	return(0.047*u)
 }		
 
@@ -743,7 +744,7 @@ for(k in 1:5000) {
 extinct_JSU = apply(popsize_J,1,function(x) sum(x==0)); 
 extinct_GAU =  apply(popsize_G,1,function(x) sum(x==0)); 
 
-dev.new(width=10,height=10); par(bty="l",cex.axis=1.3,cex.lab=1.3,mgp=c(2.1,1,0)); 
+dev.new(width=7,height=5); par(bty="l",cex.axis=1.4,cex.lab=1.3,mgp=c(2.1,1,0)); 
 matplot(1:100,cbind(extinct_JSU,extinct_GAU)/5000,col=c("black","red"),type="l",lty=1,
         xlab="Years", ylab="Extinction probability",lwd=2); 
 legend("topleft",legend = c("JSU", "Gaussian"), col=c("black","red"),lty=1,lwd=2,inset=0.03)
@@ -754,6 +755,7 @@ lichen_out$mat_GAU <- IPM_G
 lichen_out$mat_JSU <- IPM_J
 write_rds(lichen_out,"lichen_out.rds")
 
+lichen_out = read_rds("lichen_out.rds")
 
 ##### find eviction limits that work for GAU and JSU
 par(mfrow=c(1,2))
