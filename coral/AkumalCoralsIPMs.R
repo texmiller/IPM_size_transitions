@@ -160,16 +160,13 @@ sigmaFun = splinefun(z_vals[e],1/fitted_vals[e,2],method="natural");
 #}    
 
 G_z1zPilot <- function(z1,z,pars=NULL){
-  pred = predict(fitGAU,
-                 newdata = data.frame(logarea.t0=z))
+  pred = predict(fitGAU, newdata = data.frame(logarea.t0=z))
   return(dnorm(z1,mean=pred[,1],sd=exp(pred[,2])))
 }  
 
 G_z1zSHASH <- function(z1,z,pars=NULL){
-  pred = predict(fitSHASH,
-                 newdata = data.frame(logarea.t0=z))
-  return(dSHASHo2(x=z1, 
-                  mu=pred[,1],
+  pred = predict(fitSHASH, newdata = data.frame(logarea.t0=z))
+  return(dSHASHo2(x=z1, mu=pred[,1],
                   sigma = exp(pred[,2]), 
                   nu = pred[,3], 
                   tau = exp(pred[,4])))

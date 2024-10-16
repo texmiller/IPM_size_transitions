@@ -40,3 +40,9 @@ XH = na.omit(XH);
 XH$Site=factor(XH$Site); XH$Year=factor(XH$Year); 
 XH$logarea.t0 = log(XH$Area1); 
 XH$logarea.t1 = log(XH$Area2); 
+
+XA = subset(XC, (State1=="H") ); 
+XA = subset(XA, select=c(Site,Fan.number,Year,Area1,Area2,State1,State2))
+XA = na.omit(XA); 
+XA$logarea.t0 = log(XA$Area1); 
+XA$logarea.t1 = log(XA$Area2); 

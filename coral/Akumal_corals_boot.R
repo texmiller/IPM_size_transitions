@@ -1,0 +1,188 @@
+############################################################################
+## Corals (Bruno et al., Akumal) case study. Data from Bruno et al. (2011) 
+###########################################################################
+rm(list=ls(all=TRUE))
+
+### move to the right local directory 
+tom = "C:/Users/tm9/Dropbox/github/IPM_size_transitions"
+steve = "c:/repos/IPM_size_transitions" 
+home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
+setwd(home); setwd("coral"); 
+
+source("../code/metaluck_fns_CMH.R"); 
+source("../code/bca.R"); 
+
+## source("Akumal_corals_boot.R"); 
+
+#######################################################################
+## Create complete data frame XC. Bootstrapping will draw from this. 
+###################################################################### 
+source("AkumalCoralsSetup.R"); 
+
+######################################################################
+# Demographic functions from Bruno et al. (2011) 
+######################################################################
+fan.height=function(area) {1.3*sqrt(area)}
+fan.area=function(height) {height*height/1.69}
+
+nlog=function(x) x^(1/3) 
+
+### Size distribution of new recruits 
+recruitDensity=density(log(recruitSizes),bw="SJ"); 
+recruitFun=approxfun(recruitDensity$x,recruitDensity$y,yleft=0,yright=0);
+
+### Additional mortality of large fans, based on 1997 Keys data 
+### Note, here x is cube-root of area! 
+### NOTE: estimating this pulled in multiple sources of data, in complicated ways, 
+### and was based on making the fitted IPM match observed size distributions.  
+### Here we DO NOT include uncertainty arising from uncertainty in bigmu. 
+bigmu=function(x) {
+	p=c(2.3,8.7,0.093); 
+	u=exp(p[1]*(x-p[2]))
+	return(p[3]*u/(1+u))
+}
+
+## Base survival function. Here z is log area.  
+s_z <- function(z) {
+    x=exp(z)^(1/3); ## cube root of area, as z = log(area)  
+    return(1 - mH(x))
+}  
+
+### Mortality of healthy fans. Here x is cube root of area. 
+mH=function(x) {
+	p=surv_coefs; 
+	u= p[1]+p[2]*x; 
+	exp(u)/(1+exp(u)) + bigmu(x) 
+}  
+
+### Fecundity function for age at reproduction, so reproducing
+### is guaranteed once you get above the threshold   
+b_z <- function(z) {
+      x=exp(z); ### area 
+      xmin=fan.area(20); ### cutoff for reproduction 
+      ifelse(x>xmin,40,0)
+}
+
+########## Growth functions and P kernel functions 
+G_z1zPilot <- function(z1,z,pars=NULL){
+  pred = predict(fitGAU, newdata = data.frame(t0=z))
+  return(dnorm(z1,mean=pred[,1],sd=exp(pred[,2])))
+}  
+
+G_z1zSHASH <- function(z1,z,pars=NULL){
+  pred = predict(fitSHASH, newdata = data.frame(t0=z))
+  return(dSHASHo2(x=z1, mu=pred[,1],
+                  sigma = exp(pred[,2]), 
+                  nu = pred[,3], 
+                  tau = exp(pred[,4])))
+} 
+
+P_z1zSHASH = function(z1,z) {s_z(z) * G_z1zSHASH(z1, z)}
+P_z1zPilot = function(z1,z) {s_z(z) * G_z1zPilot(z1, z)}
+
+############################################################
+### Function to make the P kernel, with floor and ceiling 
+## to avoid eviction
+############################################################
+mk_P_ceiling <- function(m, L, U, L1, U1, Pfun) {
+	# mesh points 
+	h <- (U - L)/m;
+	meshpts <- L + ((1:m) - 1/2) * h;
+    truncMesh = pmin(meshpts,U1); 
+    truncMesh = pmax(meshpts,L1); 
+	P <- h * (outer(meshpts, truncMesh, Pfun));
+    return(list(meshpts = meshpts, h=h, P = P))
+}
+
+############ Sanity check: do we re-create the fitted survival function? YES! 
+############ Create data frame of healthy fans 
+XH=subset(XC,(State1=="H"));
+e=(XH$State2=="H")|(XH$State2=="D")|(XH$State2=="I"); 
+e[is.na(e)]=FALSE; XH=XH[e,]; 
+XH=XH[!is.na(XH$Area1),]; 
+XH$Died=as.numeric(XH$State2=="D")
+fitD=glm(Died~nlog(Area1),data=XH,family="binomial");  
+coef(fitD); ## same as in Bruno et al. 2011 
+
+
+##################################################################
+##  Doing the bootstrap
+##################################################################
+XC_true = XC; ### save the complete data set! 
+recruitSizes_true = recruitSizes
+
+#ncores = detectCores(logical=FALSE)-2; 
+#c1 = makeCluster(ncores)
+#registerDoParallel(c1); 
+#clusterExport(c1,varlist=objects()); 
+
+bootreps = 10; 
+#traits = foreach(bootrep = 1:bootreps,.packages = c("gamlss.dist","mgcv"))%dopar%
+for(bootrep in 1:bootreps){
+e = sample(1:nrow(XC),nrow(XC), replace=TRUE); 
+XC = XC_true[e,]; 
+e = order(XC$Area1); XC = XC[e,]; 
+recruitSizes = sample(recruitSizes_true,replace=TRUE) 
+
+### first time, use the real data! 
+if(bootrep==1) {XC = XC_true; recruitSizes = recruitSizes_true} 
+
+# Create data frame of healthy fans 
+XH=subset(XC,(State1=="H"));
+e=(XH$State2=="H")|(XH$State2=="D")|(XH$State2=="I"); 
+e[is.na(e)]=FALSE; XH=XH[e,]; 
+XH=XH[!is.na(XH$Area1),]; 
+XH$Died=as.numeric(XH$State2=="D")
+XH$t0 = log(XH$Area1); XH$t1 = log(XH$Area2); 
+
+############### Survival modeling 
+fitD=glm(Died~XH$t0,data=XH,family="binomial");  
+surv_coefs = coef(fitD); 
+
+############### size distribution of new recruits 
+recruitDensity=density(log(recruitSizes),bw="SJ"); 
+recruitFun=approxfun(recruitDensity$x,recruitDensity$y,yleft=0,yright=0);
+
+################################################################# 
+## Make the GAUSSIAN kernels, compute traits and store 
+#################################################################
+fitGAU <- gam(list(t1~s(t0),~s(t0)), data=XH, gamma=1.4,family=gaulss())
+m=500; L=0; U=10; L1 = 1.35; U1 = 7.9; 
+out = mk_P_ceiling(m, L, U, L1, U1,P_z1zPilot); 
+
+matU = out$P; 
+matF = 0*matU; matF[1,] = b_z(out$meshpts); 
+coral_c0 = recruitFun(out$meshpts); 
+coral_c0 = coral_c0/sum(coral_c0); 
+
+traits_G <-c(
+  mean_lifespan(matU, mixdist=coral_c0),
+  mean_age_repro(matU,matF,mixdist=coral_c0)
+)
+
+################################################################# 
+## Make the SHASH kernels, compute traits and store 
+#################################################################
+fitSHASH <- gam(list(t1 ~ s(t0), # <- location 
+                     ~ s(t0),   # <- log-scale
+                     ~ s(t0,k=4),   # <- skewness
+                     ~ s(t0,k=4)), # <- log-kurtosis
+                data = XH, gamma=1.4, 
+                family = shash,  
+                optimizer = "efs")
+
+m=500; L=0; U=10; L1 = 1.35; U1 = 7.9; 
+out = mk_P_ceiling(m, L, U, L1, U1,P_z1zSHASH); 
+
+matU = out$P; 
+matF = 0*matU; matF[1,] = b_z(out$meshpts); 
+
+traits_S <-c(
+  mean_lifespan(matU, mixdist=coral_c0),
+  mean_age_repro(matU,matF,mixdist=coral_c0)
+)
+
+cat(bootrep, signif(traits_G,3), signif(traits_S,3), "\n"); 
+
+
+}
