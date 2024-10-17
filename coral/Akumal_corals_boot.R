@@ -248,7 +248,7 @@ for(j in 1:2) {
 	CI_S[1:2,j]=bca(traits_S_boot[,j], conf.level = 0.95) 
 }
 
-cat("GAUSSIAN", "\n"); 
+cat("SHASH", "\n"); 
 cat("point    ", signif(traits_S_true,3),"\n"); 
 cat("boot mean", signif(xbar,3),"\n"); 
 cat("boot sd  ", signif(xsd,3), "\n"); 
