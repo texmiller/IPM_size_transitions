@@ -9,6 +9,8 @@ steve = "c:/repos/IPM_size_transitions"
 home = ifelse(Sys.info()["user"] == "Ellner", steve, tom)
 setwd(home); setwd("coral"); 
 
+require(mgcv); require(gamlss.dist); 
+
 source("../code/metaluck_fns_CMH.R"); 
 source("../code/bca.R"); 
 
@@ -18,6 +20,7 @@ source("../code/bca.R");
 ## Create complete data frame XC. Bootstrapping will draw from this. 
 ###################################################################### 
 source("AkumalCoralsSetup.R"); 
+recruitSizes_true = recruitSizes 
 
 ######################################################################
 # Demographic functions from Bruno et al. (2011) 
@@ -101,23 +104,41 @@ e=(XH$State2=="H")|(XH$State2=="D")|(XH$State2=="I");
 e[is.na(e)]=FALSE; XH=XH[e,]; 
 XH=XH[!is.na(XH$Area1),]; 
 XH$Died=as.numeric(XH$State2=="D")
+XH$t0 = log(XH$Area1); XH$t1 = log(XH$Area2); 
+
 fitD=glm(Died~nlog(Area1),data=XH,family="binomial");  
 coef(fitD); ## same as in Bruno et al. 2011 
 
+#################################################################
+# Fit growth models to get smoothing parameters 
+#################################################################
+fitGAU <- gam(list(t1~s(t0),~s(t0)), data=XH, gamma=1.4,family=gaulss())
+sp.GAU = fitGAU$sp; 
+
+fitSHASH <- gam(list(t1 ~ s(t0), # <- location 
+                     ~ s(t0),   # <- log-scale
+                     ~ s(t0,k=4),   # <- skewness
+                     ~ s(t0,k=4)), # <- log-kurtosis
+                data = XH, gamma=1.4, 
+                family = shash,  
+                optimizer = "efs")
+sp.SHASH = fitSHASH$sp; 
 
 ##################################################################
 ##  Doing the bootstrap
 ##################################################################
 XC_true = XC; ### save the complete data set! 
-recruitSizes_true = recruitSizes
+recruitDensity=density(log(recruitSizes_true),bw="SJ"); 
+bw_true = recruitDensity$bw; 
 
 #ncores = detectCores(logical=FALSE)-2; 
 #c1 = makeCluster(ncores)
 #registerDoParallel(c1); 
 #clusterExport(c1,varlist=objects()); 
 
-bootreps = 10; 
-#traits = foreach(bootrep = 1:bootreps,.packages = c("gamlss.dist","mgcv"))%dopar%
+bootreps = 501; 
+traits_G = traits_S = matrix(NA,bootreps,2); 
+
 for(bootrep in 1:bootreps){
 e = sample(1:nrow(XC),nrow(XC), replace=TRUE); 
 XC = XC_true[e,]; 
@@ -140,13 +161,13 @@ fitD=glm(Died~XH$t0,data=XH,family="binomial");
 surv_coefs = coef(fitD); 
 
 ############### size distribution of new recruits 
-recruitDensity=density(log(recruitSizes),bw="SJ"); 
+recruitDensity=density(log(recruitSizes),bw=bw_true); ## Don't refit bandwidth (standard advice) 
 recruitFun=approxfun(recruitDensity$x,recruitDensity$y,yleft=0,yright=0);
 
 ################################################################# 
 ## Make the GAUSSIAN kernels, compute traits and store 
 #################################################################
-fitGAU <- gam(list(t1~s(t0),~s(t0)), data=XH, gamma=1.4,family=gaulss())
+fitGAU <- gam(list(t1~s(t0),~s(t0)), data=XH, sp=sp.GAU,family=gaulss())
 m=500; L=0; U=10; L1 = 1.35; U1 = 7.9; 
 out = mk_P_ceiling(m, L, U, L1, U1,P_z1zPilot); 
 
@@ -155,7 +176,7 @@ matF = 0*matU; matF[1,] = b_z(out$meshpts);
 coral_c0 = recruitFun(out$meshpts); 
 coral_c0 = coral_c0/sum(coral_c0); 
 
-traits_G <-c(
+traits_G[bootrep,] <-c(
   mean_lifespan(matU, mixdist=coral_c0),
   mean_age_repro(matU,matF,mixdist=coral_c0)
 )
@@ -167,7 +188,7 @@ fitSHASH <- gam(list(t1 ~ s(t0), # <- location
                      ~ s(t0),   # <- log-scale
                      ~ s(t0,k=4),   # <- skewness
                      ~ s(t0,k=4)), # <- log-kurtosis
-                data = XH, gamma=1.4, 
+                data = XH, sp=sp.SHASH,
                 family = shash,  
                 optimizer = "efs")
 
@@ -177,12 +198,62 @@ out = mk_P_ceiling(m, L, U, L1, U1,P_z1zSHASH);
 matU = out$P; 
 matF = 0*matU; matF[1,] = b_z(out$meshpts); 
 
-traits_S <-c(
+traits_S[bootrep,] <-c(
   mean_lifespan(matU, mixdist=coral_c0),
   mean_age_repro(matU,matF,mixdist=coral_c0)
 )
 
-cat(bootrep, signif(traits_G,3), signif(traits_S,3), "\n"); 
-
+cat(bootrep, signif(traits_G[bootrep,],3), signif(traits_S[bootrep,],3), "\n"); 
+if(bootrep%%100 == 0) save.image(file="corals_boot.Rdata"); 
 
 }
+save.image(file="corals_boot.Rdata"); 
+
+traits_G_true = traits_G[1,]; 
+traits_S_true = traits_S[1,]; 
+
+################################################### 
+## Output results: GAUSSIAN 
+###################################################
+traits_G_boot = traits_G[-1,]; 
+xbar = apply(traits_G_boot,2,mean); 
+xsd = apply(traits_G_boot,2,var)^0.5; 
+
+### Compute BCA intervals 
+CI_G = matrix(NA,2,2); 
+for(j in 1:2) {
+	CI_G[1:2,j]=bca(traits_G_boot[,j], conf.level = 0.95) 
+}
+
+cat("GAUSSIAN", "\n"); 
+cat("point    ", signif(traits_G_true,3),"\n"); 
+cat("boot mean", signif(xbar,3),"\n"); 
+cat("boot sd  ", signif(xsd,3), "\n"); 
+cat("BCA 95% confidence intervals", "\n") 
+print(signif(CI_G,3)); 
+
+graphics.off(); par(mfrow=c(2,1)); 
+for(j in 1:2) hist(traits_G_boot[,j]); 
+
+################################################### 
+## Output results: SHASH
+###################################################
+traits_S_boot = traits_S[-1,]; 
+xbar = apply(traits_S_boot,2,mean); 
+xsd = apply(traits_S_boot,2,var)^0.5; 
+
+### Compute BCA intervals 
+CI_S = matrix(NA,2,2); 
+for(j in 1:2) {
+	CI_S[1:2,j]=bca(traits_S_boot[,j], conf.level = 0.95) 
+}
+
+cat("GAUSSIAN", "\n"); 
+cat("point    ", signif(traits_S_true,3),"\n"); 
+cat("boot mean", signif(xbar,3),"\n"); 
+cat("boot sd  ", signif(xsd,3), "\n"); 
+cat("BCA 95% confidence intervals", "\n") 
+print(signif(CI_S,3)); 
+
+graphics.off(); par(mfrow=c(2,1)); 
+for(j in 1:2) hist(traits_S_boot[,j]); 
