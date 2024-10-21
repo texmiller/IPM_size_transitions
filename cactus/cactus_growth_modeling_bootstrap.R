@@ -17,10 +17,10 @@ library(popbio)
 library(moments)
 library(maxLik)
 library(wesanderson)
-library(doParallel) 
 
 # functions for life history metrics
 source("../code/metaluck_fns_CMH.R")
+source("../code/bca.R")
 # functions for cactus IPM
 source("cactus_IPM_source_fns.R")
 
@@ -70,29 +70,42 @@ seedling_size <- read_csv("cholla_demography_20042018_EDI.csv") %>%
   summarise(mean_size = mean(log(vol_t),na.rm=T),
             sd_size = sd(log(vol_t),na.rm=T))
 
-## setting for approximating  matrix
+## fit growth gams to get smoothing parameters
+grow_GAU <- gam(list(logvol_t1 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), ~s(logvol_t,k=6)), 
+                data=CYIM_full, family=gaulss())
+grow_GAU_sp<-grow_GAU$sp
+grow_SHASH <- gam(list(logvol_t1 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), # <- model for location 
+                       ~ s(logvol_t,k=4),   # <- model for log-scale
+                       ~ s(logvol_t,k=4),   # <- model for skewness
+                       ~ s(logvol_t,k=4)), # <- model for log-kurtosis
+                  data = CYIM_full, 
+                  family = shash,  
+                  optimizer = "efs")
+grow_SHASH_sp<-grow_SHASH$sp
+## settings for approximating  matrix
 mat.size = 200
-lower.extension = -1
+lower.extension = -2.5 #-1 (I think I was evicting tiny seedling, though it did not matter much)
 upper.extension = 1.5
 exclude_plot_year<-c("s(plot)","s(year_t)")
 
 ## bootstrap settings and storage
-nboot = 500
+nboot = 501
 traits_G = traits_S = matrix(NA,nboot,5) ## hold life history outputs 
 
 ## start bootstrap
 for(i in 1:nboot){
   cactus_boot<-CYIM_full[sample(1:nrow(CYIM_full),nrow(CYIM_full),replace=T),]
+  ## first boot iteration, use the real data
+  if(i==1){cactus_boot<-CYIM_full}
+  
   ## gaussian and shash growth
   grow_GAU <- gam(list(logvol_t1 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), ~s(logvol_t,k=6)), 
-                      data=cactus_boot, family=gaulss())
+                      data=cactus_boot, family=gaulss(), sp=grow_GAU_sp)
   grow_SHASH <- gam(list(logvol_t1 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), # <- model for location 
                              ~ s(logvol_t,k=4),   # <- model for log-scale
                              ~ s(logvol_t,k=4),   # <- model for skewness
                              ~ s(logvol_t,k=4)), # <- model for log-kurtosis
-                        data = cactus_boot, 
-                        family = shash,  
-                        optimizer = "efs")
+                        data = cactus_boot,family = shash,optimizer = "efs",sp=grow_SHASH_sp)
   surv_mod <- gam(Survival_t1 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), family="binomial", data=cactus_boot)
   flow_mod <- gam(Goodbuds_t>0 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), family="binomial", data=cactus_boot)
   fert_mod <- gam(Goodbuds_t ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), family="nb", data=subset(cactus_boot,Goodbuds_t>0))
@@ -108,7 +121,9 @@ for(i in 1:nboot){
                                   upper.extension = upper.extension,
                                   mat.size = mat.size,exclude=exclude_plot_year,
                                   dist="SHASH")
-  cactus_c0 = rep(0,nrow(mat_GAU$Tmat)); cactus_c0[1]=1
+  ## define mixing distribution based on recruit size distribution -- need to add the two seed banks
+  cactus_c0 = c(0,0,recruit.size(mat_GAU$meshpts))
+  cactus_c0 = cactus_c0/sum(cactus_c0)
   traits_G[i,]<-c(
     Re(eigen(mat_GAU$IPMmat)$values[1]),
     mean_lifespan(mat_GAU$Tmat, mixdist=cactus_c0),
@@ -126,44 +141,48 @@ for(i in 1:nboot){
   print(i)
 }
 
-## add "true" values as final row
-grow_GAU <- gam(list(logvol_t1 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), ~s(logvol_t,k=6)),data=CYIM_full, family=gaulss())
-grow_SHASH <- gam(list(logvol_t1 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), # <- model for location 
-                       ~ s(logvol_t,k=4),   # <- model for log-scale
-                       ~ s(logvol_t,k=4),   # <- model for skewness
-                       ~ s(logvol_t,k=4)), # <- model for log-kurtosis
-                  data = CYIM_full,family = shash,optimizer = "efs")
-surv_mod <- gam(Survival_t1 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), family="binomial", data=CYIM_full)
-flow_mod <- gam(Goodbuds_t>0 ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), family="binomial", data=CYIM_full)
-fert_mod <- gam(Goodbuds_t ~ s(logvol_t,k=4) + s(plot,bs="re") + s(year_t,bs="re"), family="nb", data=subset(CYIM_full,Goodbuds_t>0))
-## size bounds
-min.size <- log(min(CYIM_full$vol_t,na.rm=T)) 
-max.size <- log(max(CYIM_full$vol_t1,na.rm=T))
+save.image(file="cactus_boot.Rdata")
 
-mat_GAU<-bigmatrix(lower.extension = lower.extension, 
-                   upper.extension = upper.extension,
-                   mat.size = mat.size,exclude=exclude_plot_year,
-                   dist="GAU")
-mat_SHASH<-bigmatrix(lower.extension = lower.extension, 
-                     upper.extension = upper.extension,
-                     mat.size = mat.size,exclude=exclude_plot_year,
-                     dist="SHASH")
+traits_G_true = traits_G[1,]
+traits_S_true = traits_S[1,]
 
-traits_GAU<-rbind(traits_G,c(
-  Re(eigen(mat_GAU$IPMmat)$values[1]),
-  mean_lifespan(mat_GAU$Tmat, mixdist=cactus_c0),
-  mean_LRO(mat_GAU$Tmat,mat_GAU$Fmat,mixdist=cactus_c0),
-  mean_age_repro(mat_GAU$Tmat,mat_GAU$Fmat,mixdist=cactus_c0),
-  gen_time_mu1_v(mat_GAU$Tmat,mat_GAU$Fmat)
-))
-traits_SHASH<-rbind(traits_S,c(
-  Re(eigen(mat_SHASH$IPMmat)$values[1]),
-  mean_lifespan(mat_SHASH$Tmat, mixdist=cactus_c0),
-  mean_LRO(mat_SHASH$Tmat,mat_SHASH$Fmat,mixdist=cactus_c0),
-  mean_age_repro(mat_SHASH$Tmat,mat_SHASH$Fmat,mixdist=cactus_c0),
-  gen_time_mu1_v(mat_SHASH$Tmat,mat_SHASH$Fmat)
-))
-colnames(traits_GAU)<-c("lambda","meanlife","meanLRO","meanagerepro","gentime")
-colnames(traits_SHASH)<-c("lambda","meanlife","meanLRO","meanagerepro","gentime")
-write.csv(traits_GAU,"cactus_traits_GAU_boot.csv",row.names=F)
-write.csv(traits_SHASH,"cactus_traits_SHASH_boot.csv",row.names=F)
+
+################################################### 
+## Output results: GAUSSIAN 
+###################################################
+traits_G_boot = traits_G[-1,]
+xbar = apply(traits_G_boot,2,mean)
+xsd = apply(traits_G_boot,2,var)^0.5
+
+### Compute BCA intervals 
+CI_G = matrix(NA,2,5)
+for(j in 1:5) {
+  CI_G[1:2,j]=bca(traits_G_boot[,j], conf.level = 0.95) 
+}
+
+cat("GAUSSIAN", "\n")
+cat("point    ", signif(traits_G_true,3),"\n")
+cat("boot mean", signif(xbar,3),"\n")
+cat("boot sd  ", signif(xsd,3), "\n")
+cat("BCA 95% confidence intervals", "\n") 
+print(signif(CI_G,3))
+
+################################################### 
+## Output results: SHASH
+###################################################
+traits_S_boot = traits_S[-1,]
+xbar = apply(traits_S_boot,2,mean)
+xsd = apply(traits_S_boot,2,var)^0.5
+
+### Compute BCA intervals 
+CI_S = matrix(NA,2,5)
+for(j in 1:5) {
+  CI_S[1:2,j]=bca(traits_S_boot[,j], conf.level = 0.95) 
+}
+
+cat("SHASH", "\n")
+cat("point    ", signif(traits_S_true,3),"\n")
+cat("boot mean", signif(xbar,3),"\n")
+cat("boot sd  ", signif(xsd,3), "\n")
+cat("BCA 95% confidence intervals", "\n") 
+print(signif(CI_S,3))
