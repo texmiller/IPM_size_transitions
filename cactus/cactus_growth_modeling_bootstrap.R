@@ -157,7 +157,7 @@ xsd = apply(traits_G_boot,2,var)^0.5
 ### Compute BCA intervals 
 CI_G = matrix(NA,2,5)
 for(j in 1:5) {
-  CI_G[1:2,j]=bca(traits_G_boot[,j], conf.level = 0.95) 
+  CI_G[1:2,j]=bca(traits_G_boot[,j], traits_G_true[j], conf.level = 0.95) 
 }
 
 cat("GAUSSIAN", "\n")

@@ -26,11 +26,11 @@
 ##    url = {https://CRAN.R-project.org/package=bootstrap},
 ## }
 ################################################################################################
-bca = function (theta, conf.level = 0.95) {
+bca = function (theta, theta_hat, conf.level = 0.95) {
     low <- (1 - conf.level)/2
     high <- 1 - low
     sims <- length(theta)
-    z.inv <- length(theta[theta < mean(theta)])/sims
+    z.inv <- length(theta[theta < theta_hat])/sims
     z <- qnorm(z.inv)
     U <- (sims - 1) * (mean(theta, na.rm = TRUE) - theta)
     top <- sum(U^3)
