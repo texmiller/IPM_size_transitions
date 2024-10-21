@@ -167,6 +167,25 @@ cat("boot sd  ", signif(xsd,3), "\n")
 cat("BCA 95% confidence intervals", "\n") 
 print(signif(CI_G,3))
 
+## these intervals seem bizarrely wide; see how they look on the histograms
+par(mfrow=c(2,3))
+hist(traits_G_boot[,1])
+abline(v=CI_G[,1],col="red",lwd=2,lty=2)
+abline(v=quantile(traits_G_boot[,1],c(0.025,0.975)),col="blue",lwd=2,lty=2)
+hist(traits_G_boot[,2])
+abline(v=CI_G[,2],col="red",lwd=2,lty=2)
+abline(v=quantile(traits_G_boot[,2],c(0.025,0.975)),col="blue",lwd=2,lty=2)
+hist(traits_G_boot[,3])
+abline(v=CI_G[,3],col="red",lwd=2,lty=2)
+abline(v=quantile(traits_G_boot[,3],c(0.025,0.975)),col="blue",lwd=2,lty=2)
+hist(traits_G_boot[,4])
+abline(v=CI_G[,4],col="red",lwd=2,lty=2)
+abline(v=quantile(traits_G_boot[,4],c(0.025,0.975)),col="blue",lwd=2,lty=2)
+hist(traits_G_boot[,5])
+abline(v=CI_G[,5],col="red",lwd=2,lty=2)
+abline(v=quantile(traits_G_boot[,5],c(0.025,0.975)),col="blue",lwd=2,lty=2)
+
+
 ################################################### 
 ## Output results: SHASH
 ###################################################
@@ -186,3 +205,21 @@ cat("boot mean", signif(xbar,3),"\n")
 cat("boot sd  ", signif(xsd,3), "\n")
 cat("BCA 95% confidence intervals", "\n") 
 print(signif(CI_S,3))
+
+par(mfrow=c(2,3))
+hist(traits_S_boot[,1])
+abline(v=CI_S[,1],col="red",lwd=2,lty=2)
+abline(v=quantile(traits_S_boot[,1],c(0.025,0.975)),col="blue",lwd=2,lty=2)
+hist(traits_S_boot[,2])
+abline(v=CI_S[,2],col="red",lwd=2,lty=2)
+abline(v=quantile(traits_S_boot[,2],c(0.025,0.975)),col="blue",lwd=2,lty=2)
+hist(traits_S_boot[,3])
+abline(v=CI_S[,3],col="red",lwd=2,lty=2)
+abline(v=quantile(traits_S_boot[,3],c(0.025,0.975)),col="blue",lwd=2,lty=2)
+hist(traits_S_boot[,4])
+abline(v=CI_S[,4],col="red",lwd=2,lty=2)
+abline(v=quantile(traits_S_boot[,4],c(0.025,0.975)),col="blue",lwd=2,lty=2)
+hist(traits_S_boot[,5])
+abline(v=CI_S[,5],col="red",lwd=2,lty=2)
+abline(v=quantile(traits_S_boot[,5],c(0.025,0.975)),col="blue",lwd=2,lty=2)
+
