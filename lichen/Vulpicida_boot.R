@@ -16,7 +16,7 @@ setwd(home); setwd("lichen");
 # require(tidyverse); require(maxLik); require(qgam); require(exactLTRE)
 
 require(mgcv); require(gamlss.dist); require(exactLTRE); 
-require(maxLik); require(doParallel); 
+require(maxLik); require(doParallel); require(moments); 
 
 source("../code/metaluck_fns_CMH.R"); 
 source("../code/bca.R"); 
@@ -86,19 +86,100 @@ mk_K_J <- function(m, L, U, L1, U1) {
   return(list(K = K, meshpts = meshpts, P = P, F = F))
 }
 
-
 ##################################################################
-##  Doing the bootstrap
+##  Read in the data 
 ##################################################################
-
-################# Read in data 
 XH_true = read.csv("Vulpicida raw data.csv"); 
 e = order(XH_true$t0); XH_true = XH_true[e,]; 
 
+##################################################################
+##  Doing the jacknife 
+##################################################################
 ncores = detectCores(logical=FALSE)-2; 
 c1 = makeCluster(ncores)
 registerDoParallel(c1); 
 clusterExport(c1,varlist=objects()); 
+
+jackreps = 1000 
+e_jack = sample(1:nrow(XH_true),jackreps, replace=FALSE); 
+clusterExport(c1,varlist=objects()); 
+
+################### START jackknife loop !!!!!!!!!!!!
+traits = foreach(jackrep = 1:jackreps,.packages = c("maxLik","gamlss.dist","mgcv"))%dopar%
+{ 
+
+omitted = e_jack[jackrep]; 
+XH = XH_true[-omitted,]; 
+e = order(XH$t0); XH = XH[e,]; 
+
+############### Survival modeling 
+fit2 = glm(survival~sqrt(t0) + t0,data=XH,family="binomial"); 
+surv_coefs = coef(fit2); 
+
+########################################################################
+#  Gaussian growth model: final choice  
+########################################################################
+XH = XH[XH$survival==1,]; ## discard those dead at (t+1); 
+fitGAU <- gam(list(t1~t0 + I(t0^2), ~t0 + I(t0^2)), data=XH, gamma=1.4,family=gaulss())
+
+################################################################# 
+## Make the GAUSSIAN IPM, compute traits and store 
+#################################################################
+L=-1; U=10; L1 = 0.2; U1 = 7; # limits of the data for eviction-prevention 
+
+IPM_G = mk_K_G(200,L=L,U=U,L1 = L1, U1 = U1); lambda = Re(eigen(IPM_G$K)$values[1]);
+matU = IPM_G$P; matF = IPM_G$F; 
+lichen_c0 = rep(0,nrow(matU)); lichen_c0[1]=1
+
+traits_G <-c(
+  lambda, 
+  mean_lifespan(matU, mixdist=lichen_c0),
+  mean_LRO(matU,matF,mixdist=lichen_c0),
+  mean_age_repro(matU,matF,mixdist=lichen_c0),
+  gen_time_mu1_v(matU,matF)
+)
+
+################################################################# 
+## Make the JSU IPM, compute traits and store 
+#################################################################
+
+p0<-c(coef(fitGAU)[1:6],0,0,0)
+## fit with maxlik
+outJSU=maxLik(logLik=LogLikJSU,start=p0*exp(0.2*rnorm(length(p0))), response=XH$t1,
+              method="BHHH",control=list(iterlim=5000,printLevel=0),finalHessian=FALSE); 
+outJSU=maxLik(logLik=LogLikJSU,start=outJSU$estimate,response=XH$t1,
+              method="NM",control=list(iterlim=5000,printLevel=0),finalHessian=FALSE); 
+outJSU=maxLik(logLik=LogLikJSU,start=outJSU$estimate,response=XH$t1,
+              method="BHHH",control=list(iterlim=5000,printLevel=0),finalHessian=FALSE); 
+
+IPM_J =mk_K_J(200,L=L,U=U,L1 = L1, U1 = U1); lambda = Re(eigen(IPM_J$K)$values[1]);
+
+### JSU
+matU = IPM_J$P; matF = IPM_J$F; c0 = rep(0,nrow(matU)); c0[1]=1; 
+traits_JSU<-c(
+  lambda, 
+  mean_lifespan(matU, mixdist=lichen_c0),
+  mean_LRO(matU,matF,mixdist=lichen_c0),
+  mean_age_repro(matU,matF,mixdist=lichen_c0),
+  gen_time_mu1_v(matU,matF)
+)
+
+c(traits_G,traits_JSU); 
+
+} 
+################### END jackknife loop !!!!!!!!!!!!
+
+#################################################################
+# Estimate acceleration parameter a from jackknifed estimates
+#################################################################
+theta = matrix(unlist(traits),ncol=10,byrow=TRUE); 
+a_G = apply(theta[,1:5],2, skewness)/6; 
+a_JSU = apply(theta[,6:10],2,skewness)/6; 
+
+
+##################################################################
+##  Doing the bootstrap
+##################################################################
 
 bootreps = 501; 
 ################### START bootstrap loop !!!!!!!!!!!!
@@ -186,7 +267,7 @@ xsd = apply(traits_G_boot,2,var)^0.5;
 ### Compute BCA intervals 
 CI_G = matrix(NA,2,5); 
 for(j in 1:5) {
-	CI_G[1:2,j]=bca(traits_G_boot[,j], conf.level = 0.95) 
+	CI_G[1:2,j]=bca(theta = traits_G_boot[,j], theta_hat = traits_G_true[j], a = a_G[j], conf.level = 0.95) 
 }
 
 cat("GAUSSIAN", "\n"); 
@@ -211,7 +292,7 @@ xsd = apply(traits_JSU_boot,2,var)^0.5;
 ### Compute BCA intervals 
 CI_J = matrix(NA,2,5); 
 for(j in 1:5) {
-	CI_J[1:2,j]=bca(traits_JSU_boot[,j], conf.level = 0.95) 
+	CI_J[1:2,j]=bca(theta  = traits_JSU_boot[,j], theta_hat = traits_JSU_true[j], a = a_JSU[j], conf.level = 0.95) 
 }
 
 cat("JSU", "\n");  
