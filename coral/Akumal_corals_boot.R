@@ -125,7 +125,7 @@ fitSHASH <- gam(list(t1 ~ s(t0), # <- location
 sp.SHASH = fitSHASH$sp; 
 
 ##################################################################
-##  Doing the bootstrap
+##  Doing the BOOTSTRAP 
 ##################################################################
 XC_true = XC; ### save the complete data set! 
 recruitDensity=density(log(recruitSizes_true),bw="SJ"); 
@@ -207,22 +207,24 @@ cat(bootrep, signif(traits_G[bootrep,],3), signif(traits_S[bootrep,],3), "\n");
 if(bootrep%%100 == 0) save.image(file="corals_boot.Rdata"); 
 
 }
-save.image(file="corals_boot.Rdata"); 
-
 traits_G_true = traits_G[1,]; 
 traits_S_true = traits_S[1,]; 
+traits_G_boot = traits_G[-1,]; 
+traits_S_boot = traits_S[-1,]
+
+save.image(file="corals_boot.Rdata"); 
 
 ################################################### 
 ## Output results: GAUSSIAN 
 ###################################################
-traits_G_boot = traits_G[-1,]; 
+
 xbar = apply(traits_G_boot,2,mean); 
 xsd = apply(traits_G_boot,2,var)^0.5; 
 
 ### Compute BCA intervals 
 CI_G = matrix(NA,2,2); 
 for(j in 1:2) {
-	CI_G[1:2,j]=bca(traits_G_boot[,j], conf.level = 0.95) 
+	CI_G[1:2,j]= bca(theta = traits_G_boot[,j], theta_hat = traits_G_true[j], a=0, conf.level = 0.95) 
 }
 
 cat("GAUSSIAN", "\n"); 
@@ -238,14 +240,13 @@ for(j in 1:2) hist(traits_G_boot[,j]);
 ################################################### 
 ## Output results: SHASH
 ###################################################
-traits_S_boot = traits_S[-1,]; 
 xbar = apply(traits_S_boot,2,mean); 
 xsd = apply(traits_S_boot,2,var)^0.5; 
 
 ### Compute BCA intervals 
 CI_S = matrix(NA,2,2); 
 for(j in 1:2) {
-	CI_S[1:2,j]=bca(traits_S_boot[,j], conf.level = 0.95) 
+	CI_S[1:2,j]=bca(theta = traits_S_boot[,j], theta_hat = traits_S_true[j], a=0, conf.level = 0.95) 
 }
 
 cat("SHASH", "\n"); 
