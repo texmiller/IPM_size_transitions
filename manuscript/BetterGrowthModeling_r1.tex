@@ -419,15 +419,14 @@ In this case study, properly modeling non-normal size transitions -- which was e
 \renewcommand{\arraystretch}{1.5}
 	\caption{Life history attributes derived from IPM kernels that included Gaussian or ``improved'' growth sub-models for six  case studies. The improved distributions were JSU (lichen, creosote), SHASH (cactus, pike, coral), and skewed $t$ (orchid). 
 	Pike, creosote and coral case studies are presented in the Supporting Information. The coral case study assumed an open population with constant recruitment from a large source region, so some life history
-	attributes cannot be computed from the model. Values in parenthesis are 95\% bootstrap confidence intervals, specifically the bias-corrected and accelerated (BCa) bootstrap confidence intervals 
-	as described by \citep{bca-1996}. Table can be reproduced from scripts \texttt{crossspp\_growth.R, Vulpicida\_boot.R, Akumal\_corals\_boot.R}.}
+	attributes cannot be computed from the model. Values in parenthesis are 95\% bootstrap confidence intervals, specifically the bias-corrected (BC) bootstrap confidence intervals \cite{bca-1996}. Table can be reproduced from scripts \texttt{crossspp\_growth.R, Vulpicida\_boot.R, Akumal\_corals\_boot.R}.}
 	\centering
 	\begingroup\fontsize{10pt}{10pt}\selectfont
 	\begin{tabular}{rp{1.1cm}|p{2.4cm}p{2.4cm}p{2.4cm}p{2.4cm}p{2.4cm}}
 	{\textbf{Species}} & {\textbf{Growth model}} & {\textbf{$\lambda$}} & {\textbf{Lifespan}} & {\textbf{Lifetime reproductive output}} & {\textbf{Age at reproduction}} & {\textbf{Generation time}} \\ 
 	\hline
-	Lichen & Gaussian & 1.01 (0.987, 1.04) & 6.44 (3.95, 13.8) & 1.4 (0.605, 3.97) & 6.48 (5.59, 7.27) & 40.8 (32.1, 60.2)\\ 
-	(\textit{V. pinastri}) & Improved & 1.00 (0.981,1.03) & 5.39 (3.41, 11.6) & 1.03 (0.463, 2.97) & 6.37 (5.44, 7.40) & 36.6 (29.1, 51.4)\\ 
+		Lichen & Gaussian & 1.01 (0.99, 1.04) & 6.4 (3.6, 11.1) & 1.4 (0.5, 3.1) & 6.5 (5.7, 7.3) & 40.8 (30.5,57.4)\\ 
+	(\textit{V. pinastri}) & Improved & 1.00 (0.98,1.03) & 5.4 (3.1, 9.7) & 1 (0.4, 2.4) & 6.4 (5.4, 7.3) & 36.6 (27.5, 48.6)\\ 
 	\hline
 	Cactus & Gaussian & 0.994 & 2.003 & 0.03 & 18.959 & 189.41 \\ 
 	(\textit{C. imbricata}) & Improved & 0.993 & 2.002 & 0.019 & 21.676 & 179.474 \\ 
@@ -441,13 +440,49 @@ In this case study, properly modeling non-normal size transitions -- which was e
 	Creosote & Gaussian & 1.039 & 21651.948 & 1998.486 & 29.338 & 241517.676 \\ 
 	(\textit{L. tridentata}) & Improved & 1.04 & 19613.824 & 1814.89 & 31.668 & 215330.883 \\ 
 	\hline 
-	Coral                  & Gaussian  & \quad ---  &   17.3 (12.1, 24.3)   &  \quad ---  & 10.5 (9.41, 12.0)  & \quad --- \\ 
-	(\textit{G. ventalina} & Improved  & \quad ---  &   17.5 (11.9, 24.2)   &  \quad ---  & 10.7 (9.52, 12.3)  & \quad --- \\
+	Coral                  & Gaussian  & \quad ---  &   17.3 (12.1, 23.5)   &  \quad ---  & 10.5 (9.5, 11.7)  & \quad --- \\ 
+	(\textit{G. ventalina} & Improved  & \quad ---  &   17.5 (11.8, 24.0)   &  \quad ---  & 10.7 (9.6, 12.1)  & \quad --- \\
 	\hline 
 	\end{tabular}
 	\endgroup
 	\label{tab:crossspp}
 \end{table}
+
+
+\begin{table}[tbp]
+\renewcommand{\arraystretch}{1.5}
+	\caption{Life history attributes derived from IPM kernels that included Gaussian or ``improved'' growth sub-models for six  case studies. The improved distributions were JSU (lichen, creosote), SHASH (cactus, pike, coral), and skewed $t$ (orchid). 
+	Pike, creosote and coral case studies are presented in the Supporting Information. The coral case study assumed an open population with constant recruitment from a large source region, so some life history
+	attributes cannot be computed from the model. Values are given as the point estimate $\pm$ one bootstrap standard error. 
+	Table can be reproduced from scripts \texttt{crossspp\_growth.R, Vulpicida\_boot.R, Akumal\_corals\_boot.R}.}
+	\centering
+	\begingroup\fontsize{10pt}{10pt}\selectfont
+	\begin{tabular}{rp{1.1cm}|p{2.4cm}p{2.4cm}p{2.4cm}p{2.4cm}p{2.4cm}}
+	{\textbf{Species}} & {\textbf{Growth model}} & {\textbf{$\lambda$}} & {\textbf{Lifespan}} & {\textbf{Lifetime reproductive output}} & {\textbf{Age at reproduction}} & {\textbf{Generation time}} \\ 
+	\hline
+	Lichen & Gaussian & 1.01 $\pm 0.01$ & 6.4 $\pm 2.1$ & 1.4 $\pm 0.7$ & 6.5 $\pm 0.4$ & 40.8 $\pm 7.1$ \\ 
+	(\textit{V. pinastri}) & Improved & 1.00 $\pm 0.01$ & 5.4 $\pm 1.8$ & 1.0 $\pm 0.5$ & 6.4 $\pm 0.5$ & 36.6 $\pm 5.7$\\ 
+	\hline
+	Cactus & Gaussian & 0.994 & 2.003 & 0.03 & 18.959 & 189.41 \\ 
+	(\textit{C. imbricata}) & Improved & 0.993 & 2.002 & 0.019 & 21.676 & 179.474 \\ 
+	\hline
+	Orchid & Gaussian & 1.091 & 1.081 & 20.009 & 5.064 & 104.125 \\ 
+	(\textit{O. purpurea}) & Improved & 1.09 & 1.079 & 19.378 & 5.027 & 100.753 \\ 
+	\hline
+	Pike & Gaussian & 1.616 & 1.051 & 0.447 & 1.241 & 4.963 \\ 
+	(\textit{E. Lucius}) & Improved & 1.617 & 1.049 & 0.369 & 1.221 & 4.94 \\ 
+	\hline
+	Creosote & Gaussian & 1.039 & 21651.948 & 1998.486 & 29.338 & 241517.676 \\ 
+	(\textit{L. tridentata}) & Improved & 1.04 & 19613.824 & 1814.89 & 31.668 & 215330.883 \\ 
+	\hline 
+	Coral                  & Gaussian  & \quad ---  &   $17.3\pm 3$   &  \quad ---  & $10.5\pm 0.59$ & \quad --- \\ 
+	(\textit{G. ventalina} & Improved  & \quad ---  &   $17.5\pm 3$   &  \quad ---  & $10.7\pm 0.65$ & \quad --- \\
+	\hline 
+	\end{tabular}
+	\endgroup
+	\label{tab:crossspp}
+\end{table}
+
 
 %\begin{table}[tbp]
 %\renewcommand{\arraystretch}{1.5}
@@ -795,6 +830,12 @@ D'Agostino, R.B. (1970) Transformation to normality of the null distribution of
 \bibitem[{Davis(2015)}]{davis-2015}
 Davis, C. (2015) \emph{sgt: Skewed Generalized T Distribution Tree}. R package
   version 2.0.
+  
+\bibitem[{Diciccio \& Efron(1996)}]{bca-1996}
+DiCiccio, T.J \& Efron, B. (1996) Bootstrap Confidence Intervals. 
+\emph{Statistical Science} \textbf{11}, 189--228.
+  
+   
 
 \bibitem[{Doak \emph{et~al.}(2021)Doak, Waddle, Langendorf, Louthan,
   Isabelle~Chardon, Dibner, Keinath, Lombardi, Steenbock, Shriver, Linares,

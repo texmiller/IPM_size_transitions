@@ -44,10 +44,6 @@ bca = function (theta, theta_hat, a=0, conf.level = 0.95) {
     sims <- length(theta)
     z.inv <- mean(theta < as.numeric(theta_hat)); 
     z <- qnorm(z.inv)
-    #U <- (sims - 1) * (mean(theta, na.rm = TRUE) - theta)
-    #top <- sum(U^3)
-    #under <- 6 * (sum(U^2))^{3/2}
-    #a <- top/under
     lower.inv <- pnorm(z + (z + qnorm(low))/(1 - a * (z + qnorm(low))))
     lower <- quantile(theta, lower.inv, names = FALSE)
     upper.inv <- pnorm(z + (z + qnorm(high))/(1 - a * (z + qnorm(high))))
