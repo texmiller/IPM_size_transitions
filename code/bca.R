@@ -42,7 +42,7 @@ bca = function (theta, theta_hat, a=0, conf.level = 0.95) {
     low <- (1 - conf.level)/2
     high <- 1 - low
     sims <- length(theta)
-    z.inv <- length(theta[theta < theta_hat])/sims
+    z.inv <- mean(theta < as.numeric(theta_hat)); 
     z <- qnorm(z.inv)
     #U <- (sims - 1) * (mean(theta, na.rm = TRUE) - theta)
     #top <- sum(U^3)
