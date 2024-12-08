@@ -20,6 +20,7 @@ library(wesanderson)
 
 # functions for life history metrics
 source("../code/metaluck_fns_CMH.R")
+# functions for bias-corrected bootstrap
 source("../code/bca.R")
 # functions for cactus IPM
 source("cactus_IPM_source_fns.R")
@@ -141,7 +142,11 @@ for(i in 1:nboot){
   print(i)
 }
 
-save.image(file="cactus_boot.Rdata")
+## save bootstrap data
+#save.image(file="cactus_boot.Rdata")
+
+##load bootstrap data
+load("cactus_boot.Rdata")
 
 traits_G_true = traits_G[1,]
 traits_S_true = traits_S[1,]
@@ -157,7 +162,7 @@ xsd = apply(traits_G_boot,2,var)^0.5
 ### Compute BCA intervals 
 CI_G = matrix(NA,2,5)
 for(j in 1:5) {
-  CI_G[1:2,j]=bca(traits_G_boot[,j], traits_G_true[j], conf.level = 0.95) 
+  CI_G[1:2,j]=bca(theta = traits_G_boot[,j], theta_hat = traits_G_true[j], a = 0, conf.level = 0.95) 
 }
 
 cat("GAUSSIAN", "\n")
@@ -167,7 +172,7 @@ cat("boot sd  ", signif(xsd,3), "\n")
 cat("BCA 95% confidence intervals", "\n") 
 print(signif(CI_G,3))
 
-## these intervals seem bizarrely wide; see how they look on the histograms
+## these intervals seem reasonable
 par(mfrow=c(2,3))
 hist(traits_G_boot[,1])
 abline(v=CI_G[,1],col="red",lwd=2,lty=2)
@@ -196,7 +201,7 @@ xsd = apply(traits_S_boot,2,var)^0.5
 ### Compute BCA intervals 
 CI_S = matrix(NA,2,5)
 for(j in 1:5) {
-  CI_S[1:2,j]=bca(traits_S_boot[,j], conf.level = 0.95) 
+  CI_S[1:2,j]=bca(theta = traits_S_boot[,j], theta_hat = traits_G_true[j], a = 0, conf.level = 0.95) 
 }
 
 cat("SHASH", "\n")
