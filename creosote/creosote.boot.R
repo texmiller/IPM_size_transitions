@@ -18,16 +18,6 @@ library(minpack.lm)
 library(sqldf)
 library(SuppDists)
 library(Rage)
-
-## functions
-Q.mean<-function(q.25,q.50,q.75){(q.25+q.50+q.75)/3}
-Q.sd<-function(q.25,q.75){(q.75-q.25)/1.35}
-Q.skewness<-function(q.10,q.50,q.90){(q.10 + q.90 - 2*q.50)/(q.90 - q.10)}
-Q.kurtosis<-function(q.05,q.25,q.75,q.95){
-  qN = qnorm(c(0.05,0.25,0.75,0.95))
-  KG = (qN[4]-qN[1])/(qN[3]-qN[2])
-  return(((q.95-q.05)/(q.75-q.25))/KG - 1)
-}
 invlogit<-function(x){exp(x)/(1+exp(x))}
 
 ## grab the creosote demography data from github
@@ -171,33 +161,27 @@ JSUout=maxLik(logLik=JSULogLik,start=p0*exp(0.2*rnorm(length(p0))),method="BHHH"
 JSUout=maxLik(logLik=JSULogLik,start=JSUout$estimate,method="NM",control=list(iterlim=5000,printLevel=0),finalHessian=FALSE)
 JSUout=maxLik(logLik=JSULogLik,start=JSUout$estimate,method="BHHH",control=list(iterlim=5000,printLevel=0),finalHessian=FALSE)
 
-# probability of flowering
+# probability of flowering, fruit production, survival
 if (i==1) {
   LATR_flower_best <- gam(total.reproduction_t > 0 ~ s(log_volume_t) + s(dens_scaled) + ti(log_volume_t,dens_scaled) + s(unique.transect, bs = "re"),
                           data = LATR_flow_dat, gamma = gamma, family = "binomial")
+  LATR_fruits_best <- gam(total.reproduction_t ~ s(log_volume_t) + s(dens_scaled) + s(unique.transect, bs = "re"),
+                          data = LATR_fruits_dat, gamma = gamma, family = "nb")
+  LATR_surv_best <- gam(survival_t1 ~ s(log_volume_t,by=as.factor(transplant)) + s(dens_scaled,by=as.factor(transplant))  + s(unique.transect, bs = "re"),
+                        data = LATR_surv_dat, gamma = gamma, family = "binomial")
+  # store smoothing params
   LATR_flower_best_sp<-LATR_flower_best$sp
+  LATR_fruits_best_sp<-LATR_fruits_best$sp
+  LATR_surv_best_sp<-LATR_surv_best$sp
 } else {
   LATR_flower_best <- gam(total.reproduction_t > 0 ~ s(log_volume_t) + s(dens_scaled) + ti(log_volume_t,dens_scaled) + s(unique.transect, bs = "re"),
                           data = LATR_flow_dat, gamma = gamma, family = "binomial",sp=LATR_flower_best_sp)
-}
-# fruit production conditional on flowering
-if (i==1) {
-  LATR_fruits_best <- gam(total.reproduction_t ~ s(log_volume_t) + s(dens_scaled) + s(unique.transect, bs = "re"),
-                          data = LATR_fruits_dat, gamma = gamma, family = "nb")
-  LATR_fruits_best_sp<-LATR_fruits_best$sp
-} else {
   LATR_fruits_best <- gam(total.reproduction_t ~ s(log_volume_t) + s(dens_scaled) + s(unique.transect, bs = "re"),
                           data = LATR_fruits_dat, gamma = gamma, family = "nb",sp=LATR_fruits_best_sp)
-}
-## pr survival
-if (i==1) {
-  LATR_surv_best <- gam(survival_t1 ~ s(log_volume_t,by=as.factor(transplant)) + s(dens_scaled,by=as.factor(transplant))  + s(unique.transect, bs = "re"),
-                        data = LATR_surv_dat, gamma = gamma, family = "binomial")
-  LATR_surv_best_sp<-LATR_surv_best$sp
-} else {
   LATR_surv_best <- gam(survival_t1 ~ s(log_volume_t,by=as.factor(transplant)) + s(dens_scaled,by=as.factor(transplant))  + s(unique.transect, bs = "re"),
                         data = LATR_surv_dat, gamma = gamma, family = "binomial",sp=LATR_surv_best_sp)
 }
+
 ## don't bootstrap any of the recruit stuff bc it's too small a data set
 if(i==1){
 # Recruitment data
