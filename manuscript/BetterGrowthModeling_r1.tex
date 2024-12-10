@@ -77,7 +77,7 @@ deletekeywords={on,by,data,R,Q,mean,var,sd,log,family,na,options,q,weights,effec
 % commands for commenting
 \newcommand{\tom}[2]{{\color{red}{#1}}\footnote{\textit{\color{red}{#2}}}}
 \newcommand{\steve}[2]{{\color{blue}{#1}}\footnote{\textit{\color{blue}{#2}}}}
-
+\newcommand{\revise}[1]{{\color{Mahogany}{#1}}}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 %%% Just for commenting
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -578,7 +578,7 @@ Plot-to-plot variation was more similar ($SD(\lambda_{p(Gaussian)})=0.0026$, $SD
 The difference in temporal variance would suggest that Gaussian growth modeling would lead to over-estimation of the stochastic growth rate $\lambda_S$, because temporal variance has a negative effect on $\lambda_S$.
 However, the stochastic growth rate from the Gaussian growth model ($\lambda_S=0.992$) was only slightly higher than that of the SHASH growth model ($\lambda_S=0.991$).  
 This is likely because temporal fluctuations in vital rates, which is where the SHASH growth model would make a difference, have a weaker influence on $\lambda_S$ than the temporal fluctuations in size structure that they generate \citep{ellis2013role,compagnoni2016effect}. 
-In other life history traits, the SHASH and Gaussian growth models predicted nearly identical lifespans but the SHASH predicted an older age at reproduction and shorter generation time (Table \ref{tab:crossspp}). 
+\revise{\linelabel{cactus.uncertainty}The SHASH and Gaussian growth models predicted small differences in other life history traits, but these differences were small relative to the uncertainty captured by bootstrapped confidence intervals (Table \ref{tab:crossspp}).}
 Thus, in this case study, modeling non-Gaussian size transitions with a Gaussian growth model may or may not influence IPM results depending on the target of the analysis. 
 
 \begin{figure}[tbp]

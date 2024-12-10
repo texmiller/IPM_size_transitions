@@ -30,6 +30,9 @@
 \usepackage{anysize}
 \marginsize{2.5cm}{2.5cm}{1.5cm}{2.5cm}
 
+\usepackage{xr}
+\externaldocument[ms-]{BetterGrowthModeling_r1}
+
 % macros
 % add a counter
 \newcounter{cN}
@@ -64,8 +67,8 @@
 
 Thank you for the opportunity to submit a revision of our manuscript to \emph{Ecology}. Our major changes include the following:
 \begin{enumerate}
-	\item We have 
-	\item We have also
+	\item In response to Reviewer 1, we have re-analyzed all IPM case studies to include estimates of uncertainty in model outputs. Our new results are summarized in the revised Table 1 and discussed throughout the text. 
+
 \end{enumerate}
 
 We describe these and other changes in greater detail below, where we reproduce comments from the associate editor and reviewers and provide our point-by-point responses. 
@@ -90,28 +93,28 @@ Steve Ellner
 \response{We appreciate this reviewer's supportive comments and constructive suggestions.}
 
 \comment{My primary concern, which should be easily addressable in a revision, relates to the lack of uncertainty quantification in any of the IPM outputs. The authors demonstrate differences in the two models (Table 1, Fig 7, etc.), but use only point predictions, not accounting for demographic parameter or other uncertainty that are buried in the models. My strong suspicion (although I would be happy to be proven wrong) is that there would be overlap in the inference derived from the gaussian and non-gaussian models, even in the lichen and creosote case study, after accounting for uncertainty. Especially since the improved model contains several more parameters to estimate each of which have uncertainty. The authors point to Bayesian methods as a natural way incorporate this uncertainty, but uncertainty quantification and propagation is an essential part of any statistical modeling that needs to be included regardless of the approach. I think of uncertainty quantification is part of the “getting it right” the authors speak to on line 412.}
-\response{}
+\response{We completely agree with the reviewer and we appreciate being pushed in this direction. In response, we have re-analyzed all IPM case studies such that we now provide bias-corrected, bootstrapped confidence intervals on all model outputs, in addition to point estimates. These results are summarized in the updated Table 1. The reviewer's intuition was correct that the differences between Gaussian and ``improved'' growth models were small relative to their respective uncertainties, and their confidence intervals were strongly overlapping for most results. We address this point at several places throughout the text (lines \ref{ms-cactus.uncertainty}, \ref{}, \ref{}). Our paper never hinged upon ``significant'' differences due to better growth modeling, so while the uncertainty estimates add valuable nuance they do not change the message of the paper.}
 
 \comment{I also think there is a larger philosophical question buried in here that the authors may also be able to begin to address. A question that is part of a larger discussion that the users of structured population models (which I consider myself part of) need to have.  Do we need models that attempt to capture more aspects of biological reality or do we just need to be more realistic in how we quantify and propagate uncertainty? The whole purpose of including uncertainty is to acknowledge that we recognize that any model will be wrong.}
-\response{}
+\response{Do we need models that capture biological reality? Yes. Do we need to be more realistic in how we quantify and propagate uncertainty? Also yes. We don't see tension between these priorities, although we acknowledge (or agree, if this is the reviewer's point) that our field has been more preoccupied with the former than the latter, on average. These philosophical questions are important and fun to think about, but we do not see this paper as the best place answer them. We want to keep the reader focused on practical aspects growth modeling.}
 
 \comment{A final general note.  It’s worth keeping in mind, even when there are differences in predictions between the two approaches, we don’t know which one is producing more accurate predictions of things like life history characteristics (lifespan, generation time, etc). Models that best match observed data do not always provide the most accurate predictions (bias-variance tradeoff), so just seeing differences is not necessarily evidence of improvement.  }
-\response{}
+\response{We agree with this general point, and we have added to our discussion (line \ref{}). }
 
 \comment{193: I am not 100\% convinced that having a single model for skewed growth is always advantageous, rather than a mixture model. In some instances, particularly forecasting, mixture model approaches such as described in Shriver et al. 2012 may have some advantage over the authors proposed approach. If there are different processes leading to “normal growth and shrinkage” vs. “extreme shrinkage” these processes may drive by different factors and not always covary. Thus, the most biologically accurate model would account for these processes separately }
-\response{}
+\response{We agree - if the aggregate distribution masks multiple underlying processes, mixture models might be preferable. We see this as an empirical question: can a single model (or process) explain the patterns in the data, or is a more complex model needed? In the case of the lichen case study (modeled by Shriver et al. 2012 with a mixture of ``normal shrinkage'' and ``extreme shrinkage''), we were satisfied that the Johnson's $S_{U}$ distribution with initial size-dependence in skewness parameter $\nu$ adequately captures both types of shrinkage (see Figure 5). However, for cases were a single distribution might fail, we have added the idea of mixture growth distributions to the Discussion (line \ref{}).}
 
 \comment{Table 1: I think these are interesting differences, but I don’t think the authors can claim they are as meaningful without including estimates of uncertainty. At the very least the inference of the life history parameters in Table 1 should account parameter uncertainty from the demographic rates estimated from data. }
-\response{}
+\response{As described above, Table 1 now provide bias-corrected bootstrapped confidence intervals to represent uncertainty in model estimates.}
 
 \comment{308: Claims of over- or under-estimation in this case have to be relative to the other model, the truth is not known. Also similar to table 1, I find it very challenging to know if this is really a meaningful difference without uncertainty quantified.}
-\response{} 
+\response{We have re-phrased this sentence to make it clear that we are describing differences between models and not between a model and the truth (line \ref{}). While this text is describing a slightly different analysis (of the stochastic growth rate $\lambda_S$) from the contents of Table 1, we think the new information in the table makes it clear that effects of improved growth modeling were small relative to uncertainty in model outputs and we reinforce this point in the Discussion (line \ref{}).} 
 
 \comment{412: One could argue we will never get it exactly right, that is why uncertainty quantification is so important. }
-\response{}
+\response{We appreciate the reviewer's healthy and appropriate emphasis on uncertainty, but we think it is important to recognize between parameter uncertainty and model uncertainty. The reviewer's comments, here and throughout their review, are about parameter uncertainty (e.g., given the data and the model, how confidently can we estimate $\lambda$)? Our sentence about ``getting it right'', and indeed our entire paper, are essentially about model uncertainty (e.g., are the data consistent with a Gaussian growth model or not?). While we will always have parameter uncertainty (and it's always important to quantify), we have found that most demographic data sets can yield high certainty about models that are or are not consistent with real size transitions -- if one makes the effort to check. This is what we mean by ``getting it right''.}
 
 \comment{Supplement: 659: I try not to be dogmatic in my statistical thinking, but I do find myself thinking throughout this that Bayesian estimation would not just be an alternative, but perhaps simpler.}
-\response{}
+\response{Yes and no. We agree that Bayesian estimation is conceptually simpler, at least for those already familiar with it. In practice, however, the most widely used Bayesian software packages (Stan, JAGS, WinBUGS) do not include built-in functions for most of the non-Gaussian distributions that we discuss. While custom distributions can always be coded in any of those languages, that is a fairly high technical barrier for the average population ecologist. This is the main reason we do not advocate more strongly for Bayesian approaches, and we now include this rationale in our discussion (line \ref{}).}
 
 \section{Response to Reviewers 2 and 3}
 \vspace{-2em}
@@ -122,7 +125,7 @@ Steve Ellner
 Minor comments
 Though we think the manuscript is more or less publishable in its current state, we have a few minor suggestions that might improve it.
 }
-\response{}
+\response{We appreciate the encouraging feedback and constructive suggestions from these reviewers. Thank you.}
 
 \comment{Given the authors’ experience, could they speculate about what kind of IPM metrics are more likely to be impacted by adopting the wrong growth model? Our intuition is that population growth metrics (PGR, R0) are likely reasonably robust to growth kernel assumptions, whereas lifecycle metrics will be more sensitive to those assumptions.}
 \response{}
