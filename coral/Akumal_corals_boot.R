@@ -62,8 +62,8 @@ mH=function(x) {
 ### is guaranteed once you get above the threshold   
 b_z <- function(z) {
       x=exp(z); ### area 
-      xmin=fan.area(20); ### cutoff for reproduction 
-      ifelse(x>xmin,40,0)
+      xmin=fan.area(20); ### cutoff for reproduction, height=20 
+      ifelse(x>xmin,x,0)
 }
 
 ########## Growth functions and P kernel functions 
@@ -131,15 +131,17 @@ XC_true = XC; ### save the complete data set!
 recruitDensity=density(log(recruitSizes_true),bw="SJ"); 
 bw_true = recruitDensity$bw; 
 
-#ncores = detectCores(logical=FALSE)-2; 
-#c1 = makeCluster(ncores)
-#registerDoParallel(c1); 
-#clusterExport(c1,varlist=objects()); 
+ncores = detectCores(logical=FALSE)-2; 
+c1 = makeCluster(ncores)
+registerDoParallel(c1); 
+clusterExport(c1,varlist=objects()); 
 
-bootreps = 501; 
-traits_G = traits_S = matrix(NA,bootreps,2); 
+bootreps = 1001; 
+# traits_G = traits_S = matrix(NA,bootreps,3); 
 
-for(bootrep in 1:bootreps){
+traits = foreach(bootrep = 1:bootreps,.packages = c("maxLik","gamlss.dist","mgcv"))%dopar%
+{
+# for(bootrep in 1:bootreps){
 e = sample(1:nrow(XC),nrow(XC), replace=TRUE); 
 XC = XC_true[e,]; 
 e = order(XC$Area1); XC = XC[e,]; 
@@ -176,9 +178,10 @@ matF = 0*matU; matF[1,] = b_z(out$meshpts);
 coral_c0 = recruitFun(out$meshpts); 
 coral_c0 = coral_c0/sum(coral_c0); 
 
-traits_G[bootrep,] <-c(
+traits_G <-c(
   mean_lifespan(matU, mixdist=coral_c0),
-  mean_age_repro(matU,matF,mixdist=coral_c0)
+  mean_age_repro(matU,matF,mixdist=coral_c0),
+  gen_time_mu1_v(matU,matF)
 )
 
 ################################################################# 
@@ -198,21 +201,29 @@ out = mk_P_ceiling(m, L, U, L1, U1,P_z1zSHASH);
 matU = out$P; 
 matF = 0*matU; matF[1,] = b_z(out$meshpts); 
 
-traits_S[bootrep,] <-c(
+traits_S <-c(
   mean_lifespan(matU, mixdist=coral_c0),
-  mean_age_repro(matU,matF,mixdist=coral_c0)
+  mean_age_repro(matU,matF,mixdist=coral_c0),
+  gen_time_mu1_v(matU,matF)
 )
 
-cat(bootrep, signif(traits_G[bootrep,],3), signif(traits_S[bootrep,],3), "\n"); 
-if(bootrep%%100 == 0) save.image(file="corals_boot.Rdata"); 
-
+# cat(bootrep, signif(traits_G[bootrep,],3), signif(traits_S[bootrep,],3), "\n"); 
+# if(bootrep%%100 == 0) save.image(file="corals_boot.Rdata"); 
+c(traits_G,traits_S) 
 }
+
+stopCluster(c1); 
+
+
+theta = matrix(unlist(traits),ncol=6,byrow=TRUE); 
+traits_G = theta[,1:3]; traits_S = theta[,4:6]; 
+
 traits_G_true = traits_G[1,]; 
 traits_S_true = traits_S[1,]; 
 traits_G_boot = traits_G[-1,]; 
 traits_S_boot = traits_S[-1,]
 
-save.image(file="corals_boot.Rdata"); 
+save.image(file="corals_boot_3.Rdata"); 
 
 ################################################### 
 ## Output results: GAUSSIAN 
@@ -222,8 +233,8 @@ xbar = apply(traits_G_boot,2,mean);
 xsd = apply(traits_G_boot,2,var)^0.5; 
 
 ### Compute BCA intervals 
-CI_G = matrix(NA,2,2); 
-for(j in 1:2) {
+CI_G = matrix(NA,2,3); 
+for(j in 1:3) {
 	CI_G[1:2,j]= bca(theta = traits_G_boot[,j], theta_hat = traits_G_true[j], a=0, conf.level = 0.95) 
 }
 
@@ -234,9 +245,6 @@ cat("boot sd  ", signif(xsd,3), "\n");
 cat("BCA 95% confidence intervals", "\n") 
 print(signif(CI_G,3)); 
 
-graphics.off(); par(mfrow=c(2,1)); 
-for(j in 1:2) hist(traits_G_boot[,j]); 
-
 ################################################### 
 ## Output results: SHASH
 ###################################################
@@ -244,8 +252,8 @@ xbar = apply(traits_S_boot,2,mean);
 xsd = apply(traits_S_boot,2,var)^0.5; 
 
 ### Compute BCA intervals 
-CI_S = matrix(NA,2,2); 
-for(j in 1:2) {
+CI_S = matrix(NA,2,3); 
+for(j in 1:3) {
 	CI_S[1:2,j]=bca(theta = traits_S_boot[,j], theta_hat = traits_S_true[j], a=0, conf.level = 0.95) 
 }
 
@@ -256,5 +264,6 @@ cat("boot sd  ", signif(xsd,3), "\n");
 cat("BCA 95% confidence intervals", "\n") 
 print(signif(CI_S,3)); 
 
-graphics.off(); par(mfrow=c(2,1)); 
-for(j in 1:2) hist(traits_S_boot[,j]); 
+graphics.off(); par(mfcol=c(3,2)); 
+for(j in 1:3) hist(traits_G_boot[,j]); 
+for(j in 1:3) hist(traits_S_boot[,j]); 
