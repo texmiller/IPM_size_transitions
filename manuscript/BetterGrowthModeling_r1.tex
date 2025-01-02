@@ -343,8 +343,8 @@ Shriver et al. \citeyear{shriver2012comparative} used a mixture distribution tha
 We aimed to fit a single growth model that could realistically accommodate both types of size transition without requiring \emph{ad hoc} decisions about which observations of shrinkage were ``extreme'' or not. 
 %Code for this case study is in the script \texttt{Vulpicida\_IPMS.R}.
 
-With initial size as the only predictor, a convient way to fit a Gaussian model with nonconstant variance is the \texttt{gam} function in \textbf{mgcv} library \citep{wood-2017} using the \texttt{gaulss} family. 
-Following a bit of model selection, we fit the mean and standard deviation of future size as second-order polynomials of current size\footnote{\texttt{gam()} is most commonly used to fit smooth splines (\texttt{s()}) for predictor variables, but it can also fit simpler, parametric regressions.}, then calculated the scaled residuals from the fitted mean and standard deviation.
+With initial size as the only predictor, a convenient way to fit a Gaussian model with non-constant variance is the \texttt{gam} function in \textbf{mgcv} library \citep{wood-2017} using the \texttt{gaulss} family. 
+Following a bit of model selection, we fit the mean and standard deviation of future size as second-order polynomials of current size\footnote{\texttt{gam()} is most commonly used to fit smooth splines (\texttt{s()}) for predictor variables, but it can also fit parametric regressions.}, then calculated the scaled residuals from the fitted mean and standard deviation.
 Here, the first argument to \texttt{gam()} is a two-element list that defines the linear predictors for mean and sd:
 \begin{lstlisting}
 # d is the data frame; t0,t1 are initial & final thallus area, respectively
@@ -401,14 +401,16 @@ method="BHHH",control=list(iterlim=5000,printLevel=2),finalHessian=FALSE);
 \end{lstlisting}
 
 Simulating data from the fitted JSU model indicates a compelling improvement over the best Gaussian model, not only in skewness and kurtosis (Fig. \ref{fig:lichen_fit}C-D) but also the nonparametric standard deviation (\ref{fig:lichen_fit}B). 
-Note, in these data simulation figures Gaussian and non-Gaussian data are offset by an arbitrary amount to more easily visualize their correspondence to the real data (black lines in Fig. \ref{fig:lichen_fit}).
+Note, in these data simulation figures Gaussian and non-Gaussian data are offset by an arbitrary amount to more easily visualize their correspondence to the real data (black lines in Fig. \ref{fig:lichen_fit}). 
 
 To understand the practical consequences of improved growth modeling, we assembled the remainder of the lichen IPM following Shriver et al. \citeyear{shriver2012comparative}. 
 The asymptotic population growth rate $\lambda$ based on Gaussian growth differs from the JSU growth model by about $1\%$ annual population growth (Table \ref{tab:crossspp}), in line with results of Peterson et al. \citeyear{peterson2019improving}. 
 However, even this modest difference can lead to biased estimates of extinction risk from the Gaussian model, particularly over longer time horizons (Fig. \ref{fig:lichen_extinction}). 
 We also explored differences in other life history metrics (Table \ref{tab:crossspp}) using functions from \cite{hernandez-etal-2024}.
 For example, the JSU growth model predicts values for mean lifespan, mean lifetime reproductive success, and generation time that are 15--25\% lower than the Gaussian growth model. 
-In this case study, properly modeling non-normal size transitions -- which was easy to do with a few extra lines of code -- can have important effects on ecological inferences. 
+\revise{\linelabel{lichenuncertainty}In this case study, properly modeling non-normal size transitions -- which was easy to do with a few extra lines of code -- can influence ecological inferences, at least based on point estimates.
+However, Table \ref{tab:crossspp} also provides bias-corrected, bootstrapped confidence intervals \citep{bca-1996}, and these are heavily overlapping between the Gaussian and JSU models for all life history traits, suggesting that effects of ``improved''growth modeling are small relative to our uncertainty in model parameters.} 
+ 
 \begin{figure}[tbp]
 	\centering
 	\includegraphics[width=0.75\textwidth]{figures/lichen_JSU_fit}
@@ -515,17 +517,16 @@ We begin growth modeling, as above, with a generalized additive model with the m
 fitGAU <- gam(list(t1 ~ s(t0,k=4) + s(plot,bs="re") + s(year,bs="re"), 
 	~s(t0,k=6)), data=cactus, family=gaulss())
 \end{lstlisting}
-Note that here we fitted the standard deviation function with $k=6$ basis functions rather than our default of $k=4$ because, in a preliminary analysis, we found a moderate variance trend in the standardized residuals using $k=4$. 
-With $k=6$, spline regression detected essentially no trend in the mean of the resulting standardized residuals, and only a small amount of variation in the variance (Fig. \ref{fig:diagnose_pilot}C,D).
+Note that here we fitted the standard deviation function with $k=6$ basis functions rather than our default of $k=4$ because, in a preliminary analysis, we found a moderate variance trend in the standardized residuals using $k=4$, suggesting a need for greater flexibility. 
+With $k=6$, spline regression detected essentially no trend in the mean of the resulting standardized residuals (Fig. \ref{fig:diagnose_pilot}C,D).
 
 The growth variance is estimated to peak at small to medium sizes (Fig. \ref{fig:resid_diagnostics}C). 
 The standardized residuals show clear signals of negative skew and positive excess kurtosis across most of the size distribution, but strongest in the middle (Fig. \ref{fig:resid_diagnostics}D).
 We therefore need a distribution family allowing negative skew and positive excess kurtosis, both of which may be negligible at some sizes.
-We first tried Johnson's $S_{U}$ and then the skewed $t$ distributions, which provided some improvements but there were still visible discrepancies between simulated and real data. 
-Through repeated trial and error we arrived at the SHASH distribution, which 
-allows a greater range of kurtosis for a given amount of skew, and vice versa (\cite{jones-pewsey-2009}; Supporting Information S.1). 
-This flexibility proved necessary to generate simulated data that compared favorably to the real data. 
-Furthermore, SHASH is available as an \textbf{mgcv} family, allowing for flexible size-dependence in skewness and kurtosis without having to select specific size-dependent functions. 
+\revise{\linelabel{cactustrialerror}We first tried Johnson's $S_{U}$ and then the skewed $t$ distributions, which provided some improvements but there were still visible discrepancies between simulated and real data. 
+We next turned to the SHASH distribution, which allows a greater range of kurtosis for a given amount of skew, and vice versa (\cite{jones-pewsey-2009}; Supporting Information S.1).
+This flexibility proved necessary to generate simulated data that compared favorably to the real data, so we proceeded with the SHASH.}  
+Conveniently, SHASH is available as an \textbf{mgcv} family, allowing for flexible size-dependence in skewness and kurtosis without having to select specific size-dependent functions. 
 
 Here, the first argument to \texttt{gam()} is now a four-element list specifying the linear predictors for the four parameters of the SHASH distribution.
 \begin{lstlisting}
@@ -543,12 +544,12 @@ mean and standard deviation (Fig. \ref{fig:cactus_fit}A,B), yielding a growth mo
 We next explored how improved growth modeling influenced IPM results.
 The $\lambda$ values predicted by Gaussian and SHASH growth functions, corresponding to the average plot and year, were nearly identical (Table \ref{tab:crossspp}) but we could also leverage structure of the study design to quantify demographic variance associated with temporal and spatial heterogeneity.
 We used the fitted random effects from the vital rate models to estimate the asymptotic growth rate for each year ($\lambda_t$), centered on the average plot, and for each plot ($\lambda_p$), centered on the average year.
-The Gaussian growth model tended to over-estimate $\lambda_t$, particularly in some of the harshest years (Fig. \ref{fig:cactus_lambda}A), and thus under-estimated temporal variance in fitness ($SD(\lambda_{t(Gaussian)})=0.04$, $SD(\lambda_{t(SHASH)})=0.048$). 
-Plot-to-plot variation was more similar ($SD(\lambda_{p(Gaussian)})=0.0026$, $SD(\lambda_{p(SHASH)})=0.0028$), although spatial variation in fitness was much lower than temporal variation (Fig. \ref{fig:cactus_lambda}B). 
-The difference in temporal variance would suggest that Gaussian growth modeling would lead to over-estimation of the stochastic growth rate $\lambda_S$, because temporal variance has a negative effect on $\lambda_S$.
-However, the stochastic growth rate from the Gaussian growth model ($\lambda_S=0.992$) was only slightly higher than that of the SHASH growth model ($\lambda_S=0.991$).  
+\revise{\linelabel{overunder}Estimates of $\lambda_t$ from the Gaussian growth model were often greater than estimates from the SHASH growth model, particularly in some of the harshest years (Fig. \ref{fig:cactus_lambda}A), and therefore the Gaussian model predicted lower temporal variance in fitness ($SD(\lambda_{t(Gaussian)})=0.04$, $SD(\lambda_{t(SHASH)})=0.048$). 
+Plot-to-plot variation was more similar between the two models ($SD(\lambda_{p(Gaussian)})=0.0026$, $SD(\lambda_{p(SHASH)})=0.0028$), although spatial variation in fitness was much lower than temporal variation (Fig. \ref{fig:cactus_lambda}B). 
+The difference in temporal variance would suggest that Gaussian growth modeling would predict a higher stochastic growth rate $\lambda_S$, because temporal variance has a negative effect on $\lambda_S$.}
+However, the stochastic growth rate from the Gaussian growth model ($\lambda_S=0.992$) was nearly identical to that of the SHASH growth model ($\lambda_S=0.991$).  
 This is likely because temporal fluctuations in vital rates, which is where the SHASH growth model would make a difference, have a weaker influence on $\lambda_S$ than the temporal fluctuations in size structure that they generate \citep{ellis2013role,compagnoni2016effect}. 
-\revise{\linelabel{cactus.uncertainty}The SHASH and Gaussian growth models predicted small differences in other life history traits, but these differences were small relative to the uncertainty captured by bootstrapped confidence intervals (Table \ref{tab:crossspp}).}
+\revise{\linelabel{cactus.uncertainty}The SHASH and Gaussian growth models predicted small differences in other life history traits but, as in the lichen case study, these differences were small relative to the uncertainty captured by bootstrapped confidence intervals (Table \ref{tab:crossspp}).}
 Thus, in this case study, modeling non-Gaussian size transitions with a Gaussian growth model may or may not influence IPM results depending on the target of the analysis. 
 
 \begin{figure}[tbp]
@@ -573,9 +574,9 @@ The data, originated by Dr. Hans Jacquemyn, come from 368 plants in a Belgian po
 Here we use data only from the ``light'' habitat in the original study. 
 We used the natural logarithm of total leaf area as the size variable in the IPM. 
 
-As a variation on software, we fitted the pilot Gaussian model using the \texttt{lmer} function in the \textbf{lme4} package.
+As a variation on software, we fitted the pilot Gaussian model using the \texttt{lmer} function in the \textbf{lme4} package, as in the original study.
 We fit three candidate linear models that included fixed effects of size in year $t$ (model 1), additive effects of size and flowering status in year $t$ (model 2), or an interaction between size and flowering (model 3), all including random intercepts for year. 
-The interaction model with strongly favored ($\Delta AIC = 10.5$). 
+The interaction model was strongly favored ($\Delta AIC = 10.5$). 
 Unlike our previous case studies, here we have multiple fixed effects (initial size and flowering status) that may influence the variance of future size. 
 In cases such as this it is convenient to model variance as a function of expected future size, rather than initial size as we did with the lichens and cacti. 
 The expected (or ``fitted'') values reflect the combined influence of all fixed and random effects, and therefore implicitly account for multiple sources of variation in the variance. 
@@ -583,14 +584,6 @@ The expected (or ``fitted'') values reflect the combined influence of all fixed 
 
 Models where error variance is a function of fitted values cannot be fitted directly with \texttt{lme4} (nor 
 in the \textbf{mgcv} functions for generalized additive models). 
-%After MUCH trial and error here is an nlme example that runs: 
-%x = runif(1000)*4; 
-%u = factor(rpois(1000,3));
-%z = rnorm(length(unique(u))); z = sort(z); 
-%y = x + z[u] + 0.4*sqrt(1+x)*rnorm(1000); 
-%plot(x,y);
-%require(nlme);
-%fit = lme(y~x, random = ~1|u, weights = varExp(form = ~fitted(.)));
 But it can still be done with \texttt{lmer} through an iterative re-weighting approach, as follows. 
 In \texttt{lmer}, weights $w_{i}$ can be used to indicate that the observations $y_{i}$ have error variance proportional to $1/w_i^2$. 
 The iterative steps are as follows, and code that executes these steps is in \texttt{orchid\_growth\_modeling.R}. 
@@ -613,7 +606,7 @@ The best Gaussian model indicated a growth cost associated with flowering at the
 The standardized residuals indicated negative skewness (10--20\% difference in tail weight) and excess kurtosis (10--40\% fatter than Gaussian) across much of the size distribution but both negligible at large expected sizes (Fig. \ref{fig:resid_diagnostics}F). 
 
 As possible improvements, we explored the skewed $t$ and JSU distributions, both leptokurtic distributions with flexible skewness. 
-We were happier with the skewed $t$, which we fit with a custom likelihood function similar to the JSU growth model for the lichen data. 
+\revise{\linelabel{orchidskwedt}Based on comparisons between real and simulated data we were happier with the skewed $t$}, which we fit with a custom likelihood function similar to the JSU growth model for the lichen data. 
 However, rather than re-fitting all parameters of the skewed $t$ model, as we did with the lichen JSU, we built a ``hybrid'' likelihood function that uses the fitted mean and standard deviation from the best Gaussian model, and estimates parameters that control skewness and kurtosis as linear functions of expected future size. 
 This is easy because the \textbf{gamlss.dist} package provides a parameterization of the skewed $t$ in which the location parameter $\mu$ is the mean and scale parameter $\sigma$ is the standard deviation \citep{rigby2019distributions}. 
 The hybrid likelihood looks like this:
@@ -629,7 +622,7 @@ p0<-c(0,0,0,0) ## default starting parameters
 SSTout=maxLik(logLik=SSTLogLik,start=p0) ## fit with maxLik
 \end{lstlisting}
 Based on diagnostics of the standardized residuals, parameters that control skewness and kurtosis are defined as linear functions of the mean (note that the \verb|tau| parameter uses a $\log(x-2)$ link function). 
-This approach relies on the robustness of fitted Gaussian models to deviations from normality, which implies that the fitted mean and variance from a Gaussian model are good approximations for the fitted mean and variance of the corresponding non-Gaussian model. 
+This approach relies on the robustness of fitted Gaussian models to deviations from normality, which implies that the fitted mean and variance from a Gaussian model are good approximations for the mean and variance of the corresponding non-Gaussian model. 
 If one is skeptical of this approach, it is possible to simultaneously re-fit all parameters of the skewed $t$. 
 However, recall that unlike the lichen case study, the pilot Gaussian model here includes random year effects, and the expected values getting passed into \verb|dSST| account for this source of variation. 
 Estimating random effects ``from scratch'' with a custom likelihood model is possible (we provide guidance on doing this with a ``shrinkage'' approach, in Supporting Information S.2), but generally should not be necessary. 
@@ -641,7 +634,7 @@ Finally, we used the improved growth model to revisit key results of the origina
 Miller et al. (\citeyear{miller2012evolutionary}) used the orchid IPM to estimate the evolutionarily stable strategy (ESS) as the mean size at flowering that maximizes lifetime reproductive success ($R_0$), given the constraint that flowering when small reduces growth and thus elevates mortality risk. 
 Repeating that analysis here, we found that improved growth modeling has virtually no influence on predictions for optimal life history strategies (Fig. \ref{fig:orchid_ESS}). 
 ESS flowering sizes were nearly identical between IPMs with Gaussian vs skewed $t$ growth models, and both aligned well with the observed mean flowering size (dashed vertical line in Fig. \ref{fig:orchid_ESS}). 
-Similarly, there were very small differences between growth functions in other metrics of orchid life history (Table \ref{tab:crossspp}).
+\revise{\linelabel{orchiduncertainty}Similarly, there were very small differences between growth functions in other metrics of orchid life history and, again, these differences were overwhelmed by uncertainty associated with parameter estimation (Table \ref{tab:crossspp}).}
 %Extending beyond the original study, we also explored expected remaining lifespan for different ages and sizes (R package \textbf{Rage} \citep{jones2022rcompadre}). 
 %Gaussian and skewed $t$ growth models predicted nearly identical mean remaining lifespans across the stage and size distribution (Fig. \ref{fig:orchid_ESS}B).
 %\tom{However, the skewed $t$ model predicted consistently greater variance in remaining lifespan, nearly 10\% greater at some sizes.}{Do not believe this result! I have left it here as a placeholder because I would like to do this correctly. But I think there are problems with Rage's life\_expect\_var() function. The predicted variance declines linearly with matrix dimension.} 
@@ -680,6 +673,8 @@ However, beta regression also has some limitations: common beta regression packa
 Additionally, the initial transformation onto $[0,1]$ scale requires estimating extreme quantiles of the growth distribution (e.g., 0.01 and 0.99) as a function of initial size. 
 In our experience those quantile estimates can be very sensitive to how size-dependence is modeled, and model selection is challenging for extreme quantiles where data are (by definition) very sparse. 
 Rather than picking one distribution as a new default, users can leverage the vast arsenal of continuous probability distributions -- all at one's fingertips with a few lines of code -- so that the data and their particular deviations from normality can guide the choice of a better distribution. 
+\revise{\linelabel{mixture}It is also possible to use mixtures of multiple growth distributions, as done by Shriver et al. \citeyear{shriver2012comparative} to model ``normal'' and ``extreme'' types of lichen shrinkage. 
+In re-analyzing that data set, we found that a single, flexible distribution (Johnson's \emph{S-U}) could recapitulate the observed size transitions, but there may be other cases where mixture distributions are preferable or necessary.}
 
 %Nonetheless, in our analyses we found ourselves coming back time and again to a few ``usual suspects''. 
 %The four-parameter SHASH distribution, for example, was consistently among the top candidates, was our model of choice for several data sets, and is available in the well-developed \textbf{mgcv} package. 
@@ -690,14 +685,17 @@ Rather than picking one distribution as a new default, users can leverage the va
 % ``Eviction'' from the approximating matrix of the IPM kernel is an ever-present danger and requires vigilance to detect and correct \citep{williams2012avoiding}. 
 In all of our case studies, non-Gaussian growth models always yielded more satisfying fits to size transition data than the Gaussian models published in those papers. 
 However, to our relief, none of these re-analyses yielded a ``gotcha'' result that overturned results of the original study. 
-In this small sampling of case studies, improved growth modeling had weak to modest effects on IPM results (Table \ref{tab:crossspp}), similar in magnitude to the results of \cite{peterson2019improving}. 
-For some case studies, one might argue that non-Gaussian modeling was not worth the trouble -- only it was almost no trouble at all, and we could not have known whether or not a non-Gaussian model would have made a difference before fitting it.
+\revise{\linelabel{discussionuncerainty}In fact, in this small sampling of case studies, improved growth modeling had weak to modest effects on IPM results, similar in magnitude to the results of \cite{peterson2019improving}, and for most species and life history metrics these effects were overwhelmed by the uncertainty associated with parameter estimation (Table \ref{tab:crossspp}). 
+For some case studies, one might argue that non-Gaussian modeling was not worth the trouble -- only it was almost no trouble at all, and we could not have known whether or not a non-Gaussian model would have made a difference before fitting it. 
+\linelabel{biasvariance}Even where Gaussian and improved growth models differed in IPM results, we do not know ``true'' values to compare them against, only that one describes the data better than another, and a closer match to the data does not necessarily translate to better predictive ability due to the bias-variance trade-off. }
 
-We caution against taking too much comfort in weak effects of ``improved'' growth modeling; in other scenarios the choice of the growth distribution could be more consequential. 
-It is worth noting that most of our case studies focused on perennial life histories (perennial plants and lichens) characterized by relatively slow growth, heavy losses during recruitment, and high survival once established, and these species all had mean lifespans between one and six years and generation times on the order of decades. 
+We caution against taking too much comfort in weak effects of ``improved'' growth modeling; in other scenarios the choice of growth distribution could be more consequential. 
+\revise{\linelabel{highermoments}We focused on life history metrics such as mean lifespan and mean lifetime reproductive success (Table \ref{tab:crossspp}). 
+It is possible that higher moments of those traits (e.g., variance or skewness of lifespan and lifetime reproduction) are more sensitive to the tails of the growth distribution.}
+It is also worth noting that most of our case studies focused on perennial life histories (perennial plants and lichens) characterized by relatively slow growth, heavy losses during recruitment, and high survival once established, and these species all had mean lifespans between one and six years and generation times on the order of decades. 
 Life histories such as these may be relatively robust to subtle features of the growth kernel. 
-In the Supporting Information we present three additional case studies that broaden our life history coverage, including pike (\emph{Esox lucius}), a fish with a generation time of four to five years and creosotebush (\emph{Larrea tridentata}), a desert shrub that is virtually immortal once established with a generation time exceeding 200,000 years. 
-Life history metrics from the ``fast'' fish population were no more sensitive to improved growth modeling than those of the perennial plants and lichens, while the creosotebush generation time differed by $>25,000$ years between Gaussian and improved growth models (Table \ref{tab:crossspp}). 
+In the Supporting Information we present three additional case studies that broaden our life history coverage, including pike (\emph{Esox lucius}), a fish with a generation time of four to five years and creosotebush (\emph{Larrea tridentata}), a desert shrub that is virtually immortal once established. 
+Life history metrics from these ``fast'' and ``slow'' populations were no more sensitive to improved growth modeling than those of the perennial plants and lichens (Table \ref{tab:crossspp}). 
 More systematic comparative analyses may provide insight into which types of species and life histories are more likely to exhibit strong skewness and kurtosis, and which demographic quantities are more or less sensitive to these features of size transition. 
 %It is also worth noting, as we saw in several case studies, that different outputs from the same model can be more or less sensitive to the choice of growth distribution. 
 
@@ -707,7 +705,9 @@ However, there are some applications for which classical parametric regression w
 For example, regression coefficients may be targets of natural selection \citep{rees2016evolving} and may combine to influence traits of interest such as the expected size at flowering (e.g. in Fig. \ref{fig:orchid_ESS}A), a function of the intercept and slope of the size-dependent flowering function \citep{metcalf2003evolutionary}. 
 Some potentially useful distributions are not available in linear modeling software packages, but that should not be a barrier to their use: as in several of our case studies, custom likelihood functions allow non-Gaussian models without sacrificing the complex, multi-level features that one might be accustomed to fitting in \textbf{lme4}, for example. 
 Bayesian analysis may further broaden the options for non-Gaussian candidate distributions and may help estimate hard-to-fit parameters through the brute force of sampling algorithms. 
-Bayesian analysis also provides a natural way to propagate uncertainty from vital rate sub-models to full model predictions \citep{elderd2016quantifying}. 
+Bayesian analysis also provides a natural way to propagate uncertainty from vital rate sub-models to full model predictions \citep{elderd2016quantifying}, \revise{as an alternative to our bootstrapping approach. 
+\linelabel{bayes}However, as of this writing, most of the non-Gaussian distributions that we have discussed are not available in popular Bayesian software packages such as Stan or JAGS. 
+While user-defined distributions can always be coded from scratch, this may be a significant technical barrier for many IPM analysts.}
 
 From the outset there have been concerns about ``how well these methods [IPM growth kernels] can deal with different patterns of growth, stasis, and shrinkage'' \citep[][p. 200]{morris-doak-2002}, compared to ``binning'' methods that use observed transition frequencies between user-defined size classes as the transition probabilities in a (possibly large) matrix model \citep{doak-critical-2021}. 
 The non-Gaussian models that we have considered here are not a panacea. 
@@ -716,7 +716,7 @@ When the shape of the growth distribution is nearly the same for all initial siz
 Outside that special situation, nonparametric approaches require choosing multiple smoothing parameters, which is very challenging. 
 We are currently exploring whether ``targeted learning'' approaches developed for causal inference \citep{vande-rose-2011} can be used to circumvent smoothing parameter selection. 
 Targeted learning starts with a pilot model and updates it iteratively to achieve unbiased estimates and valid confidence intervals for a particular ``target'' quantity, such as $\lambda$ or mean lifespan. 
-Preliminary results suggest that targeted learning with a deliberately under-smoothed pilot model works well for complex growth patterns (G. Hooker and Y. Zhou, \emph{personal communication}). 
+Preliminary results suggest that targeted learning with a deliberately under-smoothed pilot model works well for complex growth patterns \citep{zhou2024targeted}. 
 But nonparametric methods are data-hungry, so when departures from Gaussian are quantitative rather than qualitative, parametric modeling as developed here will make more efficient use of limited data.
 
  \subsection*{Conclusion}
