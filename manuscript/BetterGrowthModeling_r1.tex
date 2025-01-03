@@ -5,6 +5,9 @@
 \usepackage{float,afterpage}
 \usepackage[running,mathlines]{lineno}
 
+\usepackage{xr}
+\externaldocument[ms-]{BetterGrowthModeling_r1_appendices}
+
 \usepackage[verbose,letterpaper,tmargin=2.54cm,bmargin=2.54cm,lmargin=2.54cm,rmargin=2.54cm]{geometry}
 \usepackage[authoryear,sort]{natbib}
 \usepackage[dvipsnames]{xcolor}
@@ -190,7 +193,7 @@ Using software tools that are now readily accessible, ecologists can escape the 
 As with any recipe, users may need to make substitutions or add ingredients to suit their needs. 
 We emphasize graphical diagnostics for developing and evaluating growth models, rather than a process centered on statistical tests or model selection. 
 Through empirical case studies we demonstrate how tools that were nonexistent or not readily available when IPMs first came into use now make it straightforward and relatively easy to identify when the default model is a poor fit to the data, and to then choose and fit a better growth model that is no harder to use in practice. 
-We illustrate our approach by revisiting three published case studies (and three additional case studies in the Supporting Information), including examples from our own previous work.
+We illustrate our approach by revisiting three published case studies (and three additional case studies in Appendix S3), including examples from our own previous work.
 In each case, the Gaussian assumption does not stand up to close scrutiny. 
 We illustrate how we could have done better, and the consequences of ``doing better'' for our ecological inferences. 
 All analyses were carried out in R \citep{r-core} version 4.0 or higher and may be reproduced from publicly available code and data (see \emph{Data Availability Statement}). 
@@ -421,7 +424,7 @@ However, Table \ref{tab:crossspp} also provides bias-corrected, bootstrapped con
 \begin{table}[tbp]
 \renewcommand{\arraystretch}{1.5}
 	\caption{Life history attributes derived from IPM kernels that included Gaussian or ``improved'' growth sub-models for six  case studies. The improved distributions were JSU (lichen, creosote), SHASH (cactus, pike, coral), and skewed $t$ (orchid). 
-	Pike, creosote and coral case studies are presented in the Supporting Information. The original coral case study assumed an open population with constant recruitment from a large source region, so some life history
+	Pike, creosote and coral case studies are presented in Appendix S3. The original coral case study assumed an open population with constant recruitment from a large source region, so some life history
 	attributes cannot be computed from the published model. Values in parenthesis are 95\% bootstrap confidence intervals, specifically the bias-corrected (BC) bootstrap confidence intervals \cite{bca-1996}. Table can be reproduced from scripts \texttt{crossspp\_growth.R, Vulpicida\_boot.R, Akumal\_corals\_boot.R}.}
 	\centering
 	\begingroup\fontsize{10pt}{10pt}\selectfont
@@ -451,43 +454,8 @@ However, Table \ref{tab:crossspp} also provides bias-corrected, bootstrapped con
 	\label{tab:crossspp}
 \end{table}
 
-
-%\begin{table}[tbp]
-%\renewcommand{\arraystretch}{1.5}
-%	\caption{Life history attributes derived from IPM kernels that included Gaussian or ``improved'' growth sub-models for six  case studies. The improved distributions were JSU (lichen, creosote), SHASH (cactus, pike, coral), and skewed $t$ (orchid). 
-%	Pike, creosote and coral case studies are presented in the Supporting Information. The coral case study assumed an open population with constant recruitment from a large source region, so some life history
-%	attributes cannot be computed from the model. Values are given as the point estimate $\pm$ one bootstrap standard error. 
-%	Table can be reproduced from scripts \texttt{crossspp\_growth.R, Vulpicida\_boot.R, Akumal\_corals\_boot.R}.}
-%	\centering
-%	\begingroup\fontsize{10pt}{10pt}\selectfont
-%	\begin{tabular}{rp{1.1cm}|p{2.4cm}p{2.4cm}p{2.4cm}p{2.4cm}p{2.4cm}}
-%	{\textbf{Species}} & {\textbf{Growth model}} & {\textbf{$\lambda$}} & {\textbf{Lifespan}} & {\textbf{Lifetime reproductive output}} & {\textbf{Age at reproduction}} & {\textbf{Generation time}} \\ 
-%	\hline 
-%	Lichen & Gaussian & 1.01 $\pm 0.01$ & 6.4 $\pm 1.8$ & 1.4 $\pm 0.5$ & 6.5 $\pm 0.5$ & 40.8 $\pm 5.7$ \\ 
-%	(\textit{V. pinastri}) & Improved & 1.00 $\pm 0.01$ & 5.4 $\pm 2.1$ & 1.0 $\pm 0.7$ & 6.4 $\pm 0.4$ & 36.6 $\pm 7.1$\\ 
-%	\hline
-%	Cactus & Gaussian & 0.994 $\pm 0.00177$ & 6.11 $\pm 12.5$ & 21.8 $\pm 116$ & 17.6 $\pm 5.42$ & 189 $\pm 57.5$ \\ 
-%	(\textit{C. imbricata}) & Improved & 0.993 $\pm 0.00194$ & 5.38 $\pm 10.2$ & 13.4 $\pm 82.7$ & 20.3 $\pm 6.55$ & 179 $\pm 49$ \\
-%	\hline
-%	Orchid & Gaussian & 1.09 $\pm 0.004$ & 1.08 $\pm 0.0183$ & 20.0 $\pm 6.13$ & 5.07 $\pm 0.146$ & 104 $\pm 24.7$\\ 
-%	(\textit{O. purpurea}) & Improved & 1.09 $\pm 0.004$ & 1.08 $\pm 0.0175$ & 19.3 $\pm 5.89$ & 5.03 $\pm 0.143$ & 100.7 $\pm 23.6$ \\ 
-%	\hline
-%	Pike & Gaussian & 1.62 $\pm 0.133$ & 1.2 $\pm 0.0695$ & 5.75 $\pm 1.72$ & 1.09 $\pm 0.0393$ & 4.96 $\pm 0.386$\\ 
-%	(\textit{E. Lucius}) & Improved & 1.62 $\pm 0.133$ & 1.2 $\pm 0.0689$ & 5.76 $\pm 1.72$ & 1.09 $\pm 0.0392$ & 4.94 $\pm 0.386$ \\ 
-%	\hline
-%	Creosote & Gaussian & 1.033 $\pm.0028$ & \num{4.52e6} $\pm7.73e13$ & \num{3.19e5} $\pm5.47e12$ & 32.7 $\pm1.69$ & \num{5.27e6} $\pm8.86e13$ \\
-%	(\textit{L. tridentata}) & Improved & 1.034 $\pm0.0027$& \num{3.26e5} $\pm4.46e7$ & \num{2.31e4} $\pm3.43e6$ & 32.8 $\pm1.69$ & \num{3.7e5} $\pm4.83e7$\\ 
-%	\hline 
-%	Coral                  & Gaussian  & \quad ---  &   $17.3\pm 3$   &  \quad ---  & $10.5\pm 0.59$ & \quad --- \\ 
-%	(\textit{G. ventalina}) & Improved  & \quad ---  &   $17.5\pm 3$   &  \quad ---  & $10.7\pm 0.65$ & \quad --- \\
-%	\hline 
-%	\end{tabular}
-%	\endgroup
-%	\label{tab:crossspp}
-%\end{table}
-
 One could argue that this example was a convenient ``straw man'' to disqualify Gaussian growth, because it was recognized by the original and subsequent analysts that size transitions are strongly skewed \citep{shriver2012comparative,peterson2019improving}. 
-In all remaining case studies, including those in the Supporting Information, we re-examine growth data that were modeled as Gaussian in the original published analysis.  
+In all remaining case studies, including those in Appendix S3, we re-examine growth data that were modeled as Gaussian in the original published analysis.  
 
 \begin{figure}[tbp]
 	\centering
@@ -524,7 +492,7 @@ The growth variance is estimated to peak at small to medium sizes (Fig. \ref{fig
 The standardized residuals show clear signals of negative skew and positive excess kurtosis across most of the size distribution, but strongest in the middle (Fig. \ref{fig:resid_diagnostics}D).
 We therefore need a distribution family allowing negative skew and positive excess kurtosis, both of which may be negligible at some sizes.
 \revise{\linelabel{cactustrialerror}We first tried Johnson's $S_{U}$ and then the skewed $t$ distributions, which provided some improvements but there were still visible discrepancies between simulated and real data. 
-We next turned to the SHASH distribution, which allows a greater range of kurtosis for a given amount of skew, and vice versa (\cite{jones-pewsey-2009}; Supporting Information S.1).
+We next turned to the SHASH distribution, which allows a greater range of kurtosis for a given amount of skew, and vice versa (\cite{jones-pewsey-2009}; Appendix S1).
 This flexibility proved necessary to generate simulated data that compared favorably to the real data, so we proceeded with the SHASH.}  
 Conveniently, SHASH is available as an \textbf{mgcv} family, allowing for flexible size-dependence in skewness and kurtosis without having to select specific size-dependent functions. 
 
@@ -537,9 +505,9 @@ fit_shash <- gam(list(t1 ~ s(t0,k=4) +
     ~ s(t0,k=4)),  # log-kurtosis
     data = cactus, family = shash,optimizer = "efs")
 \end{lstlisting}
-Data simulated from the SHASH model compared favorably to the real data (Fig. \ref{fig:cactus_fit}). 
+Data simulated from the SHASH model compared favorably to the real data (Appendix S4, Fig. \ref{ms-fig:cactus_fit}). 
 Similar to the lichen case study, we see that correctly modeling skewness and kurtosis improved estimation of the nonparametric 
-mean and standard deviation (Fig. \ref{fig:cactus_fit}A,B), yielding a growth model that is truer to the data. 
+mean and standard deviation (Appendix S4, Fig. \ref{ms-fig:cactus_fit}A,B), yielding a growth model that is truer to the data. 
 
 We next explored how improved growth modeling influenced IPM results.
 The $\lambda$ values predicted by Gaussian and SHASH growth functions, corresponding to the average plot and year, were nearly identical (Table \ref{tab:crossspp}) but we could also leverage structure of the study design to quantify demographic variance associated with temporal and spatial heterogeneity.
@@ -625,10 +593,10 @@ Based on diagnostics of the standardized residuals, parameters that control skew
 This approach relies on the robustness of fitted Gaussian models to deviations from normality, which implies that the fitted mean and variance from a Gaussian model are good approximations for the mean and variance of the corresponding non-Gaussian model. 
 If one is skeptical of this approach, it is possible to simultaneously re-fit all parameters of the skewed $t$. 
 However, recall that unlike the lichen case study, the pilot Gaussian model here includes random year effects, and the expected values getting passed into \verb|dSST| account for this source of variation. 
-Estimating random effects ``from scratch'' with a custom likelihood model is possible (we provide guidance on doing this with a ``shrinkage'' approach, in Supporting Information S.2), but generally should not be necessary. 
+Estimating random effects ``from scratch'' with a custom likelihood model is possible (we provide guidance on doing this with a ``shrinkage'' approach, in Appendix S2), but generally should not be necessary. 
 Instead, a key advantage of the hybrid approach is retention of the fitted random effects and associated variance components, which get shuttled from the Gaussian model into the non-Gaussian model without any fuss (though it was critical to use a parameterization of the skewed $t$ for which \verb|mu| is the mean and \verb|sigma| is the standard deviation). 
 And, if this approach does not ``work'' (i.e., deviations from normality biased the fitted values of the Gaussian model) one would quickly find out when comparing simulated with real data. 
-In this case, size transition data simulated from this model corresponded favorably to the real data, much better than the pilot Gaussian model, including improvements in the standard deviation, skewness, and kurtosis of future size (Fig. \ref{fig:orchid_SST_fit}). 
+In this case, size transition data simulated from this model corresponded favorably to the real data, much better than the pilot Gaussian model, including improvements in the standard deviation, skewness, and kurtosis of future size (Appendix S4, Fig. \ref{ms-fig:orchid_SST_fit}). 
 
 Finally, we used the improved growth model to revisit key results of the original study. 
 Miller et al. (\citeyear{miller2012evolutionary}) used the orchid IPM to estimate the evolutionarily stable strategy (ESS) as the mean size at flowering that maximizes lifetime reproductive success ($R_0$), given the constraint that flowering when small reduces growth and thus elevates mortality risk. 
@@ -694,7 +662,7 @@ We caution against taking too much comfort in weak effects of ``improved'' growt
 It is possible that higher moments of those traits (e.g., variance or skewness of lifespan and lifetime reproduction) are more sensitive to the tails of the growth distribution.}
 It is also worth noting that most of our case studies focused on perennial life histories (perennial plants and lichens) characterized by relatively slow growth, heavy losses during recruitment, and high survival once established, and these species all had mean lifespans between one and six years and generation times on the order of decades. 
 Life histories such as these may be relatively robust to subtle features of the growth kernel. 
-In the Supporting Information we present three additional case studies that broaden our life history coverage, including pike (\emph{Esox lucius}), a fish with a generation time of four to five years and creosotebush (\emph{Larrea tridentata}), a desert shrub that is virtually immortal once established. 
+In Appendix S3 we present three additional case studies that broaden our life history coverage, including pike (\emph{Esox lucius}), a fish with a generation time of four to five years and creosotebush (\emph{Larrea tridentata}), a desert shrub that is virtually immortal once established. 
 Life history metrics from these ``fast'' and ``slow'' populations were no more sensitive to improved growth modeling than those of the perennial plants and lichens (Table \ref{tab:crossspp}). 
 More systematic comparative analyses may provide insight into which types of species and life histories are more likely to exhibit strong skewness and kurtosis, and which demographic quantities are more or less sensitive to these features of size transition. 
 %It is also worth noting, as we saw in several case studies, that different outputs from the same model can be more or less sensitive to the choice of growth distribution. 

@@ -456,9 +456,9 @@ extinct_SHASH = apply(popsize_S,1,function(x) sum(x==0));
 extinct_GAU =  apply(popsize_G,1,function(x) sum(x==0)); 
 
 dev.new(width=8,height=6); par(bty="l",cex.axis=1.3,cex.lab=1.3,mgp=c(2.1,1,0)); 
-matplot(1:100,cbind(extinct_SHASH,extinct_GAU)/5000,col=c("black","red"),type="l",lty=1,
+matplot(1:100,cbind(extinct_SHASH,extinct_GAU)/5000,col="black",type="l",lty=c(1,2),
 	xlab="Years", ylab="Extinction probability",lwd=2); 
-legend("topleft",legend = c("SHASH", "Gaussian"), col=c("black","red"),lty=1,lwd=2,inset=0.03)
+legend("topleft",legend = c("SHASH", "Gaussian"), col="black",lty=c(1,2),lwd=2,inset=0.03)
 dev.copy2pdf(file="exctinction_risk.pdf"); 
 
 ###################################################################
@@ -614,40 +614,44 @@ q.90<-predict(qgam(t1~s(t0,k=4),data=XH,qu=0.90))
 q.95<-predict(qgam(t1~s(t0,k=4),data=XH,qu=0.95))
 
 pdf("../manuscript/figures/lichen_JSU_fit.pdf",height = 6, width = 6,useDingbats = F)
-par(mfrow=c(2,2),mar=c(4,4,1,1),mgp=c(2.1,1,0),cex.lab=1.2); 
+par(mfrow=c(2,2),mar=c(4,4,2,1),mgp=c(2.1,1,0),cex.lab=1.2); 
 plot(XH$t0,Q.mean(q.25,q.50,q.75),type="n",
      xlab="Size(t)",ylab="NP mean size(t+1)",
      ylim=c(min(c(GAUsim_mean,JSUsim_mean)),1 + max(c(GAUsim_mean,JSUsim_mean))))
-matpoints(XH$t0,GAUsim_mean,col=alpha("tomato",0.25),type="l",lty=1)
-matpoints(XH$t0,1 + JSUsim_mean,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+matpoints(XH$t0,GAUsim_mean,col=alpha("#ef8a62",0.25),type="l",lty=1)
+matpoints(XH$t0,1 + JSUsim_mean,col=alpha("#67a9cf",0.25),type="l",lty=1)
 points(XH$t0,Q.mean(q.25,q.50,q.75),col="black",type="l",lwd=2)
 points(XH$t0,1 + Q.mean(q.25,q.50,q.75),col="black",type="l",lwd=2)
 legend("topleft",legend=c("Real data","Gaussian simulation","JSU simulation + offset"),
-       lty=1,col=c("black","tomato","cornflowerblue"),cex=0.8,bty="n")
+       lty=1,col=c("black","#ef8a62","#67a9cf"),cex=0.8,bty="n")
+title("A",font=3,adj=0)
 
 plot(XH$t0,Q.sd(q.25,q.75),type="n",
      xlab="Size(t)",ylab="NP SD Size(t+1)",
      ylim=c(min(c(GAUsim_sd,JSUsim_sd)),1 + max(c(GAUsim_sd,JSUsim_sd))))
-matpoints(XH$t0,GAUsim_sd,col=alpha("tomato",0.25),type="l",lty=1)
-matpoints(XH$t0,1 + JSUsim_sd,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+matpoints(XH$t0,GAUsim_sd,col=alpha("#ef8a62",0.25),type="l",lty=1)
+matpoints(XH$t0,1 + JSUsim_sd,col=alpha("#67a9cf",0.25),type="l",lty=1)
 points(XH$t0,Q.sd(q.25,q.75),col="black",type="l",lwd=2)
 points(XH$t0,1 + Q.sd(q.25,q.75),col="black",type="l",lwd=2)
+title("B",font=3,adj=0)
 
 plot(XH$t0,Q.skewness(q.10,q.50,q.90),type="n",
      xlab="Size(t)",ylab="NP skewness size(t+1)",
      ylim=c(min(c(GAUsim_skew,JSUsim_skew)),1 + max(c(GAUsim_skew,JSUsim_skew))))
-matpoints(XH$t0,GAUsim_skew,col=alpha("tomato",0.25),type="l",lty=1)
-matpoints(XH$t0,1+ JSUsim_skew,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+matpoints(XH$t0,GAUsim_skew,col=alpha("#ef8a62",0.25),type="l",lty=1)
+matpoints(XH$t0,1+ JSUsim_skew,col=alpha("#67a9cf",0.25),type="l",lty=1)
 points(XH$t0,Q.skewness(q.10,q.50,q.90),col="black",type="l",lwd=2)
 points(XH$t0,1 + Q.skewness(q.10,q.50,q.90),col="black",type="l",lwd=2)
+title("C",font=3,adj=0)
 
 plot(XH$t0,Q.kurtosis(q.05,q.25,q.75,q.95),type="n",
      xlab="Size(t)",ylab="NP kurtosis size(t+1)",
      ylim=c(min(GAUsim_kurt,JSUsim_kurt),1 + max(GAUsim_kurt,JSUsim_kurt)))
-matpoints(XH$t0,GAUsim_kurt,col=alpha("tomato",0.25),type="l",lty=1)
-matpoints(XH$t0,1 + JSUsim_kurt,col=alpha("cornflowerblue",0.25),type="l",lty=1)
+matpoints(XH$t0,GAUsim_kurt,col=alpha("#ef8a62",0.25),type="l",lty=1)
+matpoints(XH$t0,1 + JSUsim_kurt,col=alpha("#67a9cf",0.25),type="l",lty=1)
 points(XH$t0,Q.kurtosis(q.05,q.25,q.75,q.95),col="black",type="l",lwd=2)
 points(XH$t0,1 + Q.kurtosis(q.05,q.25,q.75,q.95),col="black",type="l",lwd=2)
+title("D",font=3,adj=0)
 dev.off()
 
 ########################################### 
@@ -745,9 +749,9 @@ extinct_JSU = apply(popsize_J,1,function(x) sum(x==0));
 extinct_GAU =  apply(popsize_G,1,function(x) sum(x==0)); 
 
 dev.new(width=7,height=5); par(bty="l",cex.axis=1.4,cex.lab=1.3,mgp=c(2.1,1,0)); 
-matplot(1:100,cbind(extinct_JSU,extinct_GAU)/5000,col=c("black","red"),type="l",lty=1,
+matplot(1:100,cbind(extinct_JSU,extinct_GAU)/5000,col="black",type="l",lty=c(1,2),
         xlab="Years", ylab="Extinction probability",lwd=2); 
-legend("topleft",legend = c("JSU", "Gaussian"), col=c("black","red"),lty=1,lwd=2,inset=0.03)
+legend("topleft",legend = c("JSU", "Gaussian"), col="black",lty=c(1,2),lwd=2,inset=0.03)
 dev.copy2pdf(file="../manuscript/figures/lichen_extinction_risk.pdf"); 
 
 ## add GAU and JSU kernels to output and write to file

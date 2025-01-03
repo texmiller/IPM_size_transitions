@@ -528,19 +528,19 @@ sd(lambda_p_GAU);sd(lambda_p_SHASH)
 cols<-wes_palette("Zissou1")
 pdf("../manuscript/figures/cactus_lambda_years_plots.pdf",height = 4, width = 8,useDingbats = F)
 par(mfrow=c(1,2),mar=c(4,5,1,1))
-plot(studyyears,lambda_t_SHASH,type="b",col=alpha(cols[1],0.85),pch=16,cex.lab=1.4,
+plot(studyyears,lambda_t_SHASH,type="b",col=alpha("#67a9cf",0.95),pch=16,cex.lab=1.4,
      xlab="Year",ylab=expression(paste(lambda[t])),cex=1.5)
-lines(studyyears,lambda_t_GAU,type="b",col=alpha(cols[5],0.85),pch=16,cex=1.5)
+lines(studyyears,lambda_t_GAU,type="b",col=alpha("#ef8a62",0.95),pch=16,cex=1.5)
 title("A",adj=0,font=3)
 
 plot(as.numeric(studyplots),lambda_p_SHASH[as.numeric(studyplots)],type="n",cex.lab=1.4,
     ylim=range(lambda_t_SHASH),xlab="Plot",ylab=expression(paste(lambda[p])))
 axis(1,at=1:11,labels=1:11)
-points(as.numeric(studyplots),lambda_p_SHASH[as.numeric(studyplots)],col=alpha(cols[1],0.85),pch=16,type="p",cex=1.5)
-points(as.numeric(studyplots),lambda_p_GAU[as.numeric(studyplots)],col=alpha(cols[5],0.85),pch=16,type="p",cex=1.5)
+points(as.numeric(studyplots),lambda_p_SHASH[as.numeric(studyplots)],col=alpha("#67a9cf",0.95),pch=16,type="p",cex=1.5)
+points(as.numeric(studyplots),lambda_p_GAU[as.numeric(studyplots)],col=alpha("#ef8a62",0.95),pch=16,type="p",cex=1.5)
 title("B",adj=0,font=3)
 legend("bottomleft",legend=c("SHASH","Gaussian"),title="Growth function:",
-       pch=16,col=cols[c(1,5)],bty="n")
+       pch=16,col=c("#67a9cf","#ef8a62"),bty="n")
 box()
 dev.off()
 

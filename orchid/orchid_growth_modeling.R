@@ -465,12 +465,12 @@ for(i in 1:length(flowint)){
 
 pdf("./manuscript/figures/orchid_R0.pdf",height = 5, width = 5,useDingbats = F)
 par(mar=c(5,5,1,1))
-plot(-flowint/params$flow.size,R0out.beta0.GAU,type="l",lwd=2,col="tomato",
+plot(-flowint/params$flow.size,R0out.beta0.GAU,type="l",lwd=3,col="#ef8a62",
      xlab="Flowering size (log leaf area)",ylab=expression(R[0]),cex.lab=1.4)
-lines(-flowint/params$flow.size,R0out.beta0.SST,lwd=2,col="cornflowerblue")
+lines(-flowint/params$flow.size,R0out.beta0.SST,lwd=3,col="#67a9cf")
 abline(v=-params$flow.int/params$flow.size,lty=2)
 legend("topleft",legend=c("Gaussian","Skewed t"),title="Growth model:",
-       lwd=2,col=c("tomato","cornflowerblue"),bty="n")
+       lwd=3,col=c("#ef8a62","#67a9cf"),bty="n")
 dev.off()
 
 ## write out matrices

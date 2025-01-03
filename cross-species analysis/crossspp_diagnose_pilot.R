@@ -26,12 +26,12 @@ pilot = lichen$lichen_grow
 plot(pilot$fitted,pilot$scaledResids,pch=1,col=alpha("black",alpha_val),xlab="Fitted values", ylab="Scaled residuals",
 ylim = quantile(pilot$scaledResids,c(0.025,0.975))); 
 mfit = rsq.smooth.spline(pilot$fitted,pilot$scaledResids);
-points(mfit$x,mfit$yhat,type="l",col="red",lty=1,lwd=2);  
+points(mfit$x,mfit$yhat,type="l",col="#ef8a62",lty=1,lwd=2);  
 title("A)   Lichen",font=3,adj=0); title(paste0("Spline SD=",round(sd(mfit$yhat),3)),adj=1); 
 plot(pilot$fitted,abs(pilot$scaledResids),pch=1,col=alpha("black",alpha_val),xlab="Fitted values", ylab="|Scaled residuals|",
 ylim = quantile(abs(pilot$scaledResids),c(0,0.975))); 
 vfit = rsq.smooth.spline(pilot$fitted,abs(pilot$scaledResids));
-points(vfit$x,vfit$yhat,type="l",col="blue",lty=1,lwd=2);  
+points(vfit$x,vfit$yhat,type="l",col="#67a9cf",lty=1,lwd=2);  
 title("B)",font=3,adj=0); title(paste0("Spline SD=",round(sd(vfit$yhat),3)),adj=1); 
 
 
@@ -41,12 +41,12 @@ pilot$fitted = pilot$fitted_norfx;
 plot(pilot$fitted,pilot$scaledResids,pch=1,col=alpha("black",alpha_val),xlab="Fitted values", ylab="Scaled residuals",
 ylim = quantile(pilot$scaledResids,c(0.025,0.975)));  
 mfit = rsq.smooth.spline(pilot$fitted,pilot$scaledResids);
-points(mfit$x,mfit$yhat,type="l",col="red",lty=1,lwd=2);  
+points(mfit$x,mfit$yhat,type="l",col="#ef8a62",lty=1,lwd=2);  
 title("C   Cactus",font=3,adj=0); title(paste0("Spline SD=",round(sd(mfit$yhat),3)),adj=1); 
 plot(pilot$fitted,abs(pilot$scaledResids)^0.5,pch=1,col=alpha("black",alpha_val),xlab="Fitted values", ylab="|Scaled residuals|",
 ylim = quantile(abs(pilot$scaledResids),c(0,0.975)));  
 vfit = rsq.smooth.spline(pilot$fitted,abs(pilot$scaledResids));
-points(vfit$x,vfit$yhat^0.5,type="l",col="blue",lty=1,lwd=2);  
+points(vfit$x,vfit$yhat^0.5,type="l",col="#67a9cf",lty=1,lwd=2);  
 title("D",font=3,adj=0); title(paste0("Spline SD=",round(sd(vfit$yhat),3)),adj=1); 
 
 ################### Orchid 
@@ -55,12 +55,12 @@ pilot$fitted = pilot$GAU_fitted; pilot$scaledResids = pilot$GAU_scaled_resids;
 plot(pilot$fitted,pilot$scaledResids,pch=1,col=alpha("black",alpha_val),xlab="Fitted values", ylab="Scaled residuals",
 ylim = quantile(pilot$scaledResids,c(0.025,0.975)));  
 mfit = rsq.smooth.spline(pilot$fitted,pilot$scaledResids);
-points(mfit$x,mfit$yhat,type="l",col="red",lty=1,lwd=2);  
+points(mfit$x,mfit$yhat,type="l",col="#ef8a62",lty=1,lwd=2);  
 title("E   Orchid",font=3,adj=0); title(paste0("Spline SD=",round(sd(mfit$yhat),3)),adj=1); 
 plot(pilot$fitted,abs(pilot$scaledResids)^0.5,pch=1,col=alpha("black",alpha_val),xlab="Fitted values", ylab="|Scaled residuals|",
 ylim = quantile(abs(pilot$scaledResids),c(0,0.975)));  
 vfit = rsq.smooth.spline(pilot$fitted,abs(pilot$scaledResids));
-points(vfit$x,vfit$yhat^0.5,type="l",col="blue",lty=1,lwd=2);  
+points(vfit$x,vfit$yhat^0.5,type="l",col="#67a9cf",lty=1,lwd=2);  
 title("F",font=3,adj=0);title(paste0("Spline SD=",round(sd(vfit$yhat),3)),adj=1); 
 
 dev.copy2pdf(file="manuscript/figures/cactus_k=6.pdf"); 
