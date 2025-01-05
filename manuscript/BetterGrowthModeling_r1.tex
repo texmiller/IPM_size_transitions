@@ -119,7 +119,7 @@ Houston, TX 77005-1827. Email: tom.miller@rice.edu Phone: 713-348-4218}}
 \noindent\textbf{Keywords}: demography; growth; integral projection model; kurtosis; skewness
 
 \bigskip 
-\noindent\textbf{Open Research Statement:} Data are already published and publicly available, with those items properly cited in this submission. Three data sets are cited as data packages \citep{cactusdata, shrubdata, winfield2013pikegrowth}. Two other data sets are available in our Github repo, which also includes all of our code. The repo will be archived in a Zenodo package, with the DOI included at the end of the article, upon publication. During peer review, our data and code are available at \url{https://github.com/texmiller/IPM_size_transitions}. 
+\noindent\textbf{Open Research Statement:} Data are already published and publicly available, with those items properly cited in this submission. Three data sets are cited as data packages: \citep{cactusdata} \url{https://doi.org/10.6073/pasta/dd06df3f950afe4a4642306182237d13}, \citep{shrubdata} \url{https://doi.org/10.6073/pasta/ca53c16f16dcf9fb11f3ee99ea5445ac}, \citep{winfield2013pikegrowth} \url{https://doi.org/10.5285/637d60d6-1571-49af-93f7-24c1279d884d}. Two other data sets are available in our Github repo, which also includes all of our code. The repo will be archived in a Zenodo package, with the DOI included at the end of the article, upon publication. During peer review, our data and code are available at \url{https://github.com/texmiller/IPM_size_transitions}. 
 
 \newpage
 %\linenumbers
@@ -150,7 +150,7 @@ Doing so, as guided by careful interrogation of the data, will result in models 
 
 \newpage
 \section{Introduction}
-
+\nocite{}
 Structured demographic models -- matrix and integral projection models (MPMs and IPMs) -- are powerful tools for data-driven modeling of population and community dynamics. 
 In contrast to MPMs for populations with discrete structure (life stage, age class, etc.), IPMs \citep{easterling2000size} accommodate populations structured by continuous state variables, most commonly size. 
 A related innovation of the IPM framework is its emphasis on regression-based modeling for parameter estimation, which 
@@ -256,16 +256,6 @@ relating distribution parameters to size and other covariates.
 %Again, we caution that formal model selection with so many available options is high risk with little expected reward. 
 %Instead, the final model should remedy all observable discrepancies between real and simulated growth distributions, and at most slightly modified based on final diagnostics and statistical tests.
 
-\begin{figure}
-\centering
-\includegraphics[width=0.9\textwidth]{figures/workflow.png}
-\caption{Recommended steps in growth modeling (left) and guide to common non-Gaussian distributions of size $x$ for $x \in \mathbb{R}$ that can accommodate different combinations of skewness and kurtosis (right). 
-All of these distributions (often including multiple versions or parameterizations of each) are available in the R package \textbf{gamlss.dist}, 
-except for the skewed generalized $t$, which is available in the package \textbf{sgt} \citep{davis-2015}.}
-%\textbf{actuar} \citep{dutang2008actuar}.
-\label{fig:workflow}
-\end{figure} 
-
 \section{How should skewness and kurtosis be measured?}
 \label{sec:NPmeasures} 
 Non-Gaussian growth modeling requires scrutinizing the skewness and kurtosis of standardized residuals, so measurement of these properties warrants attention. 
@@ -279,17 +269,6 @@ Figure \ref{fig:NPmoments} shows a simulated example, where the underlying data 
 8 degrees of freedom, repeated 5000 times; the true skew is 0, and the true excess kurtosis is 1.5. 
 The distance between the largest and smallest estimates (indicated by the dotted red vertical lines), relative to the distance 
 between the 5th and 95th percentiles, shows the broad extent of extreme values that can occur even with a large sample, especially for kurtosis. 
-
-\begin{figure}[tbp]
-\includegraphics[width=\textwidth]{figures/NPmoments.pdf}
-\caption{Histograms of skewness and kurtosis estimates using moment-based definitions (top two panels), compared with the nonparametric measures based on quantiles (bottom two panels). 
-Note the very large differences in scale. Histograms are based on 5000 replicate draws 
-of a sample of 200 independent values, from a $t$ distribution with 8 degrees of freedom. 
-Dotted red vertical lines mark the minimum and maximum of sample estimates, and dashed blue lines show the 5th and 95th percentiles. 
-The true value is indicated by a black dot on the $x$-axis.
-Figure drawn by script \texttt{NPmoments.R}}
-\label{fig:NPmoments}
-\end{figure} 
 
 We therefore recommend nonparametric (NP) measures of skewness and kurtosis that are based on quantiles and thus are less sensitive to a few extreme values. 
 Let $q_\alpha$ denote the $\alpha$ quantile of a distribution or sample (e.g., $q_{0.05}$ is the 5th percentile). 
@@ -366,23 +345,6 @@ Quantile regression on the scaled residuals generates the skewness and kurtosis 
 As expected based on previous analyses, the graphical analysis of the standardized residuals indicates negative skew, especially at larger sizes (Fig. \ref{fig:resid_diagnostics}B).
 We also find positive excess kurtosis for all sizes. 
 
-\begin{figure}[tbp]
-	\centering
-	\includegraphics[width=0.95\textwidth]{figures/combo_resid_diagnostics.pdf}
-	\caption{Best Gaussian models and diagnostics of standardized residuals for lichen (\emph{Vulpicida pinastri}) \textbf{A,B}, cactus \emph{Cylindriopuntia imbricata} \textbf{C,D}, and orchid \emph{Orchis purpurea} \textbf{E,F} case studies. \textbf{A,C}, fitted mean (red) and standard deviation (blue) of size at time $t+1$ conditional on initial size at time $t$. \textbf{E}, fitted means for plants that were vegetative (solid line) or flowering (dashed line) at the start of the census interval and standard deviation as a function of the fitted mean (inset). \textbf{B,D,F} Quantile regressions of scaled residuals (lines show 5\%, 10\%, 25\%, 50\%, 75\%, 90\%, and 95\% quantiles) and non-parametric measures of skewness (blue) and excess kurtosis (red) derived from them. In \textbf{B,D} scaled residuals are shown with respect to initial size and in \textbf{F} they are shown with respect to fitted values. Figure made by script \texttt{crossspp\_growth.R}.}
-	\label{fig:resid_diagnostics}
-\end{figure}
-
-\begin{figure}[tbp]
-	\centering
-	\includegraphics[width=0.95\textwidth]{figures/cactus_k=6.pdf}
-	\caption{Diagnostic plot for trends in the mean (left column) or variance (right column) of scaled residuals from a pilot Gaussian model, for the lichen (\emph{Vulpicida pinastri}) \textbf{A,B}, cactus \emph{Cylindriopuntia imbricata} \textbf{C,D}, and orchid \emph{Orchis purpurea} \textbf{E,F} case studies. 
-		In \textbf{A,C,E} the standardized residuals are plotted, and in \textbf{B,D,F} the absolute values of
-		standardized residuals, as functions of fitted mean subsequent size values. The solid curves are cubic splines (R function \texttt{smooth.spline}) fitted by generalized cross-validation with a modest over-penalization of model degrees of freedom to prevent overfitting (\texttt{penalty}=1.4 as recommended by \citet{gu-2013}). The numbers appearing above each panel are the standard deviation of the values on the spline regression curve, evaluated at all of the 
-		fitted values. Figure made by script \texttt{crossspp\_diagnose\_pilot.R}.}
-	\label{fig:diagnose_pilot}
-\end{figure}
-
 We turned to the Johnson's \emph{S-U} (JSU) distribution for improvement. 
 The JSU is a four-parameter leptokurtic distribution allowing positive or negative skew, with the convenient property that its location and scale parameters \texttt{mu} and \texttt{sigma} are the mean and standard deviation, respectively, which greatly facilitates the transition from a pilot Gaussian model. 
 JSU is not available in any standard linear or additive modeling packages, to our knowledge. 
@@ -414,56 +376,8 @@ For example, the JSU growth model predicts values for mean lifespan, mean lifeti
 \revise{\linelabel{lichenuncertainty}In this case study, properly modeling non-normal size transitions -- which was easy to do with a few extra lines of code -- can influence ecological inferences, at least based on point estimates.
 However, Table \ref{tab:crossspp} also provides bias-corrected, bootstrapped confidence intervals \citep{bca-1996}, and these are heavily overlapping between the Gaussian and JSU models for all life history traits, suggesting that effects of ``improved''growth modeling are small relative to our uncertainty in model parameters.} 
  
-\begin{figure}[tbp]
-	\centering
-	\includegraphics[width=0.75\textwidth]{figures/lichen_JSU_fit}
-	\caption{Comparisons among real lichen data and data simulated from Gaussian and JSU growth models for NP mean, NP standard deviation, NP skewness, and NP excess kurtosis of future size conditional on current size. Colored lines show 100 simulated data sets from the fitted Gaussian (red) or JSU (blue) growth models. Thick black line shows the real data. Gaussian and JSU data are offset by one unit and the real data line is duplicated with a one-unit offset for ease of visualization. Figure made by script \texttt{Vuplicida\_IPMs.R}.}
-	\label{fig:lichen_fit}
-\end{figure} 
-
-\begin{table}[tbp]
-\renewcommand{\arraystretch}{1.5}
-	\caption{Life history attributes derived from IPM kernels that included Gaussian or ``improved'' growth sub-models for six  case studies. The improved distributions were JSU (lichen, creosote), SHASH (cactus, pike, coral), and skewed $t$ (orchid). 
-	Pike, creosote and coral case studies are presented in Appendix S3. The original coral case study assumed an open population with constant recruitment from a large source region, so some life history
-	attributes cannot be computed from the published model. Values in parenthesis are 95\% bootstrap confidence intervals, specifically the bias-corrected (BC) bootstrap confidence intervals \cite{bca-1996}. Table can be reproduced from scripts \texttt{crossspp\_growth.R, Vulpicida\_boot.R, Akumal\_corals\_boot.R}.}
-	\centering
-	\begingroup\fontsize{10pt}{10pt}\selectfont
-	\begin{tabular}{rp{1cm}|p{2.6cm}p{2.3cm}p{2.4cm}p{2.2cm}p{2.4cm}}
-	{\textbf{Species}} & {\textbf{Growth model}} & {\textbf{$\lambda$}} & {\textbf{Lifespan}} & {\textbf{Lifetime reproductive output}} & {\textbf{Age at reproduction}} & {\textbf{Generation time}} \\ 
-	\hline
-		Lichen & Gaussian & 1.01 (0.99, 1.04) & 6.4 (3.6, 11.1) & 1.4 (0.5, 3.1) & 6.5 (5.7, 7.3) & 40.8 (30.5,57.4)\\ 
-	(\textit{V. pinastri}) & Improved & 1.00 (0.98, 1.03) & 5.4 (3.1, 9.7) & 1 (0.4, 2.4) & 6.4 (5.4, 7.3) & 36.6 (27.5, 48.6)\\ 
-	\hline
-	Cactus & Gaussian & 0.994 (0.99, 0.996) & 6.11 (3.66, 8.63) & 21.8 (8.27, 49.4) & 17.6 (1.75, 22.7) & 189 (131, 266) \\ 
-	(\textit{C. imbricata}) & Improved & 0.993 (0.991, 0.998) & 5.38 (3.34, 16.3) & 13.4 (5.72, 251) & 20.3 (1.21, 22.2) & 179 (133, 298) \\
-	\hline
-	Orchid & Gaussian & 1.09 (1.08, 1.1) & 1.08 (1.06, 1.11) & 20.0 (12.6, 31.0) & 5.07 (4.78, 5.31) & 104 (73.1, 150)\\ 
-	(\textit{O. purpurea}) & Improved & 1.09 (1.08, 1.1) & 1.08 (1.06, 1.1) & 19.3 (12.0, 29.9) & 5.03 (4.75, 5.3) & 100.7 (71.0, 145.0) \\ 
-	\hline
-	Pike & Gaussian & 1.62 (1.35, 1.89) & 1.2 (1.09, 1.35) & 5.75 (2.9, 9.7) & 1.09 (1.03, 1.18) & 4.96 (4.26, 5.84) \\ 
-	(\textit{E. Lucius}) & Improved & 1.62 (1.35, 1.88) & 1.2 (1.09, 1.35) & 5.76 (2.91, 9.73) & 1.09 (1.03, 1.18) & 4.94 (4.30, 5.84) \\ 
-	\hline
-	Creosote & Gaussian & 1.033 (1.029, 1.04) & \num{4.52e6} (\num{2.14e5}, \num{1.82e8}) & \num{3.19e5} (\num{1.27e4}, \num{1.24e7}) & 32.7 (29.2, 36.0) & \num{5.27e6} (\num{2.50e5}, \num{1.95e8}) \\ 
-	(\textit{L. tridentata}) & Improved & 1.034 (1.03, 1.04) & \num{3.26e5} (\num{1.98e3}, \num{1.66e7}) & \num{2.31e4} (\num{5.83e2}, \num{1.27e6}) & 32.8 (29.3,36.0) & \num{3.7e5} (\num{2.63e3},  \num{1.93e7})\\ 
-	\hline 
-	Coral                  & Gaussian  & \quad ---  &   17.3 (11.9, 24.3)   &  \quad ---  & 10.5 (9.3, 11.8)  & \quad 31.6 (28.3, 36.7)\\ 
-	(\textit{G. ventalina}) & Improved  & \quad ---  &   17.5 (12.1, 24.3)   &  \quad --- & 10.7 (9.4, 12.2)  & \quad 30.9 (27.4, 35.3) \\
-	\hline 
-	\end{tabular}
-	\endgroup
-	\label{tab:crossspp}
-\end{table}
-
 One could argue that this example was a convenient ``straw man'' to disqualify Gaussian growth, because it was recognized by the original and subsequent analysts that size transitions are strongly skewed \citep{shriver2012comparative,peterson2019improving}. 
 In all remaining case studies, including those in Appendix S3, we re-examine growth data that were modeled as Gaussian in the original published analysis.  
-
-\begin{figure}[tbp]
-	\centering
-	\includegraphics[width=0.8\textwidth]{figures/lichen_extinction_risk}
-	\caption{Extinction risk estimated from individual-based simulation of IPMs based on Gaussian and Johnson's S-U (JSU) growth distributions. Figure made by script \texttt{Vuplicida\_IPMs.R}.}
-	\label{fig:lichen_extinction}
-\end{figure} 
-
 
 \section{Case study: tree cholla cactus, \emph{Cylindriopuntia imbricata}}
 \label{sec:cactusCaseStudy} 
@@ -517,17 +431,10 @@ Plot-to-plot variation was more similar between the two models ($SD(\lambda_{p(G
 The difference in temporal variance would suggest that Gaussian growth modeling would predict a higher stochastic growth rate $\lambda_S$, because temporal variance has a negative effect on $\lambda_S$.}
 However, the stochastic growth rate from the Gaussian growth model ($\lambda_S=0.992$) was nearly identical to that of the SHASH growth model ($\lambda_S=0.991$).  
 This is likely because temporal fluctuations in vital rates, which is where the SHASH growth model would make a difference, have a weaker influence on $\lambda_S$ than the temporal fluctuations in size structure that they generate \citep{ellis2013role,compagnoni2016effect}. 
-\revise{\linelabel{cactus.uncertainty}The SHASH and Gaussian growth models predicted small differences in other life history traits but, as in the lichen case study, these differences were small relative to the uncertainty captured by bootstrapped confidence intervals (Table \ref{tab:crossspp}).}
-Thus, in this case study, modeling non-Gaussian size transitions with a Gaussian growth model may or may not influence IPM results depending on the target of the analysis. 
+\revise{\linelabel{cactus.uncertainty}The SHASH and Gaussian growth models predicted small differences in other life history traits but, as in the lichen case study, these differences were small relative to the uncertainty captured by bootstrapped confidence intervals (Table \ref{tab:crossspp}).
+Interestingly, the SHASH model had wider uncertainty intervals, particularly for lifespan and lifetime reproductive output, presumably because the additional parameters it requires introduce additional sources of uncertainty in these estimates.
+Thus, in this case study, modeling non-Gaussian size transitions with a Gaussian growth model may or may not influence IPM results depending on the target of the analysis, and whether the emphasis is on point estimates or uncertainty intervals. }
 
-\begin{figure}[tbp]
-	\centering
-	\includegraphics[width=1.0\textwidth]{figures/cactus_lambda_years_plots.pdf}
-	\caption{Temporal (\textbf{A}) and spatial (\textbf{B}) heterogeneity in fitness for the tree cholla cactus (\textit{Cylindriopuntia imbricata}) predicted by IPMs using Gaussian or SHASH growth models. Figure made by script \texttt{cactus\_growth\_modeling\_qgam.R}.}
-	\label{fig:cactus_lambda}
-\end{figure} 
-
- 
 \section{Case study: lady orchid, \emph{Orchis purpurea}}
 \label{sec:orchidCaseStudy} 
 Our final case study examines selection on life history strategies in the lady orchid \textit{Orchis purpurea}. 
@@ -607,14 +514,6 @@ ESS flowering sizes were nearly identical between IPMs with Gaussian vs skewed $
 %Gaussian and skewed $t$ growth models predicted nearly identical mean remaining lifespans across the stage and size distribution (Fig. \ref{fig:orchid_ESS}B).
 %\tom{However, the skewed $t$ model predicted consistently greater variance in remaining lifespan, nearly 10\% greater at some sizes.}{Do not believe this result! I have left it here as a placeholder because I would like to do this correctly. But I think there are problems with Rage's life\_expect\_var() function. The predicted variance declines linearly with matrix dimension.} 
 %Thus, as we have seen in other case studies, the practical consequences of improved growth modeling depend on what one aims to learn from the IPM. 
-
-\begin{figure}[tbp]
-	\centering
-	\includegraphics[width=0.5\textwidth]{figures/orchid_R0.pdf}
-	\caption{Orchid life history results from IPMs using Gaussian or skewed $t$ growth models. Lifetime reproductive success ($R_0$) is shown as a function of mean size of flowering. Dashed vertical line shows the observed mean flowering size.}
-	\label{fig:orchid_ESS}
-\end{figure} 
-
 
 \section{Discussion}
 \label{sec:Discussion} 
@@ -893,6 +792,11 @@ Miller, T.E., Williams, J.L., Jongejans, E., Brys, R. \& Jacquemyn, H. (2012)
 Morris, W.F. \& Doak, D.F. (2002) \emph{Quantitative Conservation Biology:
   Theory and Practice of Population Viability Analysis}. Sinauer Associates,
   Sunderland, Mass.
+  
+  \bibitem[{Ochocki \emph{et~al.}(2023)Ochocki, Drees \& Miller}]{shrubdata}
+  Ochocki, B.M., Drees, T. \& Miller, T.E. (2023) Density-dependent demography of
+  creosote bush (larrea tridentata) along grass-shrub ecotones.
+  \url{https://doi.org/10.6073/pasta/ca53c16f16dcf9fb11f3ee99ea5445ac}.
 
 \bibitem[{Ohm \& Miller(2014)}]{ohm2014balancing}
 Ohm, J.R. \& Miller, T.E. (2014) Balancing anti-herbivore benefits and
@@ -987,6 +891,12 @@ Wan, X., Wang, W., Liu, J. \& Tong, T. (2014) Estimating the sample mean and
 Williams, J.L., Miller, T.E. \& Ellner, S.P. (2012) Avoiding unintentional
   eviction from integral projection models. \emph{Ecology} \textbf{93},
   2008--2014.
+  
+\bibitem[{Winfield \emph{et~al.}(2013{\natexlab{b}})Winfield, Fletcher \&
+  	James}]{winfield2013pikegrowth}
+  Winfield, I., Fletcher, J. \& James, J. (2013{\natexlab{b}}) Pike growth data
+  1944-1995. NERC Environmental Information Data Centre, \url{
+  	https://doi.org/10.5285/637d60d6-1571-49af-93f7-24c1279d884d}.
     
 \bibitem[{Wood(2017)}]{wood-2017}
 Wood, S. (2017) \emph{Generalized Additive Models: An Introduction with R}.
@@ -1002,15 +912,151 @@ Zhou, Y. and Hooker, G. (2024) Targeted Maximum Likelihood Estimation for Integr
   
 \end{thebibliography}
 
+\newpage
+\begin{table}[H]
+	\renewcommand{\arraystretch}{1.5}
+	\caption{Life history attributes derived from IPM kernels that included Gaussian or ``improved'' growth sub-models for six  case studies. The improved distributions were JSU (lichen, creosote), SHASH (cactus, pike, coral), and skewed $t$ (orchid). 
+		Pike, creosote and coral case studies are presented in Appendix S3. The original coral case study assumed an open population with constant recruitment from a large source region, so some life history
+		attributes cannot be computed from the published model. Values in parenthesis are 95\% bootstrap confidence intervals, specifically the bias-corrected (BC) bootstrap confidence intervals \cite{bca-1996}. Table can be reproduced from scripts \texttt{crossspp\_growth.R, Vulpicida\_boot.R, Akumal\_corals\_boot.R}.}
+	\centering
+	\begingroup\fontsize{10pt}{10pt}\selectfont
+	\begin{tabular}{rp{1cm}|p{2.6cm}p{2.3cm}p{2.4cm}p{2.2cm}p{2.4cm}}
+		{\textbf{Species}} & {\textbf{Growth model}} & {\textbf{$\lambda$}} & {\textbf{Lifespan}} & {\textbf{Lifetime reproductive output}} & {\textbf{Age at reproduction}} & {\textbf{Generation time}} \\ 
+		\hline
+		Lichen & Gaussian & 1.01 (0.99, 1.04) & 6.4 (3.6, 11.1) & 1.4 (0.5, 3.1) & 6.5 (5.7, 7.3) & 40.8 (30.5,57.4)\\ 
+		(\textit{V. pinastri}) & Improved & 1.00 (0.98, 1.03) & 5.4 (3.1, 9.7) & 1 (0.4, 2.4) & 6.4 (5.4, 7.3) & 36.6 (27.5, 48.6)\\ 
+		\hline
+		Cactus & Gaussian & 0.994 (0.99, 0.996) & 6.11 (3.66, 8.63) & 21.8 (8.27, 49.4) & 17.6 (1.75, 22.7) & 189 (131, 266) \\ 
+		(\textit{C. imbricata}) & Improved & 0.993 (0.991, 0.998) & 5.38 (3.34, 16.3) & 13.4 (5.72, 251) & 20.3 (1.21, 22.2) & 179 (133, 298) \\
+		\hline
+		Orchid & Gaussian & 1.09 (1.08, 1.1) & 1.08 (1.06, 1.11) & 20.0 (12.6, 31.0) & 5.07 (4.78, 5.31) & 104 (73.1, 150)\\ 
+		(\textit{O. purpurea}) & Improved & 1.09 (1.08, 1.1) & 1.08 (1.06, 1.1) & 19.3 (12.0, 29.9) & 5.03 (4.75, 5.3) & 100.7 (71.0, 145.0) \\ 
+		\hline
+		Pike & Gaussian & 1.62 (1.35, 1.89) & 1.2 (1.09, 1.35) & 5.75 (2.9, 9.7) & 1.09 (1.03, 1.18) & 4.96 (4.26, 5.84) \\ 
+		(\textit{E. Lucius}) & Improved & 1.62 (1.35, 1.88) & 1.2 (1.09, 1.35) & 5.76 (2.91, 9.73) & 1.09 (1.03, 1.18) & 4.94 (4.30, 5.84) \\ 
+		\hline
+		Creosote & Gaussian & 1.033 (1.029, 1.04) & \num{4.52e6} (\num{2.14e5}, \num{1.82e8}) & \num{3.19e5} (\num{1.27e4}, \num{1.24e7}) & 32.7 (29.2, 36.0) & \num{5.27e6} (\num{2.50e5}, \num{1.95e8}) \\ 
+		(\textit{L. tridentata}) & Improved & 1.034 (1.03, 1.04) & \num{3.26e5} (\num{1.98e3}, \num{1.66e7}) & \num{2.31e4} (\num{5.83e2}, \num{1.27e6}) & 32.8 (29.3,36.0) & \num{3.7e5} (\num{2.63e3},  \num{1.93e7})\\ 
+		\hline 
+		Coral                  & Gaussian  & \quad ---  &   17.3 (11.9, 24.3)   &  \quad ---  & 10.5 (9.3, 11.8)  & \quad 31.6 (28.3, 36.7)\\ 
+		(\textit{G. ventalina}) & Improved  & \quad ---  &   17.5 (12.1, 24.3)   &  \quad --- & 10.7 (9.4, 12.2)  & \quad 30.9 (27.4, 35.3) \\
+		\hline 
+	\end{tabular}
+	\endgroup
+	\label{tab:crossspp}
+\end{table}
 
+\pagebreak
+\newpage
+\section{Figure Legends}
+\paragraph{Figure \ref{fig:workflow}}
+Recommended steps in growth modeling (left) and guide to common non-Gaussian distributions of size $x$ for $x \in \mathbb{R}$ that can accommodate different combinations of skewness and kurtosis (right). 
+All of these distributions (often including multiple versions or parameterizations of each) are available in the R package \textbf{gamlss.dist}, 
+except for the skewed generalized $t$, which is available in the package \textbf{sgt} \citep{davis-2015}.
 
+\paragraph{Figure \ref{fig:NPmoments}}
+Histograms of skewness and kurtosis estimates using moment-based definitions (top two panels), compared with the nonparametric measures based on quantiles (bottom two panels). 
+Note the very large differences in scale. Histograms are based on 5000 replicate draws 
+of a sample of 200 independent values, from a $t$ distribution with 8 degrees of freedom. 
+Dotted red vertical lines mark the minimum and maximum of sample estimates, and dashed blue lines show the 5th and 95th percentiles. 
+The true value is indicated by a black dot on the $x$-axis.
+Figure drawn by script \texttt{NPmoments.R}
 
+\paragraph{Figure \ref{fig:resid_diagnostics}}
+Best Gaussian models and diagnostics of standardized residuals for lichen (\emph{Vulpicida pinastri}) \textbf{A,B}, cactus \emph{Cylindriopuntia imbricata} \textbf{C,D}, and orchid \emph{Orchis purpurea} \textbf{E,F} case studies. \textbf{A,C}, fitted mean (red) and standard deviation (blue) of size at time $t+1$ conditional on initial size at time $t$. \textbf{E}, fitted means for plants that were vegetative (solid line) or flowering (dashed line) at the start of the census interval and standard deviation as a function of the fitted mean (inset). \textbf{B,D,F} Quantile regressions of scaled residuals (lines show 5\%, 10\%, 25\%, 50\%, 75\%, 90\%, and 95\% quantiles) and non-parametric measures of skewness (blue) and excess kurtosis (red) derived from them. In \textbf{B,D} scaled residuals are shown with respect to initial size and in \textbf{F} they are shown with respect to fitted values. Figure made by script \texttt{crossspp\_growth.R}.
 
+\paragraph{Figure \ref{fig:diagnose_pilot}}
+Diagnostic plot for trends in the mean (left column) or variance (right column) of scaled residuals from a pilot Gaussian model, for the lichen (\emph{Vulpicida pinastri}) \textbf{A,B}, cactus \emph{Cylindriopuntia imbricata} \textbf{C,D}, and orchid \emph{Orchis purpurea} \textbf{E,F} case studies. 
+In \textbf{A,C,E} the standardized residuals are plotted, and in \textbf{B,D,F} the absolute values of
+standardized residuals, as functions of fitted mean subsequent size values. The solid curves are cubic splines (R function \texttt{smooth.spline}) fitted by generalized cross-validation with a modest over-penalization of model degrees of freedom to prevent overfitting (\texttt{penalty}=1.4 as recommended by \citet{gu-2013}). The numbers appearing above each panel are the standard deviation of the values on the spline regression curve, evaluated at all of the 
+fitted values. Figure made by script \texttt{crossspp\_diagnose\_pilot.R}.
 
+\paragraph{Figure \ref{fig:lichen_fit}}
+Comparisons among real lichen data and data simulated from Gaussian and JSU growth models for NP mean, NP standard deviation, NP skewness, and NP excess kurtosis of future size conditional on current size. Colored lines show 100 simulated data sets from the fitted Gaussian (red) or JSU (blue) growth models. Thick black line shows the real data. Gaussian and JSU data are offset by one unit and the real data line is duplicated with a one-unit offset for ease of visualization. Figure made by script \texttt{Vuplicida\_IPMs.R}.
 
+\paragraph{Figure \ref{fig:lichen_extinction}}
+Extinction risk estimated from individual-based simulation of IPMs based on Gaussian and Johnson's S-U (JSU) growth distributions. Figure made by script \texttt{Vuplicida\_IPMs.R}.
 
+\paragraph{Figure \ref{fig:cactus_lambda}}
+Temporal (\textbf{A}) and spatial (\textbf{B}) heterogeneity in fitness for the tree cholla cactus (\textit{Cylindriopuntia imbricata}) predicted by IPMs using Gaussian or SHASH growth models. Figure made by script \texttt{cactus\_growth\_modeling\_qgam.R}.
 
-%TC:endignore
+\paragraph{Figure \ref{fig:orchid_ESS}}
+Orchid life history results from IPMs using Gaussian or skewed $t$ growth models. Lifetime reproductive success ($R_0$) is shown as a function of mean size of flowering. Dashed vertical line shows the observed mean flowering size.
+
+\newpage
+\begin{figure}
+	\centering
+	\includegraphics[width=0.9\textwidth]{figures/workflow.png}
+	\caption{Recommended steps in growth modeling (left) and guide to common non-Gaussian distributions of size $x$ for $x \in \mathbb{R}$ that can accommodate different combinations of skewness and kurtosis (right). 
+		All of these distributions (often including multiple versions or parameterizations of each) are available in the R package \textbf{gamlss.dist}, 
+		except for the skewed generalized $t$, which is available in the package \textbf{sgt} \citep{davis-2015}.}
+	%\textbf{actuar} \citep{dutang2008actuar}.
+	\label{fig:workflow}
+\end{figure} 
+
+\newpage
+\begin{figure}[tbp]
+	\includegraphics[width=\textwidth]{figures/NPmoments.pdf}
+	\caption{Histograms of skewness and kurtosis estimates using moment-based definitions (top two panels), compared with the nonparametric measures based on quantiles (bottom two panels). 
+		Note the very large differences in scale. Histograms are based on 5000 replicate draws 
+		of a sample of 200 independent values, from a $t$ distribution with 8 degrees of freedom. 
+		Dotted red vertical lines mark the minimum and maximum of sample estimates, and dashed blue lines show the 5th and 95th percentiles. 
+		The true value is indicated by a black dot on the $x$-axis.
+		Figure drawn by script \texttt{NPmoments.R}}
+	\label{fig:NPmoments}
+\end{figure} 
+
+\newpage
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=0.95\textwidth]{figures/combo_resid_diagnostics.pdf}
+	\caption{Best Gaussian models and diagnostics of standardized residuals for lichen (\emph{Vulpicida pinastri}) \textbf{A,B}, cactus \emph{Cylindriopuntia imbricata} \textbf{C,D}, and orchid \emph{Orchis purpurea} \textbf{E,F} case studies. \textbf{A,C}, fitted mean (red) and standard deviation (blue) of size at time $t+1$ conditional on initial size at time $t$. \textbf{E}, fitted means for plants that were vegetative (solid line) or flowering (dashed line) at the start of the census interval and standard deviation as a function of the fitted mean (inset). \textbf{B,D,F} Quantile regressions of scaled residuals (lines show 5\%, 10\%, 25\%, 50\%, 75\%, 90\%, and 95\% quantiles) and non-parametric measures of skewness (blue) and excess kurtosis (red) derived from them. In \textbf{B,D} scaled residuals are shown with respect to initial size and in \textbf{F} they are shown with respect to fitted values. Figure made by script \texttt{crossspp\_growth.R}.}
+	\label{fig:resid_diagnostics}
+\end{figure}
+
+\newpage
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=0.95\textwidth]{figures/cactus_k=6.pdf}
+	\caption{Diagnostic plot for trends in the mean (left column) or variance (right column) of scaled residuals from a pilot Gaussian model, for the lichen (\emph{Vulpicida pinastri}) \textbf{A,B}, cactus \emph{Cylindriopuntia imbricata} \textbf{C,D}, and orchid \emph{Orchis purpurea} \textbf{E,F} case studies. 
+		In \textbf{A,C,E} the standardized residuals are plotted, and in \textbf{B,D,F} the absolute values of
+		standardized residuals, as functions of fitted mean subsequent size values. The solid curves are cubic splines (R function \texttt{smooth.spline}) fitted by generalized cross-validation with a modest over-penalization of model degrees of freedom to prevent overfitting (\texttt{penalty}=1.4 as recommended by \citet{gu-2013}). The numbers appearing above each panel are the standard deviation of the values on the spline regression curve, evaluated at all of the 
+		fitted values. Figure made by script \texttt{crossspp\_diagnose\_pilot.R}.}
+	\label{fig:diagnose_pilot}
+\end{figure}
+
+\newpage
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=0.75\textwidth]{figures/lichen_JSU_fit}
+	\caption{Comparisons among real lichen data and data simulated from Gaussian and JSU growth models for NP mean, NP standard deviation, NP skewness, and NP excess kurtosis of future size conditional on current size. Colored lines show 100 simulated data sets from the fitted Gaussian (red) or JSU (blue) growth models. Thick black line shows the real data. Gaussian and JSU data are offset by one unit and the real data line is duplicated with a one-unit offset for ease of visualization. Figure made by script \texttt{Vuplicida\_IPMs.R}.}
+	\label{fig:lichen_fit}
+\end{figure} 
+
+\newpage
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=0.8\textwidth]{figures/lichen_extinction_risk}
+	\caption{Extinction risk estimated from individual-based simulation of IPMs based on Gaussian and Johnson's S-U (JSU) growth distributions. Figure made by script \texttt{Vuplicida\_IPMs.R}.}
+	\label{fig:lichen_extinction}
+\end{figure} 
+
+\newpage
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=1.0\textwidth]{figures/cactus_lambda_years_plots.pdf}
+	\caption{Temporal (\textbf{A}) and spatial (\textbf{B}) heterogeneity in fitness for the tree cholla cactus (\textit{Cylindriopuntia imbricata}) predicted by IPMs using Gaussian or SHASH growth models. Figure made by script \texttt{cactus\_growth\_modeling\_qgam.R}.}
+	\label{fig:cactus_lambda}
+\end{figure}
+
+\newpage
+\begin{figure}[tbp]
+	\centering
+	\includegraphics[width=0.5\textwidth]{figures/orchid_R0.pdf}
+	\caption{Orchid life history results from IPMs using Gaussian or skewed $t$ growth models. Lifetime reproductive success ($R_0$) is shown as a function of mean size of flowering. Dashed vertical line shows the observed mean flowering size.}
+	\label{fig:orchid_ESS}
+\end{figure} 
+
 
 \end{spacing}
 
