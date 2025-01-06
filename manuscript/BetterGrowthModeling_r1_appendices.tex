@@ -131,7 +131,7 @@
 	\label{eqn:JP2}
 	\ee
 	Parameters $\delta=1, \; \epsilon=0$ give the Normal(0,1) distribution. Skewness has the sign of $\epsilon$, and
-	$\delta > 0$ controls tail weight, with heavier than Gaussian tails for $\delta<1$ and lighter than Gaussian tails for $\delta > 1$. We show below that the nonparametric kurtosis (eqn. \eqref{eqn:NPkurt} in the main text) depends 
+	$\delta > 0$ controls tail weight, with heavier than Gaussian tails for $\delta<1$ and lighter than Gaussian tails for $\delta > 1$. We show below that the nonparametric kurtosis (eqn. 3 in the main text) depends 
 	only on $\delta$, not on any of the other three parameters. 
 	
 	The density function for $X_{\epsilon,\delta}$ is given by \citet[][eqn. 2]{jones-pewsey-2009}, 
@@ -467,13 +467,13 @@
 		\label{fig:coral_diagnostics}
 	\end{figure} 
 	
-	While there are no blatant signs of trouble in the pilot Gaussian model, quantile regressions on the scaled residuals, and the NP Skewness and Kurtosis metrics derived from them (Eq. \ref{eqn:NPskew} and \ref{eqn:NPkurt}), suggest deviations from normality (Fig. \ref{fig:coral_diagnostics}B).
+	While there are no blatant signs of trouble in the pilot Gaussian model, quantile regressions on the scaled residuals, and the NP Skewness and Kurtosis metrics derived from them (Eq. 1 and 3 of the main text), suggest deviations from normality (Fig. \ref{fig:coral_diagnostics}B).
 	Specifically, skewness switches from negative to positive across the size range, with smaller corals more prone to extreme shrinkage and larger corals more prone to extreme growth.  
 	Kurtosis also changes direction over the size distribution, with thinner tails than Gaussian at small sizes and fatter tails at large sizes. 
 	The fitted nonparametric moments suggest that the upper and lower tails of size transition probabilities may differ by up to 20\%, and the weight of the tails may be \>20\% greater or less than Gaussian, depending on initial size -- not overwhelming deficiencies, but not trivial either. 
 	Are these deviations from normality severe enough to warrant a second, non-Gaussian iteration of growth modeling? 
 	To answer that question, we simulated data from the fitted Gaussian model and examined whether key properties of the simulated data are consistent with those of the real data. 
-	If the simulated data are not consistent with the real data, it is time to choose a better distribution (Fig. \ref{fig:workflow}). 
+	If the simulated data are not consistent with the real data, it is time to choose a better distribution (Fig. 1). 
 	In this case, most of 100 Gaussian model simulations are out of line with the skew at smallest and largest sizes, and excess kurtosis observed at moderately large sizes (Fig. \ref{fig:coral_fit}~CD). For at least some parts of the size distribution, a non-Gaussian model would better capture size transitions. 
 	
 	\begin{figure}[tbp]
@@ -685,7 +685,7 @@
 	Parameter values for fertilization probability, fraction female (the IPM is female-dominant), and probability of survival from egg to 1-yo 
 	came from \cite{stubberud2019effects}, Table 2. 
 	
-	Predictions from the SHASH- and Gaussian-growth IPMs (Table \ref{tab:crossspp}) are uniformly remarkably similar. 
+	Predictions from the SHASH- and Gaussian-growth IPMs (Table 1) are uniformly remarkably similar. 
 	
 	\clearpage 
 	
@@ -728,12 +728,23 @@
 		Abramowitz, M. \& Stegun, I.A. (1970) {Handbook of Mathematical Functions. 9th printing.}
 		{D}over Publications, Inc., New York.
 		
+		\bibitem[{Adler \emph{et~al.}(2019)Adler, Kleinhesselink, Hooker, Taylor,
+			Teller \& Ellner}]{adler-weak-dryad}
+		Adler, P.B., Kleinhesselink, A., Hooker, G., Taylor, J.B., Teller, B. \&
+		Ellner, S.P. (2019) Data from: Weak interspecific interactions in a sagebrush
+		steppe? {C}onflicting evidence from observations and experiments. {D}ryad
+		{D}ata set. \url{https://doi.org/10.5061/dryad.96dn293}.
+		
 		\bibitem[{Bruno \emph{et~al.}(2011)Bruno, Ellner, Vu, Kim \&
 			Harvell}]{bruno-etal-2011}
 		Bruno, J.F., Ellner, S.P., Vu, I., Kim, K. \& Harvell, C.D. (2011) Impacts of
 		aspergillosis on sea fan coral demography: modeling a moving target.
 		\emph{Ecological Monographs} \textbf{81}, 123--139.
 		
+		\bibitem[{Cooch \& White(2020, accessed 5/17/2020)}]{cooch-white-2020}
+		Cooch, E.G. \& White, G.C. (2020, accessed 5/17/2020) \emph{Program MARK - a
+			'gentle introduction'}. phidot.org.
+			
 		\bibitem[{Drees \emph{et~al.}(2023)Drees, Ochocki, Collins \&
 			Miller}]{drees2023demography}
 		Drees, T., Ochocki, B.M., Collins, S.L. \& Miller, T.E. (2023) Demography and
@@ -743,6 +754,10 @@
 		\bibitem[{Gould \& Nichols(1998)}]{gould-nichols-1998}
 		Gould, W.R. \& Nichols, J.D. (1998) Estimation of temporal variability of
 		survival in animal populations. \emph{Ecology} \textbf{79}, 2531 -- 2538.
+		
+		\bibitem[{Gu(2013)}]{gu-2013}
+		Gu, C. (2013) \emph{Smoothing Spline ANOVA Models}. Springer Science+Business
+		Media, New York, 2 edn.
 		
 		\bibitem[{Jones \& Pewsey(2009)}]{jones-pewsey-2009}
 		Jones, M. \& Pewsey, A. (2009) Sinh-arcsinh distributions. \emph{Biometrika}
@@ -757,10 +772,31 @@
 		investigations of temporal variation in animal population size. \emph{Oikos}
 		\textbf{69}, 539 -- 544.
 		
+		\bibitem[{Metcalf \emph{et~al.}(2015)Metcalf, Ellner, Childs,
+			Salguero-G{\'o}mez, Merow, McMahon, Jongejans \& Rees}]{metcalf-etal-2015}
+		Metcalf, C.J.E., Ellner, S.P., Childs, D.Z., Salguero-G{\'o}mez, R., Merow, C.,
+		McMahon, S.M., Jongejans, E. \& Rees, M. (2015) {S}tatistical modelling of
+		annual variation for inference on stochastic population dynamics using
+		{I}ntegral {P}rojection {M}odels. \emph{Methods in Ecology and Evolution}
+		\textbf{6}, 1007--1017.
+		
 		\bibitem[{Ochocki \emph{et~al.}(2023)Ochocki, Drees \& Miller}]{shrubdata}
 		Ochocki, B.M., Drees, T. \& Miller, T.E. (2023) Density-dependent demography of
 		creosote bush (larrea tridentata) along grass-shrub ecotones.
 		\url{https://doi.org/10.6073/pasta/ca53c16f16dcf9fb11f3ee99ea5445ac}.
+		
+		\bibitem[{Rigby \emph{et~al.}(2019)Rigby, Stasinopoulos, Heller \&
+			De~Bastiani}]{rigby2019distributions}
+		Rigby, R.A., Stasinopoulos, M.D., Heller, G.Z. \& De~Bastiani, F. (2019)
+		\emph{Distributions for modeling location, scale, and shape: Using GAMLSS in
+			R}. CRC press.
+			
+		\bibitem[{Stubberud \emph{et~al.}(2019)Stubberud, Vindenes, V{\o}llestad,
+			Winfield, Stenseth \& Langangen}]{stubberud2019effects}
+		Stubberud, M.W., Vindenes, Y., V{\o}llestad, L.A., Winfield, I.J., Stenseth,
+		N.C. \& Langangen, {\O}. (2019) Effects of size-and sex-selective harvesting:
+		An integral projection model approach. \emph{Ecology and Evolution}
+		\textbf{9}, 12556--12570.
 		
 		\bibitem[{Vindenes \emph{et~al.}(2014)Vindenes, Edeline, Ohlberger, Langangen,
 			Winfield, Stenseth \& V{\o}llestad}]{vindenes2014effects}
@@ -768,6 +804,10 @@
 		Stenseth, N.C. \& V{\o}llestad, L.A. (2014) Effects of climate change on
 		trait-based dynamics of a top predator in freshwater ecosystems. \emph{The
 			American Naturalist} \textbf{183}, 243--256.
+		
+		\bibitem[{Wood(2017)}]{wood-2017}
+		Wood, S. (2017) \emph{Generalized Additive Models: An Introduction with R}.
+		Chapman and Hall/CRC, 2 edn.
 		
 		\bibitem[{Winfield \emph{et~al.}(2013{\natexlab{a}})Winfield, Fletcher \&
 			James}]{winfield2013pikefecundity}
